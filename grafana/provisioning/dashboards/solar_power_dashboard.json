@@ -370,7 +370,7 @@
       "type": "bargauge"
     }
   ],
-  "refresh": "5s",
+  "refresh": "1s",
   "schemaVersion": 39,
   "tags": [
     "featured-viz",
@@ -386,6 +386,7 @@
   },
   "timepicker": {
     "refresh_intervals": [
+      "1s",
       "2s",
       "5s",
       "10s",
