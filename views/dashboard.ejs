@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/dashboard.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+       
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="dashboard-enrgy">
+                    <h2>Energy Distribution</h2>
+                    <div id="energy-flow-diagram"></div>
+                </div>
+            </div>
+
+    
+        </div>
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/dashboard.js"></script>
+
+
+</body>
+</html>

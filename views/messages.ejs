@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/messages.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="content-card">
+                    <section>
+                        <main>
+                         
+                            <h3>Incoming Messages</h3>
+                            <div class="controls">
+                                <select id="categoryFilter">
+                                    <% categoryOptions.forEach(function(category) { %>
+                                        <option value="<%= category %>"><%= category.charAt(0).toUpperCase() + category.slice(1).replace(/(\d+)$/, ' $1') %></option>
+                                    <% }); %>
+                                </select>
+                                <button id="refreshButton">Refresh Messages</button>
+                            </div>
+                            <div id="messageList"></div>
+                        </main>
+                    </section>
+                </div>
+            </div>
+
+        </div>
+    </div>
+  
+
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/message.js"></script>
+</body>
+</html>

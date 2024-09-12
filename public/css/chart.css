@@ -1,0 +1,72 @@
+
+
+.filter-container {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .filter-container {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+
+        }
+
+        .filter-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .filter-container input,
+        .filter-container select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+         
+        }
+
+        .filter-container button {
+            margin: 20px;
+            background-color: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .filter-container button:hover {
+            background-color: #cca30f;;
+        }
+
+        .dashboard-container iframe {
+            width: 100%;
+            height: calc(100vh - 160px);
+            border: none;
+            display: block;
+        }
+
+
+.dark-mode .filter-container{
+    background-color: #2f3640;
+    color: #f5f6fa;
+}

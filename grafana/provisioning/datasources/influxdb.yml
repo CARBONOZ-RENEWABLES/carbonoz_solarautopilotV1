@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://${MQTT_HOST}:8086
+    database: ${DATABASE_NAME}
+    user: ${DATABASE_USERNAME}
+    secureJsonData:
+      password: ${DATABASE_PASSWORD}
+    jsonData:
+      httpMode: GET

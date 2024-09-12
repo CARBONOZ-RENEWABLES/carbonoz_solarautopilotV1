@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="content-card">
+                    <div class="timezone-container">
+                        <label for="timezone">Timezone:</label>
+                        <select id="timezone" class="timezone-select">
+                          <option value="Europe/Berlin">Germany (Berlin)</option>
+                          <option value="Europe/Rome">Italy (Rome)</option>
+                          <option value="America/Cayman">Cayman Islands</option>
+                          <option value="Indian/Mauritius">Mauritius</option>
+                          <option value="Asia/Shanghai">China (Shanghai)</option>
+                          <option value="Europe/London">United Kingdom (London)</option>
+                          <option value="America/New_York">USA (New York)</option>
+                          <option value="Pacific/Auckland">New Zealand (Auckland)</option>
+                        </select>
+                      </div>
+                    
+                
+                        <div id="system-state"></div>
+                
+                        <h2>Universal Settings</h2>
+                        <form id="universal-settings-form">
+                            <label for="maxBatteryDischargePower">Max Battery Discharge Power:</label>
+                            <input type="number" id="maxBatteryDischargePower" name="maxBatteryDischargePower" required>
+                            
+                            <label for="gridChargeOn">Grid Charge:</label>
+                            <input type="checkbox" id="gridChargeOn" name="gridChargeOn">
+                            
+                            <label for="generatorChargeOn">Generator Charge:</label>
+                            <input type="checkbox" id="generatorChargeOn" name="generatorChargeOn">
+                            
+                            <label for="dischargeVoltage">Discharge Voltage:</label>
+                            <input type="number" id="dischargeVoltage" name="dischargeVoltage" step="0.1" required>
+                            
+                            <button type="submit" id="update-inverter">Update Universal </button>
+                        </form>
+                
+                        <h2>Inverter Settings</h2>
+                        <button class="update" id="add-inverter-btn">Add New Inverter</button>
+                        <form id="inverter-settings-form">
+                            <label for="inverter-type">Inverter Type:</label>
+                            <select id="inverter-type" name="type"></select>
+                            
+                            <div id="inverter-specific-settings">
+                                <label for="workMode">Work Mode:</label>
+                                <select id="workMode" name="workMode"></select>
+                                
+                                <label for="solarExportWhenBatteryFull">Solar Export When Battery Full:</label>
+                                <input type="checkbox" id="solarExportWhenBatteryFull" name="solarExportWhenBatteryFull">
+                                
+                                <label for="energyPattern">Energy Pattern:</label>
+                                <select id="energyPattern" name="energyPattern"></select>
+                                
+                                <label for="maxSellPower">Max Sell Power:</label>
+                                <input type="number" id="maxSellPower" name="maxSellPower">
+                            </div>
+                            
+                            <button type="submit" class="update">Update Inverter </button>
+                            <button type="button" id="delete-inverter-btn">Delete Inverter </button>
+                        </form>
+                
+                        <h2>Automation Rules</h2>
+                        <button id="add-rule-btn">Add New Rule</button>
+                        <br>
+                        <br>
+                        <table id="automation-rules-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Conditions</th>
+                                    <th>Actions</th>
+                                    <th>Days</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                
+                        <h2>Scheduled Settings</h2>
+                        <button id="add-scheduled-setting-btn">Add New Scheduled</button>
+                        <br>
+                <br>
+                        <table id="scheduled-settings-table">
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Value</th>
+                                    <th>Day</th>
+                                    <th>Hour</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                
+                        <h2>Automation Log</h2>
+                        <div id="automation-log"></div>
+                
+                    <div id="rule-modal" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2>Edit Rule</h2>
+                            <form id="rule-form">
+                                <label for="rule-name">Name:</label>
+                                <input type="text" id="rule-name" required>
+                
+                                <label for="rule-conditions">Conditions (JSON):</label>
+                                <textarea id="rule-conditions" required></textarea>
+                
+                                <label for="rule-actions">Actions (JSON):</label>
+                                <textarea id="rule-actions" required></textarea>
+                
+                                <label for="rule-days">Days (comma-separated):</label>
+                                <input type="text" id="rule-days" required>
+                
+                                <button type="submit">Save Rule</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+     
+<script>
+    const ingressPath = '<%= ingress_path %>';
+  
+  // Fetch current timezone
+  fetch(`${ingressPath}/api/timezone`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('timezone').value = data.timezone;
+    });
+
+  // Update timezone when changed
+  document.getElementById('timezone').addEventListener('change', (event) => {
+    fetch(`${ingressPath}/api/timezone`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ timezone: event.target.value }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Timezone updated successfully');
+      } else {
+        alert('Failed to update timezone');
+      }
+    });
+  });
+ 
+</script>
+
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/settings"></script>
+
+</body>
+</html>

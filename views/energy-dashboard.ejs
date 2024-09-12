@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="content-card">
+                    <div class="dashboard-column">
+                        <div class="card">
+                            <iframe src="http://<%= mqtt_host %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1m&theme=light" class="iframe-moving" scrolling="no"
+                                    frameborder="0">
+                            </iframe>
+                        </div>
+                    </div>
+                
+                    <div class="dashboard-column">
+                        <div class="card">
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=2&theme=light" class="iframe-overview" scrolling="no"
+                                    frameborder="0">
+                            </iframe>
+                        </div>
+                    </div>
+                
+                    <div class="dashboard-column">
+                        <div class="card column-4">
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=139&theme=light" class="iframe-battery-soc"
+                                    scrolling="no" frameborder="0">
+                            </iframe>
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=231&theme=light" class="iframe-battery-soc"
+                              scrolling="no" frameborder="0">
+                      </iframe>
+                        </div>
+                    </div>
+
+
+                      </section>
+                      
+
+                
+                </div>
+            </div>
+
+        
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+ 
+  <script src="<%= ingress_path %>/js/loading.js"></script>
+  <script src="<%= ingress_path %>/js/sidebar.js"></script>
+  <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    
+       
+      
+
+
+
+</body>
+</html>

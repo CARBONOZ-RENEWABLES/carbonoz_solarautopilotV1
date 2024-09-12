@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/analytics.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+
+        <div class="main-container">
+           
+
+            <div class="main-content">
+                <div class="content-card">
+                    <div class="row">
+                        <div class="col">
+                            <div class="card">
+                                <h4>Today</h4>
+                                <p>
+                                    <img src="https://eridirect.com/wp-content/uploads/2021/02/bigstock-Solar-panel-against-blue-sky-16564781.jpg" alt="Solar Panel" width="50" style="border-radius: 50%; height: 50px;"/>
+                                    <span>Solar PV: </span>
+                                    <span id="daily-solar-pv-total">Calculating...</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <h4>Last 7 days</h4>
+                                <p>
+                                    <img src="https://eridirect.com/wp-content/uploads/2021/02/bigstock-Solar-panel-against-blue-sky-16564781.jpg" alt="Solar Panel" width="50" style="border-radius: 50%; height: 50px;"/>
+                                    <span>Solar PV: </span>
+                                    <span id="weekly-solar-pv-total">Calculating...</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <h4>Last 30 days</h4>
+                                <p>
+                                    <img src="https://eridirect.com/wp-content/uploads/2021/02/bigstock-Solar-panel-against-blue-sky-16564781.jpg" alt="Solar Panel" width="50" style="border-radius: 50%; height: 50px;"/>
+                                    <span>Solar PV: </span>
+                                    <span id="monthly-solar-pv-total">Calculating...</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="chart-container">
+                        <h3>Last 30 Days</h3>
+                        <canvas id="last-30-days-chart"></canvas>
+                    </div>
+<br>
+                    <div class="chart-container">
+                        <h3>Battery Charge/Discharge - Last 30 Days</h3>
+                        <canvas id="battery-chart"></canvas>
+                    </div>
+    
+                    <div class="card">
+                        <h3>Last 30 Days Data</h3>
+                        <div class="table-container">
+                            <table id="last30days-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Solar PV</th>
+                                        <th>Load</th>
+                                        <th>Battery Charged</th>
+                                        <th>Battery Discharged</th>
+                                        <th>Grid Used</th>
+                                        <th>Grid Exported</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
+                                        <tr>
+                                            <!-- Display formatted date -->
+                                            <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
+                                            
+                                            <% 
+                                                let loadPowerDiff = 0, pvPowerDiff = 0, batteryStateOfChargeDiff = 0, batteryPowerDiff = 0, gridPowerDiff = 0, netPVPowerDiff = 0;
+                                                
+                                                // Ensure data exists and is valid before calculating differences
+                                                if (data.loadPowerData[i-1] && data.loadPowerData[i] && data.loadPowerData[i-1].value !== null && data.loadPowerData[i].value !== null) {
+                                                    loadPowerDiff = data.loadPowerData[i].value >= data.loadPowerData[i-1].value ? (data.loadPowerData[i].value - data.loadPowerData[i-1].value).toFixed(1) : data.loadPowerData[i].value.toFixed(1);
+                                                }
+                                                if (data.pvPowerData[i-1] && data.pvPowerData[i] && data.pvPowerData[i-1].value !== null && data.pvPowerData[i].value !== null) {
+                                                    pvPowerDiff = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? (data.pvPowerData[i].value - data.pvPowerData[i-1].value).toFixed(1) : data.pvPowerData[i].value.toFixed(1);
+                                                }
+                                                if (data.batteryStateOfChargeData[i-1] && data.batteryStateOfChargeData[i] && data.batteryStateOfChargeData[i-1].value !== null && data.batteryStateOfChargeData[i].value !== null) {
+                                                    batteryStateOfChargeDiff = data.batteryStateOfChargeData[i].value >= data.batteryStateOfChargeData[i-1].value ? (data.batteryStateOfChargeData[i].value - data.batteryStateOfChargeData[i-1].value).toFixed(1) : data.batteryStateOfChargeData[i].value.toFixed(1);
+                                                }
+                                                if (data.batteryPowerData[i-1] && data.batteryPowerData[i] && data.batteryPowerData[i-1].value !== null && data.batteryPowerData[i].value !== null) {
+                                                    batteryPowerDiff = data.batteryPowerData[i].value >= data.batteryPowerData[i-1].value ? (data.batteryPowerData[i].value - data.batteryPowerData[i-1].value).toFixed(1) : data.batteryPowerData[i].value.toFixed(1);
+                                                }
+                                                if (data.gridPowerData[i-1] && data.gridPowerData[i] && data.gridPowerData[i-1].value !== null && data.gridPowerData[i].value !== null) {
+                                                    gridPowerDiff = data.gridPowerData[i].value >= data.gridPowerData[i-1].value ? (data.gridPowerData[i].value - data.gridPowerData[i-1].value).toFixed(1) : data.gridPowerData[i].value.toFixed(1);
+                                                }
+                                                if (data.gridVoltageData[i-1] && data.gridVoltageData[i] && data.gridVoltageData[i-1].value !== null && data.gridVoltageData[i].value !== null) {
+                                                    netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value).toFixed(1) : data.gridVoltageData[i].value.toFixed(1);
+                                                }
+                                            %> 
+                                            <td><%= pvPowerDiff %> kWh</td>
+                                            <td><%= loadPowerDiff %> kWh</td>
+                                            <td><%= batteryStateOfChargeDiff %> kWh</td>
+                                            <td><%= batteryPowerDiff %> kWh</td>
+                                            <td><%= gridPowerDiff %> kWh</td>
+                                            <td><%= netPVPowerDiff %> kWh</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
+                    </div>
+    
+                    <div class="chart-container">
+                        <h3>Last 12 Months</h3>
+                        <canvas id="last-12-months-chart"></canvas>
+                    </div>
+    
+                    <div class="card">
+                        <h3>Last 12 Months Data</h3>
+                        <div class="table-container">
+                            <table id="last12months-table">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>Solar PV</th>
+                                        <th>Load</th>
+                                        <th>Battery Charged</th>
+                                        <th>Battery Discharged</th>
+                                        <th>Grid Used</th>
+                                        <th>Grid Exported</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% 
+                                    let monthlyData = {};
+                                    let today = new Date();
+                                    
+                                    // Initialize the last 12 months
+                                    for (let i = 0; i < 12; i++) {
+                                        let date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                                        let monthKey = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                        monthlyData[monthKey] = {
+                                            load: 0, solar: 0, batteryCharged: 0, 
+                                            batteryDischarged: 0, gridUsed: 0, gridExported: 0
+                                        };
+                                    }
+                        
+                                    // Sum up the data for each month using the same formula as in the 30-day table
+                                    for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) {
+                                        let date = new Date(data.loadPowerData[i].time);
+                                        let monthKey = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                        
+                                        if (monthlyData[monthKey]) {
+                                            let loadPowerDiff, pvPowerDiff, batteryStateOfChargeDiff, batteryPowerDiff, gridPowerDiff, netPVPowerDiff;
+                                            
+                                            if (data.loadPowerData[i-1].value === null || data.loadPowerData[i-1].value === 0) {
+                                                loadPowerDiff = 0;
+                                                pvPowerDiff = 0;
+                                                batteryStateOfChargeDiff = 0;
+                                                batteryPowerDiff = 0;
+                                                gridPowerDiff = 0;
+                                                netPVPowerDiff = 0;
+                                            } else {
+                                                loadPowerDiff = data.loadPowerData[i].value >= data.loadPowerData[i-1].value ? 
+                                                    (data.loadPowerData[i].value - data.loadPowerData[i-1].value) : data.loadPowerData[i].value;
+                                                pvPowerDiff = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
+                                                    (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : data.pvPowerData[i].value;
+                                                batteryStateOfChargeDiff = data.batteryStateOfChargeData[i].value >= data.batteryStateOfChargeData[i-1].value ? 
+                                                    (data.batteryStateOfChargeData[i].value - data.batteryStateOfChargeData[i-1].value) : data.batteryStateOfChargeData[i].value;
+                                                batteryPowerDiff = data.batteryPowerData[i].value >= data.batteryPowerData[i-1].value ? 
+                                                    (data.batteryPowerData[i].value - data.batteryPowerData[i-1].value) : data.batteryPowerData[i].value;
+                                                gridPowerDiff = data.gridPowerData[i].value >= data.gridPowerData[i-1].value ? 
+                                                    (data.gridPowerData[i].value - data.gridPowerData[i-1].value) : data.gridPowerData[i].value;
+                                                netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? 
+                                                    (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value) : data.gridVoltageData[i].value;
+                                            }
+                        
+                                            monthlyData[monthKey].load += loadPowerDiff;
+                                            monthlyData[monthKey].solar += pvPowerDiff;
+                                            monthlyData[monthKey].batteryCharged += batteryStateOfChargeDiff;
+                                            monthlyData[monthKey].batteryDischarged += batteryPowerDiff;
+                                            monthlyData[monthKey].gridUsed += gridPowerDiff;
+                                            monthlyData[monthKey].gridExported += netPVPowerDiff;
+                                        }
+                                    }
+                        
+                                    // Display the data for each month
+                                    Object.keys(monthlyData).forEach(month => {
+                                        let data = monthlyData[month];
+                                    %>
+                                        <tr>
+                                            <td><%= month %></td>
+                                             <td><%= data.solar.toFixed(1) %> kWh</td>
+                                             <td><%= data.load.toFixed(1) %> kWh</td>
+                                            <td><%= data.batteryCharged.toFixed(1) %> kWh</td>
+                                            <td><%= data.batteryDischarged.toFixed(1) %> kWh</td>
+                                            <td><%= data.gridUsed.toFixed(1) %> kWh</td>
+                                            <td><%= data.gridExported.toFixed(1) %> kWh</td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
+                    </div>
+
+                    <!-- New section for yearly data -->
+                    <div class="chart-container">
+                        <h3>Yearly Data</h3>
+                        <canvas id="yearly-chart"></canvas>
+                    </div>
+
+                    <div class="card">
+                        <h3>Last 10 Years Data</h3>
+                        <div class="table-container">
+                            <table id="yearly-table">
+                                <thead>
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Solar PV</th>
+                                        <th>Load</th>
+                                        <th>Battery Charged</th>
+                                        <th>Battery Discharged</th>
+                                        <th>Grid Used</th>
+                                        <th>Grid Exported</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% 
+                                    let yearlyData = {};
+                                    let currentYear = new Date().getFullYear();
+                                    let startYear = Math.max(currentYear - 9, 2024); // Start from 2024 or 10 years ago, whichever is later
+
+                                    // Initialize the years
+                                    for (let year = startYear; year <= currentYear; year++) {
+                                        yearlyData[year] = {
+                                            load: 0, solar: 0, batteryCharged: 0, 
+                                            batteryDischarged: 0, gridUsed: 0, gridExported: 0
+                                        };
+                                    }
+
+                                    // Sum up the data for each year
+                                    for (let i = data.loadPowerData.length - 1; i >= 1; i--) {
+                                        let date = new Date(data.loadPowerData[i].time);
+                                        let year = date.getFullYear();
+                                        
+                                        if (yearlyData[year]) {
+                                            let loadPowerDiff, pvPowerDiff, batteryStateOfChargeDiff, batteryPowerDiff, gridPowerDiff, netPVPowerDiff;
+                                            
+                                            if (data.loadPowerData[i-1].value === null || data.loadPowerData[i-1].value === 0) {
+                                                loadPowerDiff = 0;
+                                                pvPowerDiff = 0;
+                                                batteryStateOfChargeDiff = 0;
+                                                batteryPowerDiff = 0;
+                                                gridPowerDiff = 0;
+                                                netPVPowerDiff = 0;
+                                            } else {
+                                                loadPowerDiff = data.loadPowerData[i].value >= data.loadPowerData[i-1].value ? 
+                                                    (data.loadPowerData[i].value - data.loadPowerData[i-1].value) : data.loadPowerData[i].value;
+                                                pvPowerDiff = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
+                                                    (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : data.pvPowerData[i].value;
+                                                batteryStateOfChargeDiff = data.batteryStateOfChargeData[i].value >= data.batteryStateOfChargeData[i-1].value ? 
+                                                    (data.batteryStateOfChargeData[i].value - data.batteryStateOfChargeData[i-1].value) : data.batteryStateOfChargeData[i].value;
+                                                batteryPowerDiff = data.batteryPowerData[i].value >= data.batteryPowerData[i-1].value ? 
+                                                    (data.batteryPowerData[i].value - data.batteryPowerData[i-1].value) : data.batteryPowerData[i].value;
+                                                gridPowerDiff = data.gridPowerData[i].value >= data.gridPowerData[i-1].value ? 
+                                                    (data.gridPowerData[i].value - data.gridPowerData[i-1].value) : data.gridPowerData[i].value;
+                                                netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? 
+                                                    (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value) : data.gridVoltageData[i].value;
+                                            }
+
+                                            yearlyData[year].load += loadPowerDiff;
+                                            yearlyData[year].solar += pvPowerDiff;
+                                            yearlyData[year].batteryCharged += batteryStateOfChargeDiff;
+                                            yearlyData[year].batteryDischarged += batteryPowerDiff;
+                                            yearlyData[year].gridUsed += gridPowerDiff;
+                                            yearlyData[year].gridExported += netPVPowerDiff;
+                                        }
+                                    }
+
+                                    // Display the data for each year
+                                    Object.keys(yearlyData).sort((a, b) => b - a).forEach(year => {
+                                        let data = yearlyData[year];
+                                    %>
+                                        <tr>
+                                            <td><%= year %></td>
+                                            <td><%= data.solar.toFixed(1) %> kWh</td>
+                                            <td><%= data.load.toFixed(1) %> kWh</td>
+                                            <td><%= data.batteryCharged.toFixed(1) %> kWh</td>
+                                            <td><%= data.batteryDischarged.toFixed(1) %> kWh</td>
+                                            <td><%= data.gridUsed.toFixed(1) %> kWh</td>
+                                            <td><%= data.gridExported.toFixed(1) %> kWh</td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="#" id="yearly-table-download" class="btn">Download CSV</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   
+
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/analytics.js"></script>
+ 
+
+</body>
+</html>
+ 

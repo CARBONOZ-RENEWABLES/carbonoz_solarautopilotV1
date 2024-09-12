@@ -1,0 +1,50 @@
+name: "Carbonoz SolarAutopilot"
+version: "1.0.0"
+slug: "carbonoz_solarautopilot"
+description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
+url: "https://github.com/eelitedesire/carbonoz_solarautopilot"
+ingress: true
+ingress_port: 6789
+ingress_stream: true
+panel_icon: mdi:solar-power
+panel_title: Carbonoz SolarAutopilot
+startup: application
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+map:
+  - share:rw
+  - ssl
+ports:
+  3001/tcp: 3001
+  6789/tcp: 6789
+  7100/tcp: 7100
+ports_description:
+  3001/tcp: Web interface (optional)
+  6789/tcp: Main application
+  7100/tcp: WebSocket
+options:
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  battery_number: 1
+  inverter_number: 1
+  database_name: ""
+  database_username: ""
+  database_password: ""
+schema:
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_username: str?
+  mqtt_password: password?
+  battery_number: int(1,)
+  inverter_number: int(1,)
+  database_name: str?
+  database_username: str?
+  database_password: password?
+panel: true # This ensures the sidebar panel is shown automatically

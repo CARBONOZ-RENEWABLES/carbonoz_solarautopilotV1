@@ -1,0 +1,78 @@
+ 
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  select {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+  }
+  button {
+    font-size: 16px;
+    background-color: #DEAF0B;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    color: #000;
+  }
+  
+  #messageList {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  .message {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.3s;
+  }
+  .message:last-child {
+    border-bottom: none;
+  }
+  .message:hover {
+    background-color: #f9f9f9;
+  }
+  .topic {
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 5px;
+  }
+  .value {
+    color: #7f8c8d;
+  }
+  @media (max-width: 600px) {
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    select, button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+  }
+  
+  
+
+.dark-mode #messageList{
+    background-color: #353b48;
+}
+.dark-mode .message {
+    color: #fff;
+}
+
+.dark-mode .message:hover {
+    background-color: #231e1e;
+  }
+  .dark-mode  .topic {
+    font-weight: 500;
+    color: #f8f8f8;
+    margin-bottom: 5px;
+  }
