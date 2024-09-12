@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -90,7 +90,7 @@
         {
           "alias": "Load Power",
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/load_power/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/load_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -99,7 +99,7 @@
           "alias": "PV Power",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/pv_power/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/pv_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -173,7 +173,7 @@
         {
           "alias": "Battery Voltage",
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/voltage/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -182,7 +182,7 @@
           "alias": "Grid Voltage",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_voltage/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -267,7 +267,7 @@
         {
           "alias": "Grid Power",
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_power/state'",
+          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -276,7 +276,7 @@
           "alias": "Battery Power",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -285,7 +285,7 @@
       "type": "gauge"
     },
     {
-      "datasource": "InfluxDB",
+      "datasource": {},
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -332,7 +332,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 8,
         "w": 12,
         "x": 12,
         "y": 8
@@ -360,86 +360,13 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"value\" FROM \"state\" WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'",
+          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
       "title": "Battery Power",
-      "type": "bargauge"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 50,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 30
-              },
-              {
-                "color": "orange",
-                "value": 35
-              },
-              {
-                "color": "red",
-                "value": 40
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 12
-      },
-      "id": 11,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"Battery Temperature\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature\\/state/",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Battery Temperature",
       "type": "bargauge"
     }
   ],
@@ -475,6 +402,6 @@
   "timezone": "Indian/Mauritius",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 2,
+  "version": 7,
   "weekStart": ""
 }

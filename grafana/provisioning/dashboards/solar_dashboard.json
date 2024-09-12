@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1025,41 +1025,43 @@
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "drawStyle": "bars",
-            "lineInterpolation": "linear",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
             "barAlignment": 0,
-            "lineWidth": 1,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
             "fillOpacity": 100,
             "gradientMode": "opacity",
-            "spanNulls": true,
-            "insertNulls": false,
-            "showPoints": "never",
-            "pointSize": 5,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "axisCenteredZero": false,
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
-          "color": {
-            "mode": "palette-classic"
-          },
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1074,7 +1076,6 @@
               }
             ]
           },
-          "links": [],
           "unit": "watt"
         },
         "overrides": []
@@ -1087,16 +1088,16 @@
       },
       "id": 189,
       "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none",
-          "maxHeight": 600
-        },
         "legend": {
-          "showLegend": true,
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "calcs": []
+          "showLegend": true
+        },
+        "tooltip": {
+          "maxHeight": 600,
+          "mode": "multi",
+          "sort": "none"
         }
       },
       "pluginVersion": "10.4.0",
@@ -1127,6 +1128,7 @@
           "tags": []
         }
       ],
+      "title": "PV power",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -1136,12 +1138,8 @@
           }
         }
       ],
-      "title": "PV power",
       "type": "timeseries"
-    }
-    
-    
-    ,
+    },
     {
       "datasource": "InfluxDB",
       "fieldConfig": {
@@ -4657,42 +4655,43 @@
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepBefore",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
-            "lineWidth": 1,
+            "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
-            "spanNulls": true,
-            "insertNulls": false,
-            "showPoints": "never",
-            "pointSize": 5,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
+            "insertNulls": false,
+            "lineInterpolation": "stepBefore",
+            "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "axisCenteredZero": false,
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
-          "color": {
-            "mode": "palette-classic"
-          },
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -4707,7 +4706,6 @@
               }
             ]
           },
-          "links": [],
           "unit": "%"
         },
         "overrides": []
@@ -4720,17 +4718,17 @@
       },
       "id": 139,
       "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "tooltip": {
           "mode": "multi",
           "sort": "none"
-        },
-        "legend": {
-          "showLegend": true,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": [
-            "mean"
-          ]
         }
       },
       "pluginVersion": "8.4.3",
@@ -4745,6 +4743,7 @@
           "resultFormat": "time_series"
         }
       ],
+      "title": "Battery state of charge",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -4764,7 +4763,6 @@
       ],
       "type": "timeseries"
     }
-    
   ],
   "refresh": "5s",
   "schemaVersion": 39,
