@@ -4,19 +4,13 @@
       {
         "builtIn": 1,
         "datasource": {
-          "type": "datasource",
-          "uid": "grafana"
+          "type": "grafana",
+          "uid": "-- Grafana --"
         },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
-          "type": "dashboard"
-        },
         "type": "dashboard"
       }
     ]
@@ -24,9 +18,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 4,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": "InfluxDB",
@@ -36,26 +29,26 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "max": 500000,
+          "max": 20000,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-red",
                 "value": null
               },
               {
+                "color": "semi-dark-blue",
+                "value": 5000
+              },
+              {
                 "color": "yellow",
-                "value": 2500
+                "value": 10000
               },
               {
-                "color": "orange",
-                "value": 3750
-              },
-              {
-                "color": "red",
-                "value": 4500
+                "color": "dark-green",
+                "value": 14000
               }
             ]
           },
@@ -64,9 +57,152 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 6,
+        "w": 8,
         "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "  SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/load_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "title": "Load Power",
+      "type": "gauge"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 16000,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-red",
+                "value": null
+              },
+              {
+                "color": "semi-dark-blue",
+                "value": 4000
+              },
+              {
+                "color": "yellow",
+                "value": 8000
+              },
+              {
+                "color": "dark-green",
+                "value": 12000
+              }
+            ]
+          },
+          "unit": "W"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "  SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/pv_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "title": "Solar PV Power",
+      "type": "gauge"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "neutral": 0
+          },
+          "mappings": [],
+          "max": 6000,
+          "min": -6000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": -3000
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              },
+              {
+                "color": "dark-green",
+                "value": 3000
+              }
+            ]
+          },
+          "unit": "W"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
         "y": 0
       },
       "id": 4,
@@ -88,23 +224,14 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Load Power",
           "datasource": "InfluxDB",
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/load_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
-        },
-        {
-          "alias": "PV Power",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/pv_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
         }
       ],
+      "title": "Battery Power",
       "type": "gauge"
     },
     {
@@ -114,43 +241,42 @@
           "color": {
             "mode": "thresholds"
           },
+          "custom": {
+            "neutral": 0
+          },
           "mappings": [],
-          "max": 60,
-          "min": 40,
+          "max": 12000,
+          "min": -12000,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "dark-red",
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 45
+                "color": "semi-dark-orange",
+                "value": -6000
               },
               {
-                "color": "green",
-                "value": 48
+                "color": "yellow",
+                "value": 0
               },
               {
-                "color": "orange",
-                "value": 55
-              },
-              {
-                "color": "red",
-                "value": 58
+                "color": "dark-green",
+                "value": 6000
               }
             ]
           },
-          "unit": "volt"
+          "unit": "W"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 6
       },
       "id": 7,
       "options": {
@@ -171,23 +297,14 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Battery Voltage",
           "datasource": "InfluxDB",
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": " SELECT last(\"value\") AS \"value\"\n FROM \"state\"\n WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_power/state'\n ORDER BY time DESC\n LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
-        },
-        {
-          "alias": "Grid Voltage",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
         }
       ],
+      "title": "Grid Power",
       "type": "gauge"
     },
     {
@@ -201,8 +318,77 @@
             "neutral": 0
           },
           "mappings": [],
-          "max": 5000,
-          "min": -5000,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red"
+              },
+              {
+                "color": "semi-dark-orange",
+                "value": 25
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "dark-green",
+                "value": 70
+              }
+            ]
+          },
+          "unit": "%"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 6
+      },
+      "id": 9,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": " SELECT last(\"value\") AS \"value\"\n FROM \"state\"\n WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/state_of_charge/state'\n ORDER BY time DESC\n LIMIT 1",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "title": "Battery SOC",
+      "type": "gauge"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -211,40 +397,99 @@
                 "value": null
               },
               {
-                "color": "red",
-                "value": -4000
+                "color": "semi-dark-orange",
+                "value": 25
               },
               {
-                "color": "dark-red",
-                "value": -2500
-              },
-              {
-                "color": "yellow",
-                "value": -1000
-              },
-              {
-                "color": "light-green",
-                "value": 0
-              },
-              {
-                "color": "green",
-                "value": 1000
+                "color": "#EAB839",
+                "value": 50
               },
               {
                 "color": "dark-green",
-                "value": 2500
+                "value": 70
               }
             ]
           },
-          "unit": "W"
+          "unit": "volt"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 6
+      },
+      "id": 10,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "hide": false,
+          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "title": "Battery Voltage",
+      "type": "gauge"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 240,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "semi-dark-orange",
+                "value": 60
+              },
+              {
+                "color": "#EAB839",
+                "value": 120
+              },
+              {
+                "color": "dark-green",
+                "value": 180
+              }
+            ]
+          },
+          "unit": "volt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 6
       },
       "id": 2,
       "options": {
@@ -265,118 +510,21 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Grid Power",
-          "datasource": "InfluxDB",
-          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "Battery Power",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
-        }
-      ],
-      "type": "gauge"
-    },
-    {
-      "datasource": {},
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 6000,
-          "min": -6000,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": -4500
-              },
-              {
-                "color": "blue",
-                "value": -2500
-              },
-              {
-                "color": "dark-blue",
-                "value": 0
-              },
-              {
-                "color": "blue",
-                "value": 2500
-              },
-              {
-                "color": "orange",
-                "value": 4500
-              },
-              {
-                "color": "red",
-                "value": 5500
-              }
-            ]
-          },
-          "unit": "W"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "id": 9,
-      "options": {
-        "displayMode": "basic",
-        "maxVizHeight": 300,
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": "InfluxDB",
-          "query": "\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Battery Power",
-      "type": "bargauge"
+      "title": "Grid Voltage",
+      "type": "gauge"
     }
   ],
-  "refresh": "1s",
+  "refresh": "5s",
   "schemaVersion": 39,
-  "tags": [
-    "featured-viz",
-    "viz",
-    "demo"
-  ],
+  "tags": [],
   "templating": {
     "list": []
   },
@@ -386,8 +534,6 @@
   },
   "timepicker": {
     "refresh_intervals": [
-      "1s",
-      "2s",
       "5s",
       "10s",
       "30s",
@@ -398,11 +544,22 @@
       "1h",
       "2h",
       "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
     ]
   },
-  "timezone": "Indian/Mauritius",
+  "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 7,
+  "version": 31,
   "weekStart": ""
 }

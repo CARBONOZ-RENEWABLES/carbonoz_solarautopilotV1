@@ -62,7 +62,7 @@
   
 
 .dark-mode #messageList{
-    background-color: #353b48;
+  background-color: rgba(24, 27, 31, 1);
 }
 .dark-mode .message {
     color: #fff;
@@ -73,6 +73,6 @@
   }
   .dark-mode  .topic {
     font-weight: 500;
-    color: #f8f8f8;
+    color: #fff;
     margin-bottom: 5px;
   }

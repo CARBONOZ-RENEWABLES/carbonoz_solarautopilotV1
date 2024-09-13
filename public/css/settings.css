@@ -116,12 +116,12 @@
 
 
 .dark-mode .timezone-container{
-    background-color: #353b48;
+    background-color: rgba(24, 27, 31, 1);
 
     
 }
 .dark-mode #automation-rules-table{
-    background-color: #353b48;
+    background-color: rgba(24, 27, 31, 1);
 }
 
 

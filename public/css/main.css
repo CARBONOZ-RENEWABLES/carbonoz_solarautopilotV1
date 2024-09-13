@@ -289,7 +289,8 @@ border: 0;
 .dashboard-column .card .iframe-moving {
 display: block;
 height: 100%;
-min-height: 39em;
+min-height: 29em;
+position: relative;
 width: 100%;
 }
 
@@ -334,12 +335,12 @@ width: 100%;
 
 /* Dark mode styles */
 body.dark-mode {
- background-color: #2f3640;
+    background-color: rgba(24, 27, 31, 1);
  color: #f5f6fa;
 }
 
 .dark-mode .sidebar {
- background-color: #2f3640;
+    background-color: rgba(24, 27, 31, 1);
 }
 
 .dark-mode .sidebar .logo-icon {
@@ -356,7 +357,7 @@ body.dark-mode {
 }
 
 .dark-mode .sidebar nav li:hover {
- background-color: #353b48;
+ background-color: #000;
 }
 
 .dark-mode .sidebar nav li a {
@@ -373,7 +374,7 @@ body.dark-mode {
 }
 
 .dark-mode .toggle-switch {
- background-color: #353b48;
+    background-color: rgba(24, 27, 31, 1);
 }
 
 .dark-mode .toggle-switch.active {
@@ -381,20 +382,16 @@ body.dark-mode {
 }
 
 .dark-mode header {
- background-color: #353b48;
+    background-color: rgb(17, 18, 23);;
 }
 
 .dark-mode .content-card {
- background-color: #353b48;
- color: #f5f6fa;
+    background-color: rgba(24, 27, 31, 1);
+ color: #fff;
 }
 
-.dark-mode footer {
- background-color: #2f3640;
- color: #f5f6fa;
-}
 
 .dark-mode .loading-overlay{
- background-color: #353b48;
+    background-color: rgba(24, 27, 31, 1);
 }
 

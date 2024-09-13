@@ -67,6 +67,6 @@
 
 
 .dark-mode .filter-container{
-    background-color: #2f3640;
-    color: #f5f6fa;
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
 }
