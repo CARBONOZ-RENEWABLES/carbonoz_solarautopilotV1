@@ -159,46 +159,47 @@ return { labels: labels.reverse(), batteryChargedData: batteryChargedData.revers
 
 // Function to create battery chart
 function createBatteryChart(chartElementId, data) {
-const ctx = document.getElementById(chartElementId).getContext('2d');
-new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: data.labels,
-        datasets: [
-            {
-                label: 'Battery Charged',
-                data: data.batteryChargedData,
-                backgroundColor: '#FF8DA1',
-                stack: 'battery'
-            },
-            {
-                label: 'Battery Discharged',
-                data: data.batteryDischargedData.map(value => -value),
-                backgroundColor: '#0C7085',
-                stack: 'battery'
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            x: { stacked: true },
-            y: {
-                stacked: true,
-                title: { display: true, text: 'kWh' }
-            }
+    const ctx = document.getElementById(chartElementId).getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Battery Charged',
+                    data: data.batteryChargedData.map(value => -value),
+                    backgroundColor: '#FF8DA1',
+                    stack: 'battery'
+                },
+                {
+                    label: 'Battery Discharged',
+                    data: data.batteryDischargedData,
+                    backgroundColor: '#0C7085',
+                    stack: 'battery'
+                }
+            ]
         },
-        plugins: {
-            legend: { position: 'top' },
-            title: { 
-                display: true, 
-                text: 'Battery Charge/Discharge - Last 30 Days',
-                font: { size: 16 }
+        options: {
+            responsive: true,
+            scales: {
+                x: { stacked: true },
+                y: {
+                    stacked: true,
+                    title: { display: true, text: 'kWh' }
+                }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                title: { 
+                    display: true, 
+                    text: 'Battery Charge/Discharge - Last 30 Days',
+                    font: { size: 16 }
+                }
             }
         }
+    });
     }
-});
-}
+
 
 // Add this to your existing DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', () => {
