@@ -66,103 +66,30 @@
         </div>
     </div>
      
-    <script>
-        // toggle sidebar
-    
-    const sidebar = document.getElementById('sidebar');
-    const toggleSidebar = document.getElementById('toggleSidebar');
-    const toggleSwitch = document.getElementById('toggleSwitch');
-    
-    toggleSidebar.addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
-        toggleSwitch.classList.toggle('active');
-    });
-    
-    
-    // loading js
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const pageContent = document.getElementById('pageContent');
-      
-        // Simulate loading time (you can adjust this as needed)
-        setTimeout(() => {
-          loadingOverlay.style.display = 'none';
-          pageContent.style.display = 'block';
-          // Trigger a custom event to signal that the page is ready
-          document.dispatchEvent(new Event('pageReady'));
-        }, 1500); // 1.5 seconds loading time
-      });
-       </script>
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 
 <script>
-    function updateIframe() {
-        const from = document.getElementById('from').value;
-        const to = document.getElementById('to').value;
-        const timezone = document.getElementById('timezone').value;
-        const iframe = document.getElementById('grafanaDashboard');
+function updateIframe() {
+    const from = document.getElementById('from').value;
+    const to = document.getElementById('to').value;
+    const timezone = document.getElementById('timezone').value;
+    const iframe = document.getElementById('grafanaDashboard');
+    const isDarkMode = document.body.classList.contains('dark-mode'); // Check if dark mode is active
 
-        if (from && to) {
-            const fromUnix = new Date(from).getTime();
-            const toUnix = new Date(to).getTime();
-            iframe.src = `http://<%= mqtt_host %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=light&from=${fromUnix}&to=${toUnix}&tz=${timezone}`;
-        } else {
-            alert("Please select both a start and end time.");
-        }
+    if (from && to) {
+        const fromUnix = new Date(from).getTime();
+        const toUnix = new Date(to).getTime();
+        const theme = isDarkMode ? 'dark' : 'light'; // Set the correct theme based on dark mode state
+        iframe.src = `http://<%= mqtt_host %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=${theme}&from=${fromUnix}&to=${toUnix}&tz=${timezone}`;
+    } else {
+        alert("Please select both a start and end time.");
     }
+}
+
 </script>
    
 
-<script>
-    // Toggle dark mode
-const toggleDarkMode = document.getElementById('toggleDarkMode');
-const darkModeSwitch = document.getElementById('darkModeSwitch');
-
-// Function to update Grafana iframes based on dark mode
-function updateGrafanaIframes(isDarkMode) {
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
-        let src = iframe.src;
-
-        // Ensure the src always has a theme parameter
-        if (src.includes('theme=light')) {
-            src = src.replace('theme=light', isDarkMode ? 'theme=dark' : 'theme=light');
-        } else if (src.includes('theme=dark')) {
-            src = src.replace('theme=dark', isDarkMode ? 'theme=dark' : 'theme=light');
-        } else {
-            const separator = src.includes('?') ? '&' : '?';
-            src += `${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
-        }
-
-        iframe.src = src; // reload iframe with the new theme
-    });
-}
-
-toggleDarkMode.addEventListener('click', () => {
-    const isDarkMode = document.body.classList.toggle('dark-mode');
-    darkModeSwitch.classList.toggle('active');
-    
-    // Update Grafana dashboards to match the dark mode setting
-    updateGrafanaIframes(isDarkMode);
-    
-    // Optional: Save the dark mode state in local storage
-    if (isDarkMode) {
-        localStorage.setItem('dark-mode', 'enabled');
-    } else {
-        localStorage.setItem('dark-mode', 'disabled');
-    }
-});
-
-// Check the user's dark mode preference on page load
-document.addEventListener('DOMContentLoaded', () => {
-    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        darkModeSwitch.classList.add('active');
-    }
-    updateGrafanaIframes(isDarkMode); // always set the correct theme on load
-});
-
-</script>
 </body>
 </html>
