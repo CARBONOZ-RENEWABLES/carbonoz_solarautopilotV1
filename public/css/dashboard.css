@@ -18,6 +18,7 @@ transition: all 0.3s ease;
 .dark-mode .dashboard-enrgy{
     background-color: rgba(24, 27, 31, 1);
 color: #fff;
+border: none;
 }
 
 

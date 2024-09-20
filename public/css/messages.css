@@ -1,4 +1,10 @@
- 
+ h3{
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: bold;
+  padding: 1rem 1.5rem;
+  font-size: 1.25rem;
+ }
 .controls {
     display: flex;
     justify-content: space-between;

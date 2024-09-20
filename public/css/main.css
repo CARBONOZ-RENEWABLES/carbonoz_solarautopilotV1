@@ -43,7 +43,6 @@ body, html {
 .logo-icon {
  width: 50px;
  height: 50px;
- background-color: var(--primary-color);
  border-radius: 8px;
  display: flex;
  justify-content: center;
@@ -64,17 +63,6 @@ body, html {
  color: var(--primary-color);;
 }
 
-.search {
- padding: 10px 20px;
-}
-
-.search input {
- width: 100%;
- padding: 10px;
- border: 1px solid #dcdde1;
- border-radius: 4px;
- font-size: 16px;
-}
 
 nav {
  flex-grow: 1;
@@ -203,13 +191,6 @@ header {
  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
  padding: 20px;
  min-height: 100%;
-}
-
-footer {
- background-color: var(--primary-color);
- color: white;
- text-align: center;
- padding: 10px;
 }
 
 @media (max-width: 768px) {
@@ -344,7 +325,6 @@ body.dark-mode {
 }
 
 .dark-mode .sidebar .logo-icon {
- background-color: #f5f6fa;
  color: #2f3640;
 }
 
@@ -374,7 +354,7 @@ body.dark-mode {
 }
 
 .dark-mode .toggle-switch {
-    background-color: rgba(24, 27, 31, 1);
+    background-color: var(--primary-color);
 }
 
 .dark-mode .toggle-switch.active {

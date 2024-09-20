@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 7,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -46,6 +46,9 @@
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "decimals": 2,
           "mappings": [],
           "thresholds": {
@@ -63,7 +66,7 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 4,
+        "w": 8,
         "x": 0,
         "y": 1
       },
@@ -89,52 +92,36 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
+          "alias": "",
           "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "previous"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
+          "hide": false,
+          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_voltage_2\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ]
+          "resultFormat": "time_series"
         }
       ],
       "title": "PV Voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_voltage_2\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "decimals": 2,
+          "fieldMinMax": false,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -151,8 +138,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 4,
-        "x": 4,
+        "w": 9,
+        "x": 8,
         "y": 1
       },
       "id": 109,
@@ -160,7 +147,7 @@
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "center",
-        "orientation": "auto",
+        "orientation": "vertical",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
@@ -177,240 +164,25 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Load percentage",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "previous"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"value\") AS \"\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/load_percentage/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ]
-        }
-      ],
-      "title": "Load percentage 1",
-      "type": "stat"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": -5
-              },
-              {
-                "color": "green",
-                "value": 5
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "id": 154,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "previous"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Load percentage 1",
+          "alias": "",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT last(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/load_percentage/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/load_percentage\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
-          "refId": "B",
+          "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Load percentage 2",
-      "type": "stat"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "dark-green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "volt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 12,
-        "y": 1
-      },
-      "id": 112,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "value",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
+      "title": "Load percentage",
+      "transformations": [
         {
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "previous"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ]
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/load_percentage\\/state",
+            "replace": "Inverter $1"
+          }
         }
       ],
-      "title": "Pv Voltage 2",
       "type": "stat"
     },
     {
@@ -437,8 +209,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 4,
-        "x": 20,
+        "w": 7,
+        "x": 17,
         "y": 1
       },
       "id": 197,
@@ -974,7 +746,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -994,67 +766,22 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_voltage_1/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Voltage\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_voltage_1\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\n   \nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_voltage_1/state' GROUP BY time($__interval) fill(null)\n",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
+          "resultFormat": "time_series"
         }
       ],
       "title": "MPPT 1 voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_voltage_1\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -1128,21 +855,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Inverter 1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
           }
         ]
       },
@@ -1172,7 +884,7 @@
       "pluginVersion": "8.4.3",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -1190,37 +902,22 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_current_1/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Current\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_current_1\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_current_1/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
           "resultFormat": "time_series"
         }
       ],
       "title": "MPPT 1 current",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_current_1\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -1263,7 +960,6 @@
               "mode": "off"
             }
           },
-          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1314,21 +1010,6 @@
                 "value": "negative-Y"
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Inverter 1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
           }
         ]
       },
@@ -1358,7 +1039,7 @@
       "pluginVersion": "8.4.3",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -1376,42 +1057,26 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Voltage\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_voltage_2\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
           "resultFormat": "time_series"
         }
       ],
       "title": "MPPT 2 voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_voltage_2\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
       "datasource": "InfluxDB",
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1444,15 +1109,13 @@
             "spanNulls": true,
             "stacking": {
               "group": "A",
-              "mode": "percent"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
-          "decimals": 1,
           "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1472,58 +1135,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Speicher Entladen"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#FADE2A",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Direktverbrauch"
+              "options": "Hausverbrauch"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "fixedColor": "#73BF69",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Netzbezug"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#F2495C",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Inverter 1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
                   "mode": "fixed"
                 }
               }
@@ -1537,13 +1155,15 @@
         "x": 12,
         "y": 28
       },
-      "id": 133,
+      "id": 239,
       "options": {
         "legend": {
           "calcs": [
-            "mean"
+            "mean",
+            "max",
+            "min"
           ],
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -1555,7 +1175,7 @@
       "pluginVersion": "8.4.3",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -1571,111 +1191,21 @@
               "type": "fill"
             }
           ],
-          "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_current_2/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_current_2/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Current\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_current_2\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
+          "resultFormat": "time_series"
         }
       ],
       "title": "MPPT 2 current",
       "transformations": [
         {
-          "id": "calculateField",
+          "id": "renameByRegex",
           "options": {
-            "binary": {
-              "left": "Hausverbrauch",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Netzbezug"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Direktverbrauch",
-            "binary": {
-              "left": "Hausverbrauch - Netzbezug",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Speicher Entladen"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Hausverbrauch": true,
-              "Hausverbrauch - Netzbezug": true
-            },
-            "indexByName": {},
-            "renameByName": {}
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_current_1\\/state",
+            "replace": "Inverter $1"
           }
         }
       ],
@@ -1695,13 +1225,12 @@
             },
             "query": {
               "params": [
-                "E",
+                "A",
                 "1m",
                 "now"
               ]
             },
             "reducer": {
-              "params": [],
               "type": "last"
             },
             "type": "query"
@@ -1711,7 +1240,7 @@
         "for": "10s",
         "frequency": "1m",
         "handler": 1,
-        "message": "Keine Daten für mehr als 1 Minute",
+        "message": "No data for more than 1 minute",
         "name": "No Data Alert",
         "noDataState": "alerting",
         "notifications": []
@@ -1730,9 +1259,9 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -1749,14 +1278,13 @@
             "spanNulls": true,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
           "decimals": 2,
-          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1774,18 +1302,6 @@
           "unit": "watt"
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Blindleistung"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "voltampreact"
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byName",
@@ -1828,92 +1344,45 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "8.4.3",
+      "pluginVersion": "10.4.0",
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
               "params": [
-                "10s"
+                "$__interval"
               ],
               "type": "time"
             },
             {
               "params": [
-                "linear"
+                "null"
               ],
               "type": "fill"
             }
           ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_power_1/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_power_1/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
+          "resultFormat": "time_series"
         }
       ],
       "thresholds": [],
-      "title": "MPPT 1  power",
+      "title": "PV Power",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_power\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -1957,7 +1426,6 @@
             }
           },
           "decimals": 2,
-          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -2029,91 +1497,43 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "8.4.3",
-      "repeatDirection": "h",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
               "params": [
-                "10s"
+                "$__interval"
               ],
               "type": "time"
             },
             {
               "params": [
-                "linear"
+                "null"
               ],
               "type": "fill"
             }
           ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_power_1/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_power_1/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
+          "resultFormat": "time_series"
         }
       ],
-      "title": "MPPT 1  power",
+      "title": "MPPT 1 power",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_power\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -2183,7 +1603,7 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "yellow",
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -2355,7 +1775,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2368,7 +1789,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Inverter 1"
+              "options": "MPTT solar_assistant_DEYE/inverter_1/pv_voltage_1/state"
             },
             "properties": [
               {
@@ -2383,7 +1804,52 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "MPPT 1  Inverter 1"
+              "options": "MPTT solar_assistant_DEYE/inverter_2/pv_voltage_1/state"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MPTT solar_assistant_DEYE/inverter_2/pv_voltage_2/state"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MPTT (solar_assistant_DEYE/inverter_1/pv_voltage_1/state)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MPTT (solar_assistant_DEYE/inverter_2/pv_voltage_1/state)"
             },
             "properties": [
               {
@@ -2398,13 +1864,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "MPPT 2 Inverter 2"
+              "options": "MPTT (solar_assistant_DEYE/inverter_2/pv_voltage_2/state)"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
+                  "fixedColor": "yellow",
                   "mode": "fixed"
                 }
               }
@@ -2413,13 +1879,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "MPPT 2 Inverter 1"
+              "options": "MPTT (solar_assistant_DEYE/inverter_1/pv_voltage_2/state)"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -2446,44 +1912,27 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "10.4.0",
       "targets": [
         {
-          "alias": "MPPT 1  Inverter 1",
+          "alias": "MPTT ($tag_topic)",
           "datasource": "InfluxDB",
-          "query": "SELECT MEAN(\"value\") AS \"MPPT 1 Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_voltage_1/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Voltage\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/pv_voltage_\\d+\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "MPPT 1 Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"MPPT 1 Inverter 2\" FROM \"state\"\nWHERE $timeFilter\n   \nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_voltage_1/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "MPPT 2 Inverter 1",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"MPPT 2 Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "MPPT 2 Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"MPPT 2 Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/pv_voltage_2/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "D",
           "resultFormat": "time_series"
         }
       ],
       "title": "MPPT/PV String Voltages",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_voltage_(\\d+)\\/state",
+            "replace": "MPPT $2 Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -2657,7 +2106,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2841,7 +2291,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -2861,49 +2311,9 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/grid_voltage/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/grid_voltage\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/grid_voltage/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
           "resultFormat": "time_series",
           "select": [
             [
@@ -2922,6 +2332,15 @@
         }
       ],
       "title": "Grid voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/grid_voltage\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -3026,7 +2445,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -3046,49 +2465,9 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/grid_voltage/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/grid_voltage\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/grid_voltage/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
           "resultFormat": "time_series",
           "select": [
             [
@@ -3107,6 +2486,15 @@
         }
       ],
       "title": "Grid voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/grid_voltage\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -3211,7 +2599,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Phase 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -3231,7 +2619,7 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/ac_output_voltage/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/ac_output_voltage\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -3251,7 +2639,7 @@
           ]
         },
         {
-          "alias": "Phase 2",
+          "alias": "Total",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -3271,49 +2659,9 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/ac_output_voltage/state' GROUP BY time($__interval) fill(null)\n",
+          "query": "SELECT MEAN(\"value\") AS \"Total\" FROM \"state\" WHERE $timeFilter AND \"topic\" = 'solar_assistant_DEYE/total/ac_output_voltage/state' GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Phase 3",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Total\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/total/ac_output_voltage/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
           "resultFormat": "time_series",
           "select": [
             [
@@ -3332,6 +2680,15 @@
         }
       ],
       "title": "AC output voltage",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/ac_output_voltage\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -3352,6 +2709,9 @@
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "decimals": 2,
           "mappings": [],
           "thresholds": {
@@ -3395,40 +2755,41 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\nSELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/load_power_essential/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "E",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/load_power_essential/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/load_power_essential\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": " Load power essential",
+      "title": "Load power essential",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/load_power_essential\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "decimals": 2,
           "mappings": [],
-          "max": 100,
-          "min": -100,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "light-green",
                 "value": null
               }
             ]
@@ -3443,7 +2804,7 @@
         "x": 8,
         "y": 82
       },
-      "id": 143,
+      "id": 240,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -3452,7 +2813,7 @@
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -3465,39 +2826,34 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/load_power_non-essential/state' GROUP BY time($__interval) fill(null)\n",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/load_power_non-essential/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/load_power_non-essential\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "\nSELECT MEAN(\"value\") AS \"Total\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/total/load_power_non-essential/state' GROUP BY time($__interval) fill(null)\n",
-          "rawQuery": true,
-          "refId": "C",
           "resultFormat": "time_series"
         }
       ],
       "title": "Load power non-essential",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/load_power_essential\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "decimals": 2,
           "mappings": [],
           "max": 2,
@@ -3551,25 +2907,25 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/generator_power/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/generator_power/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/generator_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": " Generator Power",
+      "title": "Generator Power",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/generator_power\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -3582,7 +2938,7 @@
       },
       "id": 227,
       "panels": [],
-      "title": "Battery and Inverter Templerature",
+      "title": "Batteries and Inverter Templerature",
       "type": "row"
     },
     {
@@ -3600,7 +2956,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red"
+                "color": "red",
+                "value": null
               },
               {
                 "color": "dark-red",
@@ -3659,7 +3016,7 @@
           "alias": "Battery temperature",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\n  SELECT last(\"value\") AS \"Battery Temperature\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/temperature/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"Battery Temperature\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature\\/state/ ORDER BY time DESC LIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -3668,7 +3025,7 @@
           "alias": "Battery Temperature Mos",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\n  SELECT last(\"value\") AS \"Battery Temperature Mos\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/temperature_mos/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"Battery Temperature Mos\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature_mos\\/state/ ORDER BY time DESC LIMIT 1",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -3677,13 +3034,22 @@
           "alias": "Battery Temperature Env",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\n SELECT last(\"value\") AS \"Battery Temperature Env\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/temperature_env/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"Battery Temperature Env\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature_env\\/state/ ORDER BY time DESC LIMIT 1",
           "rawQuery": true,
           "refId": "C",
           "resultFormat": "time_series"
         }
       ],
       "title": "Battery Temperature Info",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "battery_(\\d+)",
+            "replace": "Battery $1"
+          }
+        }
+      ],
       "type": "bargauge"
     },
     {
@@ -3701,7 +3067,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red"
+                "color": "red",
+                "value": null
               },
               {
                 "color": "dark-red",
@@ -3784,7 +3151,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "dark-green",
@@ -3838,7 +3206,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -3858,7 +3226,7 @@
           "measurement": "mqtt_consumer",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "\n\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/inverter_1/temperature/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "\nSELECT last(\"value\") \nFROM \"state\"\nWHERE \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/temperature\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -3876,49 +3244,18 @@
               }
             ]
           ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "\n\n SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/inverter_2/temperature/state'\n        ORDER BY time DESC\n        LIMIT 1",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
         }
       ],
-      "title": " Inverter temperature",
+      "title": "Inverter Temperature",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "inverter_(\\d+)",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
       "type": "bargauge"
     },
     {
@@ -3970,8 +3307,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -4041,7 +3377,7 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Total",
+          "alias": "Inverter $tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -4060,7 +3396,239 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"value\") AS \"Total\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/total/battery_current/state' GROUP BY time($__interval) fill(null)\n",
+          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/battery_current\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ]
+        },
+        {
+          "alias": "Total",
+          "datasource": "InfluxDB",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"value\") AS \"Total\" FROM \"state\" WHERE $timeFilter AND \"topic\" = 'solar_assistant_DEYE/total/battery_current/state' GROUP BY time($__interval) fill(null)",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ]
+        }
+      ],
+      "title": "Battery current",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/battery_current\\/state",
+            "replace": "Inverter $1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "decimals": 1,
+          "links": [],
+          "mappings": [],
+          "max": 6000,
+          "min": -6000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow"
+              },
+              {
+                "color": "#000000",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 10
+              }
+            ]
+          },
+          "unit": "watt"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Netzeinspeisung"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "rgb(212, 212, 212)",
+                  "mode": "shades"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Netzbezug"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "rgb(90, 90, 90)",
+                  "mode": "palette-classic"
+                }
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "Inverter 1"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 115
+      },
+      "id": 241,
+      "interval": "",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "alias": "Battery Power",
+          "datasource": "InfluxDB",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT MEAN(\"value\") AS \"Battery power\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/total/battery_power/state' GROUP BY time($__interval) fill(null)\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -4079,56 +3647,9 @@
             ]
           ],
           "tags": []
-        },
-        {
-          "alias": "Inverter 1",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "\nSELECT last(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/battery_current/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT last(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/battery_current/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
-          "resultFormat": "time_series"
         }
       ],
-      "title": "Battery current",
+      "title": "Battery power",
       "type": "timeseries"
     },
     {
@@ -4155,7 +3676,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 115
+        "y": 123
       },
       "id": 210,
       "options": {
@@ -4180,13 +3701,22 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/battery_1/cycles/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"Inverter Cycles\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/cycles\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
       "title": "Battery Cycle",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "battery_(\\d+)",
+            "replace": "Battery $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -4201,7 +3731,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -4213,7 +3744,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 115
+        "y": 123
       },
       "id": 211,
       "options": {
@@ -4238,13 +3769,22 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/battery_1/cell_voltage_-_lowest/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT last(\"value\") AS \"Battery Cell Voltage Lowest\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/cell_voltage_-_lowest\\/state/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Battery Cell Voltage Lowest ",
+      "title": "Battery Cell Voltage Lowest",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "battery_(\\d+)",
+            "replace": "Battery $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -4272,7 +3812,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 115
+        "y": 123
       },
       "id": 212,
       "options": {
@@ -4297,13 +3837,22 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/battery_1/cell_voltage_-_highest/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"Battery Cell Voltage Highest\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/cell_voltage_-_highest\\/state/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
       "title": "Battery Cell Voltage Highest",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "battery_(\\d+)",
+            "replace": "Battery $1"
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -4412,7 +3961,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 119
+        "y": 127
       },
       "id": 188,
       "options": {
@@ -4430,7 +3979,7 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "alias": "Inverter 1",
+          "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "groupBy": [
             {
@@ -4448,7 +3997,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 1\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_1/battery_voltage/state' GROUP BY time($__interval) fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"Battery Voltage\"\nFROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/battery_voltage\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -4467,50 +4016,17 @@
             ]
           ],
           "tags": []
-        },
-        {
-          "alias": "Inverter 2",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"Inverter 2\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" = 'solar_assistant_DEYE/inverter_2/battery_voltage/state' GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
         }
       ],
-      "title": "Battery voltage",
+      "title": "Battery Voltage",
       "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "inverter_(\\d+)",
+            "replace": "Inverter $1"
+          }
+        },
         {
           "id": "calculateField",
           "options": {
@@ -4619,7 +4135,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 119
+        "y": 127
       },
       "id": 139,
       "options": {
@@ -4785,6 +4301,6 @@
   "timezone": "Indian/Mauritius",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 18,
+  "version": 34,
   "weekStart": ""
 }

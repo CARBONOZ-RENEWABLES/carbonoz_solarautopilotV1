@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+ 
+
+ 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/carbon-intensity.css">
+   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+       
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="container">
+                    <div id="settings-section" class="content">
+                        <h3>Settings</h3>
+                        <p>
+                            To use this dashboard, you need to provide an API key from Electricity Maps. 
+                            If you don't have one, follow these steps to register:
+                        </p>
+                        <ol>
+                            <li>Go to the <a href="https://www.electricitymaps.com/" target="_blank">Electricity Maps website</a>.</li>
+                            <li>Click on "Get started" or "Sign up" to create an account.</li>
+                            <li>Once registered, navigate to your account settings or developer section.</li>
+                            <li>Look for an option to generate or view your API key.</li>
+                            <li>Copy the API key and paste it below.</li>
+                        </ol>
+                        <label for="api-key">Electricity Maps API Key:</label>
+                        <input type="text" id="api-key" placeholder="Enter your API key">
+                        <button onclick="saveApiKey()">Save API Key</button>
+                        <p id="api-key-status"></p>
+                    </div>
+            
+                    <div id="dashboard-section" class="hidden">
+                        <div class="settings-link">
+                            <a href="#" onclick="showSettings()">Update API Key</a>
+                        </div>
+                        <div class="content">
+                            <h2>Carbon Intensity Map</h2>
+                            <div id="map"></div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart">
+                                <h2>Carbon Intensity Comparison</h2>
+                                <canvas id="comparison-chart"></canvas>
+                            </div>
+                            <div class="chart">
+                                <h2>Carbon Intensity Trends</h2>
+                                <canvas id="trend-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+    
+        </div>
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/sidebar.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+
+    <script>
+        let map;
+         let comparisonChart;
+         let trendChart;
+ 
+         function showSettings() {
+             document.getElementById('settings-section').classList.remove('hidden');
+             document.getElementById('dashboard-section').classList.add('hidden');
+         }
+ 
+         async function saveApiKey() {
+             const apiKey = document.getElementById('api-key').value;
+             const response = await fetch('<%= ingress_path %>/api/settings', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify({ apiKey }),
+             });
+             const result = await response.json();
+             document.getElementById('api-key-status').textContent = result.message || result.error;
+             if (result.message) {
+                 fetchData();
+             }
+         }
+ 
+         async function fetchData() {
+             try {
+                 const response = await fetch('<%= ingress_path %>/api/carbon-intensity');
+                 if (!response.ok) {
+                     throw new Error('Failed to fetch data');
+                 }
+                 const data = await response.json();
+                 
+                 document.getElementById('settings-section').classList.add('hidden');
+                 document.getElementById('dashboard-section').classList.remove('hidden');
+ 
+                 updateMap(data);
+                 updateCharts(data);
+             } catch (error) {
+                 console.error('Error:', error);
+                 document.getElementById('api-key-status').textContent = 'Error fetching data. Please check your API key.';
+             }
+         }
+ 
+         function updateMap(data) {
+             if (!map) {
+                 map = L.map('map').setView([51.505, -0.09], 4);
+                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                 }).addTo(map);
+             }
+ 
+             data.forEach(country => {
+                 L.marker([country.lat, country.lon])
+                     .addTo(map)
+                     .bindPopup(`<b>${country.name}</b><br>Carbon Intensity: ${country.carbonIntensity.toFixed(2)} gCO2eq/kWh`);
+             });
+         }
+ 
+         function updateCharts(data) {
+             const ctx1 = document.getElementById('comparison-chart').getContext('2d');
+             const ctx2 = document.getElementById('trend-chart').getContext('2d');
+ 
+             if (comparisonChart) comparisonChart.destroy();
+             if (trendChart) trendChart.destroy();
+ 
+             comparisonChart = new Chart(ctx1, {
+                 type: 'bar',
+                 data: {
+                     labels: data.map(country => country.name),
+                     datasets: [{
+                         label: 'Carbon Intensity (gCO2eq/kWh)',
+                         data: data.map(country => country.carbonIntensity),
+                         backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                     }]
+                 },
+                 options: {
+                     scales: {
+                         y: {
+                             beginAtZero: true
+                         }
+                     }
+                 }
+             });
+ 
+             // Simulating trend data (replace with real historical data if available)
+             const trendData = data.map(country => ({
+                 name: country.name,
+                 data: Array.from({length: 7}, () => Math.floor(Math.random() * country.carbonIntensity))
+             }));
+ 
+             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+ 
+             trendChart = new Chart(ctx2, {
+                 type: 'bar',
+                 data: {
+                     labels: days,
+                     datasets: trendData.map((country, index) => ({
+                         label: country.name,
+                         data: country.data,
+                         backgroundColor: `hsla(${index * 360 / trendData.length}, 70%, 50%, 0.8)`,
+                         borderColor: `hsl(${index * 360 / trendData.length}, 70%, 40%)`,
+                         borderWidth: 1
+                     }))
+                 },
+                 options: {
+                     plugins: {
+                         title: {
+                             display: true,
+                             text: 'Carbon Intensity Trends (gCO2eq/kWh)',
+                             font: {
+                                 size: 16,
+                                 weight: 'bold'
+                             }
+                         },
+                         legend: {
+                             position: 'right',
+                             labels: {
+                                 boxWidth: 15
+                             }
+                         }
+                     },
+                     responsive: true,
+                     scales: {
+                         x: {
+                             stacked: true,
+                             title: {
+                                 display: true,
+                                 text: 'Days of the Week'
+                             }
+                         },
+                         y: {
+                             stacked: true,
+                             beginAtZero: true,
+                             title: {
+                                 display: true,
+                                 text: 'Carbon Intensity (gCO2eq/kWh)'
+                             }
+                         }
+                     }
+                 }
+             });
+         }
+ 
+         // Check if API key is already set
+         fetch('<%= ingress_path %>/api/settings')
+             .then(response => response.json())
+             .then(settings => {
+                 if (settings.apiKey) {
+                     fetchData();
+                 }
+             });
+     </script>
+
+
+</body>
+</html>

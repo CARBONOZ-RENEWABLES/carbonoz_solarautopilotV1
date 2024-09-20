@@ -38,6 +38,8 @@
             border-radius: 4px;
             font-size: 16px;
             box-sizing: border-box;
+            color: #DEAF0B;
+            background-color: transparent;
          
         }
 
@@ -52,6 +54,7 @@
             transition: background-color 0.3s ease;
             font-size: 16px;
             font-weight: bold;
+            border: 2px solid #000;
         }
 
         .filter-container button:hover {

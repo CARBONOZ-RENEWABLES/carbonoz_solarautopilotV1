@@ -10,6 +10,7 @@
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
    <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
+
 </head>
 <body>
    
@@ -18,541 +19,521 @@
             <div class="loading-spinner"></div>
           </div>
           <div id="pageContent"> </div>
-<%- include('partials/sidebar') %>
-
+          <%- include('partials/sidebar') %>
         <div class="main-container">
 
             <div class="main-content">
-                <div class="content-card">
-                    <div class="timezone-container">
-                        <label for="timezone">Timezone:</label>
-                        <select id="timezone" class="timezone-select">
-                          <option value="Europe/Berlin">Germany (Berlin)</option>
-                          <option value="Europe/Rome">Italy (Rome)</option>
-                          <option value="America/Cayman">Cayman Islands</option>
-                          <option value="Indian/Mauritius">Mauritius</option>
-                          <option value="Asia/Shanghai">China (Shanghai)</option>
-                          <option value="Europe/London">United Kingdom (London)</option>
-                          <option value="America/New_York">USA (New York)</option>
-                          <option value="Pacific/Auckland">New Zealand (Auckland)</option>
-                        </select>
-                      </div>
-                    
-                
-                        <div id="system-state"></div>
-                
-                        <h2>Universal Settings</h2>
-                        <form id="universal-settings-form">
-                            <label for="maxBatteryDischargePower">Max Battery Discharge Power:</label>
-                            <input type="number" id="maxBatteryDischargePower" name="maxBatteryDischargePower" required>
-                            
-                            <label for="gridChargeOn">Grid Charge:</label>
-                            <input type="checkbox" id="gridChargeOn" name="gridChargeOn">
-                            
-                            <label for="generatorChargeOn">Generator Charge:</label>
-                            <input type="checkbox" id="generatorChargeOn" name="generatorChargeOn">
-                            
-                            <label for="dischargeVoltage">Discharge Voltage:</label>
-                            <input type="number" id="dischargeVoltage" name="dischargeVoltage" step="0.1" required>
-                            
-                            <button type="submit" id="update-inverter">Update Universal </button>
-                        </form>
-                
-                        <h2>Inverter Settings</h2>
-                        <button class="update" id="add-inverter-btn">Add New Inverter</button>
-                        <form id="inverter-settings-form">
-                            <label for="inverter-type">Inverter Type:</label>
-                            <select id="inverter-type" name="type"></select>
-                            
-                            <div id="inverter-specific-settings">
-                                <label for="workMode">Work Mode:</label>
-                                <select id="workMode" name="workMode"></select>
-                                
-                                <label for="solarExportWhenBatteryFull">Solar Export When Battery Full:</label>
-                                <input type="checkbox" id="solarExportWhenBatteryFull" name="solarExportWhenBatteryFull">
-                                
-                                <label for="energyPattern">Energy Pattern:</label>
-                                <select id="energyPattern" name="energyPattern"></select>
-                                
-                                <label for="maxSellPower">Max Sell Power:</label>
-                                <input type="number" id="maxSellPower" name="maxSellPower">
+    
+                <div class="card">
+                    <div class="card-header">Universal Settings</div>
+                    <div class="card-body">
+                        <form id="universal-settings-form" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="maxBatteryDischargePower" class="block text-sm font-medium">Max Battery Discharge Power:</label>
+                                    <input type="number" id="maxBatteryDischargePower" name="maxBatteryDischargePower" required>
+                                </div>
+                                <div>
+                                    <label for="dischargeVoltage" class="block text-sm font-medium">Discharge Voltage:</label>
+                                    <input type="number" id="dischargeVoltage" name="dischargeVoltage" step="0.1" required>
+                                </div>
                             </div>
-                            
-                            <button type="submit" class="update">Update Inverter </button>
-                            <button type="button" id="delete-inverter-btn">Delete Inverter </button>
+                            <div class="flex items-center space-x-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="gridChargeOn" name="gridChargeOn" class="h-4 w-4">
+                                    <label for="gridChargeOn" class="ml-2 text-sm">Grid Charge</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="generatorChargeOn" name="generatorChargeOn" class="h-4 w-4">
+                                    <label for="generatorChargeOn" class="ml-2 text-sm">Generator Charge</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn">Update Universal Settings</button>
                         </form>
-                
-                        <h2>Automation Rules</h2>
-                        <button id="add-rule-btn">Add New Rule</button>
-                        <br>
-                        <br>
-                        <table id="automation-rules-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Conditions</th>
-                                    <th>Actions</th>
-                                    <th>Days</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                
-                        <h2>Scheduled Settings</h2>
-                        <button id="add-scheduled-setting-btn">Add New Scheduled</button>
-                        <br>
-                <br>
-                        <table id="scheduled-settings-table">
-                            <thead>
-                                <tr>
-                                    <th>Key</th>
-                                    <th>Value</th>
-                                    <th>Day</th>
-                                    <th>Hour</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                
-                        <h2>Automation Log</h2>
-                        <div id="automation-log"></div>
-                
-                    <div id="rule-modal" class="modal">
-                        <div class="modal-content">
-                            <span class="close">&times;</span>
-                            <h2>Edit Rule</h2>
-                            <form id="rule-form">
-                                <label for="rule-name">Name:</label>
-                                <input type="text" id="rule-name" required>
-                
-                                <label for="rule-conditions">Conditions (JSON):</label>
-                                <textarea id="rule-conditions" required></textarea>
-                
-                                <label for="rule-actions">Actions (JSON):</label>
-                                <textarea id="rule-actions" required></textarea>
-                
-                                <label for="rule-days">Days (comma-separated):</label>
-                                <input type="text" id="rule-days" required>
-                
-                                <button type="submit">Save Rule</button>
-                            </form>
+                    </div>
+                </div>
+        
+                <!-- Inverter Settings Card -->
+                <div class="card">
+                    <div class="card-header">Inverter Settings</div>
+                    <div class="card-body">
+                        <button id="add-inverter-btn" class="btn mb-4">Add New Inverter Type</button>
+                        <form id="inverter-settings-form" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="inverter-type" class="block text-sm font-medium">Inverter Type:</label>
+                                    <select id="inverter-type" name="type"></select>
+                                </div>
+                                <div>
+                                    <label for="workMode" class="block text-sm font-medium">Work Mode:</label>
+                                    <select id="workMode" name="workMode"></select>
+                                </div>
+                                <div>
+                                    <label for="energyPattern" class="block text-sm font-medium">Energy Pattern:</label>
+                                    <select id="energyPattern" name="energyPattern"></select>
+                                </div>
+                                <div>
+                                    <label for="maxSellPower" class="block text-sm font-medium">Max Sell Power:</label>
+                                    <input type="number" id="maxSellPower" name="maxSellPower">
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="solarExportWhenBatteryFull" name="solarExportWhenBatteryFull" class="h-4 w-4">
+                                <label for="solarExportWhenBatteryFull" class="ml-2 text-sm">Solar Export When Battery Full</label>
+                            </div>
+                            <div class="flex space-x-4">
+                                <button type="submit" class="btn">Update Inverter Settings</button>
+                                <button type="button" id="delete-inverter-btn" class="btn btn-danger">Delete Inverter Type</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+        
+                <div class="card">
+                    <div class="card-header">Automation Rules</div>
+                    <div class="card-body">
+                        <button id="add-rule-btn" class="btn mb-4">Add New Rule</button>
+                        <div class="overflow-x-auto">
+                            <table id="automation-rules-table" class="min-w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="w-1/5">Name</th>
+                                        <th class="w-1/5">Conditions</th>
+                                        <th class="w-1/5">Actions</th>
+                                        <th class="w-1/5">Days</th>
+                                        <th class="w-1/5">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Table rows will be dynamically populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- Scheduled Settings Card -->
+                <div class="card">
+                    <div class="card-header">Scheduled Settings</div>
+                    <div class="card-body">
+                        <button id="add-scheduled-setting-btn" class="btn mb-4">Add New Scheduled Setting</button>
+                        <div class="overflow-x-auto">
+                            <table id="scheduled-settings-table" class="min-w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="w-1/5">Key</th>
+                                        <th class="w-1/5">Value</th>
+                                        <th class="w-1/5">Day</th>
+                                        <th class="w-1/5">Hour</th>
+                                        <th class="w-1/5">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Table rows will be dynamically populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- Automation Log Card -->
+                <div class="card">
+                    <div class="card-header">Automation Log</div>
+                    <div class="card-body">
+                        <div id="automation-log">
+                            <!-- Log entries will be dynamically populated -->
                         </div>
                     </div>
                 </div>
             </div>
+        
+            <!-- Modal for editing rules (hidden by default) -->
+            <div id="rule-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2 id="modal-title">Add/Edit Automation Rule</h2>
+                    <form id="rule-form">
+                        <div class="form-group">
+                            <label for="rule-name">Name:</label>
+                            <input type="text" id="rule-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="rule-conditions">Conditions (JSON):</label>
+                            <textarea id="rule-conditions" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="rule-actions">Actions (JSON):</label>
+                            <textarea id="rule-actions" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="rule-days">Days (comma-separated):</label>
+                            <input type="text" id="rule-days" required>
+                        </div>
+                        <button type="submit" class="btn">Save Rule</button>
+                        <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                    </form>
+                </div>
+            </div>
 
-        </div>
-    </div>
-     
-<script>
-    const ingressPath = '<%= ingress_path %>';
-  
-  // Fetch current timezone
-  fetch(`${ingressPath}/api/timezone`)
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('timezone').value = data.timezone;
-    });
-
-  // Update timezone when changed
-  document.getElementById('timezone').addEventListener('change', (event) => {
-    fetch(`${ingressPath}/api/timezone`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ timezone: event.target.value }),
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert('Timezone updated successfully');
-      } else {
-        alert('Failed to update timezone');
-      }
-    });
-  });
- 
-</script>
-
-<script>
-
-// Utility functions
-async function fetchAPI(url, method = 'GET', body = null) {
-    const options = {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    };
-    if (body) {
-        options.body = JSON.stringify(body);
-    }
-    const response = await fetch(url, options);
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-}
-
-// Load and display universal settings
-async function loadUniversalSettings() {
-    const settings = await fetchAPI('<%= ingress_path %>/api/universal-settings');
-    Object.entries(settings).forEach(([key, value]) => {
-        const element = document.getElementById(key);
-        if (element) {
-            if (element.type === 'checkbox') {
-                element.checked = value;
-            } else {
-                element.value = value;
-            }
-        }
-    });
-}
-
-// Load inverter types and settings
-async function loadInverterSettings() {
-    const types = await fetchAPI('<%= ingress_path %>/api/inverter-types');
-    const selectElement = document.getElementById('inverter-type');
-    selectElement.innerHTML = types.map(type => `<option value="${type}">${type}</option>`).join('');
-    
-    const { type, settings } = await fetchAPI('<%= ingress_path %>/api/inverter-settings');
-    selectElement.value = type;
-    
-    const workModeSelect = document.getElementById('workMode');
-    workModeSelect.innerHTML = settings.workMode.map(mode => `<option value="${mode}">${mode}</option>`).join('');
-    
-    const energyPatternSelect = document.getElementById('energyPattern');
-    energyPatternSelect.innerHTML = settings.energyPattern.map(pattern => `<option value="${pattern}">${pattern}</option>`).join('');
-    
-    document.getElementById('solarExportWhenBatteryFull').checked = settings.solarExportWhenBatteryFull;
-    document.getElementById('maxSellPower').value = settings.maxSellPower;
-}
-
-// Load and display automation rules
-async function loadAutomationRules() {
-    const rules = await fetchAPI('<%= ingress_path %>/api/automation-rules');
-    const tableBody = document.querySelector('#automation-rules-table tbody');
-    tableBody.innerHTML = rules.map(rule => `
-        <tr>
-            <td>${rule.name}</td>
-            <td>${JSON.stringify(rule.conditions)}</td>
-            <td>${JSON.stringify(rule.actions)}</td>
-            <td>${rule.days.join(', ')}</td>
-            <td>
-                <button onclick="editRule('${rule.id}')">Edit</button>
-                <button onclick="deleteRule('${rule.id}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Load and display scheduled settings
-async function loadScheduledSettings() {
-    const settings = await fetchAPI('<%= ingress_path %>/api/scheduled-settings');
-    const tableBody = document.querySelector('#scheduled-settings-table tbody');
-    tableBody.innerHTML = settings.map(setting => `
-        <tr>
-            <td>${setting.key}</td>
-            <td>${setting.value}</td>
-            <td>${setting.day}</td>
-            <td>${setting.hour}</td>
-            <td>
-                <button onclick="editScheduledSetting('${setting.id}')">Edit</button>
-                <button onclick="deleteScheduledSetting('${setting.id}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Event listeners
-document.getElementById('universal-settings-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const settings = Object.fromEntries(formData.entries());
-    settings.gridChargeOn = formData.get('gridChargeOn') === 'on';
-    settings.generatorChargeOn = formData.get('generatorChargeOn') === 'on';
-    try {
-        await fetchAPI('<%= ingress_path %>/api/universal-settings', 'POST', settings);
-        alert('Universal settings updated successfully');
-        // Send MQTT messages
-        Object.entries(settings).forEach(([key, value]) => {
-            sendMQTTMessage(`universal/${key}`, value);
-        });
-    } catch (error) {
-        alert('Failed to update universal settings: ' + error.message);
-    }
-});
-
-document.getElementById('inverter-settings-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const type = document.getElementById('inverter-type').value;
-    const settings = {
-        workMode: document.getElementById('workMode').value,
-        solarExportWhenBatteryFull: document.getElementById('solarExportWhenBatteryFull').checked,
-        energyPattern: document.getElementById('energyPattern').value,
-        maxSellPower: parseInt(document.getElementById('maxSellPower').value)
-    };
-    try {
-        await fetchAPI('<%= ingress_path %>/api/inverter-settings', 'POST', { type, settings });
-        alert('Inverter settings updated successfully');
-        // Send MQTT messages
-        Object.entries(settings).forEach(([key, value]) => {
-            sendMQTTMessage(`inverter/${key}`, value);
-        });
-    } catch (error) {
-        alert('Failed to update inverter settings: ' + error.message);
-    }
-});
-
-document.getElementById('add-inverter-btn').addEventListener('click', async () => {
-    const newType = prompt('Enter new inverter type:');
-    if (newType) {
-        try {
-            await fetchAPI('<%= ingress_path %>/api/inverter-types', 'POST', { type: newType, settings: {} });
-            alert('New inverter type added: ' + newType);
-            loadInverterSettings();
-        } catch (error) {
-            alert('Failed to add new inverter type: ' + error.message);
-        }
-    }
-});
-
-document.getElementById('delete-inverter-btn').addEventListener('click', async () => {
-    const type = document.getElementById('inverter-type').value;
-    if (confirm(`Are you sure you want to delete the inverter type: ${type}?`)) {
-        try {
-            await fetchAPI(`<%= ingress_path %>/api/inverter-types/${type}`, 'DELETE');
-            alert('Inverter type deleted successfully');
-            loadInverterSettings();
-        } catch (error) {
-            alert('Failed to delete inverter type: ' + error.message);
-        }
-    }
-});
-
-// Rule modal functionality
-const ruleModal = document.getElementById('rule-modal');
-const closeBtn = ruleModal.querySelector('.close');
-let currentRuleId = null;
-
-closeBtn.onclick = () => {
-    ruleModal.style.display = 'none';
-};
-
-window.onclick = (event) => {
-    if (event.target == ruleModal) {
-        ruleModal.style.display = 'none';
-    }
-};
-
-document.getElementById('add-rule-btn').addEventListener('click', () => {
-    currentRuleId = null;
-    document.getElementById('rule-name').value = '';
-    document.getElementById('rule-conditions').value = '[]';
-    document.getElementById('rule-actions').value = '[]';
-    document.getElementById('rule-days').value = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday';
-    ruleModal.style.display = 'block';
-});
-
-document.getElementById('rule-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const rule = {
-        name: document.getElementById('rule-name').value,
-        conditions: JSON.parse(document.getElementById('rule-conditions').value),
-        actions: JSON.parse(document.getElementById('rule-actions').value),
-        days: document.getElementById('rule-days').value.split(',').map(day => day.trim())
-    };
-
-    try {
-        if (currentRuleId) {
-            await fetchAPI(`<%= ingress_path %>/api/automation-rules/${currentRuleId}`, 'PUT', rule);
-        } else {
-            await fetchAPI('<%= ingress_path %>/api/automation-rules', 'POST', rule);
-        }
-        ruleModal.style.display = 'none';
-        loadAutomationRules();
-    } catch (error) {
-        alert('Failed to save rule: ' + error.message);
-    }
-});
-
-async function editRule(id) {
-    currentRuleId = id;
-    try {
-        const rule = await fetchAPI(`<%= ingress_path %>/api/automation-rules/${id}`);
-        document.getElementById('rule-name').value = rule.name;
-        document.getElementById('rule-conditions').value = JSON.stringify(rule.conditions, null, 2);
-        document.getElementById('rule-actions').value = JSON.stringify(rule.actions, null, 2);
-        document.getElementById('rule-days').value = rule.days.join(',');
-        ruleModal.style.display = 'block';
-    } catch (error) {
-        alert('Failed to load rule for editing: ' + error.message);
-    }
-}
-
-async function deleteRule(id) {
-    if (confirm('Are you sure you want to delete this rule?')) {
-        try {
-            await fetchAPI(`<%= ingress_path %>/api/automation-rules/${id}`, 'DELETE');
-            loadAutomationRules();
-        } catch (error) {
-            alert('Failed to delete rule: ' + error.message);
-        }
-    }
-}
-
-document.getElementById('add-scheduled-setting-btn').addEventListener('click', () => {
-    editScheduledSetting();
-});
-
-async function editScheduledSetting(id = null) {
-    let setting = id ? await fetchAPI(`<%= ingress_path %>/api/scheduled-settings/${id}`) : {};
-    const key = prompt('Enter setting key:', setting.key || '');
-    const value = prompt('Enter setting value:', setting.value || '');
-    const day = prompt('Enter day of week:', setting.day || '');
-    const hour = prompt('Enter hour (0-23):', setting.hour || '');
-
-    if (key && value && day && hour) {
-        const updatedSetting = { key, value, day, hour: parseInt(hour) };
-        try {
-            if (id) {
-                await fetchAPI(`<%= ingress_path %>/api/scheduled-settings/${id}`, 'PUT', updatedSetting);
-            } else {
-                await fetchAPI('<%= ingress_path %>/api/scheduled-settings', 'POST', updatedSetting);
-            }
-            loadScheduledSettings();
-        } catch (error) {
-            alert('Failed to save scheduled setting: ' + error.message);
-        }
-    }
-}
-
-async function deleteScheduledSetting(id) {
-    if (confirm('Are you sure you want to delete this scheduled setting?')) {
-        try {
-            await fetchAPI(`<%= ingress_path %>/api/scheduled-settings/${id}`, 'DELETE');
-            loadScheduledSettings();
-        } catch (error) {
-            alert('Failed to delete scheduled setting: ' + error.message);
-        }
-    }
-}
-
-function addToAutomationLog(message) {
-    const logElement = document.getElementById('automation-log');
-    const logEntry = document.createElement('p');
-    logEntry.textContent = `${new Date().toLocaleString()}: ${message}`;
-    logElement.prepend(logEntry);
-
-    // Keep only the last 50 log entries
-    while (logElement.children.length > 50) {
-        logElement.removeChild(logElement.lastChild);
-    }
-}
-
-async function sendMQTTMessage(topic, value) {
-    try {
-        await fetchAPI('<%= ingress_path %>/api/mqtt', 'POST', { topic: `solar_assistant_DEYE/${topic}`, message: value });
-        addToAutomationLog(`Sent MQTT message: ${topic} = ${value}`);
-    } catch (error) {
-        console.error('Failed to send MQTT message:', error);
-        addToAutomationLog(`Failed to send MQTT message: ${topic} = ${value}`);
-    }
-}
-
-function updateSystemState(state) {
-    const stateElement = document.getElementById('system-state');
-    stateElement.innerHTML = `
-        <p>Battery Power: ${state.batteryPower} W</p>
-        <p>Battery SOC: ${state.batterySOC}%</p>
-        <p>Solar Power: ${state.solarPower} W</p>
-        <p>Grid Power: ${state.gridPower} W</p>
-        <p>Load Power: ${state.loadPower} W</p>
-        <p>Last Updated: ${new Date(state.time).toLocaleString()}</p>
-    `;
-}
-
-function handleRealtimeUpdate(update) {
-    if (update.type === 'automationRuleTriggered') {
-        addToAutomationLog(`Automation rule triggered: ${update.ruleName}`);
-        update.actions.forEach(action => {
-            sendMQTTMessage(`${action.key}`, action.value);
-        });
-    } else if (update.type === 'scheduledSettingApplied') {
-        addToAutomationLog(`Scheduled setting applied: ${update.key} = ${update.value}`);
-        sendMQTTMessage(`${update.key}`, update.value);
-    }
-}
-
-// Initialize the page
-window.addEventListener('load', () => {
-    loadUniversalSettings();
-    loadInverterSettings();
-    loadAutomationRules();
-    loadScheduledSettings();
-
-    // Set up a WebSocket connection to receive real-time updates
-    const socket = new WebSocket(`ws://${window.location.host}`);
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'automationLog') {
-            addToAutomationLog(data.message);
-        } else if (data.type === 'stateUpdate') {
-            updateSystemState(data.state);
-        } else if (data.type === 'realtimeUpdate') {
-            handleRealtimeUpdate(data);
-        }
-    };
-});
-
-
-  
-
-
-// <![CDATA[  <-- For SVG support
-if ('WebSocket' in window) {
-    (function () {
-        function refreshCSS() {
-            var sheets = [].slice.call(document.getElementsByTagName("link"));
-            var head = document.getElementsByTagName("head")[0];
-            for (var i = 0; i < sheets.length; ++i) {
-                var elem = sheets[i];
-                var parent = elem.parentElement || head;
-                parent.removeChild(elem);
-                var rel = elem.rel;
-                if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
-                    var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
-                    elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
-                }
-                parent.appendChild(elem);
-            }
-        }
-        var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
-        var address = protocol + window.location.host + window.location.pathname + '/ws';
-        var socket = new WebSocket(address);
-        socket.onmessage = function (msg) {
-            if (msg.data == 'reload') window.location.reload();
-            else if (msg.data == 'refreshcss') refreshCSS();
-        };
-        if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
-            console.log('Live reload enabled.');
-            sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
-        }
-    })();
-}
-else {
-    console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
-}
-// ]]>
-</script>
 
     <script src="<%= ingress_path %>/js/loading.js"></script>
     <script src="<%= ingress_path %>/js/sidebar.js"></script>
     <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+
+<script>
+    // Utility functions
+    async function fetchAPI(url, method = 'GET', body = null) {
+const options = {
+    method,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+};
+if (body) {
+    options.body = JSON.stringify(body);
+}
+const response = await fetch(url, options);
+if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+}
+const contentType = response.headers.get("content-type");
+if (contentType && contentType.indexOf("application/json") !== -1) {
+    return response.json();
+} else {
+    return response.text();
+}
+}
+   // Load and display universal settings
+    async function loadUniversalSettings() {
+        const settings = await fetchAPI('/api/universal-settings');
+        Object.entries(settings).forEach(([key, value]) => {
+            const element = document.getElementById(key);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = value;
+                } else {
+                    element.value = value;
+                }
+            }
+        });
+    }
+
+    // Load inverter types and settings
+    async function loadInverterSettings() {
+        const types = await fetchAPI('/api/inverter-types');
+        const selectElement = document.getElementById('inverter-type');
+        selectElement.innerHTML = types.map(type => `<option value="${type}">${type}</option>`).join('');
+        
+        const { type, settings } = await fetchAPI('/api/inverter-settings');
+        selectElement.value = type;
+        
+        const workModeSelect = document.getElementById('workMode');
+        workModeSelect.innerHTML = settings.workMode.map(mode => `<option value="${mode}">${mode}</option>`).join('');
+        
+        const energyPatternSelect = document.getElementById('energyPattern');
+        energyPatternSelect.innerHTML = settings.energyPattern.map(pattern => `<option value="${pattern}">${pattern}</option>`).join('');
+        
+        document.getElementById('solarExportWhenBatteryFull').checked = settings.solarExportWhenBatteryFull;
+        document.getElementById('maxSellPower').value = settings.maxSellPower;
+    }
+
+    // Load and display automation rules
+    async function loadAutomationRules() {
+        const rules = await fetchAPI('/api/automation-rules');
+        const tableBody = document.querySelector('#automation-rules-table tbody');
+        tableBody.innerHTML = rules.map(rule => `
+            <tr>
+                <td>${rule.name}</td>
+                <td>${JSON.stringify(rule.conditions)}</td>
+                <td>${JSON.stringify(rule.actions)}</td>
+                <td>${rule.days.join(', ')}</td>
+                <td>
+                    <button onclick="editRule('${rule.id}')" class="btn btn-secondary">Edit</button>
+                    <button onclick="deleteRule('${rule.id}')" class="btn btn-danger">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // Load and display scheduled settings
+    async function loadScheduledSettings() {
+        const settings = await fetchAPI('/api/scheduled-settings');
+        const tableBody = document.querySelector('#scheduled-settings-table tbody');
+        tableBody.innerHTML = settings.map(setting => `
+            <tr>
+                <td>${setting.key}</td>
+                <td>${setting.value}</td>
+                <td>${setting.day}</td>
+                <td>${setting.hour}</td>
+                <td>
+                    <button onclick="editScheduledSetting('${setting.id}')">Edit</button>
+                    <button onclick="deleteScheduledSetting('${setting.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // Event listeners
+    document.getElementById('universal-settings-form').addEventListener('submit', async (e) => {
+e.preventDefault();
+const formData = new FormData(e.target);
+const settings = Object.fromEntries(formData.entries());
+settings.gridChargeOn = formData.get('gridChargeOn') === 'on';
+settings.generatorChargeOn = formData.get('generatorChargeOn') === 'on';
+try {
+    const result = await fetchAPI('/api/universal-settings', 'POST', settings);
+    console.log('Universal settings update result:', result);
+    alert('Universal settings updated successfully');
+    // Send MQTT messages
+    for (const [key, value] of Object.entries(settings)) {
+        try {
+            await sendMQTTMessage(`universal/${key}`, value);
+        } catch (mqttError) {
+            console.error(`Failed to send MQTT message for ${key}:`, mqttError);
+            addToAutomationLog(`Failed to send MQTT message: universal/${key} = ${value}`);
+        }
+    }
+} catch (error) {
+    console.error('Failed to update universal settings:', error);
+    alert('Failed to update universal settings: ' + error.message);
+}
+});
+document.getElementById('inverter-settings-form').addEventListener('submit', async (e) => {
+e.preventDefault();
+const type = document.getElementById('inverter-type').value;
+const settings = {
+    workMode: document.getElementById('workMode').value,
+    solarExportWhenBatteryFull: document.getElementById('solarExportWhenBatteryFull').checked,
+    energyPattern: document.getElementById('energyPattern').value,
+    maxSellPower: parseInt(document.getElementById('maxSellPower').value)
+};
+try {
+    const result = await fetchAPI('/api/inverter-settings', 'POST', { type, settings });
+    console.log('Inverter settings update result:', result);
+    alert('Inverter settings updated successfully');
+    // Send MQTT messages
+    for (const [key, value] of Object.entries(settings)) {
+        try {
+            await sendMQTTMessage(`inverter/${key}`, value);
+        } catch (mqttError) {
+            console.error(`Failed to send MQTT message for ${key}:`, mqttError);
+            addToAutomationLog(`Failed to send MQTT message: inverter/${key} = ${value}`);
+        }
+    }
+} catch (error) {
+    console.error('Failed to update inverter settings:', error);
+    alert('Failed to update inverter settings: ' + error.message);
+}
+});
+
+    document.getElementById('add-inverter-btn').addEventListener('click', async () => {
+        const newType = prompt('Enter new inverter type:');
+        if (newType) {
+            try {
+                await fetchAPI('/api/inverter-types', 'POST', { type: newType, settings: {} });
+                alert('New inverter type added: ' + newType);
+                loadInverterSettings();
+            } catch (error) {
+                alert('Failed to add new inverter type: ' + error.message);
+            }
+        }
+    });
+
+    document.getElementById('delete-inverter-btn').addEventListener('click', async () => {
+        const type = document.getElementById('inverter-type').value;
+        if (confirm(`Are you sure you want to delete the inverter type: ${type}?`)) {
+            try {
+                await fetchAPI(`/api/inverter-types/${type}`, 'DELETE');
+                alert('Inverter type deleted successfully');
+                loadInverterSettings();
+            } catch (error) {
+                alert('Failed to delete inverter type: ' + error.message);
+            }
+        }
+    });
+
+    // Rule modal functionality
+    const ruleModal = document.getElementById('rule-modal');
+    const closeBtn = ruleModal.querySelector('.close');
+    let currentRuleId = null;
+
+    closeBtn.onclick = () => {
+        ruleModal.style.display = 'none';
+    };
+
+    window.onclick = (event) => {
+        if (event.target == ruleModal) {
+            ruleModal.style.display = 'none';
+        }
+    };
+
+    document.getElementById('add-rule-btn').addEventListener('click', () => {
+        currentRuleId = null;
+        document.getElementById('rule-name').value = '';
+        document.getElementById('rule-conditions').value = '[]';
+        document.getElementById('rule-actions').value = '[]';
+        document.getElementById('rule-days').value = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday';
+        ruleModal.style.display = 'block';
+    });
+
+    document.getElementById('rule-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const rule = {
+            name: document.getElementById('rule-name').value,
+            conditions: JSON.parse(document.getElementById('rule-conditions').value),
+            actions: JSON.parse(document.getElementById('rule-actions').value),
+            days: document.getElementById('rule-days').value.split(',').map(day => day.trim())
+        };
+
+        try {
+            if (currentRuleId) {
+                await fetchAPI(`/api/automation-rules/${currentRuleId}`, 'PUT', rule);
+            } else {
+                await fetchAPI('/api/automation-rules', 'POST', rule);
+            }
+            ruleModal.style.display = 'none';
+            loadAutomationRules();
+        } catch (error) {
+            alert('Failed to save rule: ' + error.message);
+        }
+    });
+
+    async function editRule(id) {
+        currentRuleId = id;
+        try {
+            const rule = await fetchAPI(`/api/automation-rules/${id}`);
+            document.getElementById('rule-name').value = rule.name;
+            document.getElementById('rule-conditions').value = JSON.stringify(rule.conditions, null, 2);
+            document.getElementById('rule-actions').value = JSON.stringify(rule.actions, null, 2);
+            document.getElementById('rule-days').value = rule.days.join(',');
+            ruleModal.style.display = 'block';
+        } catch (error) {
+            alert('Failed to load rule for editing: ' + error.message);
+        }
+    }
+
+       // Add event listener for the close button in the modal
+       document.querySelector('.close-modal').addEventListener('click', () => {
+        ruleModal.style.display = 'none';
+    });
+
+    async function deleteRule(id) {
+        if (confirm('Are you sure you want to delete this rule?')) {
+            try {
+                await fetchAPI(`/api/automation-rules/${id}`, 'DELETE');
+                loadAutomationRules();
+            } catch (error) {
+                alert('Failed to delete rule: ' + error.message);
+            }
+        }
+    }
+
+    document.getElementById('add-scheduled-setting-btn').addEventListener('click', () => {
+        editScheduledSetting();
+    });
+
+    async function editScheduledSetting(id = null) {
+        let setting = id ? await fetchAPI(`/api/scheduled-settings/${id}`) : {};
+        const key = prompt('Enter setting key:', setting.key || '');
+        const value = prompt('Enter setting value:', setting.value || '');
+        const day = prompt('Enter day of week:', setting.day || '');
+        const hour = prompt('Enter hour (0-23):', setting.hour || '');
+
+        if (key && value && day && hour) {
+            const updatedSetting = { key, value, day, hour: parseInt(hour) };
+            try {
+                if (id) {
+                    await fetchAPI(`/api/scheduled-settings/${id}`, 'PUT', updatedSetting);
+                } else {
+                    await fetchAPI('/api/scheduled-settings', 'POST', updatedSetting);
+                }
+                loadScheduledSettings();
+            } catch (error) {
+                alert('Failed to save scheduled setting: ' + error.message);
+            }
+        }
+    }
+
+    async function deleteScheduledSetting(id) {
+        if (confirm('Are you sure you want to delete this scheduled setting?')) {
+            try {
+                await fetchAPI(`/api/scheduled-settings/${id}`, 'DELETE');
+                loadScheduledSettings();
+            } catch (error) {
+                alert('Failed to delete scheduled setting: ' + error.message);
+            }
+        }
+    }
+
+    function addToAutomationLog(message) {
+const logElement = document.getElementById('automation-log');
+const logEntry = document.createElement('p');
+logEntry.textContent = `${new Date().toLocaleString()}: ${message}`;
+logElement.prepend(logEntry);
+
+// Keep only the last 50 log entries
+while (logElement.children.length > 50) {
+    logElement.removeChild(logElement.lastChild);
+}
+}
+
+    async function sendMQTTMessage(topic, value) {
+try {
+    const result = await fetchAPI('/api/mqtt', 'POST', { topic: `solar_assistant_DEYE/${topic}`, message: value.toString() });
+    console.log('MQTT message send result:', result);
+    addToAutomationLog(`Sent MQTT message: ${topic} = ${value}`);
+} catch (error) {
+    console.error('Failed to send MQTT message:', error);
+    addToAutomationLog(`Failed to send MQTT message: ${topic} = ${value}`);
+    throw error; // Rethrow the error to be caught by the caller
+}
+}
+
+    function updateSystemState(state) {
+        const stateElement = document.getElementById('system-state');
+        stateElement.innerHTML = `
+            <p>Battery Power: ${state.batteryPower} W</p>
+            <p>Battery SOC: ${state.batterySOC}%</p>
+            <p>Solar Power: ${state.solarPower} W</p>
+            <p>Grid Power: ${state.gridPower} W</p>
+            <p>Load Power: ${state.loadPower} W</p>
+            <p>Last Updated: ${new Date(state.time).toLocaleString()}</p>
+        `;
+    }
+
+    function handleRealtimeUpdate(update) {
+        if (update.type === 'automationRuleTriggered') {
+            addToAutomationLog(`Automation rule triggered: ${update.ruleName}`);
+            update.actions.forEach(action => {
+                sendMQTTMessage(`${action.key}`, action.value);
+            });
+        } else if (update.type === 'scheduledSettingApplied') {
+            addToAutomationLog(`Scheduled setting applied: ${update.key} = ${update.value}`);
+            sendMQTTMessage(`${update.key}`, update.value);
+        }
+    }
+
+    // Initialize the page
+    window.addEventListener('load', () => {
+        loadUniversalSettings();
+        loadInverterSettings();
+        loadAutomationRules();
+        loadScheduledSettings();
+
+        // Set up a WebSocket connection to receive real-time updates
+        const socket = new WebSocket(`ws://${window.location.host}`);
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'automationLog') {
+                addToAutomationLog(data.message);
+            } else if (data.type === 'stateUpdate') {
+                updateSystemState(data.state);
+            } else if (data.type === 'realtimeUpdate') {
+                handleRealtimeUpdate(data);
+            }
+        };
+    });
+</script>
 
 </body>
 </html>

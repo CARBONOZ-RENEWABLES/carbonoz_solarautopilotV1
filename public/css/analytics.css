@@ -1,4 +1,10 @@
-
+h3{
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    font-size: 1.25rem;
+}
   .card {
     background-color: var(--card-bg);
     border-radius: 8px;
@@ -39,13 +45,18 @@ th, td {
 }
 
 .btn {
-    display: inline-block;
+    background-color: #DEAF0B;
+    border: none;
+    color: white;
     padding: 10px 20px;
-    background-color: var(--primary-color);
-    color: var(--text-color);
+    text-align: center;
     text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
     border-radius: 4px;
-    transition: background-color 0.3s;
+    border: 2px solid #000;
 }
 
 
