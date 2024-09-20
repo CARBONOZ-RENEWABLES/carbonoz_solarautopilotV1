@@ -17,7 +17,7 @@ h3{
 #map { height: 400px; }
 .chart-container {
     display: flex;
-    align-items:center;
+    flex-wrap: wrap;
     justify-content: space-between;
     margin-top: 20px;
 }
@@ -31,7 +31,7 @@ h3{
 }
 @media (min-width: 768px) {
     .chart {
-        width: 48%;
+        width: 100%;
     }
 }
 input[type="text"], button {
@@ -55,7 +55,7 @@ button {
     border: 2px solid #000;
 }
 button:hover {
-    background-color: #005177;
+    background-color: #d7ae19;
 }
 .loading {
     display: none;
@@ -86,11 +86,16 @@ button:hover {
     border: 2px solid #000;
 }
 .settings-link a:hover {
-    text-decoration: underline;
+    background-color: #d7ae19;
 }
 
 
 .dark-mode .content{
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+
+.dark-mode .chart{
     background-color: rgba(24, 27, 31, 1);
     color: #fff;
 }

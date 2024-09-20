@@ -119,4 +119,5 @@ button:hover {
 }
 .dark-mode input{
     background-color: transparent;
+    color: #fff;
 }
