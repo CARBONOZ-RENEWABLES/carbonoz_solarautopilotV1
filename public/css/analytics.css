@@ -60,6 +60,21 @@ th, td {
 }
 
 
-
-
+#energy-flow-diagram {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+#energy-flow-diagram svg {
+    width: 100%;
+    height: auto;
+}
+.node text {
+    font-size: 12px;
+}
+@media (max-width: 600px) {
+    .node text {
+        font-size: 10px;
+    }
+}
 

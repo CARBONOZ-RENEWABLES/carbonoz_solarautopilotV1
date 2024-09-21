@@ -156,25 +156,7 @@ async function saveMessageToInfluxDB(topic, message) {
   }
 }
 
-// Fetch current value from InfluxDB
-async function getCurrentValue(topic) {
-  const query = `
-        SELECT last("value") AS "value"
-        FROM "state"
-        WHERE "topic" = '${topic}'
-        AND time >= now() - 2d
-        GROUP BY time(1d) tz('${currentTimezone}')
-    `
-  try {
-    return await influx.query(query)
-  } catch (error) {
-    console.error(
-      `Error querying InfluxDB for topic ${topic}:`,
-      error.toString()
-    )
-    throw error
-  }
-}
+
 
 
 // Fetch analytics data from InfluxDB
@@ -209,48 +191,6 @@ function calculateDailyDifference(data) {
   })
 }
 
-function calculateLastTwoDaysDifference(data) {
-  const dataLength = data.length;
-
-  if (dataLength < 2) {
-    // If there's not enough data, return 0 for both days
-    return [
-      {
-        time: new Date(),
-        difference: 0,
-      },
-    ];
-  }
-
-  const latestDay = data[dataLength - 1];
-  const previousDay = data[dataLength - 2];
-
-  let difference;
-
-  if (!previousDay?.value || !latestDay?.value) {
-    // If no data for the previous or current day, return 0
-    difference = 0;
-  } else if (latestDay.value <= previousDay.value) {
-    // If current day's data is less than or equal to previous day's data
-    difference = latestDay.value;
-  } else {
-    // If current day's data is greater, calculate the difference
-    difference = latestDay.value - previousDay.value;
-  }
-
-  return [
-    {
-      time: latestDay.time || new Date(),
-      difference: parseFloat(difference.toFixed(1)),
-    },
-  ];
-
-}
-
-
-// carbon intensity
-
-
 
 // Route handlers
 
@@ -261,9 +201,7 @@ app.get('/settings', (req, res) => {
 app.get('/carbon-intensity', (req, res) => {
   res.render('carbon-intensity', { ingress_path: process.env.INGRESS_PATH || '' })
 })
-app.get('/configuration', (req, res) => {
-  res.render('configuration', { ingress_path: process.env.INGRESS_PATH || '' })
-})
+
 
 app.get('/messages', (req, res) => {
   res.render('messages', { 
@@ -287,100 +225,7 @@ app.get('/chart', (req, res) => {
   })
 })
 
-app.get('/dashboard', async (req, res) => {
-  try {
-    const loadPowerData = await getCurrentValue(
-      'solar_assistant_DEYE/total/load_energy/state'
-    );
-    const pvPowerData = await getCurrentValue(
-      'solar_assistant_DEYE/total/pv_energy/state'
-    );
-    const batteryPowerInData = await getCurrentValue(
-      'solar_assistant_DEYE/total/battery_energy_in/state'
-    );
-    const batteryPowerOutData = await getCurrentValue(
-      'solar_assistant_DEYE/total/battery_energy_out/state'
-    );
-    const gridPowerInData = await getCurrentValue(
-      'solar_assistant_DEYE/total/grid_energy_in/state'
-    );
-    const gridPowerOutData = await getCurrentValue(
-      'solar_assistant_DEYE/total/grid_energy_out/state'
-    );
 
-    const loadPowerDataDaily = calculateLastTwoDaysDifference(loadPowerData || []);
-    const pvPowerDataDaily = calculateLastTwoDaysDifference(pvPowerData || []);
-    const batteryPowerInDataDaily = calculateLastTwoDaysDifference(batteryPowerInData || []);
-    const batteryPowerOutDataDaily = calculateLastTwoDaysDifference(batteryPowerOutData || []);
-    const gridPowerInDataDaily = calculateLastTwoDaysDifference(gridPowerInData || []);
-    const gridPowerOutDataDaily = calculateLastTwoDaysDifference(gridPowerOutData || []);
-
-    const data = {
-      loadDifference: loadPowerDataDaily[0].difference || 0,
-      solarDifference: pvPowerDataDaily[0].difference || 0,
-      batteryChargeDifference: batteryPowerInDataDaily[0].difference || 0,
-      batteryDischargeDifference: batteryPowerOutDataDaily[0].difference || 0,
-      gridInDifference: gridPowerInDataDaily[0].difference || 0,
-      gridOutDifference: gridPowerOutDataDaily[0].difference || 0,
-    };
-
-    res.render('dashboard', {
-      data,
-      ingress_path: process.env.INGRESS_PATH || '',
-    });
-  } catch (error) {
-    console.error('Error fetching data for dashboard:', error);
-    res.status(500).json({ error: 'Error fetching data for dashboard' });
-  }
-});
-
-
-app.get('/api/energy', async (req, res) => {
-  try {
-    const loadPowerData = await getCurrentValue(
-      'solar_assistant_DEYE/total/load_energy/state'
-    )
-    const pvPowerData = await getCurrentValue(
-      'solar_assistant_DEYE/total/pv_energy/state'
-    )
-    const batteryPowerInData = await getCurrentValue(
-      'solar_assistant_DEYE/total/battery_energy_in/state'
-    )
-    const batteryPowerOutData = await getCurrentValue(
-      'solar_assistant_DEYE/total/battery_energy_out/state'
-    )
-    const gridPowerInData = await getCurrentValue(
-      'solar_assistant_DEYE/total/grid_energy_in/state'
-    )
-    const gridPowerOutData = await getCurrentValue(
-      'solar_assistant_DEYE/total/grid_energy_out/state'
-    )
-
-    const loadPowerDataDaily = calculateLastTwoDaysDifference(loadPowerData)
-    const pvPowerDataDaily = calculateLastTwoDaysDifference(pvPowerData)
-    const batteryPowerInDataDaily =
-      calculateLastTwoDaysDifference(batteryPowerInData)
-    const batteryPowerOutDataDaily =
-      calculateLastTwoDaysDifference(batteryPowerOutData)
-    const gridPowerInDataDaily = calculateLastTwoDaysDifference(gridPowerInData)
-    const gridPowerOutDataDaily =
-      calculateLastTwoDaysDifference(gridPowerOutData)
-
-    const data = {
-      loadDifference: loadPowerDataDaily[0].difference,
-      solarDifference: pvPowerDataDaily[0].difference,
-      batteryChargeDifference: batteryPowerInDataDaily[0].difference,
-      batteryDischargeDifference: batteryPowerOutDataDaily[0].difference,
-      gridInDifference: gridPowerInDataDaily[0].difference,
-      gridOutDifference: gridPowerOutDataDaily[0].difference,
-    }
-
-    res.json(data)
-  } catch (error) {
-    console.error('Error fetching energy data:', error)
-    res.status(500).json({ error: 'Error fetching energy data' })
-  }
-})
 
 app.get('/analytics', async (req, res) => {
   try {
