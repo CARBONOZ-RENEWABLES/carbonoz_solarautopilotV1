@@ -111,7 +111,6 @@ function connectToMqtt() {
       incomingMessages.shift()
     }
     saveMessageToInfluxDB(topic, message)
-    updateSystemState(topic, message)
   })
 
   mqttClient.on('error', (err) => {

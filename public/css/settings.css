@@ -278,18 +278,14 @@ h3 {
 }
 
 input {
-    width: 80%;
-     padding: 8px;
+    padding: 8px;
      border: none;
     border-radius: 6px;
     font-size: 14px;
     outline: none;
+    
 }
-input:focus {
-    outline: none;
-    border-color: #DEAF0B;
-    box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
-}
+
 button {
     background-color: #DEAF0B;
     border: none;
@@ -335,4 +331,6 @@ button:hover {
 .dark-mode input{
     background-color: transparent;
     color: #fff;
+    border: none;
+    outline: none;
 }
