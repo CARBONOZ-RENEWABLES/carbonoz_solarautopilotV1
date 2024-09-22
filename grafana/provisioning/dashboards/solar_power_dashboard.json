@@ -158,7 +158,7 @@
           "resultFormat": "time_series"
         }
       ],
-      "title": "Solar PV Power",
+      "title": "Solar PV",
       "type": "gauge"
     },
     {

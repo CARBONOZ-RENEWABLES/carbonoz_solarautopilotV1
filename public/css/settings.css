@@ -45,6 +45,7 @@ input[type="text"], input[type="number"], select, textarea {
     border: 1px solid var(--card-border);
     border-radius: 0.25rem;
     margin-top: 0.5rem;
+    color: var(--primary-color);
 }
 
 table {
@@ -148,6 +149,7 @@ textarea {
     border: 1px solid #ddd;
     border-radius: 4px;
     box-sizing: border-box;
+    color: var(--primary-color);
 }
 
 textarea {
@@ -183,7 +185,7 @@ textarea {
 .dark-mode input[type="text"],
 .dark-mode textarea {
     background-color: transparent;
-    color: #000;
+    color: var(--primary-color);
     border-color: #555;
 }
 
@@ -198,7 +200,7 @@ textarea {
 
 .dark-mode input,select{
     background-color: transparent;
-    color: #fff;
+    color: var(--primary-color);
 }
 
 
@@ -250,7 +252,7 @@ textarea {
     border-radius: 8px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     margin: 10px;
-    padding: 15px;
+    padding: 30px;
     margin-bottom: 15px;
     transition: all 0.3s ease;
 }
@@ -278,11 +280,11 @@ h3 {
 }
 
 input {
+    width: 80%;
     padding: 8px;
-     border: none;
     border-radius: 6px;
     font-size: 14px;
-    outline: none;
+    color: #000;
     
 }
 
@@ -327,10 +329,4 @@ button:hover {
 .dark-mode .gauge-card {
     background-color: rgb(32, 36, 41);
     color: #fff;
-}
-.dark-mode input{
-    background-color: transparent;
-    color: #fff;
-    border: none;
-    outline: none;
 }
