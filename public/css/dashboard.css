@@ -1,0 +1,178 @@
+.form-container {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #DEAF0B;
+    margin-bottom: 1rem;
+}
+
+p {
+    color: #DEAF0B;
+    margin-bottom: 1rem;
+}
+
+ol {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+}
+
+.input-group {
+    display: flex;
+    gap: 1rem;
+}
+h4{
+    color: #DEAF0B;
+}
+
+input[type="text"] {
+    flex-grow: 1;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    color: #DEAF0B;
+    background-color: transparent;
+}
+
+button {
+    background-color: #DEAF0B;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #C59F0A;
+}
+
+.hidden {
+    display: none;
+}
+
+.control-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+select {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    background-color: transparent;
+    color: #DEAF0B;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.grid-item {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.value {
+    font-size: 1.875rem;
+    font-weight: 700;
+}
+
+.red { color: #dc2626; }
+.green { color: #059669; }
+.blue { color: #2563eb; }
+
+.chart-container {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.chart-wrapper {
+    height: 24rem;
+}
+
+.total-emissions {
+    background-color: #f3f4f6;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-top: 2rem;
+}
+
+.emissions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+
+    .emissions-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .control-panel {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    select, button {
+        width: 100%;
+    }
+}
+
+.status-active {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.status-inactive {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.dark-mode .grid-item  {
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+.dark-mode .total-emissions {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .chart-container{
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+.dark-mode .form-container {
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}

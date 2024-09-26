@@ -9,6 +9,8 @@ const axios = require('axios');
 const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
+const session = require('express-session');
+require('dotenv').config();
 
 const app = express()
 const port = process.env.PORT || 6789
@@ -26,6 +28,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true,
+}));
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
@@ -290,11 +297,6 @@ function calculateDailyDifference(data) {
 app.get('/settings', (req, res) => {
   res.render('settings', { ingress_path: process.env.INGRESS_PATH || '' })
 })
-
-app.get('/carbon-intensity', (req, res) => {
-  res.render('carbon-intensity', { ingress_path: process.env.INGRESS_PATH || '' })
-})
-
 
 app.get('/messages', (req, res) => {
   res.render('messages', { 
@@ -830,90 +832,266 @@ setInterval(applyAutomationRules, 60000) // Run every minute
 
 // carbon intensity
 
-let settings = {};
-const settingsPath = path.join(__dirname, 'settings.json');
 
-function loadSettings() {
-  try {
-    settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-  } catch (error) {
-    console.log('No settings file found or invalid JSON. Using default settings.');
-    settings = { apiKey: '' };
-  }
-}
 
-function saveSettings() {
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-}
-
-loadSettings();
-
-// Electricity Maps API configuration
-const ELECTRICITY_MAPS_API_URL = 'https://api.electricitymap.org/v3/carbon-intensity/latest';
-
-// Sample countries (you can expand this list)
-const countries = [
-  { name: 'United Kingdom', code: 'GB', lat: 51.5074, lon: -0.1278 },
-  { name: 'France', code: 'FR', lat: 46.2276, lon: 2.2137 },
-  { name: 'Germany', code: 'DE', lat: 51.1657, lon: 10.4515 },
-  { name: 'Spain', code: 'ES', lat: 40.4637, lon: -3.7492 },
-  { name: 'Italy', code: 'IT', lat: 41.8719, lon: 12.5674 },
-  { name: 'Sweden', code: 'SE', lat: 60.1282, lon: 18.6435 },
-  { name: 'Norway', code: 'NO', lat: 60.4720, lon: 8.4689 },
-  { name: 'Denmark', code: 'DK', lat: 56.2639, lon: 9.5018 },
-  { name: 'Netherlands', code: 'NL', lat: 52.1326, lon: 5.2913 },
-  { name: 'Belgium', code: 'BE', lat: 50.8503, lon: 4.3517 },
-  { name: 'Switzerland', code: 'CH', lat: 46.8182, lon: 8.2275 },
-  { name: 'Austria', code: 'AT', lat: 47.5162, lon: 14.5501 },
-  { name: 'Poland', code: 'PL', lat: 51.9194, lon: 19.1451 },
-  { name: 'Portugal', code: 'PT', lat: 39.3999, lon: -8.2245 },
-  { name: 'Finland', code: 'FI', lat: 61.9241, lon: 25.7482 },
-  { name: 'Ireland', code: 'IE', lat: 53.4129, lon: -8.2439 },
+const locations = [
+  { value: 'MU', label: 'Mauritius' },
+  { value: 'KY', label: 'Cayman Islands' },
+  { value: 'GB', label: 'United Kingdom' },
+  { value: 'FR', label: 'France' },
+  { value: 'DE', label: 'Germany' },
+  { value: 'ES', label: 'Spain' },
+  { value: 'IT', label: 'Italy' },
+  { value: 'NL', label: 'Netherlands' },
+  { value: 'BE', label: 'Belgium' },
+  { value: 'AT', label: 'Austria' },
+  { value: 'CH', label: 'Switzerland' },
+  { value: 'DK', label: 'Denmark' },
+  { value: 'SE', label: 'Sweden' },
+  { value: 'NO', label: 'Norway' },
+  { value: 'FI', label: 'Finland' },
+  { value: 'PT', label: 'Portugal' },
+  { value: 'IE', label: 'Ireland' },
+  { value: 'US', label: 'United States' },
+  { value: 'CA', label: 'Canada' },
+  { value: 'AU', label: 'Australia' },
+  { value: 'NZ', label: 'New Zealand' },
+  { value: 'JP', label: 'Japan' },
+  { value: 'SG', label: 'Singapore' },
+  { value: 'AE', label: 'United Arab Emirates' },
 ];
 
-app.get('/api/carbon-intensity', async (req, res) => {
-  if (!settings.apiKey) {
-    return res.status(400).json({ error: 'API key not configured. Please set it in the settings.' });
+
+// Function to read the saved location from a file
+function getSavedLocation() {
+  try {
+    const data = fs.readFileSync('saved_location.txt', 'utf8');
+    return data.trim();
+  } catch (err) {
+    console.error('Error reading saved location:', err);
+    return 'MU'; // Default to Mauritius if there's an error
+  }
+}
+
+// Function to save the location to a file
+function saveLocation(location) {
+  try {
+    fs.writeFileSync('saved_location.txt', location);
+  } catch (err) {
+    console.error('Error saving location:', err);
+  }
+}
+
+// Initialize the saved location file with Mauritius if it doesn't exist
+if (!fs.existsSync('saved_location.txt')) {
+  saveLocation('MU');
+}
+
+async function getCarbonIntensity(location) {
+  const url = `https://api.electricitymap.org/v3/carbon-intensity/latest?zone=${location}`;
+  const headers = {
+    'Authorization': `Bearer ${process.env.ELECTRICITY_MAPS_API_KEY}`
+  };
+  try {
+    const response = await axios.get(url, { headers });
+    return response.data.carbonIntensity;
+  } catch (error) {
+    console.error('Error fetching carbon intensity:', error.message);
+    return 0;
+  }
+}
+
+async function getCarbonIntensityHistory(location, start, end) {
+  const url = `https://api.electricitymap.org/v3/carbon-intensity/history?zone=${location}&start=${start}&end=${end}`;
+  const headers = {
+    'Authorization': `Bearer ${process.env.ELECTRICITY_MAPS_API_KEY}`
+  };
+  try {
+    const response = await axios.get(url, { headers });
+    return response.data.history;
+  } catch (error) {
+    console.error('Error fetching carbon intensity history:', error.message);
+    return [];
+  }
+}
+
+async function getCurrentData(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    ORDER BY time DESC
+    LIMIT 1
+  `;
+  try {
+    const result = await influx.query(query);
+    return result[0] ? result[0].value : null;
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error);
+    return null;
+  }
+}
+
+async function getHistoricalPowerData(topic, start, end) {
+  const query = `
+    SELECT mean("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}' AND time >= '${start}' AND time <= '${end}'
+    GROUP BY time(1h)
+  `;
+  try {
+    const result = await influx.query(query);
+    return result;
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error);
+    return [];
+  }
+}
+
+function calculateCO2(power, carbonIntensity) {
+  return (power * carbonIntensity) / 1000; // Convert to kg
+}
+
+function calculateDailyEmissions(powerData, intensityData) {
+  const emissions = {};
+  powerData.forEach(power => {
+    const date = moment(power.time).format('YYYY-MM-DD');
+    const intensity = intensityData.find(i => moment(i.datetime).format('YYYY-MM-DD') === date);
+    if (intensity) {
+      if (!emissions[date]) {
+        emissions[date] = { grid: 0, solar: 0, battery: 0 };
+      }
+      emissions[date].grid += (power.grid * intensity.carbonIntensity) / 1000 / 24;
+      emissions[date].solar += (power.solar * intensity.carbonIntensity) / 1000 / 24;
+      emissions[date].battery += (power.battery * intensity.carbonIntensity) / 1000 / 24;
+    }
+  });
+  return emissions;
+}
+
+app.get('/carbon-intensity', async (req, res) => {
+  const location = getSavedLocation();
+  try {
+    const data = await fetchDashboardData(location);
+    res.render('dashboard', { 
+      ingress_path: process.env.INGRESS_PATH || '', 
+      locations, 
+      selectedLocation: location, 
+      currentData: data 
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('An error occurred');
+  }
+});
+
+
+app.post('/api/update-location', (req, res) => {
+  const { location } = req.body;
+  saveLocation(location);
+  res.json({ success: true });
+});
+
+app.get('/api/dashboard-data', async (req, res) => {
+  const location = getSavedLocation();
+  try {
+    const data = await fetchDashboardData(location);
+    res.json(data);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'An error occurred' });
+  }
+});
+
+
+app.get('/api/historical-data', async (req, res) => {
+  const location = getSavedLocation();
+  const { period } = req.query;
+  let start, end;
+
+  switch (period) {
+    case 'week':
+      start = moment().subtract(1, 'week').startOf('day').toISOString();
+      end = moment().endOf('day').toISOString();
+      break;
+    case 'month':
+      start = moment().subtract(1, 'month').startOf('day').toISOString();
+      end = moment().endOf('day').toISOString();
+      break;
+    case 'quarter':
+      start = moment().subtract(3, 'months').startOf('day').toISOString();
+      end = moment().endOf('day').toISOString();
+      break;
+    default:
+      return res.status(400).json({ error: 'Invalid period' });
   }
 
   try {
-    const results = await Promise.all(countries.map(async (country) => {
-      const response = await axios.get(ELECTRICITY_MAPS_API_URL, {
-        params: {
-          lat: country.lat,
-          lon: country.lon,
-        },
-        headers: {
-          'auth-token': settings.apiKey,
-        },
-      });
-      return {
-        ...country,
-        carbonIntensity: response.data.carbonIntensity,
-      };
+    const intensityData = await getCarbonIntensityHistory(location, start, end);
+    const gridPower = await getHistoricalPowerData('solar_assistant_DEYE/total/grid_energy_in/state', start, end);
+    const solarPower = await getHistoricalPowerData('solar_assistant_DEYE/total/pv_energy/state', start, end);
+    const batteryPower = await getHistoricalPowerData('solar_assistant_DEYE/total/battery_energy_in/state', start, end);
+
+    const powerData = gridPower.map((grid, index) => ({
+      time: grid.time,
+      grid: grid.value,
+      solar: solarPower[index].value,
+      battery: batteryPower[index].value
     }));
 
-    res.json(results);
+    const emissions = calculateDailyEmissions(powerData, intensityData);
+
+    // Fill in missing dates with zero values
+    const filledEmissions = {};
+    let currentDate = moment(start);
+    const endDate = moment(end);
+    while (currentDate <= endDate) {
+      const dateString = currentDate.format('YYYY-MM-DD');
+      filledEmissions[dateString] = emissions[dateString] || { grid: 0, solar: 0, battery: 0 };
+      currentDate.add(1, 'day');
+    }
+
+    const totalEmissions = Object.values(filledEmissions).reduce(
+      (acc, day) => {
+        acc.grid += day.grid;
+        acc.solar += day.solar;
+        acc.battery += day.battery;
+        return acc;
+      },
+      { grid: 0, solar: 0, battery: 0 }
+    );
+
+    res.json({ emissions: filledEmissions, totalEmissions });
   } catch (error) {
-    console.error('Error fetching carbon intensity:', error);
-    res.status(500).json({ error: 'Unable to fetch carbon intensity data' });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'An error occurred' });
   }
 });
 
-app.get('/api/settings', (req, res) => {
-  res.json({ apiKey: settings.apiKey ? 'API key is set' : '' });
-});
+async function fetchDashboardData(location) {
+  const carbonIntensity = await getCarbonIntensity(location);
+  const gridPower = await getCurrentData('solar_assistant_DEYE/total/grid_energy_in/state');
+  const solarPower = await getCurrentData('solar_assistant_DEYE/total/pv_energy/state');
+  const batteryPower = await getCurrentData('solar_assistant_DEYE/total/battery_energy_in/state');
+  const gridVoltage = await getCurrentData('solar_assistant_DEYE/total/grid_voltage/state');
 
-app.post('/api/settings', (req, res) => {
-  const { apiKey } = req.body;
-  if (apiKey) {
-    settings.apiKey = apiKey;
-    saveSettings();
-    res.json({ message: 'API key updated successfully' });
-  } else {
-    res.status(400).json({ error: 'Invalid API key' });
-  }
-});
+  const isGridActive = Math.abs(gridVoltage - 230) < 20;
+  const gridEmissions = isGridActive ? calculateCO2(gridPower, carbonIntensity) : 0;
+  const solarAvoided = calculateCO2(solarPower, carbonIntensity);
+  const batteryAvoided = calculateCO2(batteryPower, carbonIntensity);
+
+  return {
+    timestamp: new Date().toISOString(),
+    gridPower,
+    solarPower,
+    batteryPower,
+    gridVoltage,
+    gridEmissions,
+    solarAvoided,
+    batteryAvoided
+  };
+}
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

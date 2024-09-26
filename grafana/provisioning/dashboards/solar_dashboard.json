@@ -252,7 +252,7 @@
           "resultFormat": "time_series"
         }
       ],
-      "title": "fully charged",
+      "title": "Ret Time",
       "type": "stat"
     },
     {
@@ -2950,14 +2950,13 @@
           },
           "decimals": 1,
           "mappings": [],
-          "max": 60,
+          "max": 70,
           "min": -20,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "dark-red",
@@ -2976,8 +2975,12 @@
                 "value": 25
               },
               {
-                "color": "dark-green",
+                "color": "semi-dark-yellow",
                 "value": 42
+              },
+              {
+                "color": "semi-dark-green",
+                "value": 70
               }
             ]
           },
@@ -3022,21 +3025,21 @@
           "resultFormat": "time_series"
         },
         {
-          "alias": "Battery Temperature Mos",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT last(\"value\") AS \"Battery Temperature Mos\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature_mos\\/state/ ORDER BY time DESC LIMIT 1",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
           "alias": "Battery Temperature Env",
           "datasource": "InfluxDB",
           "hide": false,
           "query": "SELECT last(\"value\") AS \"Battery Temperature Env\" FROM \"state\" WHERE \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature_env\\/state/ ORDER BY time DESC LIMIT 1",
           "rawQuery": true,
           "refId": "C",
+          "resultFormat": "time_series"
+        },
+        {
+          "alias": "Inverter Temperature $tag_topic",
+          "datasource": "InfluxDB",
+          "hide": false,
+          "query": "\nSELECT last(\"value\") \nFROM \"state\"\nWHERE \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/temperature\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "rawQuery": true,
+          "refId": "D",
           "resultFormat": "time_series"
         }
       ],
@@ -3047,212 +3050,6 @@
           "options": {
             "regex": "battery_(\\d+)",
             "replace": "Battery $1"
-          }
-        }
-      ],
-      "type": "bargauge"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "max": 60,
-          "min": -20,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "dark-red",
-                "value": -29
-              },
-              {
-                "color": "dark-red",
-                "value": 0
-              },
-              {
-                "color": "dark-orange",
-                "value": 10
-              },
-              {
-                "color": "yellow",
-                "value": 25
-              },
-              {
-                "color": "dark-green",
-                "value": 42
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 98
-      },
-      "id": 238,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "alias": "Battery temperature",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Battery Temperature\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /solar_assistant_DEYE\\/battery_\\d+\\/temperature\\/state/ ORDER BY time DESC LIMIT 1\n",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Battery Temperature",
-      "type": "bargauge"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
-          },
-          "links": [],
-          "mappings": [],
-          "max": 70,
-          "min": -25,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "dark-green",
-                "value": 0
-              },
-              {
-                "color": "yellow",
-                "value": 25
-              },
-              {
-                "color": "dark-orange",
-                "value": 40
-              },
-              {
-                "color": "dark-red",
-                "value": 60
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 98
-      },
-      "id": 191,
-      "interval": "",
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.2.0",
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "alias": "$tag_topic",
-          "datasource": "InfluxDB",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "linear"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "mqtt_consumer",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "\nSELECT last(\"value\") \nFROM \"state\"\nWHERE \"topic\" =~ /solar_assistant_DEYE\\/inverter_\\d+\\/temperature\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ]
-        }
-      ],
-      "title": "Inverter Temperature",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "inverter_(\\d+)",
-            "replace": "Inverter $1"
           }
         }
       ],
@@ -3359,7 +3156,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 98
       },
       "id": 232,
       "interval": "",
@@ -3491,7 +3288,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 115
+        "y": 106
       },
       "id": 210,
       "options": {
@@ -3559,7 +3356,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 115
+        "y": 106
       },
       "id": 211,
       "options": {
@@ -3627,7 +3424,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 115
+        "y": 106
       },
       "id": 212,
       "options": {
@@ -3776,7 +3573,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 119
+        "y": 110
       },
       "id": 188,
       "options": {
@@ -3950,7 +3747,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 119
+        "y": 110
       },
       "id": 139,
       "options": {
@@ -4049,7 +3846,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "semi-dark-yellow"
+                "color": "semi-dark-yellow",
+                "value": null
               },
               {
                 "color": "orange",
@@ -4109,7 +3907,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 127
+        "y": 118
       },
       "id": 116,
       "interval": "",
@@ -4296,6 +4094,6 @@
   "timezone": "Indian/Mauritius",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 4,
+  "version": 10,
   "weekStart": ""
 }

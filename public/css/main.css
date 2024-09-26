@@ -1,4 +1,7 @@
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+body {
+    font-family: 'Inter', sans-serif;
+}
 :root {
  --primary-color: #DEAF0B;
  --bg-color: #f5f6fa;
@@ -362,7 +365,7 @@ body.dark-mode {
 }
 
 .dark-mode header {
-    background-color: rgb(17, 18, 23);;
+    background-color: rgb(17, 18, 23);
 }
 
 .dark-mode .content-card {

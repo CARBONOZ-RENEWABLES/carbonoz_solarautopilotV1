@@ -21,6 +21,8 @@
     "axios": "^1.7.7",
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.45",
+    "express-session": "^1.18.0",
+    "dotenv": "^16.4.5",
     "mqtt": "^4.2.8",
     "socket.io-client": "^4.7.5",
     "ws": "^8.2.3"
