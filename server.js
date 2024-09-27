@@ -1080,6 +1080,12 @@ async function fetchDashboardData(location) {
   const solarAvoided = calculateCO2(solarPower, carbonIntensity);
   const batteryAvoided = calculateCO2(batteryPower, carbonIntensity);
 
+  // Calculate self-produced and grid-consumed energy
+  const selfProduced = solarPower + batteryPower;
+  const gridConsumed = gridPower;
+  const totalEnergy = selfProduced + gridConsumed;
+  const selfSufficiencyScore = totalEnergy > 0 ? (selfProduced / totalEnergy) * 100 : 0;
+
   return {
     timestamp: new Date().toISOString(),
     gridPower,
@@ -1088,7 +1094,10 @@ async function fetchDashboardData(location) {
     gridVoltage,
     gridEmissions,
     solarAvoided,
-    batteryAvoided
+    batteryAvoided,
+    selfProduced,
+    gridConsumed,
+    selfSufficiencyScore
   };
 }
 

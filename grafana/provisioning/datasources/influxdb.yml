@@ -1,5 +1,4 @@
 apiVersion: 1
-
 datasources:
   - name: InfluxDB
     type: influxdb
@@ -11,3 +10,4 @@ datasources:
       password: ${DATABASE_PASSWORD}
     jsonData:
       httpMode: GET
+      timeInterval: "1s" 

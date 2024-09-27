@@ -47,7 +47,7 @@
                             <button id="update-location">Update Location</button>
                             <button id="change-api-key">Change API Key</button>
                         </div>
-            
+           
                         <div class="grid-container">
                             <div class="grid-item">
                                 <h3>Grid CO2 Emissions</h3>
@@ -67,7 +67,24 @@
                                 <p>Status: <span id="grid-status">Unknown</span></p>
                             </div>
                         </div>
-            
+                 <!-- New self-sufficiency gauge section -->
+                 <div id="self-sufficiency-gauge" class="gauge-container">
+                    <h3 class="gauge-title">Self-Sufficiency Score</h3>
+                    <div class="gauge-score" id="self-sufficiency-score">0%</div>
+                    <div class="gauge-bar">
+                        <div class="gauge-progress" id="self-sufficiency-progress"></div>
+                    </div>
+                    <div class="gauge-details">
+                        <div>
+                            <p class="gauge-detail-label">Self-Produced</p>
+                            <p class="gauge-detail-value self-produced" id="self-produced-value">0.00 kWh</p>
+                        </div>
+                        <div>
+                            <p class="gauge-detail-label">Grid Consumed</p>
+                            <p class="gauge-detail-value grid-consumed" id="grid-consumed-value">0.00 kWh</p>
+                        </div>
+                    </div>
+                </div>
                         <div class="chart-container">
                             <h3>Historical CO2 Emissions</h3>
                             <div class="button-group">
@@ -152,6 +169,12 @@
         const gridStatusElement = document.getElementById('grid-status');
         gridStatusElement.textContent = gridStatus;
         gridStatusElement.className = gridStatus === 'Active' ? 'status-active' : 'status-inactive';
+
+           // New: Update self-sufficiency gauge
+         document.getElementById('self-sufficiency-score').textContent = `${data.selfSufficiencyScore.toFixed(1)}%`;
+        document.getElementById('self-sufficiency-progress').style.width = `${data.selfSufficiencyScore}%`;
+        document.getElementById('self-produced-value').textContent = `${data.selfProduced.toFixed(2)} kWh`;
+        document.getElementById('grid-consumed-value').textContent = `${data.gridConsumed.toFixed(2)} kWh`;
     }
 
     function createHistoricalChart(data, totalEmissions, period) {

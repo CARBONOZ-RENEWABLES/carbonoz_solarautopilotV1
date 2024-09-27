@@ -16,7 +16,8 @@
     font-size: 16px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    background-color: white;
+    background-color: transparent;
+    color: #DEAF0B;
   }
   button {
     font-size: 16px;
