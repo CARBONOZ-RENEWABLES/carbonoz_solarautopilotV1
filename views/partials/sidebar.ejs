@@ -1,28 +1,33 @@
 <div class="sidebar" id="sidebar">
     <div class="logo">
-      <div class="logo-icon"><img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt=""></div>
+      <div class="logo-icon">
+        <img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt="">
+      </div>
+      <a href="https://carbonoz.com/" target="_blank" style="text-decoration: none;">
         <span class="logo-text">CARBONOZ <span class="highlight">SolarAutopilot</span></span>
+      </a>
     </div>
-
+  
     <nav>
-        <ul>
-            <li><a href="<%= ingress_path %>/"><i>🏠</i><span>Dashboard</span></a></li>
-            <li><a href="<%= ingress_path %>/chart"><i>📊</i><span>Charts</span></a></li>
-            <li><a href="<%= ingress_path %>/messages"><i>💬</i><span>Messages</span></a></li>
-            <li><a href="<%= ingress_path %>/settings"><i>⚙️</i><span>Settings</span></a></li>
-            <li><a href="<%= ingress_path %>/analytics"><i>📈</i><span>Analytics</span></a></li>
-            <li><a href="<%= ingress_path %>/carbon-intensity"><i>🍃</i><span>Carbon Intensity</span></a></li>
-        </ul>
+      <ul>
+        <li><a href="<%= ingress_path %>/"><i>🏠</i><span>Dashboard</span></a></li>
+        <li><a href="<%= ingress_path %>/chart"><i>📊</i><span>Charts</span></a></li>
+        <li><a href="<%= ingress_path %>/messages"><i>💬</i><span>Messages</span></a></li>
+        <li><a href="<%= ingress_path %>/settings"><i>⚙️</i><span>Settings</span></a></li>
+        <li><a href="<%= ingress_path %>/analytics"><i>📈</i><span>Analytics</span></a></li>
+        <li><a href="<%= ingress_path %>/carbon-intensity"><i>🍃</i><span>Carbon Intensity</span></a></li>
+      </ul>
     </nav>
-    <div class="bottom-options">
-        <div class="toggle-dark-mode" id="toggleDarkMode">
-            <span class="toggle-text">Dark Mode</span>
-            <div class="toggle-switch" id="darkModeSwitch"></div>
-        </div>
-        <div class="toggle-sidebar" id="toggleSidebar">
-            <span class="toggle-text">Collapse sidebar</span>
-            <div class="toggle-switch" id="toggleSwitch"></div>
-        </div>
-    </div>
     
-</div>
+    <div class="bottom-options">
+      <div class="toggle-dark-mode" id="toggleDarkMode">
+        <span class="toggle-text">Dark Mode</span>
+        <div class="toggle-switch" id="darkModeSwitch"></div>
+      </div>
+      <div class="toggle-sidebar" id="toggleSidebar">
+        <span class="toggle-text">Collapse sidebar</span>
+        <div class="toggle-switch" id="toggleSwitch"></div>
+      </div>
+    </div>
+  </div>
+  

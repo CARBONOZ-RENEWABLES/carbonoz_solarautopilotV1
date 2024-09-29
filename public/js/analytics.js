@@ -59,19 +59,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateCSV(tableId) {
         let csv = [];
         const rows = document.querySelectorAll(`#${tableId} tr`);
-  
+    
         rows.forEach(row => {
             let rowData = [];
             const cells = row.querySelectorAll('th, td');
             cells.forEach(cell => {
-                rowData.push(cell.textContent.trim());
+                // Remove 'kWh' from the cell content and trim any whitespace
+                let cellContent = cell.textContent.replace('kWh', '').trim();
+                rowData.push(cellContent);
             });
             csv.push(rowData.join(','));
         });
-  
+    
         const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-  
+    
         const downloadLink = document.getElementById(`${tableId}-download`);
         downloadLink.href = url;
         downloadLink.download = `${tableId}-${new Date().toISOString()}.csv`;

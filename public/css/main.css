@@ -63,7 +63,8 @@ body, html {
 }
 
 .logo-text .highlight {
- color: var(--primary-color);;
+ color: var(--primary-color);
+ margin-left: 10px;
 }
 
 

@@ -959,15 +959,15 @@ function calculateDailyEmissions(powerData, intensityData) {
     const intensity = intensityData.find(i => moment(i.datetime).format('YYYY-MM-DD') === date);
     if (intensity) {
       if (!emissions[date]) {
-        emissions[date] = { grid: 0, solar: 0, battery: 0 };
+        emissions[date] = { grid: 0, solar: 0 };
       }
       emissions[date].grid += (power.grid * intensity.carbonIntensity) / 1000 / 24;
       emissions[date].solar += (power.solar * intensity.carbonIntensity) / 1000 / 24;
-      emissions[date].battery += (power.battery * intensity.carbonIntensity) / 1000 / 24;
     }
   });
   return emissions;
 }
+
 
 app.get('/carbon-intensity', async (req, res) => {
   const location = getSavedLocation();
@@ -992,6 +992,7 @@ app.post('/api/update-location', (req, res) => {
   res.json({ success: true });
 });
 
+
 app.get('/api/dashboard-data', async (req, res) => {
   const location = getSavedLocation();
   try {
@@ -999,11 +1000,11 @@ app.get('/api/dashboard-data', async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'An error occurred' });
+    res.status(500).json({ error: 'An error occurred while fetching dashboard data' });
   }
 });
 
-
+// Update the /api/historical-data endpoint
 app.get('/api/historical-data', async (req, res) => {
   const location = getSavedLocation();
   const { period } = req.query;
@@ -1022,6 +1023,10 @@ app.get('/api/historical-data', async (req, res) => {
       start = moment().subtract(3, 'months').startOf('day').toISOString();
       end = moment().endOf('day').toISOString();
       break;
+    case 'year':
+      start = moment().subtract(1, 'year').startOf('day').toISOString();
+      end = moment().endOf('day').toISOString();
+      break;
     default:
       return res.status(400).json({ error: 'Invalid period' });
   }
@@ -1030,13 +1035,11 @@ app.get('/api/historical-data', async (req, res) => {
     const intensityData = await getCarbonIntensityHistory(location, start, end);
     const gridPower = await getHistoricalPowerData('solar_assistant_DEYE/total/grid_energy_in/state', start, end);
     const solarPower = await getHistoricalPowerData('solar_assistant_DEYE/total/pv_energy/state', start, end);
-    const batteryPower = await getHistoricalPowerData('solar_assistant_DEYE/total/battery_energy_in/state', start, end);
 
     const powerData = gridPower.map((grid, index) => ({
       time: grid.time,
-      grid: grid.value,
-      solar: solarPower[index].value,
-      battery: batteryPower[index].value
+      grid: grid.value || 0,
+      solar: solarPower[index]?.value || 0,
     }));
 
     const emissions = calculateDailyEmissions(powerData, intensityData);
@@ -1047,7 +1050,7 @@ app.get('/api/historical-data', async (req, res) => {
     const endDate = moment(end);
     while (currentDate <= endDate) {
       const dateString = currentDate.format('YYYY-MM-DD');
-      filledEmissions[dateString] = emissions[dateString] || { grid: 0, solar: 0, battery: 0 };
+      filledEmissions[dateString] = emissions[dateString] || { grid: 0, solar: 0 };
       currentDate.add(1, 'day');
     }
 
@@ -1055,52 +1058,51 @@ app.get('/api/historical-data', async (req, res) => {
       (acc, day) => {
         acc.grid += day.grid;
         acc.solar += day.solar;
-        acc.battery += day.battery;
         return acc;
       },
-      { grid: 0, solar: 0, battery: 0 }
+      { grid: 0, solar: 0 }
     );
 
     res.json({ emissions: filledEmissions, totalEmissions });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'An error occurred' });
+    res.status(500).json({ error: 'An error occurred while fetching historical data' });
   }
 });
 
 async function fetchDashboardData(location) {
-  const carbonIntensity = await getCarbonIntensity(location);
-  const gridPower = await getCurrentData('solar_assistant_DEYE/total/grid_energy_in/state');
-  const solarPower = await getCurrentData('solar_assistant_DEYE/total/pv_energy/state');
-  const batteryPower = await getCurrentData('solar_assistant_DEYE/total/battery_energy_in/state');
-  const gridVoltage = await getCurrentData('solar_assistant_DEYE/total/grid_voltage/state');
+  try {
+    const carbonIntensity = await getCarbonIntensity(location);
+    const gridPower = await getCurrentData('solar_assistant_DEYE/total/grid_energy_in/state') || 0;
+    const solarPower = await getCurrentData('solar_assistant_DEYE/total/pv_energy/state') || 0;
+    const gridVoltage = await getCurrentData('solar_assistant_DEYE/total/grid_voltage/state') || 0;
 
-  const isGridActive = Math.abs(gridVoltage - 230) < 20;
-  const gridEmissions = isGridActive ? calculateCO2(gridPower, carbonIntensity) : 0;
-  const solarAvoided = calculateCO2(solarPower, carbonIntensity);
-  const batteryAvoided = calculateCO2(batteryPower, carbonIntensity);
+    const isGridActive = Math.abs(gridVoltage - 230) < 20;
+    const gridEmissions = isGridActive ? calculateCO2(gridPower, carbonIntensity) : 0;
+    const solarAvoided = calculateCO2(solarPower, carbonIntensity);
 
-  // Calculate self-produced and grid-consumed energy
-  const selfProduced = solarPower + batteryPower;
-  const gridConsumed = gridPower;
-  const totalEnergy = selfProduced + gridConsumed;
-  const selfSufficiencyScore = totalEnergy > 0 ? (selfProduced / totalEnergy) * 100 : 0;
+    const selfProduced = solarPower;
+    const gridConsumed = gridPower;
+    const totalEnergy = selfProduced + gridConsumed;
+    const selfSufficiencyScore = totalEnergy > 0 ? (selfProduced / totalEnergy) * 100 : 0;
 
-  return {
-    timestamp: new Date().toISOString(),
-    gridPower,
-    solarPower,
-    batteryPower,
-    gridVoltage,
-    gridEmissions,
-    solarAvoided,
-    batteryAvoided,
-    selfProduced,
-    gridConsumed,
-    selfSufficiencyScore
-  };
+    return {
+      timestamp: new Date().toISOString(),
+      gridPower,
+      solarPower,
+      gridVoltage,
+      gridEmissions,
+      solarAvoided,
+      selfProduced,
+      gridConsumed,
+      selfSufficiencyScore,
+      carbonIntensity
+    };
+  } catch (error) {
+    console.error('Error in fetchDashboardData:', error);
+    throw error;
+  }
 }
-
 
 // Error handling middleware
 app.use((err, req, res, next) => {
