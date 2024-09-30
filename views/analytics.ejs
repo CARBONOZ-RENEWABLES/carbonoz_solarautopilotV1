@@ -78,6 +78,10 @@
                                         <th>Battery Discharged</th>
                                         <th>Grid Used</th>
                                         <th>Grid Exported</th>
+                                        <% if (data.selectedLocation) { %>
+                                            <th>CO2 Emitted</th>
+                                            <th>CO2 Avoided</th>
+                                        <% } %>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -106,6 +110,13 @@
                                                 if (data.gridVoltageData[i-1] && data.gridVoltageData[i] && data.gridVoltageData[i-1].value !== null && data.gridVoltageData[i].value !== null) {
                                                     netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value).toFixed(1) : data.gridVoltageData[i].value.toFixed(1);
                                                 }
+                            
+                                                let co2Emitted = 0, co2Avoided = 0;
+                                                if (data.selectedLocation && data.carbonIntensityData[i]) {
+                                                    const carbonIntensity = data.carbonIntensityData[i].carbonIntensity;
+                                                    co2Emitted = calculateCO2(gridPowerDiff, carbonIntensity);
+                                                    co2Avoided = calculateCO2(pvPowerDiff, carbonIntensity);
+                                                }
                                             %> 
                                             <td><%= loadPowerDiff %> kWh</td>
                                             <td><%= pvPowerDiff %> kWh</td>
@@ -113,6 +124,10 @@
                                             <td><%= batteryPowerDiff %> kWh</td>
                                             <td><%= gridPowerDiff %> kWh</td>
                                             <td><%= netPVPowerDiff %> kWh</td>
+                                            <% if (data.selectedLocation) { %>
+                                                <td><%= co2Emitted.toFixed(2) %> kg</td>
+                                                <td><%= co2Avoided.toFixed(2) %> kg</td>
+                                            <% } %>
                                         </tr>
                                     <% } %>
                                 </tbody>
@@ -139,6 +154,8 @@
                                         <th>Battery Discharged</th>
                                         <th>Grid Used</th>
                                         <th>Grid Exported</th>
+                                        <th>CO2 Emitted</th>
+                                        <th>CO2 Avoided</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -151,11 +168,12 @@
                                         let monthKey = date.toLocaleString('default', { month: 'long', year: 'numeric' });
                                         monthlyData[monthKey] = {
                                             load: 0, solar: 0, batteryCharged: 0, 
-                                            batteryDischarged: 0, gridUsed: 0, gridExported: 0
+                                            batteryDischarged: 0, gridUsed: 0, gridExported: 0,
+                                            co2Emitted: 0, co2Avoided: 0
                                         };
                                     }
-                        
-                                    for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) {
+                            
+                                    for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 365; i--) {
                                         let date = new Date(data.loadPowerData[i].time);
                                         let monthKey = date.toLocaleString('default', { month: 'long', year: 'numeric' });
                                         
@@ -183,16 +201,23 @@
                                                 netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? 
                                                     (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value) : data.gridVoltageData[i].value;
                                             }
-                        
+                            
                                             monthlyData[monthKey].load += loadPowerDiff;
                                             monthlyData[monthKey].solar += pvPowerDiff;
                                             monthlyData[monthKey].batteryCharged += batteryStateOfChargeDiff;
                                             monthlyData[monthKey].batteryDischarged += batteryPowerDiff;
                                             monthlyData[monthKey].gridUsed += gridPowerDiff;
                                             monthlyData[monthKey].gridExported += netPVPowerDiff;
+                            
+                                            // Calculate CO2 emissions and avoided
+                                            if (data.carbonIntensityData[i]) {
+                                                const carbonIntensity = data.carbonIntensityData[i].carbonIntensity;
+                                                monthlyData[monthKey].co2Emitted += calculateCO2(gridPowerDiff, carbonIntensity);
+                                                monthlyData[monthKey].co2Avoided += calculateCO2(pvPowerDiff, carbonIntensity);
+                                            }
                                         }
                                     }
-                        
+                            
                                     Object.keys(monthlyData).forEach(month => {
                                         let data = monthlyData[month];
                                     %>
@@ -203,10 +228,13 @@
                                             <td><%= data.batteryCharged.toFixed(1) %> kWh</td>
                                             <td><%= data.batteryDischarged.toFixed(1) %> kWh</td>
                                             <td><%= data.gridUsed.toFixed(1) %> kWh</td>
-                                            <td><%= data.gridExported.toFixed(1) %> kWh</td></tr>
-                                            <% }); %>
-                                        </tbody>
-                                    </table>
+                                            <td><%= data.gridExported.toFixed(1) %> kWh</td>
+                                            <td><%= data.co2Emitted.toFixed(2) %> kg</td>
+                                            <td><%= data.co2Avoided.toFixed(2) %> kg</td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
                                 </div>
                                 <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
                             </div>

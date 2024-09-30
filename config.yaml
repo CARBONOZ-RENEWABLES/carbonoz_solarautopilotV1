@@ -1,5 +1,5 @@
 name: "Carbonoz SolarAutopilot"
-version: "1.0.0"
+version: "1.0.1"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
 url: "https://github.com/eelitedesire/carbonoz_solarautopilot"
@@ -32,19 +32,25 @@ options:
   mqtt_port: 1883
   mqtt_username: ""
   mqtt_password: ""
+  mqtt_topic_prefix: "solar_assistant_DEYE"
   battery_number: 1
   inverter_number: 1
   database_name: ""
   database_username: ""
   database_password: ""
+  client_username: ""
+  client_password: ""
 schema:
   mqtt_host: str
   mqtt_port: port
   mqtt_username: str?
   mqtt_password: password?
+  mqtt_topic_prefix: str
   battery_number: int(1,)
   inverter_number: int(1,)
   database_name: str?
   database_username: str?
   database_password: password?
-panel: true # This ensures the sidebar panel is shown automatically
+  client_username: str
+  client_password: password
+panel: true

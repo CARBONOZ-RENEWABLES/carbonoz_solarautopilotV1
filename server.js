@@ -37,11 +37,12 @@ app.use(session({
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
-const dashboardFilePath = './grafana/provisioning/dashboards/solar_power_dashboard.json';
 
 // Extract inverter and battery numbers from options
 const inverterNumber = options.inverter_number || 1;
 const batteryNumber = options.battery_number || 1;
+// MQTT topic prefix
+const mqttTopicPrefix = options.mqtt_topic_prefix || 'solar_assistant_DEYE';
 
 // InfluxDB configuration
 const influxConfig = {
@@ -108,7 +109,7 @@ function connectToMqtt() {
 
   mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker')
-    mqttClient.subscribe('solar_assistant_DEYE/#')
+    mqttClient.subscribe(`${mqttTopicPrefix}/#`)
   })
 
   mqttClient.on('message', (topic, message) => {
@@ -126,100 +127,6 @@ function connectToMqtt() {
   })
 }
 
-
-function publishToMQTT(topic, message) {
-  let messageToSend = message;
-  if (typeof message === 'number' && isNaN(message)) {
-    console.warn(`Attempting to publish NaN value to ${topic}. Skipping.`);
-    return;
-  }
-  if (typeof message !== 'string') {
-    messageToSend = JSON.stringify(message);
-  }
-
-  client.publish(topic, messageToSend, (err) => {
-    if (err) {
-      console.error('Error publishing to MQTT:', err);
-    } else {
-      console.log(`Published to ${topic}: ${messageToSend}`);
-      broadcastMessage({
-        type: 'automationLog',
-        message: `Published to ${topic}: ${messageToSend}`
-      });
-    }
-  });
-}
-
-// Inverter configuration
-let inverterConfig = {
-  Deye: {
-    workMode: ['Selling first', 'Zero Export to Load', 'Selling first'],
-    solarExportWhenBatteryFull: true,
-    energyPattern: ['Load First', 'Battery First'],
-    maxSellPower: 5000
-  },
-  MPP: {
-    // Add MPP-specific settings here
-  }
-};
-
-// Data storage
-let automationRules = [];
-let scheduledSettings = [];
-let universalSettings = {
-  maxBatteryDischargePower: 500,
-  gridChargeOn: false,
-  generatorChargeOn: false,
-  dischargeVoltage: 48.0
-};
-let currentInverterType = 'Deye';
-let currentInverterSettings = { ...inverterConfig.Deye };
-
-// Current system state
-let currentSystemState = {
-  inverter_1: {},
-  inverter_2: {},
-  battery_1: {},
-  total: {},
-  batteryPower: 0,
-  batterySOC: 0,
-  solarPower: 0,
-  gridPower: 0,
-  loadPower: 0,
-  time: new Date(),
-};
-
-// Function to update the current system state
-function updateSystemState(deviceType, measurement, value) {
-  if (!currentSystemState[deviceType]) {
-    currentSystemState[deviceType] = {};
-  }
-  currentSystemState[deviceType][measurement] = value;
-  currentSystemState.time = new Date();
-
-  // Special handling for 'total' measurements
-  if (deviceType === 'total') {
-    switch(measurement) {
-      case 'battery_power':
-        currentSystemState.batteryPower = value;
-        break;
-      case 'battery_state_of_charge':
-        currentSystemState.batterySOC = value;
-        break;
-      case 'grid_power':
-        currentSystemState.gridPower = value;
-        break;
-      case 'load_power':
-        currentSystemState.loadPower = value;
-        break;
-      case 'pv_power':
-        currentSystemState.solarPower = value;
-        break;
-    }
-  }
-
-  broadcastMessage({ type: 'stateUpdate', state: currentSystemState });
-}
 
 
 // Save MQTT message to InfluxDB
@@ -276,20 +183,7 @@ async function queryInfluxDB(topic) {
   }
 }
 
-// Calculate daily difference
-function calculateDailyDifference(data) {
-  return data.map((current, index, array) => {
-    if (index === 0 || !array[index - 1].value) {
-      return { ...current, difference: 0 }
-    } else {
-      const previousData = array[index - 1].value
-      const currentData = current.value
-      const difference =
-        currentData >= previousData ? currentData - previousData : currentData
-      return { ...current, difference: parseFloat(difference.toFixed(1)) }
-    }
-  })
-}
+
 
 
 // Route handlers
@@ -324,28 +218,44 @@ app.get('/chart', (req, res) => {
 
 app.get('/analytics', async (req, res) => {
   try {
-      const loadPowerData = await queryInfluxDB('solar_assistant_DEYE/total/load_energy/state');
-      const pvPowerData = await queryInfluxDB('solar_assistant_DEYE/total/pv_energy/state');
-      const batteryStateOfChargeData = await queryInfluxDB('solar_assistant_DEYE/total/battery_energy_in/state');
-      const batteryPowerData = await queryInfluxDB('solar_assistant_DEYE/total/battery_energy_out/state');
-      const gridPowerData = await queryInfluxDB('solar_assistant_DEYE/total/grid_energy_in/state');
-      const gridVoltageData = await queryInfluxDB('solar_assistant_DEYE/total/grid_energy_out/state');
+    const loadPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`);
+    const pvPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`);
+    const batteryStateOfChargeData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`);
+    const batteryPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`);
+    const gridPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`);
+    const gridVoltageData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`);
 
-      const data = {
-          loadPowerData,
-          pvPowerData,
-          batteryStateOfChargeData,
-          batteryPowerData,
-          gridPowerData,
-          gridVoltageData,
-      };
+    const selectedLocation = getSavedLocation();
+    let carbonIntensityData = [];
 
-      res.render('analytics', { data, ingress_path: process.env.INGRESS_PATH || '' });
+    if (selectedLocation) {
+      const thirtyDaysAgo = moment().subtract(30, 'days').startOf('day').toISOString();
+      const now = moment().endOf('day').toISOString();
+      carbonIntensityData = await getCarbonIntensityHistory(selectedLocation, thirtyDaysAgo, now);
+    }
+
+    const data = {
+      loadPowerData,
+      pvPowerData,
+      batteryStateOfChargeData,
+      batteryPowerData,
+      gridPowerData,
+      gridVoltageData,
+      carbonIntensityData,
+      selectedLocation
+    };
+
+    res.render('analytics', { 
+      data, 
+      ingress_path: process.env.INGRESS_PATH || '',
+      calculateCO2
+    });
   } catch (error) {
-      console.error('Error fetching analytics data from InfluxDB:', error);
-      res.status(500).json({ error: 'Error fetching analytics data from InfluxDB' });
+    console.error('Error fetching analytics data from InfluxDB:', error);
+    res.status(500).json({ error: 'Error fetching analytics data from InfluxDB' });
   }
 });
+
 
 
 app.get('/', (req, res) => {
@@ -372,158 +282,7 @@ app.post('/api/timezone', (req, res) => {
   }
 });
 
-// Universal Settings
-app.get('/api/universal-settings', (req, res) => {
-  res.json(universalSettings);
-});
-
-app.post('/api/universal-settings', (req, res) => {
-  universalSettings = { ...universalSettings, ...req.body };
-  res.json(universalSettings);
-  Object.entries(universalSettings).forEach(([key, value]) => {
-    publishToMQTT(`solar_assistant_DEYE/universal/${key}`, value);
-  });
-});
-
-// Inverter Settings
-app.get('/api/inverter-types', (req, res) => {
-  res.json(Object.keys(inverterConfig));
-});
-
-app.get('/api/inverter-settings', (req, res) => {
-  res.json({ type: currentInverterType, settings: currentInverterSettings });
-});
-
-app.post('/api/inverter-settings', (req, res) => {
-  const { type, settings } = req.body;
-  if (inverterConfig[type]) {
-    currentInverterType = type;
-    currentInverterSettings = { ...inverterConfig[type], ...settings };
-    inverterConfig[type] = currentInverterSettings;
-    res.json({ type: currentInverterType, settings: currentInverterSettings });
-    Object.entries(currentInverterSettings).forEach(([key, value]) => {
-      publishToMQTT(`solar_assistant_DEYE/inverter/${key}`, value);
-    });
-  } else {
-    res.status(400).json({ error: 'Invalid inverter type' });
-  }
-});
-
-app.post('/api/inverter-types', (req, res) => {
-  const { type, settings } = req.body;
-  if (!inverterConfig[type]) {
-    inverterConfig[type] = settings;
-    res.status(201).json({ message: 'Inverter type added successfully', type, settings });
-  } else {
-    res.status(400).json({ error: 'Inverter type already exists' });
-  }
-});
-
-app.put('/api/inverter-types/:type', (req, res) => {
-  const { type } = req.params;
-  const { settings } = req.body;
-  if (inverterConfig[type]) {
-    inverterConfig[type] = { ...inverterConfig[type], ...settings };
-    res.json({ type, settings: inverterConfig[type] });
-  } else {
-    res.status(404).json({ error: 'Inverter type not found' });
-  }
-});
-
-app.delete('/api/inverter-types/:type', (req, res) => {
-  const { type } = req.params;
-  if (inverterConfig[type]) {
-    delete inverterConfig[type];
-    res.sendStatus(204);
-  } else {
-    res.status(404).json({ error: 'Inverter type not found' });
-  }
-});
-
-// Automation Rules
-app.get('/api/automation-rules', (req, res) => {
-  res.json(automationRules);
-});
-
-app.post('/api/automation-rules', (req, res) => {
-  const newRule = {
-    id: Date.now().toString(),
-    name: req.body.name,
-    conditions: req.body.conditions,
-    actions: req.body.actions,
-    days: req.body.days
-  };
-  automationRules.push(newRule);
-  res.status(201).json(newRule);
-});
-
-app.get('/api/automation-rules/:id', (req, res) => {
-  const rule = automationRules.find(r => r.id === req.params.id);
-  if (rule) {
-    res.json(rule);
-  } else {
-    res.status(404).json({ error: 'Rule not found' });
-  }
-});
-
-app.put('/api/automation-rules/:id', (req, res) => {
-  const { id } = req.params;
-  const index = automationRules.findIndex(rule => rule.id === id);
-  if (index !== -1) {
-    automationRules[index] = { ...automationRules[index], ...req.body };
-    res.json(automationRules[index]);
-  } else {
-    res.status(404).json({ error: 'Rule not found' });
-  }
-});
-
-app.delete('/api/automation-rules/:id', (req, res) => {
-  const { id } = req.params;
-  automationRules = automationRules.filter(rule => rule.id !== id);
-  res.sendStatus(204);
-});
-
-// Scheduled Settings
-app.get('/api/scheduled-settings', (req, res) => {
-  res.json(scheduledSettings);
-});
-
-app.post('/api/scheduled-settings', (req, res) => {
-  const newSetting = {
-    id: Date.now().toString(),
-    key: req.body.key,
-    value: req.body.value,
-    day: req.body.day,
-    hour: req.body.hour
-  };
-  scheduledSettings.push(newSetting);
-  res.status(201).json(newSetting);
-});
-
-app.put('/api/scheduled-settings/:id', (req, res) => {
-  const { id } = req.params;
-  const index = scheduledSettings.findIndex(setting => setting.id === id);
-  if (index !== -1) {
-    scheduledSettings[index] = { ...scheduledSettings[index], ...req.body };
-    res.json(scheduledSettings[index]);
-  } else {
-    res.status(404).json({ error: 'Scheduled setting not found' });
-  }
-});
-
-app.delete('/api/scheduled-settings/:id', (req, res) => {
-  const { id } = req.params;
-  scheduledSettings = scheduledSettings.filter(setting => setting.id !== id);
-  res.sendStatus(204);
-});
-
-// MQTT publishing route
-app.post('/api/mqtt', (req, res) => {
-  const { topic, message } = req.body;
-  publishToMQTT(topic, message);
-  res.sendStatus(200);
-});
-
+const dashboardFilePath = path.join(__dirname, 'grafana', 'provisioning', 'dashboards', 'solar_power_dashboard.json');
 
 // Function to read the dashboard JSON
 function readDashboard() {
@@ -554,8 +313,7 @@ app.get('/gauges', (req, res) => {
   res.json(gauges);
 });
 
-
-// Endpoint to update min and max values for specific gauges
+// Endpoint to update min and max values for specific gauges and adjust thresholds
 app.post('/gauges/update', (req, res) => {
   const dashboard = readDashboard();
   const updates = req.body;
@@ -567,13 +325,31 @@ app.post('/gauges/update', (req, res) => {
               const newMin = updates[title].min;
               const newMax = updates[title].max;
 
-              // Only update if the value is explicitly set (not null or undefined)
+              // Update min and max values if they are provided
               if (newMin !== undefined && newMin !== null) {
                   panel.fieldConfig.defaults.min = newMin;
               }
 
               if (newMax !== undefined && newMax !== null) {
                   panel.fieldConfig.defaults.max = newMax;
+
+                  // Automatically update thresholds based on the new max value
+                  const thresholds = panel.fieldConfig.defaults.thresholds.steps;
+                  if (thresholds) {
+                      // If it's "Load Power" or "Grid Power", apply the special rules
+                      if (title === 'Load Power' || title === 'Grid Power') {
+                          thresholds[1].value = newMax * 0.25;  // Green at 25%
+                          thresholds[2].value = newMax * 0.50;  // Yellow at 50%
+                          thresholds[3].value = newMax * 0.75;  // Orange at 75%
+                          thresholds[4] = { color: "red", value: newMax };  // Red at max value
+                      } else {
+                          // For other gauges, use the default rule
+                          thresholds[1].value = newMax * 0.25;  // Red at 25%
+                          thresholds[2].value = newMax * 0.50;  // Orange at 50%
+                          thresholds[3].value = newMax * 0.75;  // Yellow at 75%
+                          thresholds[4] = { color: "green", value: newMax };  // Green at max value
+                      }
+                  }
               }
           }
       }
@@ -581,8 +357,10 @@ app.post('/gauges/update', (req, res) => {
 
   // Write updated values to the file
   writeDashboard(dashboard);
-  res.json({ message: 'Gauges updated successfully.' });
+  res.json({ message: 'Gauges and thresholds updated successfully.' });
 });
+
+
 
 
 // Function to filter messages by category
@@ -617,143 +395,15 @@ function filterMessagesByCategory(category) {
 }
 
 
-// Helper functions
-function applyScheduledSettings() {
-  const now = new Date();
-  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-  const hour = now.getHours();
-
-  scheduledSettings.forEach(setting => {
-    if (setting.day === day && setting.hour === hour) {
-      publishToMQTT(`solar_assistant_DEYE/${setting.key}`, setting.value);
-      broadcastMessage({
-        type: 'realtimeUpdate',
-        updateType: 'scheduledSettingApplied',
-        key: setting.key,
-        value: setting.value
-      });
-    }
-  });
-}
-
-function applyAutomationRules() {
-  const now = new Date();
-  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-
-  automationRules.forEach(rule => {
-    if (rule.days.includes(day) && checkConditions(rule.conditions)) {
-      rule.actions.forEach(action => {
-        publishToMQTT(`solar_assistant_DEYE/${action.key}`, action.value);
-      });
-      broadcastMessage({
-        type: 'realtimeUpdate',
-        updateType: 'automationRuleTriggered',
-        ruleName: rule.name,
-        actions: rule.actions
-      });
-    }
-  });
-}
-
-function checkConditions(conditions) {
-  return conditions.every(condition => {
-    const { deviceType, parameter, operator, value } = condition;
-    
-    if (currentSystemState[deviceType] && currentSystemState[deviceType][parameter] !== undefined) {
-      return compareNumeric(currentSystemState[deviceType][parameter], operator, parseFloat(value));
-    } else if (currentSystemState[parameter] !== undefined) {
-      return compareNumeric(currentSystemState[parameter], operator, parseFloat(value));
-    }
-    
-    console.warn(`Unknown parameter: ${deviceType}.${parameter}`);
-    return false;
-  });
-}
-
-function compareNumeric(actual, operator, expected) {
-  switch (operator) {
-    case 'equals':
-      return Math.abs(actual - expected) < 0.001;
-    case 'notEquals':
-      return Math.abs(actual - expected) >= 0.001;
-    case 'greaterThan':
-      return actual > expected;
-    case 'lessThan':
-      return actual < expected;
-    case 'greaterThanOrEqual':
-      return actual >= expected;
-    case 'lessThanOrEqual':
-      return actual <= expected;
-    default:
-      console.warn(`Unknown operator: ${operator}`);
-      return false;
-  }
-}
-
-function compareTime(actualDate, operator, expectedTime) {
-  const [expectedHours, expectedMinutes] = expectedTime.split(':').map(Number);
-  const actualMinutes = actualDate.getHours() * 60 + actualDate.getMinutes();
-  const expectedTotalMinutes = expectedHours * 60 + expectedMinutes;
-
-  switch (operator) {
-    case 'equals':
-      return actualMinutes === expectedTotalMinutes;
-    case 'notEquals':
-      return actualMinutes !== expectedTotalMinutes;
-    case 'after':
-      return actualMinutes > expectedTotalMinutes;
-    case 'before':
-      return actualMinutes < expectedTotalMinutes;
-    default:
-      console.warn(`Unknown operator for time comparison: ${operator}`);
-      return false;
-  }
-}
-
-function compareDay(actualDay, operator, expectedDay) {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const expectedDayIndex = days.indexOf(expectedDay.toLowerCase());
-
-  if (expectedDayIndex === -1) {
-    console.warn(`Invalid day: ${expectedDay}`);
-    return false;
-  }
-
-  switch (operator) {
-    case 'equals':
-      return actualDay === expectedDayIndex;
-    case 'notEquals':
-      return actualDay !== expectedDayIndex;
-    default:
-      console.warn(`Unknown operator for day comparison: ${operator}`);
-      return false;
-  }
-}
-
-
-
-//socket server setup
 
 //socket data
 const getRealTimeData = async () => {
-  const loadPowerData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/load_energy/state'
-  )
-  const pvPowerData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/pv_energy/state'
-  )
-  const batteryStateOfChargeData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/battery_energy_in/state'
-  )
-  const batteryPowerData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/battery_energy_out/state'
-  )
-  const gridPowerData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/grid_energy_in/state'
-  )
-  const gridVoltageData = await queryInfluxDB(
-    'solar_assistant_DEYE/total/grid_energy_out/state'
-  )
+  const loadPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`);
+  const pvPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`);
+  const batteryStateOfChargeData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`);
+  const batteryPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`);
+  const gridPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`);
+  const gridVoltageData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`);
 
   const data = {
     load: calculateDailyDifferenceForSockets(loadPowerData),
@@ -818,17 +468,6 @@ wss.on('connection', (ws) => {
   ws.on('close', () => console.log('Client disconnected'))
 })
 
-function broadcastMessage(message) {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message))
-    }
-  })
-}
-
-// Scheduled tasks
-setInterval(applyScheduledSettings, 60000) // Run every minute
-setInterval(applyAutomationRules, 60000) // Run every minute
 
 // carbon intensity
 
@@ -865,11 +504,11 @@ const locations = [
 // Function to read the saved location from a file
 function getSavedLocation() {
   try {
-    const data = fs.readFileSync('saved_location.txt', 'utf8');
-    return data.trim();
+      const data = fs.readFileSync('saved_location.txt', 'utf8');
+      return data.trim();
   } catch (err) {
-    console.error('Error reading saved location:', err);
-    return 'MU'; // Default to Mauritius if there's an error
+      console.error('Error reading saved location:', err);
+      return 'MU'; // Default to Mauritius if there's an error
   }
 }
 
@@ -904,14 +543,14 @@ async function getCarbonIntensity(location) {
 async function getCarbonIntensityHistory(location, start, end) {
   const url = `https://api.electricitymap.org/v3/carbon-intensity/history?zone=${location}&start=${start}&end=${end}`;
   const headers = {
-    'Authorization': `Bearer ${process.env.ELECTRICITY_MAPS_API_KEY}`
+      'Authorization': `Bearer ${process.env.ELECTRICITY_MAPS_API_KEY}`
   };
   try {
-    const response = await axios.get(url, { headers });
-    return response.data.history;
+      const response = await axios.get(url, { headers });
+      return response.data.history;
   } catch (error) {
-    console.error('Error fetching carbon intensity history:', error.message);
-    return [];
+      console.error('Error fetching carbon intensity history:', error.message);
+      return [];
   }
 }
 
@@ -1033,8 +672,8 @@ app.get('/api/historical-data', async (req, res) => {
 
   try {
     const intensityData = await getCarbonIntensityHistory(location, start, end);
-    const gridPower = await getHistoricalPowerData('solar_assistant_DEYE/total/grid_energy_in/state', start, end);
-    const solarPower = await getHistoricalPowerData('solar_assistant_DEYE/total/pv_energy/state', start, end);
+    const gridPower = await getHistoricalPowerData(`${mqttTopicPrefix}/total/grid_energy_in/state`, start, end);
+    const solarPower = await getHistoricalPowerData(`${mqttTopicPrefix}/total/pv_energy/state`, start, end);
 
     const powerData = gridPower.map((grid, index) => ({
       time: grid.time,
@@ -1073,9 +712,9 @@ app.get('/api/historical-data', async (req, res) => {
 async function fetchDashboardData(location) {
   try {
     const carbonIntensity = await getCarbonIntensity(location);
-    const gridPower = await getCurrentData('solar_assistant_DEYE/total/grid_energy_in/state') || 0;
-    const solarPower = await getCurrentData('solar_assistant_DEYE/total/pv_energy/state') || 0;
-    const gridVoltage = await getCurrentData('solar_assistant_DEYE/total/grid_voltage/state') || 0;
+    const gridPower = await getCurrentData(`${mqttTopicPrefix}/total/grid_energy_in/state`) || 0;
+    const solarPower = await getCurrentData(`${mqttTopicPrefix}/total/pv_energy/state`) || 0;
+    const gridVoltage = await getCurrentData(`${mqttTopicPrefix}/total/grid_voltage/state`) || 0;
 
     const isGridActive = Math.abs(gridVoltage - 230) < 20;
     const gridEmissions = isGridActive ? calculateCO2(gridPower, carbonIntensity) : 0;

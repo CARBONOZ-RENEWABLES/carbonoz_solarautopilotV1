@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 12,
   "links": [],
   "panels": [
     {
@@ -82,7 +82,7 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "  SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/load_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/load_power\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -152,7 +152,7 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "  SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/pv_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/pv_power\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -225,7 +225,7 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/battery_power/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/battery_power\\/state/\nLIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -298,7 +298,7 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": " SELECT last(\"value\") AS \"value\"\n FROM \"state\"\n WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_power/state'\n ORDER BY time DESC\n LIMIT 1",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/grid_power\\/state/\nLIMIT 1",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -371,7 +371,7 @@
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": " SELECT last(\"value\") AS \"value\"\n FROM \"state\"\n WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/state_of_charge/state'\n ORDER BY time DESC\n LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/battery_[0-9]+\\/state_of_charge\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -442,7 +442,7 @@
         {
           "datasource": "InfluxDB",
           "hide": false,
-          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/battery_1/voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/battery_[0-9]+\\/voltage\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -513,7 +513,7 @@
         {
           "datasource": "InfluxDB",
           "hide": false,
-          "query": " SELECT last(\"value\") AS \"value\"\n        FROM \"state\"\n        WHERE \"topic\" = 'solar_assistant_DEYE/total/grid_voltage/state'\n        ORDER BY time DESC\n        LIMIT 1",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/grid_voltage\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -561,6 +561,6 @@
   "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 38,
+  "version": 10,
   "weekStart": ""
 }
