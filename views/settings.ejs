@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
  
-
- 
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
    <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
@@ -42,14 +40,42 @@
                         <button type="submit">Update Gauges</button>
                     </form>
                     <div id="responseMessage"></div>
+                    <div class="form-container">
+                      <% if (selectedZone) { %>
+                        <div class="current-zone">
+                          Currently selected zone: <%= zones.find(z => z.code === selectedZone)?.zoneName || selectedZone %>
+                        </div>
+                      <% } %>
+                      <form action="<%= ingress_path %>/results" method="GET">
+                        <label for="zone">Choose a Carbon Intensity zone:</label>
+                        <select name="zone" id="zone">
+                          <option value="">-- Select a zone --</option>
+                          <% zones.forEach(function(zone) { %>
+                            <option value="<%= zone.code %>" <%= selectedZone === zone.code ? 'selected' : '' %>>
+                              <%= zone.zoneName %> (<%= zone.code %>)
+                            </option>
+                          <% }); %>
+                        </select>
+                        
+                        <div class="button-container">
+                          <button type="submit">Update Zone</button>
+                          <% if (selectedZone) { %>
+                            <a href="<%= ingress_path %>/clear-zone" class="button secondary-button" style="text-decoration: none; padding: 8px 15px; border-radius: 5px; background-color: #ff6666; color: white;">
+                              Clear Selection
+                            </a>
+                            
+                          <% } %>
+                        </div>
+                      </form>
+                      
+                      <div style="margin-top: 20px; text-align: center;">
+                        <a href="<%= ingress_path %>/results" class="button" style="display: inline-block; text-decoration: none;">
+                          View Current Results
+                        </a>
+                      </div>
+                    </div>
                 </div>
                 <br>
-       
-
-
-    <script src="<%= ingress_path %>/js/loading.js"></script>
-    <script src="<%= ingress_path %>/js/sidebar.js"></script>
-    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 
 
     <script>
@@ -147,6 +173,107 @@
  
 </script>
 
+<script>
+      // toggle sidebar
+      
+      const sidebar = document.getElementById('sidebar');
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const toggleSwitch = document.getElementById('toggleSwitch');
+    
+    toggleSidebar.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      toggleSwitch.classList.toggle('active');
+    });
+</script>
+
+<script>
+     // loading js
+        
+     document.addEventListener('DOMContentLoaded', function() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const pageContent = document.getElementById('pageContent');
+  
+    // Simulate loading time (you can adjust this as needed)
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      pageContent.style.display = 'block';
+      // Trigger a custom event to signal that the page is ready
+      document.dispatchEvent(new Event('pageReady'));
+    }, 1500); // 1.5 seconds loading time
+  });
+</script>
+
+<script>
+
+// Toggle dark mode
+const toggleDarkMode = document.getElementById('toggleDarkMode');
+const darkModeSwitch = document.getElementById('darkModeSwitch');
+
+// Function to update Grafana iframes based on dark mode
+function updateGrafanaIframes(isDarkMode) {
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        let src = iframe.src;
+
+        // Remove any existing theme parameter to avoid multiple occurrences
+        src = src.replace(/([?&]theme=)(light|dark)/, '');
+
+        // Add the new theme parameter based on dark mode setting
+        const separator = src.includes('?') ? '&' : '?';
+        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
+
+        // Only reload iframe if theme has changed
+        if (iframe.src !== src) {
+            iframe.src = src;
+        }
+    });
+}
+
+// Function to apply the mode (either from localStorage or default)
+function applyModeFromLocalStorage() {
+    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
+
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        darkModeSwitch.classList.add('active');
+    } else {
+        document.body.classList.remove('dark-mode');
+        darkModeSwitch.classList.remove('active');
+    }
+
+    // Update Grafana dashboards to match the saved mode
+    updateGrafanaIframes(isDarkMode);
+}
+
+// Add click event listener for dark mode toggle
+toggleDarkMode.addEventListener('click', () => {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    darkModeSwitch.classList.toggle('active');
+
+    // Update Grafana dashboards to match the dark mode setting
+    updateGrafanaIframes(isDarkMode);
+
+    // Save the dark mode state in localStorage
+    if (isDarkMode) {
+        localStorage.setItem('dark-mode', 'enabled');
+    } else {
+        localStorage.setItem('dark-mode', 'disabled');
+    }
+});
+
+// Check and apply the user's dark mode preference on page load and when navigating back
+document.addEventListener('DOMContentLoaded', () => {
+    applyModeFromLocalStorage();
+});
+
+// Apply mode on `pageshow` event (works when navigating back in browser history)
+window.addEventListener('pageshow', () => {
+    applyModeFromLocalStorage();
+});
+
+
+
+</script>
 
 </body>
 </html>

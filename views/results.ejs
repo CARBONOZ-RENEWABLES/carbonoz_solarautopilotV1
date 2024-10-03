@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+   <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+   <link rel="stylesheet" href="<%= ingress_path %>/css/results.css">
+</head>
+<body>
+   
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+<%- include('partials/sidebar') %>
+
+        <div class="main-container">
+
+            <div class="main-content">
+                <div class="content-card">
+                    <div class="container-results">
+                        <h2>CO2 Emission Results for <%= selectedZone %></h2>
+                        
+                        <div class="metrics-grid">
+                          <div class="metric-card">
+                            <h3 class="metric-title">Grid CO2 Emissions</h3>
+                            <p class="metric-value" style="color: #dc2626"><%= unavoidableEmissions.toFixed(2) %> kg</p>
+                            <p class="metric-subtitle">From grid usage today</p>
+                          </div>
+                          
+                          <div class="metric-card">
+                            <h3 class="metric-title">CO2 Emissions Avoided</h3>
+                            <p class="metric-value" style="color: #16a34a"><%= avoidedEmissions.toFixed(2) %> kg</p>
+                            <p class="metric-subtitle">By using solar today</p>
+                          </div>
+                          
+                          <div class="metric-card">
+                            <h3 class="metric-title">Grid Status</h3>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                              <div>
+                                <p class="metric-value" id="gridVoltage"><%= typeof todayData.gridVoltage !== 'undefined' ? todayData.gridVoltage.toFixed(2) : 'N/A' %> V</p>
+                                <p class="metric-subtitle" id="gridStatus">
+                                  <%= typeof todayData.gridVoltage !== 'undefined' ? (todayData.gridVoltage > 20 ? 'Active' : 'Inactive') : 'No data' %>
+                                </p>
+                              </div>
+                              <div id="voltageGauge"></div>
+                            </div>
+                          </div>
+                    
+                          <div class="metric-card">
+                            <h3 class="metric-title">Self-Sufficiency Score</h3>
+                            <p class="metric-value" style="color: #16a34a"><%= selfSufficiencyScore.toFixed(2) %>%</p>
+                            <p class="metric-subtitle">Energy self-produced today</p>
+                          </div>
+                        </div>
+                        
+                        <div class="self-sufficiency-container">
+                          <div class="self-sufficiency-chart">
+                            <canvas id="selfSufficiencyChart"></canvas>
+                          </div>
+                          <p class="self-sufficiency-score"><%= selfSufficiencyScore.toFixed(2) %>%</p>
+                          <p>Self-Sufficiency Score</p>
+                        </div>
+                        
+                        <div class="chart-container">
+                          <div class="period-buttons">
+                            <button data-period="week" class="period-btn active">Week</button>
+                            <button data-period="month" class="period-btn">Month</button>
+                            <button data-period="quarter" class="period-btn">Quarter</button>
+                            <button data-period="year" class="period-btn">Year</button>
+                          </div>
+                          <div class="chart-wrapper">
+                            <canvas id="emissionsChart"></canvas>
+                          </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                          <h2>Total Emissions since beginning of recordings (see analytics section)</h2>
+                          <div id="summary" class="summary-grid"></div>
+                        </div>
+                        
+                        <div style="text-align: center;">
+                          <a href="<%= ingress_path %>/settings" class="back-button">Back to zone selection</a>
+                        </div>
+                      </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const periodsData = <%- JSON.stringify(periods) %>;
+        let emissionsChart;
+        let selfSufficiencyChart;
+        
+        const chartColors = {
+          gridEmissions: {
+            fill: 'rgba(220, 38, 38, 0.1)',
+            stroke: 'rgba(220, 38, 38, 0.7)'
+          },
+          avoidedEmissions: {
+            fill: 'rgba(22, 163, 74, 0.1)',
+            stroke: 'rgba(22, 163, 74, 0.7)'
+          }
+        };
+    
+        function createEmissionsChart(data, label) {
+          if (emissionsChart) {
+            emissionsChart.destroy();
+          }
+          
+          const ctx = document.getElementById('emissionsChart').getContext('2d');
+          
+          Chart.defaults.font.family = "'Inter', sans-serif";
+          
+          // Create gradient fills
+          const gradientGrid = ctx.createLinearGradient(0, 0, 0, 400);
+          gradientGrid.addColorStop(0, 'rgba(220, 38, 38, 0.4)');
+          gradientGrid.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
+    
+          const gradientAvoided = ctx.createLinearGradient(0, 0, 0, 400);
+          gradientAvoided.addColorStop(0, 'rgba(22, 163, 74, 0.4)');
+          gradientAvoided.addColorStop(1, 'rgba(22, 163, 74, 0.1)');
+          
+          emissionsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: data.map(entry => {
+                const date = new Date(entry.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }),
+              datasets: [
+                {
+                  label: 'Grid CO2 Emissions',
+                  data: data.map(entry => entry.unavoidableEmissions),
+                  backgroundColor: gradientGrid,
+                  borderColor: 'rgba(220, 38, 38, 0.7)',
+                  borderWidth: 3,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0
+                },
+                {
+                  label: 'CO2 Emissions Avoided',
+                  data: data.map(entry => entry.avoidedEmissions),
+                  backgroundColor: gradientAvoided,
+                  borderColor: 'rgba(22, 163, 74, 0.7)',
+                  borderWidth: 3,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                intersect: false,
+                mode: 'index'
+              },
+              plugins: {
+                title: {
+                  display: true,
+                  text: `CO2 Emissions - ${label}`,
+                  font: { size: 16, weight: '600' },
+                  padding: { bottom: 20 }
+                },
+                legend: {
+                  position: 'top',
+                  labels: {
+                    usePointStyle: true,
+                    padding: 15,
+                    font: { size: 12 }
+                  }
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  titleColor: '#1f2937',
+                  bodyColor: '#4b5563',
+                  titleFont: { size: 14, weight: 'bold' },
+                  bodyFont: { size: 13 },
+                  padding: 12,
+                  cornerRadius: 6,
+                  displayColors: true,
+                  borderColor: 'rgba(0, 0, 0, 0.1)',
+                  borderWidth: 1
+                }
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false
+                  },
+                  ticks: {
+                    font: { size: 12, weight: '500' },
+                    color: '#6b7280'
+                  }
+                },
+                y: {
+                  beginAtZero: true,
+                  grid: {
+                    color: 'rgba(107, 114, 128, 0.1)',
+                    drawBorder: false
+                  },
+                  ticks: {
+                    font: { size: 12, weight: '500' },
+                    color: '#6b7280',
+                    padding: 8,
+                    callback: value => `${value} kg`
+                  },title: {
+                    display: true,
+                    text: 'CO2 Emissions (kg)',
+                    font: { size: 14, weight: '600', lineHeight: 1.5 },
+                    color: '#374151',
+                    padding: {top: 10, bottom: 10}
+                  }
+                }
+              }
+            }
+          });
+        }
+        
+        
+        function createSelfSufficiencyChart(selfSufficiencyScore) {
+          if (selfSufficiencyChart) {
+            selfSufficiencyChart.destroy();
+          }
+          
+          const ctx = document.getElementById('selfSufficiencyChart').getContext('2d');
+          
+          selfSufficiencyChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Self-Produced', 'Grid'],
+              datasets: [{
+                data: [selfSufficiencyScore, 100 - selfSufficiencyScore],
+                backgroundColor: ['#16a34a', '#dc2626'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '70%',
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return `${context.label}: ${context.parsed.toFixed(2)}%`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+        function updateSummary(data) {
+          const totalUnavoidable = data.reduce((sum, entry) => sum + entry.unavoidableEmissions, 0);
+          const totalAvoided = data.reduce((sum, entry) => sum + entry.avoidedEmissions, 0);
+          const avgSelfSufficiency = data.reduce((sum, entry) => sum + entry.selfSufficiencyScore, 0) / data.length;
+          
+          document.getElementById('summary').innerHTML = `
+            <div class="summary-item">
+              <span class="summary-label">Total Grid CO2 Emissions</span>
+              <span class="summary-value" style="color: #dc2626">${totalUnavoidable.toFixed(2)} kg</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Total CO2 Emissions Avoided</span>
+              <span class="summary-value" style="color: #16a34a">${totalAvoided.toFixed(2)} kg</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Avg. Self-Sufficiency</span>
+              <span class="summary-value" style="color: #16a34a">${avgSelfSufficiency.toFixed(2)}%</span>
+            </div>
+          `;
+        }
+    
+        function updateGridStatus(voltage) {
+          const voltageElement = document.getElementById('gridVoltage');
+          const statusElement = document.getElementById('gridStatus');
+          const gaugeElement = document.getElementById('voltageGauge');
+          
+          voltageElement.textContent = `${voltage.toFixed(1)} V`;
+          
+          const isActive = voltage > 20;
+          statusElement.textContent = isActive ? 'Active' : 'Inactive';
+          statusElement.style.color = isActive ? '#16a34a' : '#dc2626';
+          
+          const normalizedVoltage = Math.min(Math.max(voltage, 0), 430) / 430;
+          const hue = isActive ? 142 : 0; // Green if active, red if inactive
+          gaugeElement.style.background = `conic-gradient(
+            hsl(${hue}, 70%, 50%) ${normalizedVoltage * 360}deg,
+            #e5e7eb ${normalizedVoltage * 360}deg
+          )`;
+        }
+    
+        async function fetchGridVoltage() {
+          try {
+            const response = await fetch('<%= ingress_path %>/api/grid-voltage');
+            const data = await response.json();
+            updateGridStatus(data.voltage);
+          } catch (error) {
+            console.error('Error fetching grid voltage:', error);
+          }
+        }
+    
+        document.addEventListener('DOMContentLoaded', function() {
+          document.querySelectorAll('.period-btn').forEach(button => {
+            button.addEventListener('click', function() {
+              const period = this.dataset.period;
+              document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.remove('active');
+              });
+              this.classList.add('active');
+              createEmissionsChart(periodsData[period], period.charAt(0).toUpperCase() + period.slice(1));
+              updateSummary(periodsData[period]);
+            });
+          });
+    
+          // Initialize with week data
+          createEmissionsChart(periodsData.week, 'Week');
+          updateSummary(periodsData.week);
+    
+          // Initialize self-sufficiency chart
+          createSelfSufficiencyChart(<%= selfSufficiencyScore %>);
+    
+          // Set up real-time grid voltage updates
+          fetchGridVoltage();
+          setInterval(fetchGridVoltage, 5000);
+        });
+      </script>
+
+<script>
+     // loading js
+        
+     document.addEventListener('DOMContentLoaded', function() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const pageContent = document.getElementById('pageContent');
+  
+    // Simulate loading time (you can adjust this as needed)
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      pageContent.style.display = 'block';
+      // Trigger a custom event to signal that the page is ready
+      document.dispatchEvent(new Event('pageReady'));
+    }, 1500); // 1.5 seconds loading time
+  });
+</script>
+
+<script>
+      // toggle sidebar
+      
+      const sidebar = document.getElementById('sidebar');
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const toggleSwitch = document.getElementById('toggleSwitch');
+    
+    toggleSidebar.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      toggleSwitch.classList.toggle('active');
+    });
+</script>
+
+<script>
+
+// Toggle dark mode
+const toggleDarkMode = document.getElementById('toggleDarkMode');
+const darkModeSwitch = document.getElementById('darkModeSwitch');
+
+// Function to update Grafana iframes based on dark mode
+function updateGrafanaIframes(isDarkMode) {
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        let src = iframe.src;
+
+        // Remove any existing theme parameter to avoid multiple occurrences
+        src = src.replace(/([?&]theme=)(light|dark)/, '');
+
+        // Add the new theme parameter based on dark mode setting
+        const separator = src.includes('?') ? '&' : '?';
+        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
+
+        // Only reload iframe if theme has changed
+        if (iframe.src !== src) {
+            iframe.src = src;
+        }
+    });
+}
+
+// Function to apply the mode (either from localStorage or default)
+function applyModeFromLocalStorage() {
+    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
+
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        darkModeSwitch.classList.add('active');
+    } else {
+        document.body.classList.remove('dark-mode');
+        darkModeSwitch.classList.remove('active');
+    }
+
+    // Update Grafana dashboards to match the saved mode
+    updateGrafanaIframes(isDarkMode);
+}
+
+// Add click event listener for dark mode toggle
+toggleDarkMode.addEventListener('click', () => {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    darkModeSwitch.classList.toggle('active');
+
+    // Update Grafana dashboards to match the dark mode setting
+    updateGrafanaIframes(isDarkMode);
+
+    // Save the dark mode state in localStorage
+    if (isDarkMode) {
+        localStorage.setItem('dark-mode', 'enabled');
+    } else {
+        localStorage.setItem('dark-mode', 'disabled');
+    }
+});
+
+// Check and apply the user's dark mode preference on page load and when navigating back
+document.addEventListener('DOMContentLoaded', () => {
+    applyModeFromLocalStorage();
+});
+
+// Apply mode on `pageshow` event (works when navigating back in browser history)
+window.addEventListener('pageshow', () => {
+    applyModeFromLocalStorage();
+});
+
+
+
+</script>
+</body>
+</html>

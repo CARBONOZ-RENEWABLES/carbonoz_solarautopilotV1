@@ -324,3 +324,82 @@ button:hover {
     background-color: rgb(32, 36, 41);
     color: #fff;
 }
+.dark-mode .form-container{
+    background-color: rgb(32, 36, 41);
+   
+}
+
+.form-container {
+    width: 95%;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    min-height: 50%;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 10px;
+    color: #333;
+    font-weight: bold;
+  }
+  
+  select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #DEAF0B;
+    border-radius: 4px;
+    background-color: transparent;
+    color: #DEAF0B;
+    font-size: 16px;
+    margin-bottom: 20px;
+    cursor: pointer;
+  }
+  
+  select option {
+    background-color: transparent;
+    color: #DEAF0B;
+    padding: 10px;
+  }
+
+  
+  .button-container {
+    display: flex;
+    gap: 10px;
+  }
+  
+  button{
+    flex: 1;
+    padding: 12px;
+    background-color: #DEAF0B;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s;
+  }
+  
+  button:hover {
+    background-color: #ba9306;
+  }
+
+  .secondary-button {
+    background-color: #6c757d;
+  }
+
+  .secondary-button:hover {
+    background-color: #5a6268;
+  }
+
+  .current-zone {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--primary-color);
+    color: white;;
+    border-radius: 4px;
+    text-align: center;
+  }

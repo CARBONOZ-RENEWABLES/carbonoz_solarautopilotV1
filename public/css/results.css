@@ -1,0 +1,207 @@
+.container-results {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  
+  h2 {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    font-size: 1.25rem;
+  }
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .metric-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 0.5rem;
+  }
+  
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  
+  .metric-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+  
+  .chart-container {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    margin-bottom: 2rem;
+  }
+  
+  .chart-wrapper {
+    position: relative;
+    height: 400px;
+    width: 100%;
+  }
+  
+  .period-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .period-btn {
+    background-color: #e5e7eb;
+    color: #374151;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .period-btn:hover {
+    background-color: #d1d5db;
+  }
+  
+  .period-btn.active {
+    background-color: #DEAF0B;
+    color: white;
+  }
+  
+  #voltageGauge {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: conic-gradient(#22c55e 0%, #e5e7eb 0%);
+    transition: background 0.5s;
+  }
+  
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    background-color: #f9fafb;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+  
+  .summary-label {
+    font-size: 0.875rem;
+    color: #4b5563;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .summary-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  
+  .self-sufficiency-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+  
+  .self-sufficiency-chart {
+    width: 200px;
+    height: 200px;
+    margin-bottom: 1rem;
+  }
+  
+  .self-sufficiency-score {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #16a34a;
+  }
+
+  .back-button {
+    display: inline-block;
+    background-color: #DEAF0B;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  
+  .back-button:hover {
+    background-color: #caa009;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 640px) {
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .period-buttons {
+      flex-wrap: wrap;
+    }
+    
+    .chart-wrapper {
+      height: 300px;
+    }
+  }
+
+.dark-mode .summary-grid  {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .metric-card{
+  background-color: rgb(32, 36, 41);
+  color: #fff;
+}
+
+.dark-mode .chart-container {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .container-results{
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+.dark-mode .form-container {
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+.dark-mode .summary-item{
+    background-color: rgba(24, 27, 31, 1);
+}
+
