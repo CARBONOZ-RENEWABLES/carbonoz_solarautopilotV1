@@ -181,23 +181,13 @@ async function queryInfluxDB(topic) {
   }
 }
 
-
-
-
 // Route handlers
-
-
-
-
-
 app.get('/messages', (req, res) => {
   res.render('messages', { 
     ingress_path: process.env.INGRESS_PATH || '',
     categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber)
   });
 });
-
-
 
 app.get('/api/messages', (req, res) => {
   const category = req.query.category;
@@ -213,33 +203,42 @@ app.get('/chart', (req, res) => {
 })
 
 
-
 app.get('/analytics', async (req, res) => {
   try {
-      const loadPowerData = await queryInfluxDB('${mqttTopicPrefix}/total/load_energy/state');
-      const pvPowerData = await queryInfluxDB('${mqttTopicPrefix}/total/pv_energy/state');
-      const batteryStateOfChargeData = await queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_in/state');
-      const batteryPowerData = await queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_out/state');
-      const gridPowerData = await queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_in/state');
-      const gridVoltageData = await queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_out/state');
+    const selectedZone = req.cookies[COOKIE_NAME] || null;
+    let carbonIntensityData = [];
+    
+    if (selectedZone) {
+      carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
+    }
+    
+    const [loadPowerData, pvPowerData, batteryStateOfChargeData, 
+           batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
+      queryInfluxDB('solar_assistant_DEYE/total/load_energy/state'),
+      queryInfluxDB('solar_assistant_DEYE/total/pv_energy/state'),
+      queryInfluxDB('solar_assistant_DEYE/total/battery_energy_in/state'),
+      queryInfluxDB('solar_assistant_DEYE/total/battery_energy_out/state'),
+      queryInfluxDB('solar_assistant_DEYE/total/grid_energy_in/state'),
+      queryInfluxDB('solar_assistant_DEYE/total/grid_energy_out/state')
+    ]);
 
-      const data = {
-          loadPowerData,
-          pvPowerData,
-          batteryStateOfChargeData,
-          batteryPowerData,
-          gridPowerData,
-          gridVoltageData,
-      };
+    const data = {
+      loadPowerData,
+      pvPowerData,
+      batteryStateOfChargeData,
+      batteryPowerData,
+      gridPowerData,
+      gridVoltageData,
+      carbonIntensityData,
+      selectedZone
+    };
 
-      res.render('analytics', { data, ingress_path: process.env.INGRESS_PATH || '' });
+    res.render('analytics', { data, ingress_path: process.env.INGRESS_PATH || '' });
   } catch (error) {
-      console.error('Error fetching analytics data from InfluxDB:', error);
-      res.status(500).json({ error: 'Error fetching analytics data from InfluxDB' });
+    console.error('Error fetching analytics data:', error);
+    res.status(500).json({ error: 'Error fetching analytics data' });
   }
 });
-
-
 
 app.get('/', (req, res) => {
   res.render('energy-dashboard', {
@@ -247,8 +246,6 @@ app.get('/', (req, res) => {
     mqtt_host: options.mqtt_host, 
   })
 })
-
-
 
 app.get('/api/timezone', (req, res) => {
   res.json({ timezone: currentTimezone });
@@ -344,8 +341,6 @@ app.post('/gauges/update', (req, res) => {
 });
 
 
-
-
 // Function to filter messages by category
 function filterMessagesByCategory(category) {
   if (category === 'all') {
@@ -376,8 +371,6 @@ function filterMessagesByCategory(category) {
     return categoryKeywords[category] ? topicParts.some(part => categoryKeywords[category].includes(part)) : false;
   });
 }
-
-
 
 //socket data
 const getRealTimeData = async () => {

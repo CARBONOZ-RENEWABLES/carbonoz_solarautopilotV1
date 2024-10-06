@@ -57,15 +57,18 @@
                           <% }); %>
                         </select>
                         
-                        <div class="button-container">
-                          <button type="submit">Update Zone</button>
+                        <div class="button-container" style="display: flex; gap: 10px;">
+                          <button type="submit" style="width: 150px; height: 45px; padding: 8px 15px; border-radius: 5px; border: none; font-size: 16px; display: inline-flex; align-items: center; justify-content: center;">
+                            Update Zone
+                          </button>
+                          
                           <% if (selectedZone) { %>
-                            <a href="<%= ingress_path %>/clear-zone" class="button secondary-button" style="text-decoration: none; padding: 8px 15px; border-radius: 5px; background-color: #ff6666; color: white;">
+                            <a href="<%= ingress_path %>/clear-zone" style="width: 150px; height: 45px; padding: 8px 15px; border-radius: 5px; background-color: #ff6666; color: white; text-decoration: none; font-size: 16px; display: inline-flex; align-items: center; justify-content: center;">
                               Clear Selection
                             </a>
-                            
                           <% } %>
                         </div>
+                        
                       </form>
                       
                       <div style="margin-top: 20px; text-align: center;">
