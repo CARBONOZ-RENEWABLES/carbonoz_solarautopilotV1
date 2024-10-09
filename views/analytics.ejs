@@ -114,10 +114,205 @@
         .btn:hover {
             background-color: #2980b9;
         }
+        .grid {
+    display: grid;
+    gap: 1rem;
+}
+
+/* Responsive grid columns */
+@media (min-width: 640px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Card styles */
+.bg-white {
+    background-color: white;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem;
+}
+
+.shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.hover\:shadow-lg:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+.p-6 {
+    padding: 1.5rem;
+}
+
+/* Flex layout */
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
+
+.mb-6 {
+    margin-bottom: 1.5rem;
+}
+
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+/* Typography */
+.text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+/* Colors */
+.text-gray-600 {
+    color: #4B5563;
+}
+
+.text-gray-900 {
+    color: #111827;
+}
+
+.text-gray-500 {
+    color: #6B7280;
+}
+
+.text-yellow-500 {
+    color: #F59E0B;
+}
+
+.text-blue-500 {
+    color: #3B82F6;
+}
+
+.text-green-500 {
+    color: #10B981;
+}
+
+/* Icon styles */
+.w-5 {
+    width: 2.25rem;
+}
+
+.h-5 {
+    height: 2.25rem;
+}
     </style>
     </style>
 </head>
 <body>
+    <!-- Add this section where you want the cards to appear, typically near the top of your body content -->
+    <div class="grid gap-4 md:grid-cols-3 mb-6">
+        <% 
+        // Calculate totals from your existing data
+        let todayTotal = 0;
+        let weekTotal = 0;
+        let monthTotal = 0;
+        
+        // Assuming data.pvPowerData is sorted with most recent first
+        for (let i = data.pvPowerData.length - 1; i >= 1 && i >= data.pvPowerData.length - 30; i--) {
+            const dailyValue = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
+                (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : 
+                data.pvPowerData[i].value;
+            
+            if (i === data.pvPowerData.length - 1) {
+                todayTotal = dailyValue;
+            }
+            if (i >= data.pvPowerData.length - 7) {
+                weekTotal += dailyValue;
+            }
+            monthTotal += dailyValue;
+        }
+        
+        const cards = [
+            {
+                title: "Today's Solar PV",
+                value: todayTotal.toFixed(1),
+                description: "Clean energy generated today",
+                iconClass: "text-yellow-500"
+            },
+            {
+                title: "Last 7 Days Solar PV",
+                value: weekTotal.toFixed(1),
+                description: "Weekly solar generation",
+                iconClass: "text-blue-500"
+            },
+            {
+                title: "Last 30 Days Solar PV",
+                value: monthTotal.toFixed(1),
+                description: "Monthly solar production",
+                iconClass: "text-green-500"
+            }
+        ];
+        %>
+        
+        <% cards.forEach(card => { %>
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-medium text-gray-600"><%= card.title %></h3>
+                        <svg class="w-5 h-5 <%= card.iconClass %>" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <% if (card.title.includes("Today")) { %>
+                                <!-- Sun icon -->
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            <% } else if (card.title.includes("7 Days")) { %>
+                                <!-- Calendar Days icon -->
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            <% } else { %>
+                                <!-- Calendar Range icon -->
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            <% } %>
+                        </svg>
+                    </div>
+                    <div class="text-2xl font-bold text-gray-900"><%= card.value %> kWh</div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
     <div class="chart-container">
         <h3>Last 30 Days</h3>
         <canvas id="last-30-days-chart"></canvas>
