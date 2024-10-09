@@ -35,6 +35,7 @@ body, html {
             display: flex;
             flex-direction: column;
             position: fixed;
+             transition: width 0.3s ease;
         }
 
         .logo-container {
@@ -167,7 +168,9 @@ nav li i {
 .sidebar.collapsed nav li i {
  margin-right: 0;
 }
-        /* Main content styles */
+       
+
+/* Main content styles */
         .main-content {
             flex: 1;
             margin-left: 280px;
@@ -353,49 +356,6 @@ nav li i {
 }
 
 
-        input:checked + .slider {
-            background-color: #DEAF0B;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-
-        .total-emissions {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #374151;
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .summary-item {
-            background-color: white;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .summary-label {
-            font-size: 0.875rem;
-            color: #6b7280;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .summary-value {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-    
-
         /* Responsive styles */
         @media (max-width: 768px) {
             .sidebar {
@@ -483,6 +443,10 @@ nav li i {
             color: #2c3e50;
             margin-bottom: 15px;
         }
+        .dark-mode .card h3 {
+            color: #ffffff;
+            margin-bottom: 15px;
+        }
 
         /* Table styles */
         .table-container {
@@ -507,14 +471,10 @@ nav li i {
             color: #2c3e50;
         }
 
-        tr:hover {
-            background-color: #f5f5f5;
-        }
-
         /* Button styles */
         .btn {
             display: inline-block;
-            background-color: #3498db;
+            background-color:var(--primary-color);
             color: #fff;
             padding: 10px 15px;
             text-decoration: none;
@@ -523,7 +483,7 @@ nav li i {
         }
 
         .btn:hover {
-            background-color: #2980b9;
+            background-color: var(--primary-color);
         }
         .grid {
     display: grid;
@@ -625,7 +585,7 @@ nav li i {
 }
 
 .text-gray-900 {
-    color: #111827;
+    color: var(--primary-color);
 }
 
 .text-gray-500 {
@@ -652,9 +612,115 @@ nav li i {
 .h-5 {
     height: 2.25rem;
 }
+
+body.dark-mode {
+    background-color: rgba(24, 27, 31, 1);
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .sidebar .logo-icon {
+ color: #2f3640;
+}
+
+.dark-mode .sidebar .logo-text {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li:hover {
+ background-color: #383838;
+}
+
+.dark-mode .sidebar nav li a {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li i {
+ color: #dcdde1;
+}
+
+.dark-mode .toggle-sidebar,
+.dark-mode .toggle-dark-mode {
+ color: #f5f6fa;
+}
+
+.dark-mode .toggle-switch {
+    background-color: var(--primary-color);
+}
+
+.dark-mode .toggle-switch.active {
+ background-color: var(--primary-color);
+}
+
+.dark-mode header {
+    background-color: rgb(17, 18, 23);
+}
+
+.dark-mode .main-content {
+    background-color: rgba(24, 27, 31, 1);
+ color: #fff;
+}
+.dark-mode .chart-container{
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+.dark-mode .bg-white{
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+.dark-mode .card{
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+.dark-mode .loading-overlay{
+    background-color: rgba(24, 27, 31, 1);
+}
+/* loading css */
+
+.loading-overlay {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: #f8f9fa;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ z-index: 9999;
+}
+
+.loading-spinner {
+ width: 50px;
+ height: 50px;
+ border: 5px solid #e0e0e0;
+ border-top: 5px solid #3498db;
+ border-radius: 50%;
+ animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+ 0% { transform: rotate(0deg); }
+ 100% { transform: rotate(360deg); }
+}
     </style>
 </head>
 <body>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div id="pageContent">
+    
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="logo">
@@ -1050,7 +1116,7 @@ nav li i {
 
         
     </main>
-
+</div>
     <script>
       // Function to convert a table to CSV
 function tableToCSV(table) {
@@ -1242,6 +1308,94 @@ document.addEventListener('DOMContentLoaded', function() {
       const batteryData = getBatteryData('last30days-table');
       createBatteryChart('battery-chart', batteryData);
   });
+  </script>
+
+  <script>
+     // loading js
+        
+     document.addEventListener('DOMContentLoaded', function() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const pageContent = document.getElementById('pageContent');
+  
+    // Simulate loading time (you can adjust this as needed)
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      pageContent.style.display = 'block';
+      // Trigger a custom event to signal that the page is ready
+      document.dispatchEvent(new Event('pageReady'));
+    }, 1500); // 1.5 seconds loading time
+  });
+  </script>
+
+  <script>
+
+// Toggle dark mode
+const toggleDarkMode = document.getElementById('toggleDarkMode');
+const darkModeSwitch = document.getElementById('darkModeSwitch');
+
+// Function to update Grafana iframes based on dark mode
+function updateGrafanaIframes(isDarkMode) {
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        let src = iframe.src;
+
+        // Remove any existing theme parameter to avoid multiple occurrences
+        src = src.replace(/([?&]theme=)(light|dark)/, '');
+
+        // Add the new theme parameter based on dark mode setting
+        const separator = src.includes('?') ? '&' : '?';
+        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
+
+        // Only reload iframe if theme has changed
+        if (iframe.src !== src) {
+            iframe.src = src;
+        }
+    });
+}
+
+// Function to apply the mode (either from localStorage or default)
+function applyModeFromLocalStorage() {
+    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
+
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        darkModeSwitch.classList.add('active');
+    } else {
+        document.body.classList.remove('dark-mode');
+        darkModeSwitch.classList.remove('active');
+    }
+
+    // Update Grafana dashboards to match the saved mode
+    updateGrafanaIframes(isDarkMode);
+}
+
+// Add click event listener for dark mode toggle
+toggleDarkMode.addEventListener('click', () => {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    darkModeSwitch.classList.toggle('active');
+
+    // Update Grafana dashboards to match the dark mode setting
+    updateGrafanaIframes(isDarkMode);
+
+    // Save the dark mode state in localStorage
+    if (isDarkMode) {
+        localStorage.setItem('dark-mode', 'enabled');
+    } else {
+        localStorage.setItem('dark-mode', 'disabled');
+    }
+});
+
+// Check and apply the user's dark mode preference on page load and when navigating back
+document.addEventListener('DOMContentLoaded', () => {
+    applyModeFromLocalStorage();
+});
+
+// Apply mode on `pageshow` event (works when navigating back in browser history)
+window.addEventListener('pageshow', () => {
+    applyModeFromLocalStorage();
+});
+
+
   </script>
 
 </body>
