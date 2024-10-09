@@ -432,9 +432,119 @@ nav li i {
                 margin-bottom: 0.75rem;
             }
         }
+/* loading css */
+
+.loading-overlay {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: #f8f9fa;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ z-index: 9999;
+}
+
+.loading-spinner {
+ width: 50px;
+ height: 50px;
+ border: 5px solid #e0e0e0;
+ border-top: 5px solid #3498db;
+ border-radius: 50%;
+ animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+ 0% { transform: rotate(0deg); }
+ 100% { transform: rotate(360deg); }
+}
+        /* Dark mode styles */
+body.dark-mode {
+    background-color: rgba(24, 27, 31, 1);
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .sidebar .logo-icon {
+ color: #2f3640;
+}
+
+.dark-mode .sidebar .logo-text {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li:hover {
+ background-color: #383838;
+}
+
+.dark-mode .sidebar nav li a {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li i {
+ color: #dcdde1;
+}
+
+.dark-mode .toggle-sidebar,
+.dark-mode .toggle-dark-mode {
+ color: #f5f6fa;
+}
+
+.dark-mode .toggle-switch {
+    background-color: var(--primary-color);
+}
+
+.dark-mode .toggle-switch.active {
+ background-color: var(--primary-color);
+}
+
+.dark-mode header {
+    background-color: rgb(17, 18, 23);
+}
+
+.dark-mode .main-content {
+    background-color: rgba(24, 27, 31, 1);
+ color: #fff;
+}
+
+.dark-mode .metric-card {
+  background-color: rgb(32, 36, 41);
+
+ color: #fff;
+}
+.dark-mode .chart-container{
+  background-color: rgb(32, 36, 41);
+
+color: #fff;
+}
+.dark-mode  .summary-item {
+  background-color: rgb(32, 36, 41);
+
+color: #fff;
+}
+.dark-mode .loading-overlay{
+    background-color: rgba(24, 27, 31, 1);
+}
+a{
+  text-decoration: none;
+}
     </style>
 </head>
 <body>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+<div id="pageContent">
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="logo">
@@ -472,7 +582,7 @@ nav li i {
     <!-- Main Content -->
     <main class="main-content">
         <div class="content-header">
-            <h2>CO2 Emission Results for <%= selectedZone %></h2>
+            <h3>CO2 Emission Results for <%= selectedZone %></h3>
         </div>
 
         <div class="metrics-grid">
@@ -529,7 +639,7 @@ nav li i {
             <a href="/" class="back-button">Back to zone selection</a>
         </div>
     </main>
-
+</div>
     <script>
       const periodsData = <%- JSON.stringify(periods) %>;
       let emissionsChart;
@@ -775,6 +885,105 @@ nav li i {
         setInterval(fetchGridVoltage, 5000);
       });
     </script>
+<script>
 
+// Toggle dark mode
+const toggleDarkMode = document.getElementById('toggleDarkMode');
+const darkModeSwitch = document.getElementById('darkModeSwitch');
+
+// Function to update Grafana iframes based on dark mode
+function updateGrafanaIframes(isDarkMode) {
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        let src = iframe.src;
+
+        // Remove any existing theme parameter to avoid multiple occurrences
+        src = src.replace(/([?&]theme=)(light|dark)/, '');
+
+        // Add the new theme parameter based on dark mode setting
+        const separator = src.includes('?') ? '&' : '?';
+        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
+
+        // Only reload iframe if theme has changed
+        if (iframe.src !== src) {
+            iframe.src = src;
+        }
+    });
+}
+
+// Function to apply the mode (either from localStorage or default)
+function applyModeFromLocalStorage() {
+    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
+
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        darkModeSwitch.classList.add('active');
+    } else {
+        document.body.classList.remove('dark-mode');
+        darkModeSwitch.classList.remove('active');
+    }
+
+    // Update Grafana dashboards to match the saved mode
+    updateGrafanaIframes(isDarkMode);
+}
+
+// Add click event listener for dark mode toggle
+toggleDarkMode.addEventListener('click', () => {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    darkModeSwitch.classList.toggle('active');
+
+    // Update Grafana dashboards to match the dark mode setting
+    updateGrafanaIframes(isDarkMode);
+
+    // Save the dark mode state in localStorage
+    if (isDarkMode) {
+        localStorage.setItem('dark-mode', 'enabled');
+    } else {
+        localStorage.setItem('dark-mode', 'disabled');
+    }
+});
+
+// Check and apply the user's dark mode preference on page load and when navigating back
+document.addEventListener('DOMContentLoaded', () => {
+    applyModeFromLocalStorage();
+});
+
+// Apply mode on `pageshow` event (works when navigating back in browser history)
+window.addEventListener('pageshow', () => {
+    applyModeFromLocalStorage();
+});
+
+
+</script>
+
+<script>
+     // loading js
+        
+     document.addEventListener('DOMContentLoaded', function() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const pageContent = document.getElementById('pageContent');
+  
+    // Simulate loading time (you can adjust this as needed)
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      pageContent.style.display = 'block';
+      // Trigger a custom event to signal that the page is ready
+      document.dispatchEvent(new Event('pageReady'));
+    }, 1500); // 1.5 seconds loading time
+  });
+</script>
+
+<script>
+      // toggle sidebar
+      
+      const sidebar = document.getElementById('sidebar');
+    const toggleSidebar = document.getElementById('toggleSidebar');
+    const toggleSwitch = document.getElementById('toggleSwitch');
+    
+    toggleSidebar.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      toggleSwitch.classList.toggle('active');
+    });
+</script>
 </body>
 </html>
