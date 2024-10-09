@@ -3,25 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energy Data Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <title>CO2 Emission Results - Carbonoz SolarAutopilot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-    /* Reset and base styles */
-    * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+body {
+    font-family: 'Inter', sans-serif;
+}
+:root {
+ --primary-color: #DEAF0B;
+ --bg-color: #f5f6fa;
+ --text-color: #2f3640;
+ --icon-color: #636e72;
+}
+
+body, html {
+ font-family: Arial, sans-serif;
+ margin: 0;
+ padding: 0;
+ height: 100%;
+ background-color: var(--bg-color);
+ 
+}
+ /* Sidebar styles */
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            background-color: white;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
         }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f4f7f9;
-            padding: 20px;
+        .logo-container {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        /* Chart container styles */
+        .logo-icon {
+ width: 50px;
+ height: 50px;
+ border-radius: 8px;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ color: white;
+ font-weight: bold;
+ font-size: 20px;
+}
+
+.logo-text {
+ margin-left: 10px;
+ font-weight: bold;
+ color: var(--text-color);
+ font-size: 18px;
+}
+
+.logo-text .highlight {
+ color: var(--primary-color);
+ margin-left: 10px;
+}
+
+
+nav {
+ flex-grow: 1;
+}
+
+nav ul {
+ list-style-type: none;
+ padding: 0;
+ margin: 0;
+}
+nav li {
+ padding: 15px 20px;
+ display: flex;
+ align-items: center;
+ color: var(--text-color);
+ cursor: pointer;
+ transition: background-color 0.3s;
+ font-size: 18px;
+}
+
+nav li a{
+ text-decoration: none;
+ color: #2f3640;
+ font-weight: bold;
+}
+nav li:hover {
+ background-color: var(--bg-color);
+}
+
+nav li i {
+ margin-right: 15px;
+ color: var(--icon-color);
+ font-size: 24px;
+}
+
+.bottom-options {
+ padding: 20px;
+ border-top: 1px solid #dcdde1;
+}
+
+.toggle-sidebar {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ cursor: pointer;
+ font-size: 16px;
+}
+
+.toggle-text {
+ margin-right: 10px;
+}
+
+.toggle-switch {
+ width: 50px;
+ height: 25px;
+ background-color: #dcdde1;
+ border-radius: 12.5px;
+ position: relative;
+ transition: background-color 0.3s;
+}
+.toggle-switch::before {
+ content: '';
+ position: absolute;
+ width: 21px;
+ height: 21px;
+ border-radius: 50%;
+ background-color: white;
+ top: 2px;
+ left: 2px;
+ transition: transform 0.3s;
+}
+
+.toggle-switch.active {
+ background-color: var(--primary-color);
+}
+
+.toggle-switch.active::before {
+ transform: translateX(25px);
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .search,
+.sidebar.collapsed nav li span,
+.sidebar.collapsed .toggle-text {
+ display: none;
+}
+
+.sidebar.collapsed .logo {
+ justify-content: center;
+}
+
+.sidebar.collapsed nav li {
+ justify-content: center;
+}
+
+.sidebar.collapsed nav li i {
+ margin-right: 0;
+}
+        /* Main content styles */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+        }
+
+        .content-header h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-subtitle {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-wrapper {
+            height: 400px;
+            margin-top: 1rem;
+        }
+
+        .period-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .period-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .period-btn:hover {
+            background-color: #d1d5db;
+        }
+
+        .period-btn.active {
+            background-color: #DEAF0B;
+            color: white;
+        }
+
+        /* Toggle styles */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #DEAF0B;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Updated and new styles */
+        .bottom-controls {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .control-label {
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .sidebar {
+ width: 280px;
+ background-color: white;
+ box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+ display: flex;
+ flex-direction: column;
+ transition: width 0.3s ease;
+ z-index: 10;
+}
+
+.sidebar.collapsed {
+ width: 80px;
+}
+
+.logo {
+ display: flex;
+ align-items: center;
+ padding: 20px;
+}
+
+
+        input:checked + .slider {
+            background-color: #DEAF0B;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .total-emissions {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+    
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            body.collapsed-sidebar .sidebar {
+                display: none;
+            }
+
+            body.collapsed-sidebar .main-content {
+                margin-left: 0;
+            }
+
+            .metrics-grid,
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .period-buttons {
+                flex-wrap: wrap;
+            }
+
+            .period-btn {
+                flex: 1 0 calc(50% - 0.375rem);
+                margin-bottom: 0.75rem;
+            }
+        }
+
         .chart-container {
             background-color: #ffffff;
             border-radius: 8px;
@@ -242,553 +653,596 @@
     height: 2.25rem;
 }
     </style>
-    </style>
 </head>
 <body>
-    <!-- Add this section where you want the cards to appear, typically near the top of your body content -->
-    <div class="grid gap-4 md:grid-cols-3 mb-6">
-        <% 
-        // Calculate totals from your existing data
-        let todayTotal = 0;
-        let weekTotal = 0;
-        let monthTotal = 0;
-        
-        // Assuming data.pvPowerData is sorted with most recent first
-        for (let i = data.pvPowerData.length - 1; i >= 1 && i >= data.pvPowerData.length - 30; i--) {
-            const dailyValue = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
-                (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : 
-                data.pvPowerData[i].value;
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt="">
+        </div>
+        <a href="https://carbonoz.com/" target="_blank" style="text-decoration: none;">
+          <span class="logo-text">CARBONOZ <span class="highlight">SolarAutopilot</span></span>
+        </a>
+      </div>
+    
+      <nav>
+        <ul>
+          <li><a href="/"><i>🏠</i><span>Dashboard</span></a></li>
+          <li><a href="/chart"><i>📊</i><span>Charts</span></a></li>
+          <li><a href="/messages"><i>💬</i><span>Messages</span></a></li>
+          <li><a href="/settings"><i>⚙️</i><span>Settings</span></a></li>
+          <li><a href="/analytics"><i>📈</i><span>Analytics</span></a></li>
+          <li><a href="/results"><i>🍃</i><span>Carbon Intensity</span></a></li>
+        </ul>
+      </nav>
+      
+      <div class="bottom-options">
+        <div class="toggle-dark-mode" id="toggleDarkMode">
+          <span class="toggle-text">Dark Mode</span>
+          <div class="toggle-switch" id="darkModeSwitch"></div>
+        </div>
+        <div class="toggle-sidebar" id="toggleSidebar">
+          <span class="toggle-text">Collapse sidebar</span>
+          <div class="toggle-switch" id="toggleSwitch"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
             
-            if (i === data.pvPowerData.length - 1) {
-                todayTotal = dailyValue;
-            }
-            if (i >= data.pvPowerData.length - 7) {
-                weekTotal += dailyValue;
-            }
-            monthTotal += dailyValue;
-        }
+             <!-- Add this section where you want the cards to appear, typically near the top of your body content -->
+    <div class="grid gap-4 md:grid-cols-3 mb-6">
+      <% 
+      // Calculate totals from your existing data
+      let todayTotal = 0;
+      let weekTotal = 0;
+      let monthTotal = 0;
+      
+      // Assuming data.pvPowerData is sorted with most recent first
+      for (let i = data.pvPowerData.length - 1; i >= 1 && i >= data.pvPowerData.length - 30; i--) {
+          const dailyValue = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
+              (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : 
+              data.pvPowerData[i].value;
+          
+          if (i === data.pvPowerData.length - 1) {
+              todayTotal = dailyValue;
+          }
+          if (i >= data.pvPowerData.length - 7) {
+              weekTotal += dailyValue;
+          }
+          monthTotal += dailyValue;
+      }
+      
+      const cards = [
+          {
+              title: "Today's Solar PV",
+              value: todayTotal.toFixed(1),
+              description: "Clean energy generated today",
+              iconClass: "text-yellow-500"
+          },
+          {
+              title: "Last 7 Days Solar PV",
+              value: weekTotal.toFixed(1),
+              description: "Weekly solar generation",
+              iconClass: "text-blue-500"
+          },
+          {
+              title: "Last 30 Days Solar PV",
+              value: monthTotal.toFixed(1),
+              description: "Monthly solar production",
+              iconClass: "text-green-500"
+          }
+      ];
+      %>
+      
+      <% cards.forEach(card => { %>
+          <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
+              <div class="p-6">
+                  <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-sm font-medium text-gray-600"><%= card.title %></h3>
+                      <svg class="w-5 h-5 <%= card.iconClass %>" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <% if (card.title.includes("Today")) { %>
+                              <!-- Sun icon -->
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          <% } else if (card.title.includes("7 Days")) { %>
+                              <!-- Calendar Days icon -->
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          <% } else { %>
+                              <!-- Calendar Range icon -->
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          <% } %>
+                      </svg>
+                  </div>
+                  <div class="text-2xl font-bold text-gray-900"><%= card.value %> kWh</div>
+              </div>
+          </div>
+      <% }); %>
+  </div>
+  <div class="chart-container">
+      <h3>Last 30 Days</h3>
+      <canvas id="last-30-days-chart"></canvas>
+  </div>
+  <br>
+  <div class="chart-container">
+      <h3>Battery Charge/Discharge - Last 30 Days</h3>
+      <canvas id="battery-chart"></canvas>
+  </div>
+  
+  <!-- Last 30 Days Card -->
+  <div class="card">
+      <h3>Last 30 Days Data</h3>
+      <% if (data.selectedZone) { %>
+          <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
+      <% } %>
+      <div class="table-container">
+          <table id="last30days-table">
+              <thead>
+                  <tr>
+                      <th>Date</th>
+                      <th>Load</th>
+                      <th>Solar PV</th>
+                      <th>Battery Charged</th>
+                      <th>Battery Discharged</th>
+                      <th>Grid Used</th>
+                      <th>Grid Exported</th>
+                      <% if (data.selectedZone) { %>
+                          <th>CO2 Avoided</th>
+                          <th>CO2 Emitted</th>
+                      <% } %>
+                  </tr>
+              </thead>
+              <tbody>
+                  <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
+                      <tr>
+                          <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
+                          
+                          <% 
+                              const calculateDiff = (current, previous) => {
+                                  if (previous && current && previous.value !== null && current.value !== null) {
+                                      return current.value >= previous.value ? (current.value - previous.value).toFixed(1) : current.value.toFixed(1);
+                                  }
+                                  return '0.0';
+                              };
+  
+                              const loadPower = calculateDiff(data.loadPowerData[i], data.loadPowerData[i-1]);
+                              const pvPower = calculateDiff(data.pvPowerData[i], data.pvPowerData[i-1]);
+                              const batteryCharged = calculateDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]);
+                              const batteryDischarged = calculateDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]);
+                              const gridUsed = calculateDiff(data.gridPowerData[i], data.gridPowerData[i-1]);
+                              const gridExported = calculateDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]);
+  
+                              let co2Avoided = 0, co2Emitted = 0;
+                              if (data.selectedZone && data.carbonIntensityData.length > 0) {
+                                  const carbonIntensity = data.carbonIntensityData.find(d => 
+                                      new Date(d.date).toDateString() === new Date(data.loadPowerData[i].time).toDateString()
+                                  )?.carbonIntensity || 0;
+  
+                                  co2Avoided = parseFloat(pvPower) * carbonIntensity / 1000;
+                                  co2Emitted = parseFloat(gridUsed) * carbonIntensity / 1000;
+                              }
+                          %>
+                          <td><%= loadPower %> kWh</td>
+                          <td><%= pvPower %> kWh</td>
+                          <td><%= batteryCharged %> kWh</td>
+                          <td><%= batteryDischarged %> kWh</td>
+                          <td><%= gridUsed %> kWh</td>
+                          <td><%= gridExported %> kWh</td>
+                          <% if (data.selectedZone) { %>
+                              <td><%= co2Avoided.toFixed(2) %> kg</td>
+                              <td><%= co2Emitted.toFixed(2) %> kg</td>
+                          <% } %>
+                      </tr>
+                  <% } %>
+              </tbody>
+          </table>
+      </div>
+      <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
+  </div>
+
+  <div class="chart-container">
+      <h3>Last 12 Months</h3>
+      <canvas id="last-12-months-chart"></canvas>
+  </div>
+
+  <!-- Last 12 Months Card -->
+  <div class="card">
+      <h3>Last 12 Months Data</h3>
+      <% if (data.selectedZone) { %>
+          <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
+      <% } %>
+      <div class="table-container">
+          <table id="last12months-table">
+              <thead>
+                  <tr>
+                      <th>Month</th>
+                      <th>Load</th>
+                      <th>Solar PV</th>
+                      <th>Battery Charged</th>
+                      <th>Battery Discharged</th>
+                      <th>Grid Used</th>
+                      <th>Grid Exported</th>
+                      <% if (data.selectedZone) { %>
+                          <th>CO2 Avoided</th>
+                          <th>CO2 Emitted</th>
+                      <% } %>
+                  </tr>
+              </thead>
+              <tbody>
+                  <% 
+                      const months = {};
+                      const currentDate = new Date();
+                      
+                      // Initialize the last 12 months
+                      for (let i = 0; i < 12; i++) {
+                          const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+                          const monthKey = date.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                          months[monthKey] = {
+                              load: 0,
+                              pv: 0,
+                              batteryCharged: 0,
+                              batteryDischarged: 0,
+                              gridUsed: 0,
+                              gridExported: 0,
+                              co2Avoided: 0,
+                              co2Emitted: 0
+                          };
+                      }
+
+                      // Calculate monthly totals
+                      for (let i = data.loadPowerData.length - 1; i >= 1; i--) {
+                          const date = new Date(data.loadPowerData[i].time);
+                          const monthKey = date.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                          
+                          if (months.hasOwnProperty(monthKey)) {
+                              const calculateMonthlyDiff = (current, previous) => {
+                                  if (previous && current && previous.value !== null && current.value !== null) {
+                                      return current.value >= previous.value ? (current.value - previous.value) : current.value;
+                                  }
+                                  return 0;
+                              };
+
+                              months[monthKey].load += parseFloat(calculateMonthlyDiff(data.loadPowerData[i], data.loadPowerData[i-1]));
+                              months[monthKey].pv += parseFloat(calculateMonthlyDiff(data.pvPowerData[i], data.pvPowerData[i-1]));
+                              months[monthKey].batteryCharged += parseFloat(calculateMonthlyDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]));
+                              months[monthKey].batteryDischarged += parseFloat(calculateMonthlyDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]));
+                              months[monthKey].gridUsed += parseFloat(calculateMonthlyDiff(data.gridPowerData[i], data.gridPowerData[i-1]));
+                              months[monthKey].gridExported += parseFloat(calculateMonthlyDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]));
+
+                              if (data.selectedZone && data.carbonIntensityData.length > 0) {
+                                  const carbonIntensity = data.carbonIntensityData.find(d => 
+                                      new Date(d.date).toDateString() === date.toDateString()
+                                  )?.carbonIntensity || 0;
+
+                                  months[monthKey].co2Avoided += months[monthKey].pv * carbonIntensity / 1000;
+                                  months[monthKey].co2Emitted += months[monthKey].gridUsed * carbonIntensity / 1000;
+                              }
+                          }
+                      }
+
+                      // Display monthly totals
+                      Object.entries(months).forEach(([month, values]) => {
+                  %>
+                      <tr>
+                          <td><%= month %></td>
+                          <td><%= values.load.toFixed(1) %> kWh</td>
+                          <td><%= values.pv.toFixed(1) %> kWh</td>
+                          <td><%= values.batteryCharged.toFixed(1) %> kWh</td>
+                          <td><%= values.batteryDischarged.toFixed(1) %> kWh</td>
+                          <td><%= values.gridUsed.toFixed(1) %> kWh</td>
+                          <td><%= values.gridExported.toFixed(1) %> kWh</td>
+                          <% if (data.selectedZone) { %>
+                              <td><%= values.co2Avoided.toFixed(2) %> kg</td>
+                              <td><%= values.co2Emitted.toFixed(2) %> kg</td>
+                          <% } %>
+                      </tr>
+                  <% }) %>
+              </tbody>
+          </table>
+      </div>
+      <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
+  </div>
+  <div class="chart-container">
+      <h3>Last 10 Years</h3>
+      <canvas id="last-10-years-chart"></canvas>
+  </div>
+
+     <!-- Last 10 Years Card -->
+     <div class="card">
+      <h3>Last 10 Years Data</h3>
+      <% if (data.selectedZone) { %>
+          <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
+      <% } %>
+      <div class="table-container">
+          <table id="last10years-table">
+              <thead>
+                  <tr>
+                      <th>Year</th>
+                      <th>Load</th>
+                      <th>Solar PV</th>
+                      <th>Battery Charged</th>
+                      <th>Battery Discharged</th>
+                      <th>Grid Used</th>
+                      <th>Grid Exported</th>
+                      <% if (data.selectedZone) { %>
+                          <th>CO2 Avoided</th>
+                          <th>CO2 Emitted</th>
+                      <% } %>
+                  </tr>
+              </thead>
+              <tbody>
+                  <% 
+                      const years = {};
+                      const currentYear = new Date().getFullYear();
+                      
+                      // Initialize the last 10 years
+                      for (let i = 0; i < 10; i++) {
+                          const year = currentYear - i;
+                          years[year] = {
+                              load: 0,
+                              pv: 0,
+                              batteryCharged: 0,
+                              batteryDischarged: 0,
+                              gridUsed: 0,
+                              gridExported: 0,
+                              co2Avoided: 0,
+                              co2Emitted: 0
+                          };
+                      }
+
+                      // Calculate yearly totals
+                      for (let i = data.loadPowerData.length - 1; i >= 1; i--) {
+                          const date = new Date(data.loadPowerData[i].time);
+                          const year = date.getFullYear();
+                          
+                          if (years.hasOwnProperty(year)) {
+                              const calculateYearlyDiff = (current, previous) => {
+                                  if (previous && current && previous.value !== null && current.value !== null) {
+                                      return current.value >= previous.value ? (current.value - previous.value) : current.value;
+                                  }
+                                  return 0;
+                              };
+
+                              years[year].load += parseFloat(calculateYearlyDiff(data.loadPowerData[i], data.loadPowerData[i-1]));
+                              years[year].pv += parseFloat(calculateYearlyDiff(data.pvPowerData[i], data.pvPowerData[i-1]));
+                              years[year].batteryCharged += parseFloat(calculateYearlyDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]));
+                              years[year].batteryDischarged += parseFloat(calculateYearlyDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]));
+                              years[year].gridUsed += parseFloat(calculateYearlyDiff(data.gridPowerData[i], data.gridPowerData[i-1]));
+                              years[year].gridExported += parseFloat(calculateYearlyDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]));
+
+                              if (data.selectedZone && data.carbonIntensityData.length > 0) {
+                                  const carbonIntensity = data.carbonIntensityData.find(d => 
+                                      new Date(d.date).toDateString() === date.toDateString()
+                                  )?.carbonIntensity || 0;
+
+                                  years[year].co2Avoided += years[year].pv * carbonIntensity / 1000;
+                                  years[year].co2Emitted += years[year].gridUsed * carbonIntensity / 1000;
+                              }
+                          }
+                      }
+
+                      // Display yearly totals
+                      Object.entries(years).sort((a, b) => b[0] - a[0]).forEach(([year, values]) => {
+                  %>
+                      <tr>
+                          <td><%= year %></td>
+                          <td><%= values.load.toFixed(1) %> kWh</td>
+                          <td><%= values.pv.toFixed(1) %> kWh</td>
+                          <td><%= values.batteryCharged.toFixed(1) %> kWh</td>
+                          <td><%= values.batteryDischarged.toFixed(1) %> kWh</td>
+                          <td><%= values.gridUsed.toFixed(1) %> kWh</td>
+                          <td><%= values.gridExported.toFixed(1) %> kWh</td>
+                          <% if (data.selectedZone) { %>
+                              <td><%= values.co2Avoided.toFixed(2) %> kg</td>
+                              <td><%= values.co2Emitted.toFixed(2) %> kg</td>
+                          <% } %>
+                      </tr>
+                  <% }) %>
+              </tbody>
+          </table>
+      </div>
+      <a href="#" id="last10years-table-download" class="btn">Download CSV</a>
+  </div>
+
+           
+
         
-        const cards = [
-            {
-                title: "Today's Solar PV",
-                value: todayTotal.toFixed(1),
-                description: "Clean energy generated today",
-                iconClass: "text-yellow-500"
-            },
-            {
-                title: "Last 7 Days Solar PV",
-                value: weekTotal.toFixed(1),
-                description: "Weekly solar generation",
-                iconClass: "text-blue-500"
-            },
-            {
-                title: "Last 30 Days Solar PV",
-                value: monthTotal.toFixed(1),
-                description: "Monthly solar production",
-                iconClass: "text-green-500"
-            }
-        ];
-        %>
-        
-        <% cards.forEach(card => { %>
-            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-medium text-gray-600"><%= card.title %></h3>
-                        <svg class="w-5 h-5 <%= card.iconClass %>" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <% if (card.title.includes("Today")) { %>
-                                <!-- Sun icon -->
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            <% } else if (card.title.includes("7 Days")) { %>
-                                <!-- Calendar Days icon -->
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            <% } else { %>
-                                <!-- Calendar Range icon -->
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            <% } %>
-                        </svg>
-                    </div>
-                    <div class="text-2xl font-bold text-gray-900"><%= card.value %> kWh</div>
-                </div>
-            </div>
-        <% }); %>
-    </div>
-    <div class="chart-container">
-        <h3>Last 30 Days</h3>
-        <canvas id="last-30-days-chart"></canvas>
-    </div>
-    <br>
-    <div class="chart-container">
-        <h3>Battery Charge/Discharge - Last 30 Days</h3>
-        <canvas id="battery-chart"></canvas>
-    </div>
-    
-    <!-- Last 30 Days Card -->
-    <div class="card">
-        <h3>Last 30 Days Data</h3>
-        <% if (data.selectedZone) { %>
-            <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
-        <% } %>
-        <div class="table-container">
-            <table id="last30days-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Load</th>
-                        <th>Solar PV</th>
-                        <th>Battery Charged</th>
-                        <th>Battery Discharged</th>
-                        <th>Grid Used</th>
-                        <th>Grid Exported</th>
-                        <% if (data.selectedZone) { %>
-                            <th>CO2 Avoided</th>
-                            <th>CO2 Emitted</th>
-                        <% } %>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
-                        <tr>
-                            <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
-                            
-                            <% 
-                                const calculateDiff = (current, previous) => {
-                                    if (previous && current && previous.value !== null && current.value !== null) {
-                                        return current.value >= previous.value ? (current.value - previous.value).toFixed(1) : current.value.toFixed(1);
-                                    }
-                                    return '0.0';
-                                };
-    
-                                const loadPower = calculateDiff(data.loadPowerData[i], data.loadPowerData[i-1]);
-                                const pvPower = calculateDiff(data.pvPowerData[i], data.pvPowerData[i-1]);
-                                const batteryCharged = calculateDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]);
-                                const batteryDischarged = calculateDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]);
-                                const gridUsed = calculateDiff(data.gridPowerData[i], data.gridPowerData[i-1]);
-                                const gridExported = calculateDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]);
-    
-                                let co2Avoided = 0, co2Emitted = 0;
-                                if (data.selectedZone && data.carbonIntensityData.length > 0) {
-                                    const carbonIntensity = data.carbonIntensityData.find(d => 
-                                        new Date(d.date).toDateString() === new Date(data.loadPowerData[i].time).toDateString()
-                                    )?.carbonIntensity || 0;
-    
-                                    co2Avoided = parseFloat(pvPower) * carbonIntensity / 1000;
-                                    co2Emitted = parseFloat(gridUsed) * carbonIntensity / 1000;
-                                }
-                            %>
-                            <td><%= loadPower %> kWh</td>
-                            <td><%= pvPower %> kWh</td>
-                            <td><%= batteryCharged %> kWh</td>
-                            <td><%= batteryDischarged %> kWh</td>
-                            <td><%= gridUsed %> kWh</td>
-                            <td><%= gridExported %> kWh</td>
-                            <% if (data.selectedZone) { %>
-                                <td><%= co2Avoided.toFixed(2) %> kg</td>
-                                <td><%= co2Emitted.toFixed(2) %> kg</td>
-                            <% } %>
-                        </tr>
-                    <% } %>
-                </tbody>
-            </table>
-        </div>
-        <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
-    </div>
-
-    <div class="chart-container">
-        <h3>Last 12 Months</h3>
-        <canvas id="last-12-months-chart"></canvas>
-    </div>
-
-    <!-- Last 12 Months Card -->
-    <div class="card">
-        <h3>Last 12 Months Data</h3>
-        <% if (data.selectedZone) { %>
-            <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
-        <% } %>
-        <div class="table-container">
-            <table id="last12months-table">
-                <thead>
-                    <tr>
-                        <th>Month</th>
-                        <th>Load</th>
-                        <th>Solar PV</th>
-                        <th>Battery Charged</th>
-                        <th>Battery Discharged</th>
-                        <th>Grid Used</th>
-                        <th>Grid Exported</th>
-                        <% if (data.selectedZone) { %>
-                            <th>CO2 Avoided</th>
-                            <th>CO2 Emitted</th>
-                        <% } %>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% 
-                        const months = {};
-                        const currentDate = new Date();
-                        
-                        // Initialize the last 12 months
-                        for (let i = 0; i < 12; i++) {
-                            const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-                            const monthKey = date.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-                            months[monthKey] = {
-                                load: 0,
-                                pv: 0,
-                                batteryCharged: 0,
-                                batteryDischarged: 0,
-                                gridUsed: 0,
-                                gridExported: 0,
-                                co2Avoided: 0,
-                                co2Emitted: 0
-                            };
-                        }
-
-                        // Calculate monthly totals
-                        for (let i = data.loadPowerData.length - 1; i >= 1; i--) {
-                            const date = new Date(data.loadPowerData[i].time);
-                            const monthKey = date.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-                            
-                            if (months.hasOwnProperty(monthKey)) {
-                                const calculateMonthlyDiff = (current, previous) => {
-                                    if (previous && current && previous.value !== null && current.value !== null) {
-                                        return current.value >= previous.value ? (current.value - previous.value) : current.value;
-                                    }
-                                    return 0;
-                                };
-
-                                months[monthKey].load += parseFloat(calculateMonthlyDiff(data.loadPowerData[i], data.loadPowerData[i-1]));
-                                months[monthKey].pv += parseFloat(calculateMonthlyDiff(data.pvPowerData[i], data.pvPowerData[i-1]));
-                                months[monthKey].batteryCharged += parseFloat(calculateMonthlyDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]));
-                                months[monthKey].batteryDischarged += parseFloat(calculateMonthlyDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]));
-                                months[monthKey].gridUsed += parseFloat(calculateMonthlyDiff(data.gridPowerData[i], data.gridPowerData[i-1]));
-                                months[monthKey].gridExported += parseFloat(calculateMonthlyDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]));
-
-                                if (data.selectedZone && data.carbonIntensityData.length > 0) {
-                                    const carbonIntensity = data.carbonIntensityData.find(d => 
-                                        new Date(d.date).toDateString() === date.toDateString()
-                                    )?.carbonIntensity || 0;
-
-                                    months[monthKey].co2Avoided += months[monthKey].pv * carbonIntensity / 1000;
-                                    months[monthKey].co2Emitted += months[monthKey].gridUsed * carbonIntensity / 1000;
-                                }
-                            }
-                        }
-
-                        // Display monthly totals
-                        Object.entries(months).forEach(([month, values]) => {
-                    %>
-                        <tr>
-                            <td><%= month %></td>
-                            <td><%= values.load.toFixed(1) %> kWh</td>
-                            <td><%= values.pv.toFixed(1) %> kWh</td>
-                            <td><%= values.batteryCharged.toFixed(1) %> kWh</td>
-                            <td><%= values.batteryDischarged.toFixed(1) %> kWh</td>
-                            <td><%= values.gridUsed.toFixed(1) %> kWh</td>
-                            <td><%= values.gridExported.toFixed(1) %> kWh</td>
-                            <% if (data.selectedZone) { %>
-                                <td><%= values.co2Avoided.toFixed(2) %> kg</td>
-                                <td><%= values.co2Emitted.toFixed(2) %> kg</td>
-                            <% } %>
-                        </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
-        <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
-    </div>
-    <div class="chart-container">
-        <h3>Last 10 Years</h3>
-        <canvas id="last-10-years-chart"></canvas>
-    </div>
-
-       <!-- Last 10 Years Card -->
-       <div class="card">
-        <h3>Last 10 Years Data</h3>
-        <% if (data.selectedZone) { %>
-            <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
-        <% } %>
-        <div class="table-container">
-            <table id="last10years-table">
-                <thead>
-                    <tr>
-                        <th>Year</th>
-                        <th>Load</th>
-                        <th>Solar PV</th>
-                        <th>Battery Charged</th>
-                        <th>Battery Discharged</th>
-                        <th>Grid Used</th>
-                        <th>Grid Exported</th>
-                        <% if (data.selectedZone) { %>
-                            <th>CO2 Avoided</th>
-                            <th>CO2 Emitted</th>
-                        <% } %>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% 
-                        const years = {};
-                        const currentYear = new Date().getFullYear();
-                        
-                        // Initialize the last 10 years
-                        for (let i = 0; i < 10; i++) {
-                            const year = currentYear - i;
-                            years[year] = {
-                                load: 0,
-                                pv: 0,
-                                batteryCharged: 0,
-                                batteryDischarged: 0,
-                                gridUsed: 0,
-                                gridExported: 0,
-                                co2Avoided: 0,
-                                co2Emitted: 0
-                            };
-                        }
-
-                        // Calculate yearly totals
-                        for (let i = data.loadPowerData.length - 1; i >= 1; i--) {
-                            const date = new Date(data.loadPowerData[i].time);
-                            const year = date.getFullYear();
-                            
-                            if (years.hasOwnProperty(year)) {
-                                const calculateYearlyDiff = (current, previous) => {
-                                    if (previous && current && previous.value !== null && current.value !== null) {
-                                        return current.value >= previous.value ? (current.value - previous.value) : current.value;
-                                    }
-                                    return 0;
-                                };
-
-                                years[year].load += parseFloat(calculateYearlyDiff(data.loadPowerData[i], data.loadPowerData[i-1]));
-                                years[year].pv += parseFloat(calculateYearlyDiff(data.pvPowerData[i], data.pvPowerData[i-1]));
-                                years[year].batteryCharged += parseFloat(calculateYearlyDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]));
-                                years[year].batteryDischarged += parseFloat(calculateYearlyDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]));
-                                years[year].gridUsed += parseFloat(calculateYearlyDiff(data.gridPowerData[i], data.gridPowerData[i-1]));
-                                years[year].gridExported += parseFloat(calculateYearlyDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]));
-
-                                if (data.selectedZone && data.carbonIntensityData.length > 0) {
-                                    const carbonIntensity = data.carbonIntensityData.find(d => 
-                                        new Date(d.date).toDateString() === date.toDateString()
-                                    )?.carbonIntensity || 0;
-
-                                    years[year].co2Avoided += years[year].pv * carbonIntensity / 1000;
-                                    years[year].co2Emitted += years[year].gridUsed * carbonIntensity / 1000;
-                                }
-                            }
-                        }
-
-                        // Display yearly totals
-                        Object.entries(years).sort((a, b) => b[0] - a[0]).forEach(([year, values]) => {
-                    %>
-                        <tr>
-                            <td><%= year %></td>
-                            <td><%= values.load.toFixed(1) %> kWh</td>
-                            <td><%= values.pv.toFixed(1) %> kWh</td>
-                            <td><%= values.batteryCharged.toFixed(1) %> kWh</td>
-                            <td><%= values.batteryDischarged.toFixed(1) %> kWh</td>
-                            <td><%= values.gridUsed.toFixed(1) %> kWh</td>
-                            <td><%= values.gridExported.toFixed(1) %> kWh</td>
-                            <% if (data.selectedZone) { %>
-                                <td><%= values.co2Avoided.toFixed(2) %> kg</td>
-                                <td><%= values.co2Emitted.toFixed(2) %> kg</td>
-                            <% } %>
-                        </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
-        <a href="#" id="last10years-table-download" class="btn">Download CSV</a>
-    </div>
+    </main>
 
     <script>
-        // Function to convert a table to CSV
+      // Function to convert a table to CSV
 function tableToCSV(table) {
-    const rows = table.querySelectorAll('tr');
-    return Array.from(rows).map(row => {
-        return Array.from(row.querySelectorAll('th,td'))
-            .map(cell => {
-                let text = cell.textContent.trim();
-                // Remove 'kg' and 'kWh' from the end of the text
-                text = text.replace(/ (kg|kWh)$/, '');
-                // Enclose the text in quotes if it contains a comma
-                return text.includes(',') ? `"${text}"` : text;
-            })
-            .join(',');
-    }).join('\n');
+  const rows = table.querySelectorAll('tr');
+  return Array.from(rows).map(row => {
+      return Array.from(row.querySelectorAll('th,td'))
+          .map(cell => {
+              let text = cell.textContent.trim();
+              // Remove 'kg' and 'kWh' from the end of the text
+              text = text.replace(/ (kg|kWh)$/, '');
+              // Enclose the text in quotes if it contains a comma
+              return text.includes(',') ? `"${text}"` : text;
+          })
+          .join(',');
+  }).join('\n');
 }
 
 // Function to trigger download of CSV file
 function downloadCSV(csv, filename) {
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, filename);
-    } else {
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (navigator.msSaveBlob) { // IE 10+
+      navigator.msSaveBlob(blob, filename);
+  } else {
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  }
 }
 
 // Function to set up download for a specific table
 function setupTableDownload(tableId, linkId, filename) {
-    const downloadLink = document.getElementById(linkId);
-    downloadLink.addEventListener('click', function(event) {
-        event.preventDefault();
-        const table = document.getElementById(tableId);
-        const csv = tableToCSV(table);
-        downloadCSV(csv, filename);
-    });
+  const downloadLink = document.getElementById(linkId);
+  downloadLink.addEventListener('click', function(event) {
+      event.preventDefault();
+      const table = document.getElementById(tableId);
+      const csv = tableToCSV(table);
+      downloadCSV(csv, filename);
+  });
 }
 
 // Set up downloads for each table
 document.addEventListener('DOMContentLoaded', function() {
-    setupTableDownload('last30days-table', 'last30days-table-download', 'last_30_days_data.csv');
-    setupTableDownload('last12months-table', 'last12months-table-download', 'last_12_months_data.csv');
-    setupTableDownload('last10years-table', 'last10years-table-download', 'last_10_years_data.csv');
+  setupTableDownload('last30days-table', 'last30days-table-download', 'last_30_days_data.csv');
+  setupTableDownload('last12months-table', 'last12months-table-download', 'last_12_months_data.csv');
+  setupTableDownload('last10years-table', 'last10years-table-download', 'last_10_years_data.csv');
 });
-    </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Function to get data from table
-        function getTableData(tableId) {
-            const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-            let labels = [];
-            let loadData = [];
-            let solarData = [];
-            let gridUsedData = [];
-            let gridExportedData = [];
-      
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                labels.push(cells[0].textContent.trim());
-                loadData.push(parseFloat(cells[1].textContent));
-                solarData.push(parseFloat(cells[2].textContent));
-                gridUsedData.push(parseFloat(cells[5].textContent));
-                gridExportedData.push(parseFloat(cells[6].textContent));
-            });
-      
-            return { labels, loadData, solarData, gridUsedData, gridExportedData };
-        }
-      
-        // Function to update chart
-        function updateChart(chartElementId, labels, datasets) {
-            const ctx = document.getElementById(chartElementId).getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { stacked: true },
-                        y: {
-                            stacked: true,
-                            title: { display: true, text: 'kWh' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: chartElementId.replace(/-/g, ' ').replace(/chart/g, '').trim() }
-                    }
-                }
-            });
-        }
-      
-        // Get and update data for last 30 days
-        const last30DaysData = getTableData('last30days-table');
-        updateChart('last-30-days-chart', last30DaysData.labels.reverse(), [
-            { label: 'Load', data: last30DaysData.loadData.reverse(), backgroundColor: '#FF5722' },
-            { label: 'Solar PV', data: last30DaysData.solarData.reverse(), backgroundColor: '#FFA500' },
-            { label: 'Grid Used', data: last30DaysData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-            { label: 'Grid Exported', data: last30DaysData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-        ]);
+  </script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+      // Function to get data from table
+      function getTableData(tableId) {
+          const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+          let labels = [];
+          let loadData = [];
+          let solarData = [];
+          let gridUsedData = [];
+          let gridExportedData = [];
+    
+          rows.forEach(row => {
+              const cells = row.querySelectorAll('td');
+              labels.push(cells[0].textContent.trim());
+              loadData.push(parseFloat(cells[1].textContent));
+              solarData.push(parseFloat(cells[2].textContent));
+              gridUsedData.push(parseFloat(cells[5].textContent));
+              gridExportedData.push(parseFloat(cells[6].textContent));
+          });
+    
+          return { labels, loadData, solarData, gridUsedData, gridExportedData };
+      }
+    
+      // Function to update chart
+      function updateChart(chartElementId, labels, datasets) {
+          const ctx = document.getElementById(chartElementId).getContext('2d');
+          new Chart(ctx, {
+              type: 'bar',
+              data: {
+                  labels: labels,
+                  datasets: datasets
+              },
+              options: {
+                  responsive: true,
+                  scales: {
+                      x: { stacked: true },
+                      y: {
+                          stacked: true,
+                          title: { display: true, text: 'kWh' }
+                      }
+                  },
+                  plugins: {
+                      legend: { position: 'top' },
+                      title: { display: true, text: chartElementId.replace(/-/g, ' ').replace(/chart/g, '').trim() }
+                  }
+              }
+          });
+      }
+    
+      // Get and update data for last 30 days
+      const last30DaysData = getTableData('last30days-table');
+      updateChart('last-30-days-chart', last30DaysData.labels.reverse(), [
+          { label: 'Load', data: last30DaysData.loadData.reverse(), backgroundColor: '#FF5722' },
+          { label: 'Solar PV', data: last30DaysData.solarData.reverse(), backgroundColor: '#FFA500' },
+          { label: 'Grid Used', data: last30DaysData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
+          { label: 'Grid Exported', data: last30DaysData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
+      ]);
 
-        // Get and update data for last 12 months
-        const last12MonthsData = getTableData('last12months-table');
-        updateChart('last-12-months-chart', last12MonthsData.labels.reverse(), [
-            { label: 'Load', data: last12MonthsData.loadData.reverse(), backgroundColor: '#FF5722' },
-            { label: 'Solar PV', data: last12MonthsData.solarData.reverse(), backgroundColor: '#FFA500' },
-            { label: 'Grid Used', data: last12MonthsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-            { label: 'Grid Exported', data: last12MonthsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-        ]);
+      // Get and update data for last 12 months
+      const last12MonthsData = getTableData('last12months-table');
+      updateChart('last-12-months-chart', last12MonthsData.labels.reverse(), [
+          { label: 'Load', data: last12MonthsData.loadData.reverse(), backgroundColor: '#FF5722' },
+          { label: 'Solar PV', data: last12MonthsData.solarData.reverse(), backgroundColor: '#FFA500' },
+          { label: 'Grid Used', data: last12MonthsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
+          { label: 'Grid Exported', data: last12MonthsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
+      ]);
 
-        // Get and update data for last 10 years
-        const last10YearsData = getTableData('last10years-table');
-        updateChart('last-10-years-chart', last10YearsData.labels.reverse(), [
-            { label: 'Load', data: last10YearsData.loadData.reverse(), backgroundColor: '#FF5722' },
-            { label: 'Solar PV', data: last10YearsData.solarData.reverse(), backgroundColor: '#FFA500' },
-            { label: 'Grid Used', data: last10YearsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-            { label: 'Grid Exported', data: last10YearsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-        ]);
-      
-        // Function to get battery data from table
-        function getBatteryData(tableId) {
-            const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-            let labels = [];
-            let batteryChargedData = [];
-            let batteryDischargedData = [];
-      
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                labels.push(cells[0].textContent.trim());
-                batteryChargedData.push(parseFloat(cells[3].textContent));
-                batteryDischargedData.push(parseFloat(cells[4].textContent));
-            });
-      
-            return { labels: labels.reverse(), batteryChargedData: batteryChargedData.reverse(), batteryDischargedData: batteryDischargedData.reverse() };
-        }
-      
-        // Function to create battery chart
-        function createBatteryChart(chartElementId, data) {
-            const ctx = document.getElementById(chartElementId).getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            label: 'Battery Charged',
-                            data: data.batteryChargedData.map(value => -value),
-                            backgroundColor: '#FF8DA1',
-                            stack: 'battery'
-                        },
-                        {
-                            label: 'Battery Discharged',
-                            data: data.batteryDischargedData,
-                            backgroundColor: '#0C7085',
-                            stack: 'battery'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { stacked: true },
-                        y: {
-                            stacked: true,
-                            title: { display: true, text: 'kWh' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { 
-                            display: true, 
-                            text: 'Battery Charge/Discharge - Last 30 Days',
-                            font: { size: 16 }
-                        }
-                    }
-                }
-            });
-        }
-      
-        // Create battery chart
-        const batteryData = getBatteryData('last30days-table');
-        createBatteryChart('battery-chart', batteryData);
-    });
-    </script>
+      // Get and update data for last 10 years
+      const last10YearsData = getTableData('last10years-table');
+      updateChart('last-10-years-chart', last10YearsData.labels.reverse(), [
+          { label: 'Load', data: last10YearsData.loadData.reverse(), backgroundColor: '#FF5722' },
+          { label: 'Solar PV', data: last10YearsData.solarData.reverse(), backgroundColor: '#FFA500' },
+          { label: 'Grid Used', data: last10YearsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
+          { label: 'Grid Exported', data: last10YearsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
+      ]);
+    
+      // Function to get battery data from table
+      function getBatteryData(tableId) {
+          const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+          let labels = [];
+          let batteryChargedData = [];
+          let batteryDischargedData = [];
+    
+          rows.forEach(row => {
+              const cells = row.querySelectorAll('td');
+              labels.push(cells[0].textContent.trim());
+              batteryChargedData.push(parseFloat(cells[3].textContent));
+              batteryDischargedData.push(parseFloat(cells[4].textContent));
+          });
+    
+          return { labels: labels.reverse(), batteryChargedData: batteryChargedData.reverse(), batteryDischargedData: batteryDischargedData.reverse() };
+      }
+    
+      // Function to create battery chart
+      function createBatteryChart(chartElementId, data) {
+          const ctx = document.getElementById(chartElementId).getContext('2d');
+          new Chart(ctx, {
+              type: 'bar',
+              data: {
+                  labels: data.labels,
+                  datasets: [
+                      {
+                          label: 'Battery Charged',
+                          data: data.batteryChargedData.map(value => -value),
+                          backgroundColor: '#FF8DA1',
+                          stack: 'battery'
+                      },
+                      {
+                          label: 'Battery Discharged',
+                          data: data.batteryDischargedData,
+                          backgroundColor: '#0C7085',
+                          stack: 'battery'
+                      }
+                  ]
+              },
+              options: {
+                  responsive: true,
+                  scales: {
+                      x: { stacked: true },
+                      y: {
+                          stacked: true,
+                          title: { display: true, text: 'kWh' }
+                      }
+                  },
+                  plugins: {
+                      legend: { position: 'top' },
+                      title: { 
+                          display: true, 
+                          text: 'Battery Charge/Discharge - Last 30 Days',
+                          font: { size: 16 }
+                      }
+                  }
+              }
+          });
+      }
+    
+      // Create battery chart
+      const batteryData = getBatteryData('last30days-table');
+      createBatteryChart('battery-chart', batteryData);
+  });
+  </script>
+
 </body>
 </html>
