@@ -71,59 +71,66 @@
                             <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
                         <% } %>
                         <div class="table-container">
-                            <table id="last30days-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Load</th>
-                                        <th>Solar PV</th>
-                                        <th>Battery Charged</th>
-                                        <th>Battery Discharged</th>
-                                        <th>Grid Used</th>
-                                        <th>Grid Exported</th>
-                                        <% if (data.selectedZone) { %>
-                                            <th>CO2 Avoided</th>
-                                            <th>CO2 Emitted</th>
-                                        <% } %>
-                                    </tr>
-                                </thead>
-                               <tbody>
-                                    <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
-                                        <tr>
-                                            <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
-                                            
-                                            <% 
-                                                let loadPowerDiff = 0, pvPowerDiff = 0, batteryStateOfChargeDiff = 0, batteryPowerDiff = 0, gridPowerDiff = 0, netPVPowerDiff = 0;
-                                                
-                                                if (data.loadPowerData[i-1] && data.loadPowerData[i] && data.loadPowerData[i-1].value !== null && data.loadPowerData[i].value !== null) {
-                                                    loadPowerDiff = data.loadPowerData[i].value >= data.loadPowerData[i-1].value ? (data.loadPowerData[i].value - data.loadPowerData[i-1].value).toFixed(1) : data.loadPowerData[i].value.toFixed(1);
-                                                }
-                                                if (data.pvPowerData[i-1] && data.pvPowerData[i] && data.pvPowerData[i-1].value !== null && data.pvPowerData[i].value !== null) {
-                                                    pvPowerDiff = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? (data.pvPowerData[i].value - data.pvPowerData[i-1].value).toFixed(1) : data.pvPowerData[i].value.toFixed(1);
-                                                }
-                                                if (data.batteryStateOfChargeData[i-1] && data.batteryStateOfChargeData[i] && data.batteryStateOfChargeData[i-1].value !== null && data.batteryStateOfChargeData[i].value !== null) {
-                                                    batteryStateOfChargeDiff = data.batteryStateOfChargeData[i].value >= data.batteryStateOfChargeData[i-1].value ? (data.batteryStateOfChargeData[i].value - data.batteryStateOfChargeData[i-1].value).toFixed(1) : data.batteryStateOfChargeData[i].value.toFixed(1);
-                                                }
-                                                if (data.batteryPowerData[i-1] && data.batteryPowerData[i] && data.batteryPowerData[i-1].value !== null && data.batteryPowerData[i].value !== null) {
-                                                    batteryPowerDiff = data.batteryPowerData[i].value >= data.batteryPowerData[i-1].value ? (data.batteryPowerData[i].value - data.batteryPowerData[i-1].value).toFixed(1) : data.batteryPowerData[i].value.toFixed(1);
-                                                }
-                                                if (data.gridPowerData[i-1] && data.gridPowerData[i] && data.gridPowerData[i-1].value !== null && data.gridPowerData[i].value !== null) {
-                                                    gridPowerDiff = data.gridPowerData[i].value >= data.gridPowerData[i-1].value ? (data.gridPowerData[i].value - data.gridPowerData[i-1].value).toFixed(1) : data.gridPowerData[i].value.toFixed(1);
-                                                }
-                                                if (data.gridVoltageData[i-1] && data.gridVoltageData[i] && data.gridVoltageData[i-1].value !== null && data.gridVoltageData[i].value !== null) {
-                                                    netPVPowerDiff = data.gridVoltageData[i].value >= data.gridVoltageData[i-1].value ? (data.gridVoltageData[i].value - data.gridVoltageData[i-1].value).toFixed(1) : data.gridVoltageData[i].value.toFixed(1);
-                                                }
-                                            %> 
-                                            <td><%= loadPowerDiff %> kWh</td>
-                                            <td><%= pvPowerDiff %> kWh</td>
-                                            <td><%= batteryStateOfChargeDiff %> kWh</td>
-                                            <td><%= batteryPowerDiff %> kWh</td>
-                                            <td><%= gridPowerDiff %> kWh</td>
-                                            <td><%= netPVPowerDiff %> kWh</td>
-                                        </tr>
-                                    <% } %>
-                                </tbody>
-                            </table>
+                          <table id="last30days-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Load</th>
+                        <th>Solar PV</th>
+                        <th>Battery Charged</th>
+                        <th>Battery Discharged</th>
+                        <th>Grid Used</th>
+                        <th>Grid Exported</th>
+                        <% if (data.selectedZone) { %>
+                            <th>CO2 Avoided</th>
+                            <th>CO2 Emitted</th>
+                        <% } %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
+                        <tr>
+                            <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
+                            
+                            <% 
+                                const calculateDiff = (current, previous) => {
+                                    if (previous && current && previous.value !== null && current.value !== null) {
+                                        return current.value >= previous.value ? (current.value - previous.value).toFixed(1) : current.value.toFixed(1);
+                                    }
+                                    return '0.0';
+                                };
+    
+                                const loadPower = calculateDiff(data.loadPowerData[i], data.loadPowerData[i-1]);
+                                const pvPower = calculateDiff(data.pvPowerData[i], data.pvPowerData[i-1]);
+                                const batteryCharged = calculateDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]);
+                                const batteryDischarged = calculateDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]);
+                                const gridUsed = calculateDiff(data.gridPowerData[i], data.gridPowerData[i-1]);
+                                const gridExported = calculateDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]);
+    
+                                let co2Avoided = 0, co2Emitted = 0;
+                                if (data.selectedZone && data.carbonIntensityData.length > 0) {
+                                    const carbonIntensity = data.carbonIntensityData.find(d => 
+                                        new Date(d.date).toDateString() === new Date(data.loadPowerData[i].time).toDateString()
+                                    )?.carbonIntensity || 0;
+    
+                                    co2Avoided = parseFloat(pvPower) * carbonIntensity / 1000;
+                                    co2Emitted = parseFloat(gridUsed) * carbonIntensity / 1000;
+                                }
+                            %>
+                            <td><%= loadPower %> kWh</td>
+                            <td><%= pvPower %> kWh</td>
+                            <td><%= batteryCharged %> kWh</td>
+                            <td><%= batteryDischarged %> kWh</td>
+                            <td><%= gridUsed %> kWh</td>
+                            <td><%= gridExported %> kWh</td>
+                            <% if (data.selectedZone) { %>
+                                <td><%= co2Avoided.toFixed(2) %> kg</td>
+                                <td><%= co2Emitted.toFixed(2) %> kg</td>
+                            <% } %>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
                             
                         </div>
                         <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
