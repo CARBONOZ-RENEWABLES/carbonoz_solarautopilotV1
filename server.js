@@ -483,6 +483,7 @@ app.get('/clear-zone', (req, res) => {
   res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
 });
 
+
 async function queryInfluxData(topic, duration = '365d') {
   const query = `
     SELECT mean("value") AS "value"
@@ -553,6 +554,7 @@ async function fetchCarbonIntensityHistory(selectedZone) {
     return []; // Return empty array on error
   }
 }
+
 
 function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage) {
   return historyData.map((dayData, index) => {
