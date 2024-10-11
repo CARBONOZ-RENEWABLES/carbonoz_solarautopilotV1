@@ -248,12 +248,24 @@ app.get('/analytics', async (req, res) => {
   }
 });
 
+
+
+
 app.get('/', (req, res) => {
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
     mqtt_host: options.mqtt_host, 
   })
 })
+
+app.get('/configuration', (req, res) => {
+  res.render('configuration', {
+    ingress_path: process.env.INGRESS_PATH || '',
+    mqtt_host: options.mqtt_host, 
+  })
+})
+
+
 
 app.get('/api/timezone', (req, res) => {
   res.json({ timezone: currentTimezone });
@@ -377,12 +389,12 @@ wss.on('connection', (ws) => {
 
 // carbon intensity
 
-
 app.get('/settings', async (req, res) => {
   const zones = await getZones();
   const selectedZone = req.cookies[COOKIE_NAME] || '';
   res.render('settings', { zones, selectedZone, ingress_path: process.env.INGRESS_PATH || '' });
 });
+
 
 // Route for displaying results
 app.get('/results', async (req, res) => {
