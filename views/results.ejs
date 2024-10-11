@@ -545,38 +545,7 @@
 </div>
 <div id="pageContent">
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-      <div class="logo">
-        <div class="logo-icon">
-          <img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt="">
-        </div>
-        <a href="https://carbonoz.com/" target="_blank" style="text-decoration: none;">
-          <span class="logo-text">CARBONOZ <span class="highlight">SolarAutopilot</span></span>
-        </a>
-      </div>
-    
-      <nav>
-        <ul>
-          <li><a href="/"><i>🏠</i><span>Dashboard</span></a></li>
-          <li><a href="/chart"><i>📊</i><span>Charts</span></a></li>
-          <li><a href="/messages"><i>💬</i><span>Messages</span></a></li>
-          <li><a href="/settings"><i>⚙️</i><span>Settings</span></a></li>
-          <li><a href="/analytics"><i>📈</i><span>Analytics</span></a></li>
-          <li><a href="/results"><i>🍃</i><span>Carbon Intensity</span></a></li>
-        </ul>
-      </nav>
-      
-      <div class="bottom-options">
-        <div class="toggle-dark-mode" id="toggleDarkMode">
-          <span class="toggle-text">Dark Mode</span>
-          <div class="toggle-switch" id="darkModeSwitch"></div>
-        </div>
-        <div class="toggle-sidebar" id="toggleSidebar">
-          <span class="toggle-text">Collapse sidebar</span>
-          <div class="toggle-switch" id="toggleSwitch"></div>
-        </div>
-      </div>
-    </div>
+    <%- include('partials/sidebar') %>
 
     <!-- Main Content -->
     <main class="main-content">

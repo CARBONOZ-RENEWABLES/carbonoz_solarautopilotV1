@@ -10,6 +10,9 @@ const WebSocket = require('ws')
 const retry = require('async-retry')
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
+const { backOff } = require('exponential-backoff');
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+const carbonIntensityCache = new Map();
 
 const app = express()
 const port = process.env.PORT || 6789
@@ -462,18 +465,14 @@ app.get('/results', async (req, res) => {
   }
 });
 
+// Helper functions
 const COOKIE_NAME = 'selectedZone';
 const COOKIE_OPTIONS = {
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production'
 };
-const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
-// Cache for carbon intensity data
-const carbonIntensityCache = new Map();
-
-// Fetch available zones without caching
 async function getZones() {
   try {
     const response = await axios.get('https://api.electricitymap.org/v3/zones', { timeout: 10000 });
@@ -534,22 +533,21 @@ async function fetchCarbonIntensityHistory(selectedZone) {
       for (let i = 0; i < batchSize && m.clone().add(i, 'days').isBefore(today); i++) {
         const date = m.clone().add(i, 'days').format('YYYY-MM-DD');
         batchPromises.push(
-          axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
-            headers: { 'Authorization': 'Bearer x3iKtJLhs6xDD' },
-            timeout: 5000 // Add timeout
-          }).catch(error => {
-            console.error(`Error fetching data for ${date}:`, error.message);
-            return null; // Return null for failed requests
+          backOff(() => fetchWithRetry(selectedZone, date), {
+            numOfAttempts: 5,
+            startingDelay: 1000,
+            timeMultiple: 2,
+            maxDelay: 30000,
           })
         );
       }
 
       const batchResults = await Promise.all(batchPromises);
-      batchResults.forEach((response, index) => {
-        if (response && response.data && response.data.history && response.data.history.length > 0) {
+      batchResults.forEach((result, index) => {
+        if (result && result.history && result.history.length > 0) {
           historyData.push({
             date: m.clone().add(index, 'days').format('YYYY-MM-DD'),
-            carbonIntensity: response.data.history[0].carbonIntensity
+            carbonIntensity: result.history[0].carbonIntensity
           });
         }
       });
@@ -566,16 +564,42 @@ async function fetchCarbonIntensityHistory(selectedZone) {
     return []; // Return empty array on error
   }
 }
-
+async function fetchWithRetry(selectedZone, date) {
+  try {
+    const response = await axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
+      headers: { 'Authorization': 'Bearer m8E7x82PMXbkn' },
+      timeout: 5000
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 429) {
+      // If rate limited, throw an error to trigger backoff
+      throw new Error('Rate limited');
+    }
+    console.error(`Error fetching data for ${date}:`, error.message);
+    return null;
+  }
+}
 
 function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage) {
   return historyData.map((dayData, index) => {
     const carbonIntensity = dayData.carbonIntensity;
     const currentGridVoltage = gridVoltage[index]?.value || 0;
     const isGridActive = Math.abs(currentGridVoltage) > 20;
-    const gridEnergy = gridEnergyIn[index]?.value || 0;
-    const solarEnergy = pvEnergy[index]?.value || 0;
 
+    // Calculate daily grid and PV energy by comparing with previous day's data
+    let gridEnergy = gridEnergyIn[index]?.value || 0;
+    let solarEnergy = pvEnergy[index]?.value || 0;
+
+    if (index > 0) { // Avoid previous day comparison for the first entry
+      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0;
+      const prevPvEnergy = pvEnergy[index - 1]?.value || 0;
+      
+      gridEnergy = gridEnergy > prevGridEnergy ? gridEnergy - prevGridEnergy : gridEnergy;
+      solarEnergy = solarEnergy > prevPvEnergy ? solarEnergy - prevPvEnergy : solarEnergy;
+    }
+
+    // Calculate emissions and self-sufficiency
     let unavoidableEmissions = 0;
     let avoidedEmissions = 0;
 
@@ -597,6 +621,7 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     };
   });
 }
+
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {

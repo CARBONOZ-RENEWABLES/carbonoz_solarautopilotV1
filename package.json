@@ -21,6 +21,7 @@
     "axios": "^1.7.7",
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.45",
+    "exponential-backoff": "^3.1.1",
     "express-session": "^1.18.0",
     "dotenv": "^16.4.5",
     "mqtt": "^4.2.8",
