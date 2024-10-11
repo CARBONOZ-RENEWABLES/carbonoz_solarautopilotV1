@@ -1,405 +1,166 @@
-.card {
-    background-color: var(--card-bg);
-    border-radius: 0.5rem;
-    box-shadow: var(--card-shadow);
-    margin-bottom: 2rem;
-    overflow: hidden;
-    transition: box-shadow 0.3s ease;
+
+ .form-container {
+  background-color: #ffffff;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 24px;
+  margin-bottom: 20px;
 }
 
-.card:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+.form-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-color);
+  margin-bottom: 16px;
 }
 
-.card-header {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: bold;
-    padding: 1rem 1.5rem;
-    font-size: 1.25rem;
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-.btn {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.25rem;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
-    cursor: pointer;
-}
-
-.btn:hover {
-    background-color: #c19c09;
-}
-
-
-
-input[type="text"], input[type="number"], select, textarea {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--card-border);
-    border-radius: 0.25rem;
-    margin-top: 0.5rem;
-    color: var(--primary-color);
-}
-
-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--card-border);
-}
-
-th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-}
-
-.dark-mode {
-    --bg-color: #1a202c;
-    --text-color: #e2e8f0;
-    --card-bg: rgba(24, 27, 31, 1);;
-    --card-border: #4a5568;
-}
-
-
-
-.dark-mode th {
-    background-color: transparent;
-    color: #fff;
-
-}
-
-#automation-log {
-    max-height: 200px;
-    overflow-y: auto;
-    background-color: #f8f9fa;
-    border: 1px solid var(--card-border);
-    border-radius: 0.25rem;
-    padding: 1rem;
-}
-
-.dark-mode #automation-log {
-    background-color: transparent;
-    color: #fff;
-}
-
-#rule-modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: 10% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 600px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.close:hover,
-.close:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-/* Form styles */
 .form-group {
-    margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--light-text-color);
 }
 
-input[type="text"],
-textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: var(--primary-color);
-}
-
-textarea {
-    height: 100px;
-    resize: vertical;
-}
-
-.btn {
-    background-color: #DEAF0B;
-    border: none;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 4px;
-    border: 2px solid #000;
-}
-
-.btn-secondary {
-    background-color: #f44336;
-}
-
-/* Dark mode styles */
-.dark-mode .modal-content {
-    background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-}
-
-.dark-mode input[type="text"],
-.dark-mode textarea {
-    background-color: transparent;
-    color: var(--primary-color);
-    border-color: #555;
-}
-
-.dark-mode .close {
-    color: #fff;
-}
-
-.dark-mode .close:hover,
-.dark-mode .close:focus {
-    color: #ddd;
-}
-
-.dark-mode input,select{
-    background-color: transparent;
-    color: var(--primary-color);
-}
-
-
-.container-config {
-    width: 95%;
-    margin: 0 auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    min-height: 50%;
-   
-}
-.timezone-container {
-    margin-bottom: 20px;
-}
-.timezone-container label {
-    display: block;
-    margin-bottom: 5px;
-    color: ffff;
-    font-weight: bold;
-}
+.form-input,
+.form-select,
 .timezone-select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #dddfe2;
-    border-radius: 6px;
-    font-size: 14px;
-    color: #DEAF0B;
-    background-color: transparent;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+  background-color: #ffffff;
+  color: var(--text-color);
 }
+
+.form-input:focus,
+.form-select:focus,
 .timezone-select:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
-}
-.timezone-select option {
-    background-color: white;
-    color: #1c1e21;
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
 }
 
-.gauge-card {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    margin: 10px;
-    padding: 30px;
-    margin-bottom: 15px;
-    transition: all 0.3s ease;
-}
-.gauge-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-.input-group {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-h3 {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: bold;
-    padding: 1rem 1.5rem;
-    font-size: 1.25rem;
-}
-.dark-mode .gauge-title {
-    color: #fff;
-}
-.dark-mode label {
-    color: #fff;
+.form-select,
+.timezone-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%231c1e21' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  padding-right: 36px;
+  cursor: pointer;
 }
 
-input {
-    width: 80%;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 14px;
-    color: #000;
-    
+.form-select:hover,
+.timezone-select:hover {
+  background-color: var(--hover-color);
 }
 
-button {
-    background-color: #DEAF0B;
-    border: none;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 4px;
-    border: 2px solid #000;
-}
-button:hover {
-    background-color: #d7ae19;
-}
-#responseMessage {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 6px;
-    text-align: center;
-    font-weight: bold;
-}
-.success {
-    background-color: #e7f3ff;
-    color: #1877f2;
-}
-.error {
-    background-color: #ffebe9;
-    color: #ff0000;
+.timezone-container {
+  margin-bottom: 20px;
 }
 
-.dark-mode .container-config {
-    background-color: rgba(24, 27, 31, 1);
-    color: #fff;
+.timezone-container h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 8px;
 }
 
-.dark-mode .gauge-card {
-    background-color: rgb(32, 36, 41);
-    color: #fff;
-}
-.dark-mode .form-container{
-    background-color: rgb(32, 36, 41);
-   
+.button-container {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-start;
+  align-items: center;
 }
 
-.form-container {
-    width: 95%;
-    margin: 0 auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.form-button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 120px;
+}
+
+.form-button {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.form-button:hover {
+  background-color: #e5d416;
+}
+
+.button {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+
+.button.danger {
+  background-color: #8b03fa;
+}
+
+.button.danger:hover {
+  background-color: #9616fe;
+}
+
+.current-zone {
+  background-color: var(--hover-color);
+  padding: 12px;
+  border-radius: var(--border-radius);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .form-container {
     padding: 20px;
-    min-height: 50%;
-  }
-  
-  label {
-    display: block;
-    margin-bottom: 10px;
-    color: #333;
-    font-weight: bold;
-  }
-  
-  select {
-    width: 100%;
-    padding: 10px;
-    border: 2px solid #DEAF0B;
-    border-radius: 4px;
-    background-color: transparent;
-    color: #DEAF0B;
-    font-size: 16px;
-    margin-bottom: 20px;
-    cursor: pointer;
-  }
-  
-  select option {
-    background-color: transparent;
-    color: #DEAF0B;
-    padding: 10px;
   }
 
-  
   .button-container {
-    display: flex;
-    gap: 10px;
-  }
-  
-  button{
-    flex: 1;
-    padding: 12px;
-    background-color: #DEAF0B;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.3s;
-  }
-  
-  button:hover {
-    background-color: #ba9306;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .secondary-button {
-    background-color: #6c757d;
+  .form-button,
+  .button {
+    width: 100%;
   }
+}
 
-  .secondary-button:hover {
-    background-color: #5a6268;
-  }
 
-  .current-zone {
-    margin-bottom: 15px;
-    padding: 10px;
-    background-color: var(--primary-color);
-    color: white;;
-    border-radius: 4px;
-    text-align: center;
-  }
+
+.dark-mode .form-container,
+.dark-mode .form-input,
+.dark-mode .form-select,
+.dark-mode .timezone-select {
+  background-color: rgb(32, 36, 41);
+color: #fff;
+}
+
+.dark-mode .form-select,
+.dark-mode .timezone-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23e4e6eb' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+}

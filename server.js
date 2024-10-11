@@ -594,9 +594,18 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     if (index > 0) { // Avoid previous day comparison for the first entry
       const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0;
       const prevPvEnergy = pvEnergy[index - 1]?.value || 0;
-      
-      gridEnergy = gridEnergy > prevGridEnergy ? gridEnergy - prevGridEnergy : gridEnergy;
-      solarEnergy = solarEnergy > prevPvEnergy ? solarEnergy - prevPvEnergy : solarEnergy;
+
+      if (prevGridEnergy === 0 || prevGridEnergy === null) {
+        gridEnergy = 0; // Set to 0 if previous grid energy was 0 or null
+      } else {
+        gridEnergy = gridEnergy > prevGridEnergy ? gridEnergy - prevGridEnergy : gridEnergy;
+      }
+
+      if (prevPvEnergy === 0 || prevPvEnergy === null) {
+        solarEnergy = 0; // Set to 0 if previous PV energy was 0 or null
+      } else {
+        solarEnergy = solarEnergy > prevPvEnergy ? solarEnergy - prevPvEnergy : solarEnergy;
+      }
     }
 
     // Calculate emissions and self-sufficiency
@@ -621,7 +630,6 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     };
   });
 }
-
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {

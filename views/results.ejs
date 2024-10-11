@@ -566,20 +566,7 @@
                 <p class="metric-subtitle">By using solar today</p>
             </div>
             
-            <div class="metric-card">
-                <h3 class="metric-title">Grid Status</h3>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <p class="metric-value" id="gridVoltage">
-                            <%= typeof todayData.gridVoltage !== 'undefined' ? todayData.gridVoltage.toFixed(2) : 'N/A' %> V
-                        </p>
-                        <p class="metric-subtitle" id="gridStatus">
-                            <%= typeof todayData.gridVoltage !== 'undefined' ? (todayData.gridVoltage > 20 ? 'Active' : 'Inactive') : 'No data' %>
-                        </p>
-                    </div>
-                    <div id="voltageGauge"></div>
-                </div>
-            </div>
+       
 
             <div class="metric-card">
                 <h3 class="metric-title">Self-Sufficiency Score</h3>

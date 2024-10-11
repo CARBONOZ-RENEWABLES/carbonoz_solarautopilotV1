@@ -730,48 +730,59 @@ body.dark-mode {
             
              <!-- Add this section where you want the cards to appear, typically near the top of your body content -->
     <div class="grid gap-4 md:grid-cols-3 mb-6">
-      <% 
-      // Calculate totals from your existing data
-      let todayTotal = 0;
-      let weekTotal = 0;
-      let monthTotal = 0;
-      
-      // Assuming data.pvPowerData is sorted with most recent first
-      for (let i = data.pvPowerData.length - 1; i >= 1 && i >= data.pvPowerData.length - 30; i--) {
-          const dailyValue = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
-              (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : 
-              data.pvPowerData[i].value;
-          
-          if (i === data.pvPowerData.length - 1) {
-              todayTotal = dailyValue;
-          }
-          if (i >= data.pvPowerData.length - 7) {
-              weekTotal += dailyValue;
-          }
-          monthTotal += dailyValue;
-      }
-      
-      const cards = [
-          {
-              title: "Today's Solar PV",
-              value: todayTotal.toFixed(1),
-              description: "Clean energy generated today",
-              iconClass: "text-yellow-500"
-          },
-          {
-              title: "Last 7 Days Solar PV",
-              value: weekTotal.toFixed(1),
-              description: "Weekly solar generation",
-              iconClass: "text-blue-500"
-          },
-          {
-              title: "Last 30 Days Solar PV",
-              value: monthTotal.toFixed(1),
-              description: "Monthly solar production",
-              iconClass: "text-green-500"
-          }
-      ];
-      %>
+        <% 
+        // Calculate totals from your existing data
+        let todayTotal = 0;
+        let weekTotal = 0;
+        let monthTotal = 0;
+    
+        // Assuming data.pvPowerData is sorted with most recent first
+        const totalDays = data.pvPowerData.length;
+        
+        for (let i = totalDays - 1; i >= 1; i--) {
+            const dailyValue = data.pvPowerData[i].value >= data.pvPowerData[i-1].value ? 
+                (data.pvPowerData[i].value - data.pvPowerData[i-1].value) : 
+                data.pvPowerData[i].value;
+    
+            // Calculate today's total
+            if (i === totalDays - 1) {
+                todayTotal = dailyValue;
+            }
+    
+            // Calculate last 7 days total
+            if (i >= totalDays - 7) {
+                weekTotal += dailyValue;
+            }
+    
+            // Calculate last 30 days total
+            if (i >= totalDays - 30) {
+                monthTotal += dailyValue;
+            }
+        }
+    
+        // Card generation based on calculated totals
+        const cards = [
+            {
+                title: "Today's Solar PV",
+                value: todayTotal.toFixed(1),
+                description: "Clean energy generated today",
+                iconClass: "text-yellow-500"
+            },
+            {
+                title: "Last 7 Days Solar PV",
+                value: weekTotal.toFixed(1),
+                description: "Weekly solar generation",
+                iconClass: "text-blue-500"
+            },
+            {
+                title: "Last 30 Days Solar PV",
+                value: monthTotal.toFixed(1),
+                description: "Monthly solar production",
+                iconClass: "text-green-500"
+            }
+        ];
+    %>
+    
       
       <% cards.forEach(card => { %>
           <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
