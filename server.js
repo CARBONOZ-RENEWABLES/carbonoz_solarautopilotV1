@@ -221,14 +221,14 @@ app.get('/analytics', async (req, res) => {
     }
     
     const [loadPowerData, pvPowerData, batteryStateOfChargeData, 
-           batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
-      queryInfluxDB('${mqttTopicPrefix}/total/load_energy/state'),
-      queryInfluxDB('${mqttTopicPrefix}/total/pv_energy/state'),
-      queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_in/state'),
-      queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_out/state'),
-      queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_in/state'),
-      queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_out/state')
-    ]);
+      batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
+ queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
+ queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
+ queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+ queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+ queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+ queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
+]);
 
     const data = {
       loadPowerData,
@@ -418,9 +418,9 @@ app.get('/results', async (req, res) => {
       try {
         [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
           fetchCarbonIntensityHistory(selectedZone),
-          queryInfluxData('${mqttTopicPrefix}/total/grid_energy_in/state', '365d'),
-          queryInfluxData('${mqttTopicPrefix}/total/pv_energy/state', '365d'),
-          queryInfluxData('${mqttTopicPrefix}/total/grid_voltage/state', '365d')
+          queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
         ]);
       } catch (e) {
         console.error('Error fetching data:', e);
@@ -634,9 +634,11 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
 app.get('/api/grid-voltage', async (req, res) => {
   try {
     const result = await influx.query(`
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+     SELECT last("value") AS "value"
+FROM "state"
+WHERE "topic" =~ /.+\/total\/grid_voltage\/state/
+LIMIT 1
+
     `);
     res.json({ voltage: result[0]?.value || 0 });
   } catch (error) {
