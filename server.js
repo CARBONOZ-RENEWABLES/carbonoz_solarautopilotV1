@@ -222,12 +222,12 @@ app.get('/analytics', async (req, res) => {
     
     const [loadPowerData, pvPowerData, batteryStateOfChargeData, 
            batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
-      queryInfluxDB('solar_assistant_DEYE/total/load_energy/state'),
-      queryInfluxDB('solar_assistant_DEYE/total/pv_energy/state'),
-      queryInfluxDB('solar_assistant_DEYE/total/battery_energy_in/state'),
-      queryInfluxDB('solar_assistant_DEYE/total/battery_energy_out/state'),
-      queryInfluxDB('solar_assistant_DEYE/total/grid_energy_in/state'),
-      queryInfluxDB('solar_assistant_DEYE/total/grid_energy_out/state')
+      queryInfluxDB('${mqttTopicPrefix}/total/load_energy/state'),
+      queryInfluxDB('${mqttTopicPrefix}/total/pv_energy/state'),
+      queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_in/state'),
+      queryInfluxDB('${mqttTopicPrefix}/total/battery_energy_out/state'),
+      queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_in/state'),
+      queryInfluxDB('${mqttTopicPrefix}/total/grid_energy_out/state')
     ]);
 
     const data = {
@@ -418,9 +418,9 @@ app.get('/results', async (req, res) => {
       try {
         [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
           fetchCarbonIntensityHistory(selectedZone),
-          queryInfluxData('solar_assistant_DEYE/total/grid_energy_in/state', '365d'),
-          queryInfluxData('solar_assistant_DEYE/total/pv_energy/state', '365d'),
-          queryInfluxData('solar_assistant_DEYE/total/grid_voltage/state', '365d')
+          queryInfluxData('${mqttTopicPrefix}/total/grid_energy_in/state', '365d'),
+          queryInfluxData('${mqttTopicPrefix}/total/pv_energy/state', '365d'),
+          queryInfluxData('${mqttTopicPrefix}/total/grid_voltage/state', '365d')
         ]);
       } catch (e) {
         console.error('Error fetching data:', e);
@@ -636,7 +636,7 @@ app.get('/api/grid-voltage', async (req, res) => {
     const result = await influx.query(`
       SELECT last("value") AS "value"
       FROM "state"
-      WHERE "topic" = 'solar_assistant_DEYE/total/grid_voltage/state'
+      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
     `);
     res.json({ voltage: result[0]?.value || 0 });
   } catch (error) {

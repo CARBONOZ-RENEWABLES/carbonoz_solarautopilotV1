@@ -19,10 +19,9 @@
           <div id="pageContent"> </div>
 <%- include('partials/sidebar') %>
 
-        <div class="main-container">
+     
 
             <div class="main-content">
-                <div class="content-card">
                     <div class="dashboard-column">
                         <div class="card">
                             <iframe src="http://<%= mqtt_host %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
@@ -60,16 +59,14 @@
                       
 
                 
-                </div>
             </div>
 
         
         </div>
-    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
  
   <script src="<%= ingress_path %>/js/loading.js"></script>
-  <script src="<%= ingress_path %>/js/sidebar.js"></script>
   <script src="<%= ingress_path %>/js/dark-mode.js"></script>
     
        

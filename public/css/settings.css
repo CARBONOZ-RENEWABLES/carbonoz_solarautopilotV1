@@ -1,166 +1,172 @@
+:root {
+  --primary-color: #1877f2;
+  --secondary-color: #42b72a;
+  --background-color: #f0f2f5;
+  --content-background: #ffffff;
+  --text-color: #1c1e21;
+  --border-color: #dddfe2;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --input-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.dark-mode .container-config{
+  background-color: rgba(24, 27, 31, 1);
+  color: #fff;
+}
 
- .form-container {
-  background-color: #ffffff;
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-  padding: 24px;
+.dark-mode .container-config{
+  background-color: rgba(24, 27, 31, 1);
+  color: #fff;
+}
+.container-config {
+  background-color: var(--content-background);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow-color);
+  padding: 20px;
   margin-bottom: 20px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.form-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: var(--text-color);
-  margin-bottom: 16px;
+h3 {
+  color: var(--primary-color);
+  font-size: 20px;
+  margin-bottom: 10px;
 }
 
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: var(--light-text-color);
-}
-
-.form-input,
-.form-select,
-.timezone-select {
+.timezone-select, .form-select {
   width: 100%;
-  padding: 12px;
-  font-size: 16px;
+  padding: 8px 10px;
+  font-size: 15px;
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  transition: var(--transition);
-  background-color: #ffffff;
-  color: var(--text-color);
+  border-radius: 6px;
+  margin-bottom: 15px;
+  background-color: transparent;
+  color: var(--primary-color);
+  transition: all 0.3s ease;
+  box-shadow: var(--input-shadow);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 1em;
 }
 
-.form-input:focus,
-.form-select:focus,
-.timezone-select:focus {
+.timezone-select:focus, .form-select:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
 }
 
-.form-select,
-.timezone-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%231c1e21' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  padding-right: 36px;
-  cursor: pointer;
-}
-
-.form-select:hover,
-.timezone-select:hover {
-  background-color: var(--hover-color);
-}
-
-.timezone-container {
-  margin-bottom: 20px;
-}
-
-.timezone-container h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-color);
-  margin-bottom: 8px;
-}
-
 .button-container {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
-  justify-content: flex-start;
-  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
 }
 
-.form-button,
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  font-size: 16px;
-  font-weight: 600;
+.form-button, .button {
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+  padding: 10px 15px;
   text-align: center;
   text-decoration: none;
-  border: none;
-  border-radius: var(--border-radius);
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
   cursor: pointer;
-  transition: var(--transition);
-  min-width: 120px;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
-.form-button {
-  background-color: var(--primary-color);
-  color: #ffffff;
+.form-button:active, .button:active {
+  transform: translateY(1px);
 }
-
-.form-button:hover {
-  background-color: #e5d416;
-}
-
-.button {
-  background-color: var(--primary-color);
-  color: #ffffff;
-}
-
 
 .button.danger {
-  background-color: #8b03fa;
+  background-color: #eb4d4b;
 }
 
 .button.danger:hover {
-  background-color: #9616fe;
+  background-color: #d44333;
 }
 
 .current-zone {
-  background-color: var(--hover-color);
-  padding: 12px;
-  border-radius: var(--border-radius);
-  margin-bottom: 16px;
-  font-weight: 600;
+  background-color: var(--border-color);
+
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-weight: bold;
+  color: #1c1e21;
 }
 
-/* Responsive styles */
+.theme-switch-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.theme-switch {
+  display: inline-block;
+  height: 34px;
+  position: relative;
+  width: 60px;
+}
+
+.theme-switch input {
+  display: none;
+}
+
+.slider {
+  background-color: #ccc;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  transition: .4s;
+}
+
+.slider:before {
+  background-color: #fff;
+  bottom: 4px;
+  content: "";
+  height: 26px;
+  left: 4px;
+  position: absolute;
+  transition: .4s;
+  width: 26px;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
 @media (max-width: 768px) {
-  .container {
-    padding: 16px;
+  .main-content {
+    padding: 10px;
   }
-
-  .form-container {
-    padding: 20px;
-  }
-
+  
   .button-container {
     flex-direction: column;
-    align-items: stretch;
   }
-
-  .form-button,
-  .button {
+  
+  .form-button, .button {
     width: 100%;
   }
-}
-
-
-
-.dark-mode .form-container,
-.dark-mode .form-input,
-.dark-mode .form-select,
-.dark-mode .timezone-select {
-  background-color: rgb(32, 36, 41);
-color: #fff;
-}
-
-.dark-mode .form-select,
-.dark-mode .timezone-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23e4e6eb' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
 }
