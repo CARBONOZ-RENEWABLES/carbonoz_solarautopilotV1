@@ -634,11 +634,10 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
 app.get('/api/grid-voltage', async (req, res) => {
   try {
     const result = await influx.query(`
-     SELECT last("value") AS "value"
-FROM "state"
-WHERE "topic" =~ /.+\/total\/grid_voltage\/state/
-LIMIT 1
-
+      SELECT last("value") AS "value"
+      FROM "state"
+      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+      LIMIT 1
     `);
     res.json({ voltage: result[0]?.value || 0 });
   } catch (error) {
@@ -646,6 +645,7 @@ LIMIT 1
     res.status(500).json({ error: 'Failed to fetch grid voltage' });
   }
 });
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
