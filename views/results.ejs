@@ -536,19 +536,50 @@
    a{
      text-decoration: none;
    }
+
+   .gauge-container {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    margin: 10px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 100%;
+    background-color: #e5e7eb;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #16a34a;
+    transition: width 0.5s ease-out;
+}
+
+.gauge-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
        </style>
 </head>
 <body>
-
   <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-</div>
-<div id="pageContent">
-    <!-- Sidebar -->
-    <%- include('partials/sidebar') %>
+      <div class="loading-spinner"></div>
+  </div>
+  <div id="pageContent">
+      <!-- Sidebar -->
+      <%- include('partials/sidebar') %>
 
-    <!-- Main Content -->
-    <main class="main-content">
+      <!-- Main Content -->
+      <main class="main-content">
         <div class="content-header">
             <h3>CO2 Emission Results for <%= selectedZone %></h3>
         </div>
@@ -566,11 +597,14 @@
                 <p class="metric-subtitle">By using solar today</p>
             </div>
             
-       
-
             <div class="metric-card">
                 <h3 class="metric-title">Self-Sufficiency Score</h3>
-                <p class="metric-value" style="color: #16a34a"><%= selfSufficiencyScore.toFixed(2) %>%</p>
+                <div class="gauge-container">
+                    <div class="progress-bar">
+                        <div id="selfSufficiencyBar" class="progress-fill"></div>
+                    </div>
+                    <div id="selfSufficiencyValue" class="gauge-value"></div>
+                </div>
                 <p class="metric-subtitle">Energy self-produced today</p>
             </div>
         </div>
@@ -591,260 +625,244 @@
         <div id="summary" class="summary-grid"></div>
 
         <div style="text-align: center;">
-            <a href="/" class="back-button">Back to zone selection</a>
+            <a href="<%= ingress_path %>/results" class="back-button">Back to zone selection</a>
         </div>
     </main>
-</div>
-    <script>
-      const periodsData = <%- JSON.stringify(periods) %>;
-      let emissionsChart;
-      let selfSufficiencyChart;
-      
-      const chartColors = {
-        gridEmissions: {
-          fill: 'rgba(220, 38, 38, 0.1)',
-          stroke: 'rgba(220, 38, 38, 0.7)'
-        },
-        avoidedEmissions: {
-          fill: 'rgba(22, 163, 74, 0.1)',
-          stroke: 'rgba(22, 163, 74, 0.7)'
-        }
-      };
-  
-      function createEmissionsChart(data, label) {
-        if (emissionsChart) {
-          emissionsChart.destroy();
-        }
-        
-        const ctx = document.getElementById('emissionsChart').getContext('2d');
-        
-        Chart.defaults.font.family = "'Inter', sans-serif";
-        
-        // Create gradient fills
-        const gradientGrid = ctx.createLinearGradient(0, 0, 0, 400);
-        gradientGrid.addColorStop(0, 'rgba(220, 38, 38, 0.4)');
-        gradientGrid.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
-  
-        const gradientAvoided = ctx.createLinearGradient(0, 0, 0, 400);
-        gradientAvoided.addColorStop(0, 'rgba(22, 163, 74, 0.4)');
-        gradientAvoided.addColorStop(1, 'rgba(22, 163, 74, 0.1)');
-        
-        emissionsChart = new Chart(ctx, {
-          type: 'line',
-          data: {
+  </div>
+
+<script>
+// Declare global variables
+const periodsData = JSON.parse('<%- JSON.stringify(periods) %>');
+let emissionsChart;
+
+// Define chart colors
+const chartColors = {
+    gridEmissions: {
+        fill: 'rgba(220, 38, 38, 0.1)',
+        stroke: 'rgba(220, 38, 38, 0.7)'
+    },
+    avoidedEmissions: {
+        fill: 'rgba(22, 163, 74, 0.1)',
+        stroke: 'rgba(22, 163, 74, 0.7)'
+    }
+};
+
+// Function to create the emissions chart
+function createEmissionsChart(data, label) {
+    if (emissionsChart) {
+        emissionsChart.destroy();
+    }
+    
+    const ctx = document.getElementById('emissionsChart').getContext('2d');
+    
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    // Create gradient fills
+    const gradientGrid = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientGrid.addColorStop(0, 'rgba(220, 38, 38, 0.4)');
+    gradientGrid.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
+
+    const gradientAvoided = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientAvoided.addColorStop(0, 'rgba(22, 163, 74, 0.4)');
+    gradientAvoided.addColorStop(1, 'rgba(22, 163, 74, 0.1)');
+    
+    emissionsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
             labels: data.map(entry => {
-              const date = new Date(entry.date);
-              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const date = new Date(entry.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             }),
             datasets: [
-              {
-                label: 'Grid CO2 Emissions',
-                data: data.map(entry => entry.unavoidableEmissions),
-                backgroundColor: gradientGrid,
-                borderColor: 'rgba(220, 38, 38, 0.7)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0
-              },
-              {
-                label: 'CO2 Emissions Avoided',
-                data: data.map(entry => entry.avoidedEmissions),
-                backgroundColor: gradientAvoided,
-                borderColor: 'rgba(22, 163, 74, 0.7)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0
-              }
+                {
+                    label: 'Grid CO2 Emissions',
+                    data: data.map(entry => entry.unavoidableEmissions),
+                    backgroundColor: gradientGrid,
+                    borderColor: 'rgba(220, 38, 38, 0.7)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'CO2 Emissions Avoided',
+                    data: data.map(entry => entry.avoidedEmissions),
+                    backgroundColor: gradientAvoided,
+                    borderColor: 'rgba(22, 163, 74, 0.7)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }
             ]
-          },
-          options: {
+        },
+        options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: {
-              intersect: false,
-              mode: 'index'
+                intersect: false,
+                mode: 'index'
             },
             plugins: {
-              title: {
-                display: true,
-                text: `CO2 Emissions - ${label}`,
-                font: { size: 16, weight: '600' },
-                padding: { bottom: 20 }
-              },
-              legend: {
-                position: 'top',
-                labels: {
-                  usePointStyle: true,
-                  padding: 15,
-                  font: { size: 12 }
+                title: {
+                    display: true,
+                    text: `CO2 Emissions - ${label}`,
+                    font: { size: 16, weight: '600' },
+                    padding: { bottom: 20 }
+                },
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#4b5563',
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    padding: 12,
+                    cornerRadius: 6,
+                    displayColors: true,
+                    borderColor: 'rgba(0, 0, 0, 0.1)',
+                    borderWidth: 1
                 }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                titleColor: '#1f2937',
-                bodyColor: '#4b5563',
-                titleFont: { size: 14, weight: 'bold' },
-                bodyFont: { size: 13 },
-                padding: 12,
-                cornerRadius: 6,
-                displayColors: true,
-                borderColor: 'rgba(0, 0, 0, 0.1)',
-                borderWidth: 1
-              }
             },
             scales: {
-              x: {
-                grid: {
-                  display: false
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        color: '#6b7280'
+                    }
                 },
-                ticks: {
-                  font: { size: 12, weight: '500' },
-                  color: '#6b7280'
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(107, 114, 128, 0.1)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        color: '#6b7280',
+                        padding: 8,
+                        callback: value => `${value} kg`
+                    },
+                    title: {
+                        display: true,
+                        text: 'CO2 Emissions (kg)',
+                        font: { size: 14, weight: '600', lineHeight: 1.5 },
+                        color: '#374151',
+                        padding: {top: 10, bottom: 10}
+                    }
                 }
-              },
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: 'rgba(107, 114, 128, 0.1)',
-                  drawBorder: false
-                },
-                ticks: {
-                  font: { size: 12, weight: '500' },
-                  color: '#6b7280',
-                  padding: 8,
-                  callback: value => `${value} kg`
-                },title: {
-                  display: true,
-                  text: 'CO2 Emissions (kg)',
-                  font: { size: 14, weight: '600', lineHeight: 1.5 },
-                  color: '#374151',
-                  padding: {top: 10, bottom: 10}
-                }
-              }
             }
-          }
-        });
-      }
-      
-      
-      function createSelfSufficiencyChart(selfSufficiencyScore) {
-        if (selfSufficiencyChart) {
-          selfSufficiencyChart.destroy();
         }
-        
-        const ctx = document.getElementById('selfSufficiencyChart').getContext('2d');
-        
-        selfSufficiencyChart = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Self-Produced', 'Grid'],
-            datasets: [{
-              data: [selfSufficiencyScore, 100 - selfSufficiencyScore],
-              backgroundColor: ['#16a34a', '#dc2626'],
-              borderWidth: 0
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: {
-              legend: {
-                display: false
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    return `${context.label}: ${context.parsed.toFixed(2)}%`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-      function updateSummary(data) {
-        const totalUnavoidable = data.reduce((sum, entry) => sum + entry.unavoidableEmissions, 0);
-        const totalAvoided = data.reduce((sum, entry) => sum + entry.avoidedEmissions, 0);
-        const avgSelfSufficiency = data.reduce((sum, entry) => sum + entry.selfSufficiencyScore, 0) / data.length;
-        
-        document.getElementById('summary').innerHTML = `
-          <div class="summary-item">
+    });
+}
+
+// Function to update the self-sufficiency gauge
+function updateSelfSufficiencyGauge(selfSufficiencyScore) {
+    const barElement = document.getElementById('selfSufficiencyBar');
+    const valueElement = document.getElementById('selfSufficiencyValue');
+    
+    // Update the width of the progress bar
+    barElement.style.width = `${selfSufficiencyScore}%`;
+    
+    // Update the text value
+    valueElement.textContent = `${selfSufficiencyScore.toFixed(2)}%`;
+    
+    // Change color based on the score
+    if (selfSufficiencyScore < 33) {
+        barElement.style.backgroundColor = '#dc2626'; // Red for low scores
+    } else if (selfSufficiencyScore < 66) {
+        barElement.style.backgroundColor = '#f59e0b'; // Yellow for medium scores
+    } else {
+        barElement.style.backgroundColor = '#16a34a'; // Green for high scores
+    }
+}
+
+// Function to update the summary section
+function updateSummary(data) {
+    const totalUnavoidable = data.reduce((sum, entry) => sum + entry.unavoidableEmissions, 0);
+    const totalAvoided = data.reduce((sum, entry) => sum + entry.avoidedEmissions, 0);
+
+    document.getElementById('summary').innerHTML = `
+        <div class="summary-item">
             <span class="summary-label">Total Grid CO2 Emissions</span>
             <span class="summary-value" style="color: #dc2626">${totalUnavoidable.toFixed(2)} kg</span>
-          </div>
-          <div class="summary-item">
+        </div>
+        <div class="summary-item">
             <span class="summary-label">Total CO2 Emissions Avoided</span>
             <span class="summary-value" style="color: #16a34a">${totalAvoided.toFixed(2)} kg</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Avg. Self-Sufficiency</span>
-            <span class="summary-value" style="color: #16a34a">${avgSelfSufficiency.toFixed(2)}%</span>
-          </div>
-        `;
-      }
-  
-      function updateGridStatus(voltage) {
-        const voltageElement = document.getElementById('gridVoltage');
-        const statusElement = document.getElementById('gridStatus');
-        const gaugeElement = document.getElementById('voltageGauge');
-        
-        voltageElement.textContent = `${voltage.toFixed(1)} V`;
-        
-        const isActive = voltage > 20;
-        statusElement.textContent = isActive ? 'Active' : 'Inactive';
-        statusElement.style.color = isActive ? '#16a34a' : '#dc2626';
-        
-        const normalizedVoltage = Math.min(Math.max(voltage, 0), 430) / 430;
-        const hue = isActive ? 142 : 0; // Green if active, red if inactive
-        gaugeElement.style.background = `conic-gradient(
-          hsl(${hue}, 70%, 50%) ${normalizedVoltage * 360}deg,
-          #e5e7eb ${normalizedVoltage * 360}deg
-        )`;
-      }
-  
-      async function fetchGridVoltage() {
-        try {
-          const response = await fetch('<%= ingress_path %>/api/grid-voltage');
-          const data = await response.json();
-          updateGridStatus(data.voltage);
-        } catch (error) {
-          console.error('Error fetching grid voltage:', error);
-        }
-      }
-  
-      document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.period-btn').forEach(button => {
-          button.addEventListener('click', function() {
+        </div>
+    `;
+}
+
+// Function to update grid status
+function updateGridStatus(voltage) {
+    const voltageElement = document.getElementById('gridVoltage');
+    const statusElement = document.getElementById('gridStatus');
+    const gaugeElement = document.getElementById('voltageGauge');
+    
+    voltageElement.textContent = `${voltage.toFixed(1)} V`;
+    
+    const isActive = voltage > 20;
+    statusElement.textContent = isActive ? 'Active' : 'Inactive';
+    statusElement.style.color = isActive ? '#16a34a' : '#dc2626';
+    
+    const normalizedVoltage = Math.min(Math.max(voltage, 0), 430) / 430;
+    const hue = isActive ? 142 : 0; // Green if active, red if inactive
+    gaugeElement.style.background = `conic-gradient(
+        hsl(${hue}, 70%, 50%) ${normalizedVoltage * 360}deg,
+        #e5e7eb ${normalizedVoltage * 360}deg
+    )`;
+}
+
+// Function to fetch grid voltage
+async function fetchGridVoltage() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/grid-voltage');
+        const data = await response.json();
+        updateGridStatus(data.voltage);
+    } catch (error) {
+        console.error('Error fetching grid voltage:', error);
+    }
+}
+
+// Event listener for DOM content loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to period buttons
+    document.querySelectorAll('.period-btn').forEach(button => {
+        button.addEventListener('click', function() {
             const period = this.dataset.period;
             document.querySelectorAll('.period-btn').forEach(btn => {
-              btn.classList.remove('active');
+                btn.classList.remove('active');
             });
             this.classList.add('active');
             createEmissionsChart(periodsData[period], period.charAt(0).toUpperCase() + period.slice(1));
             updateSummary(periodsData[period]);
-          });
         });
-  
-        // Initialize with week data
-        createEmissionsChart(periodsData.week, 'Week');
-        updateSummary(periodsData.week);
-  
-        // Initialize self-sufficiency chart
-        createSelfSufficiencyChart(<%= selfSufficiencyScore %>);
-  
-        // Set up real-time grid voltage updates
-        fetchGridVoltage();
-        setInterval(fetchGridVoltage, 5000);
-      });
-    </script>
+    });
 
-<script src="<%= ingress_path %>/js/loading.js"></script>
-<script src="<%= ingress_path %>/js/dark-mode.js"></script>>
+    // Initialize with week data
+    createEmissionsChart(periodsData.week, 'Week');
+    updateSummary(periodsData.week);
 
+    // Initialize self-sufficiency gauge
+    updateSelfSufficiencyGauge(<%= selfSufficiencyScore %>);
 
-
+    // Set up real-time grid voltage updates
+    fetchGridVoltage();
+    setInterval(fetchGridVoltage, 5000);
+});
+</script>
+  <script src="<%= ingress_path %>/js/loading.js"></script>
+  <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 </body>
 </html>
