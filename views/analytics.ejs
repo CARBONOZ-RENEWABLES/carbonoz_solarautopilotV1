@@ -920,50 +920,45 @@ body.dark-mode {
                                       <th>CO2 Emitted</th>
                                   <% } %>
                               </tr>
-                          </thead>
-                          <tbody>
-                              <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
-                                  <tr>
-                                      <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
-              
-                                      <% 
-                                          const calculateDiff = (current, previous) => {
-                                              if (previous && current && previous.value !== null && current.value !== null) {
-                                                  return current.value >= previous.value ? (current.value - previous.value).toFixed(1) : current.value.toFixed(1);
-                                              }
-                                              return '0.0';
-                                          };
-              
-                                          const loadPower = calculateDiff(data.loadPowerData[i], data.loadPowerData[i-1]);
-                                          const pvPower = calculateDiff(data.pvPowerData[i], data.pvPowerData[i-1]);
-                                          const batteryCharged = calculateDiff(data.batteryStateOfChargeData[i], data.batteryStateOfChargeData[i-1]);
-                                          const batteryDischarged = calculateDiff(data.batteryPowerData[i], data.batteryPowerData[i-1]);
-                                          const gridUsed = calculateDiff(data.gridPowerData[i], data.gridPowerData[i-1]);
-                                          const gridExported = calculateDiff(data.gridVoltageData[i], data.gridVoltageData[i-1]);
-              
-                                          let co2Avoided = 0, co2Emitted = 0;
-                                          if (data.selectedZone && data.carbonIntensityData.length > 0) {
-                                              const carbonIntensity = data.carbonIntensityData.find(d => 
-                                                  new Date(d.date).toDateString() === new Date(data.loadPowerData[i].time).toDateString()
-                                              )?.carbonIntensity || 0;
-              
-                                              co2Avoided = parseFloat(pvPower) * carbonIntensity / 1000;
-                                              co2Emitted = parseFloat(gridUsed) * carbonIntensity / 1000;
-                                          }
-                                      %>
-                                      <td><%= loadPower %> kWh</td>
-                                      <td><%= pvPower %> kWh</td>
-                                      <td><%= batteryCharged %> kWh</td>
-                                      <td><%= batteryDischarged %> kWh</td>
-                                      <td><%= gridUsed %> kWh</td>
-                                      <td><%= gridExported %> kWh</td>
-                                      <% if (data.selectedZone) { %>
-                                          <td><%= co2Avoided.toFixed(2) %> kg</td>
-                                          <td><%= co2Emitted.toFixed(2) %> kg</td>
-                                      <% } %>
-                                  </tr>
-                              <% } %>
-                          </tbody>
+                          </thead> <tbody>
+                            <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
+                                <tr>
+                                    <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
+                        
+                                    <% 
+                                        // Get the raw data values for each category
+                                        const loadPower = data.loadPowerData[i]?.value || '0.0';
+                                        const pvPower = data.pvPowerData[i]?.value || '0.0';
+                                        const batteryCharged = data.batteryStateOfChargeData[i]?.value || '0.0';
+                                        const batteryDischarged = data.batteryPowerData[i]?.value || '0.0';
+                                        const gridUsed = data.gridPowerData[i]?.value || '0.0';
+                                        const gridExported = data.gridVoltageData[i]?.value || '0.0';
+                        
+                                        // Handle CO2 data if the selected zone is present
+                                        let co2Avoided = 0, co2Emitted = 0;
+                                        if (data.selectedZone && data.carbonIntensityData.length > 0) {
+                                            const carbonIntensity = data.carbonIntensityData.find(d => 
+                                                new Date(d.date).toDateString() === new Date(data.loadPowerData[i].time).toDateString()
+                                            )?.carbonIntensity || 0;
+                        
+                                            co2Avoided = parseFloat(pvPower) * carbonIntensity / 1000;
+                                            co2Emitted = parseFloat(gridUsed) * carbonIntensity / 1000;
+                                        }
+                                    %>
+                        
+                                    <td><%= parseFloat(loadPower).toFixed(1) %> kWh</td>
+                                    <td><%= parseFloat(pvPower).toFixed(1) %> kWh</td>
+                                    <td><%= parseFloat(batteryCharged).toFixed(1) %> kWh</td>
+                                    <td><%= parseFloat(batteryDischarged).toFixed(1) %> kWh</td>
+                                    <td><%= parseFloat(gridUsed).toFixed(1) %> kWh</td>
+                                    <td><%= parseFloat(gridExported).toFixed(1) %> kWh</td>
+                                    <% if (data.selectedZone) { %>
+                                        <td><%= co2Avoided.toFixed(2) %> kg</td>
+                                        <td><%= co2Emitted.toFixed(2) %> kg</td>
+                                    <% } %>
+                                </tr>
+                            <% } %>
+                        </tbody>
                       </table>
                   </div>
                   <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
@@ -1460,41 +1455,34 @@ window.addEventListener('pageshow', () => {
 
   </script>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-    // Function to get data from table
-    function getTableData(tableId) {
-        const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-        let solarData = [];
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('last30days-table');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    let todaysPV = 0;
+    let last7DaysPV = 0;
+    let last30DaysPV = 0;
 
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            solarData.push(parseFloat(cells[2].textContent));  // Solar PV data is assumed to be in the 3rd column (index 2)
-        });
+    rows.forEach((row, index) => {
+        const pvValue = parseFloat(row.cells[2].textContent);
+        
+        if (index === 0) {
+            todaysPV = pvValue;
+        }
+        
+        if (index < 7) {
+            last7DaysPV += pvValue;
+        }
+        
+        last30DaysPV += pvValue;
+    });
 
-        return solarData;
-    }
-
-    // Function to calculate Solar PV totals
-    function calculateSolarPVTotals(solarData) {
-        const dailyTotal = solarData[solarData.length - 1] || 0; // Today's data (last entry)
-        const weeklyTotal = solarData.slice(-8).reduce((sum, value) => sum + value, 0); // Last 7 days
-        const monthlyTotal = solarData.slice(-30).reduce((sum, value) => sum + value, 0); // Last 30 days
-
-        return { dailyTotal, weeklyTotal, monthlyTotal };
-    }
-
-    // Get solar data for last 30 days (assuming table ID is 'last30days-table')
-    const solarData = getTableData('last30days-table');
-
-    // Calculate and display Solar PV totals
-    const solarPVTotals = calculateSolarPVTotals(solarData);
-    document.getElementById('daily-solar-pv-total').textContent = `${solarPVTotals.dailyTotal.toFixed(1)} kWh`;
-    document.getElementById('weekly-solar-pv-total').textContent = `${solarPVTotals.weeklyTotal.toFixed(1)} kWh`;
-    document.getElementById('monthly-solar-pv-total').textContent = `${solarPVTotals.monthlyTotal.toFixed(1)} kWh`;
+    document.getElementById('daily-solar-pv-total').textContent = todaysPV.toFixed(1) + ' kWh';
+    document.getElementById('weekly-solar-pv-total').textContent = last7DaysPV.toFixed(1) + ' kWh';
+    document.getElementById('monthly-solar-pv-total').textContent = last30DaysPV.toFixed(1) + ' kWh';
 });
-
-  </script>
+</script>
 
 </body>
 </html>
