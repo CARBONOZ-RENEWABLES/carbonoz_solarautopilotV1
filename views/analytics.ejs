@@ -993,42 +993,55 @@ body.dark-mode {
                       <% } %>
                   </tr>
               </thead>
-               <tbody>
+              <tbody>
                 <% 
                 function safeNumber(value) {
                     return typeof value === 'number' && !isNaN(value) ? value : 0;
                 }
 
-                const yearlyData = data.loadPowerYear.map((entry, index) => ({
-                    time: entry.time,
-                    load: safeNumber(entry.value),
-                    pv: safeNumber(data.pvPowerYear[index]?.value),
-                    batteryCharged: safeNumber(data.batteryStateOfChargeYear[index]?.value),
-                    batteryDischarged: safeNumber(data.batteryPowerYear[index]?.value),
-                    gridUsed: safeNumber(data.gridPowerYear[index]?.value),
-                    gridExported: safeNumber(data.gridVoltageYear[index]?.value)
-                }));
+                function aggregateMonthlyData(data) {
+                    const monthlyData = {};
+                    data.forEach(entry => {
+                        const date = new Date(entry.time);
+                        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                        if (!monthlyData[monthKey]) {
+                            monthlyData[monthKey] = {
+                                time: date,
+                                value: 0
+                            };
+                        }
+                        monthlyData[monthKey].value += safeNumber(entry.value);
+                    });
+                    return Object.values(monthlyData);
+                }
 
-                yearlyData.reverse().forEach(entry => {
+                const monthlyLoadPower = aggregateMonthlyData(data.loadPowerYear);
+                const monthlyPvPower = aggregateMonthlyData(data.pvPowerYear);
+                const monthlyBatteryCharged = aggregateMonthlyData(data.batteryStateOfChargeYear);
+                const monthlyBatteryDischarged = aggregateMonthlyData(data.batteryPowerYear);
+                const monthlyGridUsed = aggregateMonthlyData(data.gridPowerYear);
+                const monthlyGridExported = aggregateMonthlyData(data.gridVoltageYear);
+
+                monthlyLoadPower.reverse().forEach((entry, index) => {
                     const date = new Date(entry.time);
                     const monthName = date.toLocaleString('default', { month: 'long', year: 'numeric' });
                 %>
                     <tr>
                         <td><%= monthName %></td>
-                        <td><%= entry.load.toFixed(1) %> kWh</td>
-                        <td><%= entry.pv.toFixed(1) %> kWh</td>
-                        <td><%= entry.batteryCharged.toFixed(1) %> kWh</td>
-                        <td><%= entry.batteryDischarged.toFixed(1) %> kWh</td>
-                        <td><%= entry.gridUsed.toFixed(1) %> kWh</td>
-                        <td><%= entry.gridExported.toFixed(1) %> kWh</td>
+                        <td><%= entry.value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyPvPower[index].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyBatteryCharged[index].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyBatteryDischarged[index].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyGridUsed[index].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyGridExported[index].value.toFixed(1) %> kWh</td>
                         <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
                             const monthCarbonIntensity = data.carbonIntensityData
                                 .filter(d => new Date(d.date).getMonth() === date.getMonth() && new Date(d.date).getFullYear() === date.getFullYear())
                                 .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
                                 data.carbonIntensityData.filter(d => new Date(d.date).getMonth() === date.getMonth() && new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
                             
-                            const co2Avoided = entry.pv * monthCarbonIntensity / 1000;
-                            const co2Emitted = entry.gridUsed * monthCarbonIntensity / 1000;
+                            const co2Avoided = monthlyPvPower[index].value * monthCarbonIntensity / 1000;
+                            const co2Emitted = monthlyGridUsed[index].value * monthCarbonIntensity / 1000;
                         %>
                             <td><%= co2Avoided.toFixed(2) %> kg</td>
                             <td><%= co2Emitted.toFixed(2) %> kg</td>
@@ -1068,42 +1081,51 @@ body.dark-mode {
                       <% } %>
                   </tr>
               </thead>
-            <tbody>
+              <tbody>
                 <% 
-                function safeNumber(value) {
-                    return typeof value === 'number' && !isNaN(value) ? value : 0;
+                function aggregateYearlyData(data) {
+                    const yearlyData = {};
+                    data.forEach(entry => {
+                        const date = new Date(entry.time);
+                        const yearKey = date.getFullYear();
+                        if (!yearlyData[yearKey]) {
+                            yearlyData[yearKey] = {
+                                time: date,
+                                value: 0
+                            };
+                        }
+                        yearlyData[yearKey].value += safeNumber(entry.value);
+                    });
+                    return Object.values(yearlyData);
                 }
 
-                const decadeData = data.loadPowerDecade.map((entry, index) => ({
-                    time: entry.time,
-                    load: safeNumber(entry.value),
-                    pv: safeNumber(data.pvPowerDecade[index]?.value),
-                    batteryCharged: safeNumber(data.batteryStateOfChargeDecade[index]?.value),
-                    batteryDischarged: safeNumber(data.batteryPowerDecade[index]?.value),
-                    gridUsed: safeNumber(data.gridPowerDecade[index]?.value),
-                    gridExported: safeNumber(data.gridVoltageDecade[index]?.value)
-                }));
+                const yearlyLoadPower = aggregateYearlyData(data.loadPowerDecade);
+                const yearlyPvPower = aggregateYearlyData(data.pvPowerDecade);
+                const yearlyBatteryCharged = aggregateYearlyData(data.batteryStateOfChargeDecade);
+                const yearlyBatteryDischarged = aggregateYearlyData(data.batteryPowerDecade);
+                const yearlyGridUsed = aggregateYearlyData(data.gridPowerDecade);
+                const yearlyGridExported = aggregateYearlyData(data.gridVoltageDecade);
 
-                decadeData.reverse().forEach(entry => {
+                yearlyLoadPower.reverse().forEach((entry, index) => {
                     const date = new Date(entry.time);
                     const yearName = date.getFullYear().toString();
                 %>
                     <tr>
                         <td><%= yearName %></td>
-                        <td><%= entry.load.toFixed(1) %> kWh</td>
-                        <td><%= entry.pv.toFixed(1) %> kWh</td>
-                        <td><%= entry.batteryCharged.toFixed(1) %> kWh</td>
-                        <td><%= entry.batteryDischarged.toFixed(1) %> kWh</td>
-                        <td><%= entry.gridUsed.toFixed(1) %> kWh</td>
-                        <td><%= entry.gridExported.toFixed(1) %> kWh</td>
+                        <td><%= entry.value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyPvPower[index].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyBatteryCharged[index].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyBatteryDischarged[index].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyGridUsed[index].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyGridExported[index].value.toFixed(1) %> kWh</td>
                         <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
                             const yearCarbonIntensity = data.carbonIntensityData
                                 .filter(d => new Date(d.date).getFullYear() === date.getFullYear())
                                 .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
                                 data.carbonIntensityData.filter(d => new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
                             
-                            const co2Avoided = entry.pv * yearCarbonIntensity / 1000;
-                            const co2Emitted = entry.gridUsed * yearCarbonIntensity / 1000;
+                            const co2Avoided = yearlyPvPower[index].value * yearCarbonIntensity / 1000;
+                            const co2Emitted = yearlyGridUsed[index].value * yearCarbonIntensity / 1000;
                         %>
                             <td><%= co2Avoided.toFixed(2) %> kg</td>
                             <td><%= co2Emitted.toFixed(2) %> kg</td>
