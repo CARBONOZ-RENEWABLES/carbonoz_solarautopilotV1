@@ -133,34 +133,65 @@ function connectToMqtt() {
 // Save MQTT message to InfluxDB
 async function saveMessageToInfluxDB(topic, message) {
   try {
-    const parsedMessage = parseFloat(message.toString())
-
+    const parsedMessage = parseFloat(message.toString());
     if (isNaN(parsedMessage)) {
-      return
+      return;
     }
 
-    const timestamp = new Date().getTime()
+    const timestamp = new Date().getTime();
+    let valueToSave = parsedMessage;
+
+    // List of topics that require daily difference calculation
+    const dailyDifferenceTopics = [
+      `${mqttTopicPrefix}/total/load_energy/state`,
+      `${mqttTopicPrefix}/total/pv_energy/state`,
+      `${mqttTopicPrefix}/total/battery_energy_in/state`,
+      `${mqttTopicPrefix}/total/battery_energy_out/state`,
+      `${mqttTopicPrefix}/total/grid_energy_in/state`,
+      `${mqttTopicPrefix}/total/grid_energy_out/state`
+    ];
+
+    if (dailyDifferenceTopics.includes(topic)) {
+      // Query the last value for this topic from yesterday
+      const yesterdayQuery = `
+        SELECT last("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${topic}'
+        AND time >= now() - 1d AND time < now() - 1m
+      `;
+      
+      const yesterdayResult = await influx.query(yesterdayQuery);
+      const yesterdayValue = yesterdayResult.length > 0 ? yesterdayResult[0].value : null;
+
+      if (yesterdayValue !== null) {
+        if (parsedMessage > yesterdayValue) {
+          valueToSave = parsedMessage - yesterdayValue;
+        }
+        // If current day data is less, we keep the original value
+      }
+    }
+
     const dataPoint = {
       measurement: 'state',
-      fields: { value: parsedMessage },
+      fields: { value: valueToSave },
       tags: { topic: topic },
       timestamp: timestamp * 1000000,
-    }
+    };
 
     await retry(
       async () => {
-        await influx.writePoints([dataPoint])
+        await influx.writePoints([dataPoint]);
       },
       {
         retries: 5,
         minTimeout: 1000,
       }
-    )
+    );
   } catch (err) {
     console.error(
       'Error saving message to InfluxDB:',
       err.response ? err.response.body : err.message
-    )
+    );
   }
 }
 
@@ -181,6 +212,39 @@ async function queryInfluxDB(topic) {
   } catch (error) {
       console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
       throw error;
+  }
+}
+
+// Function to query InfluxDB for the last 12 months of data
+async function queryInfluxDBForYear(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 365d
+    GROUP BY time(1d) tz('${currentTimezone}')
+  `;
+  try {
+    return await influx.query(query);
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
+  }
+}
+
+async function queryInfluxDBForDecade(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 3650d
+    GROUP BY time(1d) tz('${currentTimezone}')
+  `;
+  try {
+    return await influx.query(query);
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
   }
 }
 
@@ -206,6 +270,7 @@ app.get('/chart', (req, res) => {
 })
 
 
+
 app.get('/analytics', async (req, res) => {
   try {
     const selectedZone = req.cookies[COOKIE_NAME] || null;
@@ -220,15 +285,45 @@ app.get('/analytics', async (req, res) => {
       }
     }
     
-    const [loadPowerData, pvPowerData, batteryStateOfChargeData, 
-      batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
- queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
- queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
- queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
- queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
- queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
- queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-]);
+    const [
+      loadPowerData, 
+      pvPowerData, 
+      batteryStateOfChargeData, 
+      batteryPowerData, 
+      gridPowerData, 
+      gridVoltageData,
+      loadPowerYear,
+      pvPowerYear,
+      batteryStateOfChargeYear,
+      batteryPowerYear,
+      gridPowerYear,
+      gridVoltageYear,
+      loadPowerDecade,
+      pvPowerDecade,
+      batteryStateOfChargeDecade,
+      batteryPowerDecade,
+      gridPowerDecade,
+      gridVoltageDecade
+    ] = await Promise.all([
+      queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
+    ]);
 
     const data = {
       loadPowerData,
@@ -238,7 +333,19 @@ app.get('/analytics', async (req, res) => {
       gridPowerData,
       gridVoltageData,
       carbonIntensityData,
-      selectedZone
+      selectedZone,
+      loadPowerYear,
+      pvPowerYear,
+      batteryStateOfChargeYear,
+      batteryPowerYear,
+      gridPowerYear,
+      gridVoltageYear,
+      loadPowerDecade,
+      pvPowerDecade,
+      batteryStateOfChargeDecade,
+      batteryPowerDecade,
+      gridPowerDecade,
+      gridVoltageDecade
     };
 
     res.render('analytics', { data, ingress_path: process.env.INGRESS_PATH || '' });
@@ -250,9 +357,6 @@ app.get('/analytics', async (req, res) => {
     });
   }
 });
-
-
-
 
 app.get('/', (req, res) => {
   res.render('energy-dashboard', {
