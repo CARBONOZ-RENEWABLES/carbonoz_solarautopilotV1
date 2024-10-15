@@ -691,34 +691,17 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     const currentGridVoltage = gridVoltage[index]?.value || 0;
     const isGridActive = Math.abs(currentGridVoltage) > 20;
 
-    // Calculate daily grid and PV energy by comparing with previous day's data
+    // Retrieve daily grid and PV energy values
     let gridEnergy = gridEnergyIn[index]?.value || 0;
     let solarEnergy = pvEnergy[index]?.value || 0;
-
-    if (index > 0) { // Avoid previous day comparison for the first entry
-      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0;
-      const prevPvEnergy = pvEnergy[index - 1]?.value || 0;
-
-      if (prevGridEnergy === 0 || prevGridEnergy === null) {
-        gridEnergy = 0; // Set to 0 if previous grid energy was 0 or null
-      } else {
-        gridEnergy = gridEnergy > prevGridEnergy ? gridEnergy - prevGridEnergy : gridEnergy;
-      }
-
-      if (prevPvEnergy === 0 || prevPvEnergy === null) {
-        solarEnergy = 0; // Set to 0 if previous PV energy was 0 or null
-      } else {
-        solarEnergy = solarEnergy > prevPvEnergy ? solarEnergy - prevPvEnergy : solarEnergy;
-      }
-    }
 
     // Calculate emissions and self-sufficiency
     let unavoidableEmissions = 0;
     let avoidedEmissions = 0;
 
     if (isGridActive) {
-      unavoidableEmissions = gridEnergy * carbonIntensity / 1000;
-      avoidedEmissions = solarEnergy * carbonIntensity / 1000;
+      unavoidableEmissions = (gridEnergy * carbonIntensity) / 1000;
+      avoidedEmissions = (solarEnergy * carbonIntensity) / 1000;
     }
 
     const totalEnergy = gridEnergy + solarEnergy;
@@ -734,6 +717,7 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     };
   });
 }
+
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {
