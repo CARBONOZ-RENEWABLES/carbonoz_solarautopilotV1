@@ -1022,32 +1022,45 @@ body.dark-mode {
                 const monthlyGridUsed = aggregateMonthlyData(data.gridPowerYear);
                 const monthlyGridExported = aggregateMonthlyData(data.gridVoltageYear);
 
-                monthlyLoadPower.reverse().forEach((entry, index) => {
-                    const date = new Date(entry.time);
+                // Ensure all arrays have the same length and are sorted by date
+                const allMonthlyData = [
+                    monthlyLoadPower, monthlyPvPower, monthlyBatteryCharged, 
+                    monthlyBatteryDischarged, monthlyGridUsed, monthlyGridExported
+                ];
+                const maxLength = Math.max(...allMonthlyData.map(arr => arr.length));
+                allMonthlyData.forEach(arr => {
+                    while (arr.length < maxLength) {
+                        arr.push({ time: new Date(0), value: 0 });
+                    }
+                    arr.sort((a, b) => b.time - a.time);
+                });
+
+                for (let i = 0; i < maxLength; i++) {
+                    const date = new Date(monthlyLoadPower[i].time);
                     const monthName = date.toLocaleString('default', { month: 'long', year: 'numeric' });
                 %>
                     <tr>
                         <td><%= monthName %></td>
-                        <td><%= entry.value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyPvPower[index].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyBatteryCharged[index].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyBatteryDischarged[index].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyGridUsed[index].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyGridExported[index].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyLoadPower[i].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyPvPower[i].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyBatteryCharged[i].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyBatteryDischarged[i].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyGridUsed[i].value.toFixed(1) %> kWh</td>
+                        <td><%= monthlyGridExported[i].value.toFixed(1) %> kWh</td>
                         <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
                             const monthCarbonIntensity = data.carbonIntensityData
                                 .filter(d => new Date(d.date).getMonth() === date.getMonth() && new Date(d.date).getFullYear() === date.getFullYear())
                                 .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
                                 data.carbonIntensityData.filter(d => new Date(d.date).getMonth() === date.getMonth() && new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
                             
-                            const co2Avoided = monthlyPvPower[index].value * monthCarbonIntensity / 1000;
-                            const co2Emitted = monthlyGridUsed[index].value * monthCarbonIntensity / 1000;
+                            const co2Avoided = monthlyPvPower[i].value * monthCarbonIntensity / 1000;
+                            const co2Emitted = monthlyGridUsed[i].value * monthCarbonIntensity / 1000;
                         %>
                             <td><%= co2Avoided.toFixed(2) %> kg</td>
                             <td><%= co2Emitted.toFixed(2) %> kg</td>
                         <% } %>
                     </tr>
-                <% }); %>
+                <% } %>
             </tbody>
           </table>
       </div>
@@ -1106,32 +1119,45 @@ body.dark-mode {
                 const yearlyGridUsed = aggregateYearlyData(data.gridPowerDecade);
                 const yearlyGridExported = aggregateYearlyData(data.gridVoltageDecade);
 
-                yearlyLoadPower.reverse().forEach((entry, index) => {
-                    const date = new Date(entry.time);
+                // Ensure all arrays have the same length and are sorted by date
+                const allYearlyData = [
+                    yearlyLoadPower, yearlyPvPower, yearlyBatteryCharged, 
+                    yearlyBatteryDischarged, yearlyGridUsed, yearlyGridExported
+                ];
+                const maxYearLength = Math.max(...allYearlyData.map(arr => arr.length));
+                allYearlyData.forEach(arr => {
+                    while (arr.length < maxYearLength) {
+                        arr.push({ time: new Date(0), value: 0 });
+                    }
+                    arr.sort((a, b) => b.time - a.time);
+                });
+
+                for (let i = 0; i < maxYearLength; i++) {
+                    const date = new Date(yearlyLoadPower[i].time);
                     const yearName = date.getFullYear().toString();
                 %>
                     <tr>
                         <td><%= yearName %></td>
-                        <td><%= entry.value.toFixed(1) %> kWh</td>
-                        <td><%= yearlyPvPower[index].value.toFixed(1) %> kWh</td>
-                        <td><%= yearlyBatteryCharged[index].value.toFixed(1) %> kWh</td>
-                        <td><%= yearlyBatteryDischarged[index].value.toFixed(1) %> kWh</td>
-                        <td><%= yearlyGridUsed[index].value.toFixed(1) %> kWh</td>
-                        <td><%= yearlyGridExported[index].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyLoadPower[i].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyPvPower[i].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyBatteryCharged[i].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyBatteryDischarged[i].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyGridUsed[i].value.toFixed(1) %> kWh</td>
+                        <td><%= yearlyGridExported[i].value.toFixed(1) %> kWh</td>
                         <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
                             const yearCarbonIntensity = data.carbonIntensityData
                                 .filter(d => new Date(d.date).getFullYear() === date.getFullYear())
                                 .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
                                 data.carbonIntensityData.filter(d => new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
                             
-                            const co2Avoided = yearlyPvPower[index].value * yearCarbonIntensity / 1000;
-                            const co2Emitted = yearlyGridUsed[index].value * yearCarbonIntensity / 1000;
+                            const co2Avoided = yearlyPvPower[i].value * yearCarbonIntensity / 1000;
+                            const co2Emitted = yearlyGridUsed[i].value * yearCarbonIntensity / 1000;
                         %>
                             <td><%= co2Avoided.toFixed(2) %> kg</td>
                             <td><%= co2Emitted.toFixed(2) %> kg</td>
                         <% } %>
                     </tr>
-                <% }); %>
+                <% } %>
             </tbody>
           </table>
       </div>
@@ -1336,93 +1362,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   </script>
 
-  <script>
-     // loading js
-        
-     document.addEventListener('DOMContentLoaded', function() {
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const pageContent = document.getElementById('pageContent');
-  
-    // Simulate loading time (you can adjust this as needed)
-    setTimeout(() => {
-      loadingOverlay.style.display = 'none';
-      pageContent.style.display = 'block';
-      // Trigger a custom event to signal that the page is ready
-      document.dispatchEvent(new Event('pageReady'));
-    }, 1500); // 1.5 seconds loading time
-  });
-  </script>
-
-  <script>
-
-// Toggle dark mode
-const toggleDarkMode = document.getElementById('toggleDarkMode');
-const darkModeSwitch = document.getElementById('darkModeSwitch');
-
-// Function to update Grafana iframes based on dark mode
-function updateGrafanaIframes(isDarkMode) {
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
-        let src = iframe.src;
-
-        // Remove any existing theme parameter to avoid multiple occurrences
-        src = src.replace(/([?&]theme=)(light|dark)/, '');
-
-        // Add the new theme parameter based on dark mode setting
-        const separator = src.includes('?') ? '&' : '?';
-        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
-
-        // Only reload iframe if theme has changed
-        if (iframe.src !== src) {
-            iframe.src = src;
-        }
-    });
-}
-
-// Function to apply the mode (either from localStorage or default)
-function applyModeFromLocalStorage() {
-    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
-
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        darkModeSwitch.classList.add('active');
-    } else {
-        document.body.classList.remove('dark-mode');
-        darkModeSwitch.classList.remove('active');
-    }
-
-    // Update Grafana dashboards to match the saved mode
-    updateGrafanaIframes(isDarkMode);
-}
-
-// Add click event listener for dark mode toggle
-toggleDarkMode.addEventListener('click', () => {
-    const isDarkMode = document.body.classList.toggle('dark-mode');
-    darkModeSwitch.classList.toggle('active');
-
-    // Update Grafana dashboards to match the dark mode setting
-    updateGrafanaIframes(isDarkMode);
-
-    // Save the dark mode state in localStorage
-    if (isDarkMode) {
-        localStorage.setItem('dark-mode', 'enabled');
-    } else {
-        localStorage.setItem('dark-mode', 'disabled');
-    }
-});
-
-// Check and apply the user's dark mode preference on page load and when navigating back
-document.addEventListener('DOMContentLoaded', () => {
-    applyModeFromLocalStorage();
-});
-
-// Apply mode on `pageshow` event (works when navigating back in browser history)
-window.addEventListener('pageshow', () => {
-    applyModeFromLocalStorage();
-});
-
-
-  </script>
+ 
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -1452,6 +1392,7 @@ window.addEventListener('pageshow', () => {
     document.getElementById('monthly-solar-pv-total').textContent = last30DaysPV.toFixed(1) + ' kWh';
 });
 </script>
-
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
 </body>
 </html>
