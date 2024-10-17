@@ -1,6 +1,6 @@
 const { prisma } = require('../config/mongodb')
 
-export const AuthenticateUser = async (options) => {
+const AuthenticateUser = async (options) => {
   const clientId = options.clientId
   const clientSecret = options.clientSecret
 
@@ -16,3 +16,5 @@ export const AuthenticateUser = async (options) => {
 
   return userCredentials.userId
 }
+
+module.exports = { AuthenticateUser }
