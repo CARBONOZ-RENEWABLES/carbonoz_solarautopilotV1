@@ -10,7 +10,6 @@ const WebSocket = require('ws')
 const retry = require('async-retry')
 const axios = require('axios')
 const cookieParser = require('cookie-parser');
-const axios = require('axios');
 const { backOff } = require('exponential-backoff');
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 const carbonIntensityCache = new Map();
