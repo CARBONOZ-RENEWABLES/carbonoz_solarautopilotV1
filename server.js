@@ -8,7 +8,6 @@ const ejs = require('ejs')
 const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
-const cookieParser = require('cookie-parser')
 const axios = require('axios')
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
