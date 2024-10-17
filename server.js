@@ -13,7 +13,8 @@ const axios = require('axios')
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
 const { backOff } = require('exponential-backoff');
-
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+const carbonIntensityCache = new Map();
 
 const app = express()
 const port = process.env.PORT || 6789
@@ -246,6 +247,39 @@ async function queryInfluxDBForDecade(topic) {
   }
 }
 
+// Function to query InfluxDB for the last 12 months of data
+async function queryInfluxDBForYear(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 365d
+    GROUP BY time(1d) tz('${currentTimezone}')
+  `;
+  try {
+    return await influx.query(query);
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
+  }
+}
+
+async function queryInfluxDBForDecade(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 3650d
+    GROUP BY time(1d) tz('${currentTimezone}')
+  `;
+  try {
+    return await influx.query(query);
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
+  }
+}
+
 // Route handlers
 app.get('/messages', (req, res) => {
   res.render('messages', {
@@ -373,6 +407,13 @@ app.get('/configuration', (req, res) => {
   })
 })
 
+app.get('/configuration', (req, res) => {
+  res.render('configuration', {
+    ingress_path: process.env.INGRESS_PATH || '',
+    mqtt_host: options.mqtt_host, 
+  })
+})
+
 
 
 app.get('/api/timezone', (req, res) => {
@@ -388,7 +429,7 @@ app.post('/api/timezone', (req, res) => {
   } else {
     res.status(400).json({ error: 'Invalid timezone' })
   }
-})
+});
 
 
 // Function to filter messages by category
@@ -636,6 +677,7 @@ app.get('/clear-zone', (req, res) => {
   res.clearCookie(COOKIE_NAME)
   res.redirect(`${process.env.INGRESS_PATH || ''}/results`)
 })
+
 
 
 async function queryInfluxData(topic, duration = '365d') {
