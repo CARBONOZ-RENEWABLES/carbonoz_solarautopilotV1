@@ -38,8 +38,8 @@ options:
   database_name: ""
   database_username: ""
   database_password: ""
-  client_username: ""
-  client_password: ""
+  clientId: ""
+  clientSecret: ""
 schema:
   mqtt_host: str
   mqtt_port: port
@@ -51,6 +51,6 @@ schema:
   database_name: str?
   database_username: str?
   database_password: password?
-  client_username: str
-  client_password: password
+  clientId: str
+  clientSecret: password
 panel: true
