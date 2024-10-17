@@ -20,10 +20,11 @@ model User {
   active    Boolean  @default(true)
   role      ERole    @default(USER)
 
-  email    String?    @unique
-  password String?
-  Topic    Topic[]
-  Livedata Livedata[]
+  email           String?           @unique
+  password        String?
+  Topic           Topic[]
+  Livedata        Livedata[]
+  UserCredentials UserCredentials[]
 }
 
 model Topic {
@@ -42,4 +43,12 @@ model Livedata {
   updatedAt DateTime @default(now())
   userId    String   @db.ObjectId
   user      User?    @relation(fields: [userId], references: [id])
+}
+
+model UserCredentials {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String @db.ObjectId
+  user         User   @relation(fields: [userId], references: [id])
+  clientId     String
+  clientSecret String
 }

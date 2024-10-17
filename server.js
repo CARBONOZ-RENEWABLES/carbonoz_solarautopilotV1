@@ -8,6 +8,8 @@ const ejs = require('ejs')
 const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
+const cookieParser = require('cookie-parser')
+const axios = require('axios')
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
 const { backOff } = require('exponential-backoff');
@@ -21,29 +23,28 @@ const { http } = require('follow-redirects')
 const cors = require('cors')
 const { connectDatabase, prisma } = require('./config/mongodb')
 const { startOfDay } = require('date-fns')
+const { AuthenticateUser } = require('./utils/mongoService')
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 app.use(bodyParser.urlencoded({ extended: true }))
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(express.static(path.join(__dirname, 'public')))
+app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, 'views'))
 
 // Add cookie parser middleware
-app.use(cookieParser());
+app.use(cookieParser())
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
-
 // Extract inverter and battery numbers from options
-const inverterNumber = options.inverter_number || 1;
-const batteryNumber = options.battery_number || 1;
+const inverterNumber = options.inverter_number || 1
+const batteryNumber = options.battery_number || 1
 // MQTT topic prefix
-const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}';
+const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}'
 
 // InfluxDB configuration
 const influxConfig = {
@@ -72,35 +73,35 @@ const MAX_MESSAGES = 400
 
 // Function to generate category options
 function generateCategoryOptions(inverterNumber, batteryNumber) {
-  const categories = ['all', 'loadPower', 'gridPower', 'pvPower', 'total'];
-  
+  const categories = ['all', 'loadPower', 'gridPower', 'pvPower', 'total']
+
   for (let i = 1; i <= inverterNumber; i++) {
-    categories.push(`inverter${i}`);
+    categories.push(`inverter${i}`)
   }
-  
+
   for (let i = 1; i <= batteryNumber; i++) {
-    categories.push(`battery${i}`);
+    categories.push(`battery${i}`)
   }
-  
-  return categories;
+
+  return categories
 }
 
-const timezonePath = path.join(__dirname, 'timezone.json');
+const timezonePath = path.join(__dirname, 'timezone.json')
 
 function getCurrentTimezone() {
   try {
-    const data = fs.readFileSync(timezonePath, 'utf8');
-    return JSON.parse(data).timezone;
+    const data = fs.readFileSync(timezonePath, 'utf8')
+    return JSON.parse(data).timezone
   } catch (error) {
-    return 'Indian/Mauritius'; // Default timezone
+    return 'Indian/Mauritius' // Default timezone
   }
 }
 
 function setCurrentTimezone(timezone) {
-  fs.writeFileSync(timezonePath, JSON.stringify({ timezone }));
+  fs.writeFileSync(timezonePath, JSON.stringify({ timezone }))
 }
 
-let currentTimezone = getCurrentTimezone();
+let currentTimezone = getCurrentTimezone()
 
 function connectToMqtt() {
   mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
@@ -127,8 +128,6 @@ function connectToMqtt() {
     mqttClient = null
   })
 }
-
-
 
 // Save MQTT message to InfluxDB
 async function saveMessageToInfluxDB(topic, message) {
@@ -195,9 +194,6 @@ async function saveMessageToInfluxDB(topic, message) {
   }
 }
 
-
-
-
 // Fetch analytics data from InfluxDB
 async function queryInfluxDB(topic) {
   const query = `
@@ -206,12 +202,48 @@ async function queryInfluxDB(topic) {
       WHERE "topic" = '${topic}'
       AND time >= now() - 30d
       GROUP BY time(1d) tz('${currentTimezone}')
+  `
+  try {
+    return await influx.query(query)
+  } catch (error) {
+    console.error(
+      `Error querying InfluxDB for topic ${topic}:`,
+      error.toString()
+    )
+    throw error
+  }
+}
+
+// Function to query InfluxDB for the last 12 months of data
+async function queryInfluxDBForYear(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 365d
+    GROUP BY time(1d) tz('${currentTimezone}')
   `;
   try {
-      return await influx.query(query);
+    return await influx.query(query);
   } catch (error) {
-      console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-      throw error;
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
+  }
+}
+
+async function queryInfluxDBForDecade(topic) {
+  const query = `
+    SELECT last("value") AS "value"
+    FROM "state"
+    WHERE "topic" = '${topic}'
+    AND time >= now() - 3650d
+    GROUP BY time(1d) tz('${currentTimezone}')
+  `;
+  try {
+    return await influx.query(query);
+  } catch (error) {
+    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
+    throw error;
   }
 }
 
@@ -250,17 +282,17 @@ async function queryInfluxDBForDecade(topic) {
 
 // Route handlers
 app.get('/messages', (req, res) => {
-  res.render('messages', { 
+  res.render('messages', {
     ingress_path: process.env.INGRESS_PATH || '',
-    categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber)
-  });
-});
+    categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
+  })
+})
 
 app.get('/api/messages', (req, res) => {
-  const category = req.query.category;
-  const filteredMessages = filterMessagesByCategory(category);
-  res.json(filteredMessages);
-});
+  const category = req.query.category
+  const filteredMessages = filterMessagesByCategory(category)
+  res.json(filteredMessages)
+})
 
 app.get('/chart', (req, res) => {
   res.render('chart', {
@@ -273,9 +305,9 @@ app.get('/chart', (req, res) => {
 
 app.get('/analytics', async (req, res) => {
   try {
-    const selectedZone = req.cookies[COOKIE_NAME] || null;
-    let carbonIntensityData = [];
-    
+    const selectedZone = req.cookies[COOKIE_NAME] || null
+    let carbonIntensityData = []
+
     if (selectedZone) {
       try {
         carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
@@ -348,7 +380,10 @@ app.get('/analytics', async (req, res) => {
       gridVoltageDecade
     };
 
-    res.render('analytics', { data, ingress_path: process.env.INGRESS_PATH || '' });
+    res.render('analytics', {
+      data,
+      ingress_path: process.env.INGRESS_PATH || '',
+    })
   } catch (error) {
     console.error('Error fetching analytics data:', error);
     res.status(500).json({ 
@@ -356,10 +391,17 @@ app.get('/analytics', async (req, res) => {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-});
+})
 
 app.get('/', (req, res) => {
   res.render('energy-dashboard', {
+    ingress_path: process.env.INGRESS_PATH || '',
+    mqtt_host: options.mqtt_host,
+  })
+})
+
+app.get('/configuration', (req, res) => {
+  res.render('configuration', {
     ingress_path: process.env.INGRESS_PATH || '',
     mqtt_host: options.mqtt_host, 
   })
@@ -375,17 +417,17 @@ app.get('/configuration', (req, res) => {
 
 
 app.get('/api/timezone', (req, res) => {
-  res.json({ timezone: currentTimezone });
-});
+  res.json({ timezone: currentTimezone })
+})
 
 app.post('/api/timezone', (req, res) => {
-  const { timezone } = req.body;
+  const { timezone } = req.body
   if (moment.tz.zone(timezone)) {
-    currentTimezone = timezone;
-    setCurrentTimezone(timezone);
-    res.json({ success: true, timezone: currentTimezone });
+    currentTimezone = timezone
+    setCurrentTimezone(timezone)
+    res.json({ success: true, timezone: currentTimezone })
   } else {
-    res.status(400).json({ error: 'Invalid timezone' });
+    res.status(400).json({ error: 'Invalid timezone' })
   }
 });
 
@@ -393,21 +435,21 @@ app.post('/api/timezone', (req, res) => {
 // Function to filter messages by category
 function filterMessagesByCategory(category) {
   if (category === 'all') {
-    return incomingMessages;
+    return incomingMessages
   }
 
-  return incomingMessages.filter(message => {
-    const topic = message.split(':')[0];
-    const topicParts = topic.split('/');
+  return incomingMessages.filter((message) => {
+    const topic = message.split(':')[0]
+    const topicParts = topic.split('/')
 
     if (category.startsWith('inverter')) {
-      const inverterNum = category.match(/\d+$/)[0];
-      return topicParts[1] === `inverter_${inverterNum}`;
+      const inverterNum = category.match(/\d+$/)[0]
+      return topicParts[1] === `inverter_${inverterNum}`
     }
 
     if (category.startsWith('battery')) {
-      const batteryNum = category.match(/\d+$/)[0];
-      return topicParts[1] === `battery_${batteryNum}`;
+      const batteryNum = category.match(/\d+$/)[0]
+      return topicParts[1] === `battery_${batteryNum}`
     }
 
     const categoryKeywords = {
@@ -415,20 +457,34 @@ function filterMessagesByCategory(category) {
       gridPower: ['grid_power'],
       pvPower: ['pv_power'],
       total: ['total'],
-    };
+    }
 
-    return categoryKeywords[category] ? topicParts.some(part => categoryKeywords[category].includes(part)) : false;
-  });
+    return categoryKeywords[category]
+      ? topicParts.some((part) => categoryKeywords[category].includes(part))
+      : false
+  })
 }
 
 //socket data
 const getRealTimeData = async () => {
-  const loadPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`);
-  const pvPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`);
-  const batteryStateOfChargeData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`);
-  const batteryPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`);
-  const gridPowerData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`);
-  const gridVoltageData = await queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`);
+  const loadPowerData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/load_energy/state`
+  )
+  const pvPowerData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/pv_energy/state`
+  )
+  const batteryStateOfChargeData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/battery_energy_in/state`
+  )
+  const batteryPowerData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/battery_energy_out/state`
+  )
+  const gridPowerData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/grid_energy_in/state`
+  )
+  const gridVoltageData = await queryInfluxDB(
+    `${mqttTopicPrefix}/total/grid_energy_out/state`
+  )
 
   const data = {
     load: calculateDailyDifferenceForSockets(loadPowerData),
@@ -456,51 +512,75 @@ const server = app.listen(port, '0.0.0.0', async () => {
 const wss = new WebSocket.Server({ server })
 
 wss.on('connection', (ws) => {
-  console.log('Client connected')
-  mqttClient.on('message', async () => {
-    const { load, pv, gridIn, gridOut, batteryCharged, batteryDischarged } =
-      await getRealTimeData()
-    const topics = await prisma.topic.findMany()
-    const port = options.mqtt_host
-    const date = new Date()
-    const isForServer = true
-    topics.forEach((t) => {
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          topics.forEach((t) => {
-            client.send(
-              JSON.stringify({
-                date,
-                userId: t.userId,
-                pv,
-                load,
-                gridIn,
-                gridOut,
-                batteryCharged,
-                batteryDischarged,
-                port,
-                isForServer,
-              })
-            )
+  ;(async () => {
+    const isUser = await AuthenticateUser(options)
+    if (isUser) {
+      console.log('Client connected')
+      if (mqttClient) {
+        mqttClient.on('message', (topic, message) => {
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  topic,
+                  message: message.toString(),
+                  userId: isUser,
+                })
+              )
+            }
           })
-        }
-      })
-    })
-  })
+        })
+      }
+    }
+  })()
+
+  // mqttClient.on('message', async () => {
+  //   const { load, pv, gridIn, gridOut, batteryCharged, batteryDischarged } =
+  //     await getRealTimeData()
+  //   const topics = await prisma.topic.findMany()
+  //   const port = options.mqtt_host
+  //   const date = new Date()
+  //   const isForServer = true
+  //   topics.forEach((t) => {
+  //     wss.clients.forEach((client) => {
+  //       if (client.readyState === WebSocket.OPEN) {
+  //         topics.forEach((t) => {
+  //           client.send(
+  //             JSON.stringify({
+  //               date,
+  //               userId: t.userId,
+  //               pv,
+  //               load,
+  //               gridIn,
+  //               gridOut,
+  //               batteryCharged,
+  //               batteryDischarged,
+  //               port,
+  //               isForServer,
+  //             })
+  //           )
+  //         })
+  //       }
+  //     })
+  //   })
+  // })
   ws.on('error', (error) => {
     console.error('WebSocket error:', error)
   })
   ws.on('close', () => console.log('Client disconnected'))
 })
 
-
 // carbon intensity
 
 app.get('/settings', async (req, res) => {
-  const zones = await getZones();
-  const selectedZone = req.cookies[COOKIE_NAME] || '';
-  res.render('settings', { zones, selectedZone, ingress_path: process.env.INGRESS_PATH || '' });
-});
+  const zones = await getZones()
+  const selectedZone = req.cookies[COOKIE_NAME] || ''
+  res.render('settings', {
+    zones,
+    selectedZone,
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
 
 
 // Route for displaying results
@@ -594,9 +674,10 @@ async function getZones() {
   }
 }
 app.get('/clear-zone', (req, res) => {
-  res.clearCookie(COOKIE_NAME);
-  res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
-});
+  res.clearCookie(COOKIE_NAME)
+  res.redirect(`${process.env.INGRESS_PATH || ''}/results`)
+})
+
 
 
 async function queryInfluxData(topic, duration = '365d') {
@@ -734,6 +815,19 @@ app.get('/api/grid-voltage', async (req, res) => {
   }
 });
 
+app.get('/api/grid-voltage', async (req, res) => {
+  try {
+    const result = await influx.query(`
+        SELECT last("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+      `)
+    res.json({ voltage: result[0]?.value || 0 })
+  } catch (error) {
+    console.error('Error fetching grid voltage:', error)
+    res.status(500).json({ error: 'Failed to fetch grid voltage' })
+  }
+})
 
 // Error handling middleware
 app.use((err, req, res, next) => {

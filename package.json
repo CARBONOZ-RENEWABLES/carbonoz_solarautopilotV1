@@ -8,9 +8,11 @@
     "prisma:generate": "npx prisma generate dev"
   },
   "dependencies": {
-    "@prisma/client": "^5.17.0",
+    "@prisma/client": "^5.21.0",
     "async-retry": "^1.3.3",
+    "axios": "^1.7.7",
     "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "ejs": "^3.1.6",
@@ -18,7 +20,6 @@
     "follow-redirects": "^1.15.6",
     "http-proxy": "^1.18.1",
     "influx": "^5.9.3",
-    "axios": "^1.7.7",
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.45",
     "exponential-backoff": "^3.1.1",
@@ -26,11 +27,10 @@
     "dotenv": "^16.4.5",
     "mqtt": "^4.2.8",
     "node-fetch": "^2.6.7",
-    "cookie-parser": "^1.4.6",
     "socket.io-client": "^4.7.5",
     "ws": "^8.2.3"
   },
   "devDependencies": {
-    "prisma": "^5.17.0"
+    "prisma": "^5.21.0"
   }
 }
