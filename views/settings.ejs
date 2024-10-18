@@ -536,7 +536,201 @@
    }
    a{
      text-decoration: none;
-   }
+   }  .container-gauge {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.gauge-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Gauge Card Styles */
+.gauge-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.gauge-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Gauge Title Styles */
+.gauge-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Input Group Styles */
+.input-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.input-group > div {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Label Styles */
+.gauge-card label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+/* Input Styles */
+.gauge-card input {
+    width: 100%;
+    padding: 0.625rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.gauge-card input:focus {
+    outline: none;
+    border-color: #DEAF0B;
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.1);
+}
+
+/* Form Button Styles */
+#gaugeForm button {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 1.5rem auto;
+    padding: 0.75rem 1.5rem;
+    background-color: #DEAF0B;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#gaugeForm button:hover {
+    background-color: #c79c0a;
+}
+
+#gaugeForm button:active {
+    transform: translateY(1px);
+}
+
+/* Response Message Styles */
+#responseMessage {
+    display: none;
+    margin: 1rem auto;
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    max-width: 400px;
+    font-size: 0.875rem;
+}
+
+#responseMessage.success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #34d399;
+}
+
+#responseMessage.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #f87171;
+}
+
+/* Dark Mode Styles */
+body.dark-mode .gauge-card {
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+body.dark-mode .gauge-title {
+    color: #e5e7eb;
+    border-bottom-color: #4b5563;
+}
+
+body.dark-mode .gauge-card label {
+    color: #9ca3af;
+}
+
+body.dark-mode .gauge-card input {
+    background-color: rgb(24, 27, 31);
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode .gauge-card input:focus {
+    border-color: #DEAF0B;
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.2);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .container-gauge {
+        padding: 1rem;
+    }
+    
+    .gauge-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .input-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Loading State Styles */
+.gauge-card.loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.gauge-card.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.2) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
        </style>
 </head>
 <body>
@@ -713,11 +907,13 @@
             </a>
         </div>
 
-        <form id="gaugeForm">
-          <div class="gauge-container" id="gaugeSettings"></div>
-          <button type="submit">Update Gauges</button>
-      </form>
-      <div id="responseMessage"></div>
+        <div class="container-guage">
+            <form id="gaugeForm">
+                <div class="gauge-container" id="gaugeSettings"></div>
+                <button type="submit">Update Gauges</button>
+            </form>
+            <div id="responseMessage"></div>
+        </div>
     </div>
     </main>
 </div>
