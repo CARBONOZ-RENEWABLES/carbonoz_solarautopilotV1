@@ -48,9 +48,9 @@ const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}'
 const influxConfig = {
   host: options.mqtt_host,
   port: 8086,
-  database: options.database_name,
-  username: options.database_username,
-  password: options.database_password,
+  database: 'home_assistant',
+  username: 'admin',
+  password: 'adminpassword',
   protocol: 'http',
   timeout: 10000,
 }
@@ -298,8 +298,6 @@ app.get('/chart', (req, res) => {
     mqtt_host: options.mqtt_host, // Include mqtt_host here
   })
 })
-
-
 
 app.get('/analytics', async (req, res) => {
   try {

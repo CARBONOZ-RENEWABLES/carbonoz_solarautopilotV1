@@ -1,5 +1,5 @@
-name: "Carbonoz SolarAutopilot"
-version: "1.0.1"
+name: "CARBONOZ SolarAutopilot"
+version: "1.0.0"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
 url: "https://github.com/eelitedesire/carbonoz_solarautopilot"
@@ -23,6 +23,7 @@ ports:
   3001/tcp: 3001
   6789/tcp: 6789
   7100/tcp: 7100
+  8086/tcp: 8086
 ports_description:
   3001/tcp: Web interface (optional)
   6789/tcp: Main application
@@ -33,11 +34,8 @@ options:
   mqtt_username: ""
   mqtt_password: ""
   mqtt_topic_prefix: "solar_assistant_DEYE"
-  battery_number: 1
-  inverter_number: 1
-  database_name: ""
-  database_username: ""
-  database_password: ""
+  battery_number: 
+  inverter_number: 
   clientId: ""
   clientSecret: ""
 schema:
@@ -48,9 +46,6 @@ schema:
   mqtt_topic_prefix: str
   battery_number: int(1,)
   inverter_number: int(1,)
-  database_name: str?
-  database_username: str?
-  database_password: password?
   clientId: str
   clientSecret: password
 panel: true

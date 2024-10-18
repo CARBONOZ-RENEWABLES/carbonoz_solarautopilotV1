@@ -537,7 +537,6 @@
    a{
      text-decoration: none;
    }
- 
        </style>
 </head>
 <body>
@@ -713,6 +712,12 @@
               View Current Results
             </a>
         </div>
+
+        <form id="gaugeForm">
+          <div class="gauge-container" id="gaugeSettings"></div>
+          <button type="submit">Update Gauges</button>
+      </form>
+      <div id="responseMessage"></div>
     </div>
     </main>
 </div>
@@ -747,6 +752,65 @@ document.getElementById('timezone').addEventListener('change', (event) => {
   });
 });
 
+</script>
+
+<script>
+  // Fetch initial gauge values from the server
+  fetch('<%= ingress_path %>/gauges')
+      .then(response => response.json())
+      .then(data => {
+          const gaugeSettingsDiv = document.getElementById('gaugeSettings');
+          Object.keys(data).forEach(gauge => {
+              const gaugeSettingHTML = `
+                  <div class="gauge-card">
+                      <div class="gauge-title">${gauge}</div>
+                      <div class="input-group">
+                          <div>
+                              <label for="${gauge}-min">Min</label>
+                              <input type="number" id="${gauge}-min" name="${gauge}-min" value="${data[gauge].min}">
+                          </div>
+                          <div>
+                              <label for="${gauge}-max">Max</label>
+                              <input type="number" id="${gauge}-max" name="${gauge}-max" value="${data[gauge].max}">
+                          </div>
+                      </div>
+                  </div>
+              `;
+              gaugeSettingsDiv.innerHTML += gaugeSettingHTML;
+          });
+      });
+
+  // Handle form submission and send updated gauge values to the server
+  document.getElementById('gaugeForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      const formData = new FormData(this);
+      const gauges = {};
+      formData.forEach((value, key) => {
+          const [gauge, type] = key.split('-');
+          if (!gauges[gauge]) gauges[gauge] = {};
+          gauges[gauge][type] = Number(value);
+      });
+
+      fetch('<%= ingress_path %>/gauges/update', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gauges),
+      })
+      .then(response => response.json())
+      .then(data => {
+          const responseMessage = document.getElementById('responseMessage');
+          responseMessage.innerText = data.message;
+          responseMessage.className = data.success ? 'success' : 'error';
+          responseMessage.style.display = 'block';
+
+          // Hide the message after 3 seconds
+          setTimeout(() => {
+              responseMessage.style.display = 'none';
+          }, 3000);
+      });
+  });
 </script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>

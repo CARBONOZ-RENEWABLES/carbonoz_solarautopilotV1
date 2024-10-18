@@ -12,9 +12,6 @@ export MQTT_PASSWORD=$(bashio::config 'mqtt_password')
 export MQTT_TOPIC_PREFIX=$(bashio::config 'mqtt_topic_prefix')
 export BATTERY_NUMBER=$(bashio::config 'battery_number')
 export INVERTER_NUMBER=$(bashio::config 'inverter_number')
-export DATABASE_NAME=$(bashio::config 'database_name')
-export DATABASE_USERNAME=$(bashio::config 'database_username')
-export DATABASE_PASSWORD=$(bashio::config 'database_password')
 export CLIENT_USERNAME=$(bashio::config 'client_username')
 export CLIENT_PASSWORD=$(bashio::config 'client_password')
 
@@ -23,6 +20,17 @@ sed -i "s|^root_url = .*|root_url = ${INGRESS_PATH}|g" /etc/grafana/grafana.ini
 
 # Start Grafana
 grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana &
+influxd &
+
+# Wait for InfluxDB to start
+sleep 10
+
+# Create the InfluxDB database
+influx -execute "CREATE DATABASE home_assistant"
+
+# Create a user with a password and grant privileges
+influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'"
+influx -execute "GRANT ALL ON home_assistant TO admin"
 
 # Run the Node.js application
 cd /usr/src/app

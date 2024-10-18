@@ -1,8 +1,8 @@
-# Carbonoz SolarAutopilot
+# CARBONOZ SolarAutopilot
 
-## Home Assistant Add-on: Carbonoz SolarAutopilot
+## Home Assistant Add-on: CARBONOZ SolarAutopilot
 
-Carbonoz SolarAutopilot is a powerful add-on for Home Assistant that provides a live Solar dashboard and MQTT inverter control. It allows you to monitor and manage your solar power system efficiently.
+CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
@@ -18,19 +18,19 @@ Carbonoz SolarAutopilot is a powerful add-on for Home Assistant that provides a 
 
 ## About
 
-This add-on provides a comprehensive solution for managing and monitoring solar power systems. It includes:
+SUPPORTED SOLAR HYBRID INVERTERS
 
-- Live Solar Dashboard
-- MQTT Inverter Control
-- Automation Rules
-- Data Logging to InfluxDB
+- Deye / Sunsynk
+- Voltronic / Axpert / MPP Solar
+- Growatt
+- More to come....
 
 ## Installation
 
 Follow these steps to install the add-on:
 
 1. Navigate to the Home Assistant Add-on Store.
-2. Find the "Carbonoz SolarAutopilot" add-on in the list and click on it.
+2. Find the "CARBONOZ SolarAutopilot" add-on in the list and click on it.
 3. Click on "Install".
 
 ## Configuration
@@ -42,8 +42,8 @@ mqtt_host: 192.168.160.55
 mqtt_port: 1883
 mqtt_username: ""
 mqtt_password: ""
-battery_number: 1
-inverter_number: 1
-database_name: ""
-database_username: ""
-database_password: ""
+battery_number: 
+inverter_number: 
+mqtt_topic_prefix: "solar_assistant_DEYE"
+clientId: ""
+clientSecret: ""

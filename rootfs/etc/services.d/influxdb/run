@@ -1,0 +1,14 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start the InfluxDB service
+# ==============================================================================
+
+bashio::log.info "Starting InfluxDB..."
+
+# Ensure directories exist with correct permissions
+mkdir -p /var/lib/influxdb
+mkdir -p /var/log/influxdb
+chown -R nobody:nobody /var/lib/influxdb /var/log/influxdb
+
+# Start InfluxDB with config
+exec s6-setuidgid nobody influxd -config /etc/influxdb/influxdb.conf

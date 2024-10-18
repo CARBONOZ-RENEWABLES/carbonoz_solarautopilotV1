@@ -4,10 +4,10 @@ datasources:
     type: influxdb
     access: proxy
     url: http://${MQTT_HOST}:8086
-    database: ${DATABASE_NAME}
-    user: ${DATABASE_USERNAME}
+    database: 'home_assistant'
+    user: 'admin'
     secureJsonData:
-      password: ${DATABASE_PASSWORD}
+      password: 'adminpassword'
     jsonData:
       httpMode: GET
       timeInterval: "1s" 
