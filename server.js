@@ -389,12 +389,45 @@ app.get('/analytics', async (req, res) => {
   }
 })
 
+function checkInverterMessages(messages, expectedInverters) {
+  const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`);
+  const foundInverters = new Set();
+  
+  messages.forEach(message => {
+    const match = message.match(inverterPattern);
+    if (match) {
+      foundInverters.add(parseInt(match[1]));
+    }
+  });
+
+  if (foundInverters.size !== expectedInverters) {
+    return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s).`;
+  }
+  return null;
+}
+
+function checkBatteryInformation(messages) {
+  const batteryPattern = new RegExp(`${mqttTopicPrefix}/battery_\\d+/`);
+  const hasBatteryInfo = messages.some(message => batteryPattern.test(message));
+  
+  if (!hasBatteryInfo) {
+    return "Warning: No battery information found in recent messages.";
+  }
+  return null;
+}
+
 app.get('/', (req, res) => {
+  const expectedInverters = parseInt(options.inverter_number) || 1;
+  const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
+  const batteryWarning = checkBatteryInformation(incomingMessages);
+
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
     mqtt_host: options.mqtt_host,
-  })
-})
+    inverterWarning,
+    batteryWarning
+  });
+});
 
 
 
