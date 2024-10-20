@@ -53,7 +53,17 @@
                 </iframe>
                         </div>
                     </div>
-
+                    <% if (inverterWarning || batteryWarning) { %>
+                        <div class="warning-container" style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                          <h3 style="margin-top: 0;">System Warnings</h3>
+                          <% if (inverterWarning) { %>
+                            <p><strong>Inverter Warning:</strong> <%= inverterWarning %></p>
+                          <% } %>
+                          <% if (batteryWarning) { %>
+                            <p><strong>Battery Warning:</strong> <%= batteryWarning %></p>
+                          <% } %>
+                        </div>
+                      <% } %>
 
                       </section>
                       
