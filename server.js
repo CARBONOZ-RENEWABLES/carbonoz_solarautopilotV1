@@ -245,38 +245,7 @@ async function queryInfluxDBForDecade(topic) {
   }
 }
 
-// Function to query InfluxDB for the last 12 months of data
-async function queryInfluxDBForYear(topic) {
-  const query = `
-    SELECT last("value") AS "value"
-    FROM "state"
-    WHERE "topic" = '${topic}'
-    AND time >= now() - 365d
-    GROUP BY time(1d) tz('${currentTimezone}')
-  `;
-  try {
-    return await influx.query(query);
-  } catch (error) {
-    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-    throw error;
-  }
-}
 
-async function queryInfluxDBForDecade(topic) {
-  const query = `
-    SELECT last("value") AS "value"
-    FROM "state"
-    WHERE "topic" = '${topic}'
-    AND time >= now() - 3650d
-    GROUP BY time(1d) tz('${currentTimezone}')
-  `;
-  try {
-    return await influx.query(query);
-  } catch (error) {
-    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-    throw error;
-  }
-}
 
 // Route handlers
 app.get('/messages', (req, res) => {
