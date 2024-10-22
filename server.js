@@ -130,65 +130,28 @@ function connectToMqtt() {
 // Save MQTT message to InfluxDB
 async function saveMessageToInfluxDB(topic, message) {
   try {
-    const parsedMessage = parseFloat(message.toString());
-    if (isNaN(parsedMessage)) {
-      return;
-    }
+      const parsedMessage = parseFloat(message.toString());
 
-    const timestamp = new Date().getTime();
-    let valueToSave = parsedMessage;
-
-    // List of topics that require daily difference calculation
-    const dailyDifferenceTopics = [
-      `${mqttTopicPrefix}/total/load_energy/state`,
-      `${mqttTopicPrefix}/total/pv_energy/state`,
-      `${mqttTopicPrefix}/total/battery_energy_in/state`,
-      `${mqttTopicPrefix}/total/battery_energy_out/state`,
-      `${mqttTopicPrefix}/total/grid_energy_in/state`,
-      `${mqttTopicPrefix}/total/grid_energy_out/state`
-    ];
-
-    if (dailyDifferenceTopics.includes(topic)) {
-      // Query the last value for this topic from yesterday
-      const yesterdayQuery = `
-        SELECT last("value") AS "value"
-        FROM "state"
-        WHERE "topic" = '${topic}'
-        AND time >= now() - 1d AND time < now() - 1m
-      `;
-      
-      const yesterdayResult = await influx.query(yesterdayQuery);
-      const yesterdayValue = yesterdayResult.length > 0 ? yesterdayResult[0].value : null;
-
-      if (yesterdayValue !== null) {
-        if (parsedMessage > yesterdayValue) {
-          valueToSave = parsedMessage - yesterdayValue;
-        }
-        // If current day data is less, we keep the original value
+      if (isNaN(parsedMessage)) {
+          return;
       }
-    }
 
-    const dataPoint = {
-      measurement: 'state',
-      fields: { value: valueToSave },
-      tags: { topic: topic },
-      timestamp: timestamp * 1000000,
-    };
+      const timestamp = new Date().getTime();
+      const dataPoint = {
+          measurement: 'state',
+          fields: { value: parsedMessage },
+          tags: { topic: topic },
+          timestamp: timestamp * 1000000,
+      };
 
-    await retry(
-      async () => {
-        await influx.writePoints([dataPoint]);
-      },
-      {
-        retries: 5,
-        minTimeout: 1000,
-      }
-    );
+      await retry(async () => {
+          await influx.writePoints([dataPoint]);
+      }, {
+          retries: 5,
+          minTimeout: 1000
+      });
   } catch (err) {
-    console.error(
-      'Error saving message to InfluxDB:',
-      err.response ? err.response.body : err.message
-    );
+      console.error('Error saving message to InfluxDB:', err.response ? err.response.body : err.message);
   }
 }
 
@@ -756,9 +719,19 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
     const currentGridVoltage = gridVoltage[index]?.value || 0;
     const isGridActive = Math.abs(currentGridVoltage) > 20;
 
-    // Retrieve daily grid and PV energy values
+    // Get current day's grid and PV energy
     let gridEnergy = gridEnergyIn[index]?.value || 0;
     let solarEnergy = pvEnergy[index]?.value || 0;
+
+    // Compare with the previous day's data
+    if (index > 0) { // Avoid comparison for the first entry
+      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0;
+      const prevPvEnergy = pvEnergy[index - 1]?.value || 0;
+
+      // Calculate the difference in grid and solar energy from the previous day
+      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy);
+      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy);
+    }
 
     // Calculate emissions and self-sufficiency
     let unavoidableEmissions = 0;
@@ -776,12 +749,15 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
       date: dayData.date,
       carbonIntensity: carbonIntensity,
       gridVoltage: currentGridVoltage,
+      gridEnergy: gridEnergy,
+      solarEnergy: solarEnergy,
       unavoidableEmissions: unavoidableEmissions,
       avoidedEmissions: avoidedEmissions,
       selfSufficiencyScore: selfSufficiencyScore
     };
   });
 }
+
 
 
 app.get('/api/grid-voltage', async (req, res) => {
