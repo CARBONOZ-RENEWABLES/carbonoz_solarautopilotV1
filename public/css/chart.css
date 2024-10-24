@@ -1,75 +1,147 @@
-
-
+/* Filter Container Base Styles */
 .filter-container {
-            background-color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: center;
-        }
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-end;
+    justify-content: space-between;
+}
 
-        .filter-container {
-            background-color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
-        }
+/* Form Group Styles */
+.form-group {
+    flex: 1;
+    min-width: 200px;
+    margin: 0;
+}
 
-        .form-group {
-            margin-bottom: 15px;
+/* Label Styles */
+.filter-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
 
-        }
+/* Input and Select Styles */
+.filter-container input,
+.filter-container select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+    color: #DEAF0B;
+    background-color: transparent;
+    transition: border-color 0.3s ease;
+}
 
-        .filter-container label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            font-size: 14px;
-        }
+.filter-container input:focus,
+.filter-container select:focus {
+    border-color: #DEAF0B;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(222, 175, 11, 0.1);
+}
 
-        .filter-container input,
-        .filter-container select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            box-sizing: border-box;
-            color: #DEAF0B;
-            background-color: transparent;
-         
-        }
+/* Button Styles */
+.filter-container button {
+    background-color: var(--primary-color);
+    color: #000;
+    border: 2px solid #000;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    min-width: 120px;
+}
 
-        .filter-container button {
-            margin: 20px;
-            background-color: var(--primary-color);
-            color: #000;
-            border: none;
-            padding: 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            font-size: 16px;
-            font-weight: bold;
-            border: 2px solid #000;
-        }
+.filter-container button:hover {
+    background-color: #cca30f;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
 
-        .filter-container button:hover {
-            background-color: #cca30f;;
-        }
+.filter-container button:active {
+    transform: translateY(0);
+}
 
-        .dashboard-container iframe {
-            width: 100%;
-            height: calc(100vh - 160px);
-            border: none;
-            display: block;
-        }
+/* Dashboard Container */
+.dashboard-container iframe {
+    width: 100%;
+    height: calc(100vh - 160px);
+    border: none;
+    display: block;
+    border-radius: 8px;
+}
 
-
-.dark-mode .filter-container{
+/* Dark Mode Styles */
+.dark-mode .filter-container {
     background-color: rgba(24, 27, 31, 1);
     color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .filter-container label {
+    color: #fff;
+}
+
+.dark-mode .filter-container input,
+.dark-mode .filter-container select {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #DEAF0B;
+}
+
+.dark-mode .filter-container input:focus,
+.dark-mode .filter-container select:focus {
+    border-color: #DEAF0B;
+    box-shadow: 0 0 0 2px rgba(222, 175, 11, 0.2);
+}
+
+/* Responsive Styles */
+@media screen and (max-width: 768px) {
+    .filter-container {
+        flex-direction: column;
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .filter-container button {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
+/* Mobile Optimizations */
+@media screen and (max-width: 480px) {
+    .filter-container {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .filter-container input,
+    .filter-container select {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .filter-container label {
+        font-size: 13px;
+    }
+
+    .dashboard-container iframe {
+        height: calc(100vh - 140px);
+    }
 }
