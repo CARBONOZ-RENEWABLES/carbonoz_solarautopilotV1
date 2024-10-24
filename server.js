@@ -321,6 +321,7 @@ app.get('/analytics', async (req, res) => {
   }
 })
 
+
 function checkInverterMessages(messages, expectedInverters) {
   const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`);
   const foundInverters = new Set();
@@ -518,6 +519,7 @@ wss.on('connection', (ws) => {
 })
 
 // carbon intensity
+let currentApiKey = '';  // API key stored in memory
 
 app.get('/settings', async (req, res) => {
   const zones = await getZones()
@@ -525,9 +527,22 @@ app.get('/settings', async (req, res) => {
   res.render('settings', {
     zones,
     selectedZone,
+    api_key: currentApiKey,
     ingress_path: process.env.INGRESS_PATH || '',
   })
 })
+
+app.post('/api/api-key', (req, res) => {
+  const { api_key } = req.body;  // Get the submitted API key from the form
+
+  if (api_key && typeof api_key === 'string') {
+    currentApiKey = api_key;  // Update the API key in memory
+    res.json({ success: true, api_key: currentApiKey });
+  } else {
+    res.status(400).json({ error: 'Invalid API Key' });
+  }
+});
+
 
 
 // Route for displaying results
@@ -633,7 +648,7 @@ async function queryInfluxData(topic, duration = '365d') {
     FROM "state"
     WHERE "topic" = '${topic}'
     AND time >= now() - ${duration}
-    GROUP BY time(1d) tz('Indian/Mauritius')
+    GROUP BY time(1d) tz('${currentTimezone}')
   `;
   try {
     return await influx.query(query);
@@ -699,7 +714,9 @@ async function fetchCarbonIntensityHistory(selectedZone) {
 async function fetchWithRetry(selectedZone, date) {
   try {
     const response = await axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
-      headers: { 'Authorization': 'Bearer m8E7x82PMXbkn' },
+      headers: { 
+        'Authorization': `Bearer ${currentApiKey}` // Correct template literal usage
+      },
       timeout: 5000
     });
     return response.data;
@@ -712,6 +729,7 @@ async function fetchWithRetry(selectedZone, date) {
     return null;
   }
 }
+
 
 function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage) {
   return historyData.map((dayData, index) => {

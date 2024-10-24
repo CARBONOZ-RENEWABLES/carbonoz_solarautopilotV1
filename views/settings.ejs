@@ -536,10 +536,135 @@
    }
    a{
      text-decoration: none;
-   }  .container-gauge {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
+   } /* API Key Container Styles */
+.api-key-container {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.dark-mode .api-key-container {
+  background: rgb(32, 36, 41);
+  color: white;
+}
+
+/* API Key Form Styles */
+#api-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#api-key-form label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.dark-mode #api-key-form label {
+  color: #e5e7eb;
+}
+
+#api-key-form input[type="text"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+#api-key-form input[type="text"]:focus {
+  border-color: #DEAF0B;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.1);
+}
+
+/* Button Styles */
+.api-key-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.api-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.api-button.primary {
+  background-color: #DEAF0B;
+  color: white;
+}
+
+.api-button.primary:hover {
+  background-color: #c59a0a;
+}
+
+.api-button.secondary {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.api-button.secondary:hover {
+  background-color: #d1d5db;
+}
+
+/* API Key Display Styles */
+.api-key-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.dark-mode .api-key-display {
+  background-color: rgba(24, 27, 31, 1);
+}
+
+.api-key-value {
+  font-family: monospace;
+  color: #374151;
+  flex-grow: 1;
+}
+
+.dark-mode .api-key-value {
+  color: #e5e7eb;
+}
+
+/* Response Message Styles */
+#responseMessage {
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 6px;
+  display: none;
+}
+
+#responseMessage.success {
+  background-color: #dcfce7;
+  color: #166534;
+  display: block;
+}
+
+#responseMessage.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  display: block;
+}
+
+/* Hidden State */
+.api-key-container.hidden #api-key-form {
+  display: none;
 }
        </style>
 </head>
@@ -679,7 +804,23 @@
               </select>
               </div>
         </form>
-        <div id="responseMessage"></div>
+        <div class="api-key-container" id="apiKeyContainer">
+          <div class="api-key-display">
+            <span class="api-key-value">API Key: ••••••••••••</span>
+            <button class="api-button secondary" id="toggleApiForm">Update API Key</button>
+          </div>
+          
+          <form id="api-key-form" style="display: none;">
+            <label for="api_key">Enter New API Key:</label>
+            <input type="text" id="api_key" name="api_key" value="<%= api_key %>" required />
+            <div class="api-key-actions">
+              <button type="submit" class="api-button primary">Save API Key</button>
+              <button type="button" class="api-button secondary" id="cancelApiUpdate">Cancel</button>
+            </div>
+          </form>
+          <div id="responseMessage"></div>
+        </div>
+        
         <div class="form-container">
           <% if (selectedZone) { %>
             <div class="current-zone">
@@ -751,6 +892,66 @@ document.getElementById('timezone').addEventListener('change', (event) => {
 });
 
 </script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const apiKeyContainer = document.getElementById('apiKeyContainer');
+    const apiKeyForm = document.getElementById('api-key-form');
+    const toggleButton = document.getElementById('toggleApiForm');
+    const cancelButton = document.getElementById('cancelApiUpdate');
+    const responseMessage = document.getElementById('responseMessage');
+    
+    // Toggle form visibility
+    toggleButton.addEventListener('click', () => {
+      apiKeyForm.style.display = 'flex';
+      toggleButton.style.display = 'none';
+    });
+    
+    // Handle cancel button
+    cancelButton.addEventListener('click', () => {
+      apiKeyForm.style.display = 'none';
+      toggleButton.style.display = 'block';
+      apiKeyForm.reset();
+    });
+    
+    // Handle form submission
+    apiKeyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      try {
+        const response = await fetch(`<%= ingress_path %>/api/api-key`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            api_key: document.getElementById('api_key').value
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          responseMessage.textContent = 'API key updated successfully';
+          responseMessage.className = 'success';
+          apiKeyForm.style.display = 'none';
+          toggleButton.style.display = 'block';
+        } else {
+          responseMessage.textContent = data.error || 'Failed to update API key';
+          responseMessage.className = 'error';
+        }
+      } catch (error) {
+        responseMessage.textContent = 'An error occurred while updating the API key';
+        responseMessage.className = 'error';
+      }
+      
+      // Hide response message after 3 seconds
+      setTimeout(() => {
+        responseMessage.style.display = 'none';
+      }, 3000);
+    });
+  });
+  </script>
 
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
