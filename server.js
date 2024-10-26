@@ -340,28 +340,50 @@ function checkInverterMessages(messages, expectedInverters) {
 }
 
 function checkBatteryInformation(messages) {
-  const batteryPattern = new RegExp(`${mqttTopicPrefix}/battery_\\d+/`);
-  const hasBatteryInfo = messages.some(message => batteryPattern.test(message));
+  // More flexible battery pattern that matches various battery topic formats
+  const batteryPatterns = [
+    new RegExp(`${mqttTopicPrefix}/battery_\\d+/`),
+    new RegExp(`${mqttTopicPrefix}/battery/`),
+    new RegExp(`${mqttTopicPrefix}/total/battery`),
+    new RegExp(`${mqttTopicPrefix}/\\w+/battery`)
+  ];
   
+  // Check if any message matches any of the battery patterns
+  const hasBatteryInfo = messages.some(message => 
+    batteryPatterns.some(pattern => pattern.test(message))
+  );
+  
+  // Add debug logging to help troubleshoot
   if (!hasBatteryInfo) {
+    console.log('Debug: No battery messages found. Current messages:', 
+      messages.filter(msg => msg.toLowerCase().includes('battery')));
     return "Warning: No battery information found in recent messages.";
   }
+
   return null;
+}
+
+// Helper function to see what battery messages are being received
+function debugBatteryMessages(messages) {
+  const batteryMessages = messages.filter(msg => msg.toLowerCase().includes('battery'));
+  console.log('Current battery-related messages:', batteryMessages);
+  return batteryMessages;
 }
 
 app.get('/', (req, res) => {
   const expectedInverters = parseInt(options.inverter_number) || 1;
   const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
+    
   const batteryWarning = checkBatteryInformation(incomingMessages);
 
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
     mqtt_host: options.mqtt_host,
     inverterWarning,
-    batteryWarning
+    batteryWarning,
+    batteryMessages: debugBatteryMessages(incomingMessages) // Add this for debugging in the view
   });
 });
-
 
 
 app.get('/api/timezone', (req, res) => {
