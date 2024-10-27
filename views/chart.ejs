@@ -12,7 +12,12 @@
    <link rel="stylesheet" href="<%= ingress_path %>/css/chart.css">
 </head>
 <body>
-   
+      <!-- Add hamburger menu button -->
+      <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
     <div class="container">
         <div id="loadingOverlay" class="loading-overlay">
             <div class="loading-spinner"></div>
@@ -201,6 +206,6 @@ function updateIframe() {
 
 </script>
    
-
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>

@@ -960,6 +960,12 @@ body.dark-mode {
     </style>
 </head>
 <body>
+       <!-- Add hamburger menu button -->
+       <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-spinner"></div>
@@ -1607,5 +1613,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>
