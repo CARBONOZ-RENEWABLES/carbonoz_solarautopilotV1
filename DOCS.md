@@ -1,9 +1,16 @@
 # CARBONOZ SolarAutopilot
 
-## Home Assistant Add-on: CARBONOZ SolarAutopilot
+## Overview
+CARBONOZ Solar Autopilot is a comprehensive dashboard for managing Hybrid Solar systems through Home Assistant. It provides:
+- Data logging and analytics
+- CO2 avoidance tracking
+- Export features
+- Protection against overconsuming devices
+- Battery management
+- Templates and automation management
+- Event trigger configuration
 
-CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
-
+## Supported Architectures
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
 ![Supports armhf Architecture][armhf-shield]
@@ -16,43 +23,54 @@ CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of yo
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
 
-## About
-
-SUPPORTED SOLAR HYBRID INVERTERS:
-
+## Supported Solar Hybrid Inverters
 - Deye / Sunsynk
 - Voltronic / Axpert / MPP Solar
 - Growatt
-- More to come...
+- More inverters planned for future support
 
-## Installation
+## Installation Guide
 
-Follow these steps to install the add-on:
+### 1. Repository Setup
+1. Open your Home Assistant instance
+2. Navigate to Settings -> Add-ons
+3. Click the three dots menu (⋮) in the top right corner
+4. Select "Repositories"
+5. Click the "Add" button (+ icon)
+6. Add the repository URL:
+   ```
+   https://github.com/eelitedesire/carbonoz-addons
+   ```
+7. Complete the setup:
+   - Click "Add" to save the repository
+   - Wait for the system to check for updates
+   - Restart Home Assistant if prompted
 
-1. Navigate to the Home Assistant Add-on Store.
-2. Find the "CARBONOZ SolarAutopilot" add-on in the list and click on it.
-3. Click on "Install".
+### 2. Add-on Installation
+1. Go to the Home Assistant Add-on Store
+2. Locate "CARBONOZ SolarAutopilot" in the add-on list
+3. Click on the add-on
+4. Click "Install"
 
-## Configuration
-
-After installation, you need to configure the add-on. Here are the available options:
+### 3. Configuration
+Configure the add-on using the following YAML structure:
 
 ```yaml
-mqtt_host: 192.168.160.55
-mqtt_port: 1883
-mqtt_username: ""
-mqtt_password: ""
-battery_number: 
-inverter_number: 
-mqtt_topic_prefix: "solar_assistant_DEYE"
-clientId: ""
-clientSecret: ""
+mqtt_host: 192.168.160.55    # Your MQTT broker IP address
+mqtt_port: 1883              # MQTT broker port
+mqtt_username: ""            # MQTT username (if required)
+mqtt_password: ""            # MQTT password (if required)
+battery_number:              # Number of batteries in your system
+inverter_number:            # Number of inverters in your system
+mqtt_topic_prefix: "solar_assistant_DEYE"  # MQTT topic prefix
+clientId: ""                # Your client ID
+clientSecret: ""            # Your client secret
 ```
 
-For additional information and documentation, please visit [https://solarautopilot.com/](https://solarautopilot.com/)
+## Additional Resources
+For detailed documentation and support, visit [https://solarautopilot.com/](https://solarautopilot.com/)
 
 ## License
-
 MIT License
 
 Copyright (c) 2024 CARBONOZ buyAfraction Limited
