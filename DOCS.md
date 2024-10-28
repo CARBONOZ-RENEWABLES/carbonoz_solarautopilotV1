@@ -1,14 +1,7 @@
 # CARBONOZ SolarAutopilot
 
-## Overview
-CARBONOZ Solar Autopilot is a comprehensive dashboard for managing Hybrid Solar systems through Home Assistant. It provides:
-- Data logging and analytics
-- CO2 avoidance tracking
-- Export features
-- Protection against overconsuming devices
-- Battery management
-- Templates and automation management
-- Event trigger configuration
+## Home Assistant Add-on: CARBONOZ SolarAutopilot
+CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
 
 ## Supported Architectures
 ![Supports aarch64 Architecture][aarch64-shield]
