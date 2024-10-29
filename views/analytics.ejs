@@ -1070,7 +1070,7 @@ body.dark-mode {
                           </thead> <tbody>
                             <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
                                 <tr>
-                                    <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB', { timeZone: 'Indian/Mauritius' }) %></td>
+                                    <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB') %></td>
 
                             
                                     <% 
