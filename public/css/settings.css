@@ -1,172 +1,171 @@
-:root {
-  --primary-color: #1877f2;
-  --secondary-color: #42b72a;
-  --background-color: #f0f2f5;
-  --content-background: #ffffff;
-  --text-color: #1c1e21;
-  --border-color: #dddfe2;
-  --shadow-color: rgba(0, 0, 0, 0.1);
-  --input-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+/* Form Container Base Styles */
+.form-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-.dark-mode .container-config{
-  background-color: rgba(24, 27, 31, 1);
-  color: #fff;
-}
-
-.dark-mode .container-config{
-  background-color: rgba(24, 27, 31, 1);
-  color: #fff;
-}
-.container-config {
-  background-color: var(--content-background);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px var(--shadow-color);
-  padding: 20px;
-  margin-bottom: 20px;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+/* Current Zone Display */
+.current-zone {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #4b5563;
 }
 
-h3 {
-  color: var(--primary-color);
-  font-size: 20px;
-  margin-bottom: 10px;
+/* Form Elements */
+.form-select {
+    width: 100%;
+    padding: 0.75rem;
+    margin: 0.5rem 0 1.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #374151;
 }
 
-.timezone-select, .form-select {
-  width: 100%;
-  padding: 8px 10px;
-  font-size: 15px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  margin-bottom: 15px;
-  background-color: transparent;
-  color: var(--primary-color);
-  transition: all 0.3s ease;
-  box-shadow: var(--input-shadow);
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 1em;
-}
-
-.timezone-select:focus, .form-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
-}
-
+/* Button Container */
 .button-container {
-  display: flex;
-  gap: 10px;
-  margin-top: 15px;
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
 }
 
-.form-button, .button {
-  background-color: var(--primary-color);
-  border: none;
-  color: white;
-  padding: 10px 15px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 4px 2px;
-  cursor: pointer;
-  border-radius: 6px;
-  font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.1s ease;
+/* Button Styles */
+.form-button,
+.button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    min-width: 140px;
+    font-size: 0.95rem;
 }
 
-.form-button:active, .button:active {
-  transform: translateY(1px);
+.form-button {
+    background-color: #DEAF0B;
+    color: white;
+}
+
+.form-button:hover {
+    background-color: #c59a0a;
+}
+
+.button {
+    background-color: #4b5563;
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.button:hover {
+    background-color: #374151;
 }
 
 .button.danger {
-  background-color: #eb4d4b;
+    background-color: #ef4444;
 }
 
 .button.danger:hover {
-  background-color: #d44333;
+    background-color: #dc2626;
 }
 
-.current-zone {
-  background-color: var(--border-color);
-
-  border-radius: 6px;
-  padding: 10px;
-  margin-bottom: 15px;
-  font-weight: bold;
-  color: #1c1e21;
+/* Results Link Container */
+.results-link-container {
+    margin-top: 1.5rem;
+    text-align: center;
 }
 
-.theme-switch-wrapper {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.theme-switch {
-  display: inline-block;
-  height: 34px;
-  position: relative;
-  width: 60px;
-}
-
-.theme-switch input {
-  display: none;
-}
-
-.slider {
-  background-color: #ccc;
-  bottom: 0;
-  cursor: pointer;
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-  transition: .4s;
-}
-
-.slider:before {
-  background-color: #fff;
-  bottom: 4px;
-  content: "";
-  height: 26px;
-  left: 4px;
-  position: absolute;
-  transition: .4s;
-  width: 26px;
-}
-
-input:checked + .slider {
-  background-color: var(--primary-color);
-}
-
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
-
-.slider.round {
-  border-radius: 34px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 10px;
-  }
-  
-  .button-container {
-    flex-direction: column;
-  }
-  
-  .form-button, .button {
+.results-link-container .button {
     width: 100%;
-  }
+    max-width: 300px;
+}
+
+/* Dark Mode Styles */
+.dark-mode .form-container {
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+.dark-mode .current-zone {
+    background-color: rgba(24, 27, 31, 1);
+    color: #e5e7eb;
+}
+
+.dark-mode .form-select {
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+    border-color: #4b5563;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .form-container {
+        margin: 1rem;
+        padding: 1rem;
+        width: auto;
+        max-width: calc(100% - 2rem); /* Account for margins */
+    }
+
+    .button-container {
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .form-button,
+    .button {
+        width: 100%;
+        min-width: unset;
+        padding: 1rem;
+        box-sizing: border-box;
+        margin: 0;
+    }
+ /* Results Link Container */
+ .results-link-container,
+    .results-link-container .button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+      /* Clear Selection and View Results buttons */
+      a.button {
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0.5rem 0;
+    }
+      /* Container for View Results button */
+      .form-container > div:last-child {
+        width: 100%;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    .results-link-container {
+        margin-top: 1rem;
+    }
+
+    .results-link-container .button {
+        max-width: none;
+        padding: 1rem;
+    }
+
+    /* Improve touch targets */
+    .form-select {
+        height: 48px;
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+
+    /* Add some spacing between elements */
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
 }
