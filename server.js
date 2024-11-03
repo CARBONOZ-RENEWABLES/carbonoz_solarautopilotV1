@@ -46,7 +46,7 @@ const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}'
 
 // InfluxDB configuration
 const influxConfig = {
-  host: options.mqtt_host,
+   host: 'localhost', 
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
