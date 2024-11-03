@@ -3,7 +3,7 @@ datasources:
   - name: InfluxDB
     type: influxdb
     access: proxy
-    url: http://${MQTT_HOST}:8086
+    url: http://localhost:8086
     database: 'home_assistant'
     user: 'admin'
     secureJsonData:
