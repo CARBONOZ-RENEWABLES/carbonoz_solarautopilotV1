@@ -1,17 +1,36 @@
+# First stage: Set up build arguments
 ARG BUILD_FROM
-FROM influxdb:1.8-alpine as influxdb
+ARG BUILD_ARCH
 
-FROM $BUILD_FROM
+# InfluxDB stage with architecture support
+FROM influxdb:1.8-alpine AS influxdb
 
-# Add S6 overlay with optimized installation
+# Main build
+FROM ${BUILD_FROM}
+
+# Set shell
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Add S6 overlay with architecture-specific installation
 ARG S6_OVERLAY_VERSION=3.1.5.0
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
-    && tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz \
-    && rm /tmp/s6-overlay-*.tar.xz
+ARG TARGETARCH
 
-# Install base system dependencies with cleaned cache
+# Dynamic architecture selection for S6 overlay
+RUN if [ "${TARGETARCH}" = "arm64" ]; then \
+        S6_ARCH="aarch64"; \
+    elif [ "${TARGETARCH}" = "amd64" ]; then \
+        S6_ARCH="x86_64"; \
+    elif [ "${TARGETARCH}" = "arm/v7" ]; then \
+        S6_ARCH="armhf"; \
+    elif [ "${TARGETARCH}" = "arm/v6" ]; then \
+        S6_ARCH="arm"; \
+    else \
+        S6_ARCH="x86_64"; \
+    fi \
+    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -Jxpf - -C / \
+    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
+
+# Install base system dependencies with architecture-specific considerations
 RUN apk add --no-cache \
     nodejs \
     npm \
@@ -59,7 +78,6 @@ RUN chmod a+x /etc/services.d/carbonoz/run \
     && chmod a+x /usr/bin/carbonoz.sh
 
 # Build arguments for labels
-ARG BUILD_ARCH
 ARG BUILD_DATE
 ARG BUILD_REF
 ARG BUILD_VERSION
