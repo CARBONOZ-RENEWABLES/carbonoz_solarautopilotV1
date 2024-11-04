@@ -32,7 +32,7 @@ CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of yo
 5. Click the "Add" button (+ icon)
 6. Add the repository URL:
    ```
-   https://github.com/eelitedesire/carbonoz-addons
+   https://github.com/CARBONOZ-RENEWABLES/solarautopilot
    ```
 7. Complete the setup:
    - Click "Add" to save the repository
