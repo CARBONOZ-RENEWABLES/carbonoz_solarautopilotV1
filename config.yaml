@@ -2,7 +2,7 @@ name: "CARBONOZ SolarAutopilot"
 version: "1.0.0"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
-url: "https://github.com/eelitedesire/carbonoz_solarautopilot"
+url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
 ingress: true
 ingress_port: 6789
 ingress_stream: true
