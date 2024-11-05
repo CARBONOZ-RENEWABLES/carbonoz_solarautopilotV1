@@ -2,51 +2,48 @@
 ARG BUILD_FROM
 ARG BUILD_ARCH
 
-# InfluxDB stage with architecture support
-FROM influxdb:1.8-alpine AS influxdb
-
 # Main build
 FROM ${BUILD_FROM}
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Add S6 overlay with architecture-specific installation
+# Add S6 overlay
 ARG S6_OVERLAY_VERSION=3.1.5.0
-ARG TARGETARCH
 
-# Dynamic architecture selection for S6 overlay
-RUN if [ "${TARGETARCH}" = "arm64" ]; then \
-        S6_ARCH="aarch64"; \
-    elif [ "${TARGETARCH}" = "amd64" ]; then \
-        S6_ARCH="x86_64"; \
-    elif [ "${TARGETARCH}" = "arm/v7" ]; then \
-        S6_ARCH="armhf"; \
-    elif [ "${TARGETARCH}" = "arm/v6" ]; then \
-        S6_ARCH="arm"; \
-    else \
-        S6_ARCH="x86_64"; \
-    fi \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -Jxpf - -C / \
+# Install S6 overlay
+RUN \
+    curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -Jxpf - -C / \
+    && case "${BUILD_ARCH}" in \
+        "aarch64") S6_ARCH="aarch64" ;; \
+        "amd64") S6_ARCH="x86_64" ;; \
+        "armhf") S6_ARCH="armhf" ;; \
+        "armv7") S6_ARCH="arm" ;; \
+        "i386") S6_ARCH="i686" ;; \
+        *) S6_ARCH="x86_64" ;; \
+    esac \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
 
-# Install base system dependencies with architecture-specific considerations
+# Install base system dependencies
 RUN apk add --no-cache \
     nodejs \
     npm \
-    grafana \
     sqlite \
     openssl \
     openssl-dev \
     curl \
     bash \
     tzdata \
-    && npm cache clean --force
+    wget \
+    gnupg
 
-# Copy InfluxDB binaries and configs from official image
-COPY --from=influxdb /usr/bin/influx /usr/bin/
-COPY --from=influxdb /usr/bin/influxd /usr/bin/
-COPY --from=influxdb /etc/influxdb/influxdb.conf /etc/influxdb/
+# Install Grafana (using Alpine package)
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+    && apk add --no-cache grafana
+
+# Install InfluxDB (using Alpine package)
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+    && apk add --no-cache influxdb
 
 # Set up directories with proper permissions
 RUN mkdir -p /var/lib/influxdb /var/log/influxdb /var/lib/grafana /data \
