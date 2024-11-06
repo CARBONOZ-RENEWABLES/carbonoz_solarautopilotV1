@@ -1,14 +1,12 @@
-# First stage: Set up build arguments
+# First stage: Base image setup
 ARG BUILD_FROM
-ARG BUILD_ARCH
-
-# Main build
-FROM ${BUILD_FROM}
+FROM ${BUILD_FROM} as base
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Add S6 overlay
+# Build arguments
+ARG BUILD_ARCH
 ARG S6_OVERLAY_VERSION=3.1.5.0
 
 # Install S6 overlay
@@ -37,13 +35,20 @@ RUN apk add --no-cache \
     wget \
     gnupg
 
-# Install Grafana (using Alpine package)
+# Install Grafana
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
     && apk add --no-cache grafana
 
-# Install InfluxDB (using Alpine package)
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
-    && apk add --no-cache influxdb
+# Second stage: Get InfluxDB
+FROM influxdb:1.8-alpine AS influxdb
+
+# Final stage: Combine everything
+FROM base
+
+# Copy InfluxDB binaries and configs from InfluxDB stage
+COPY --from=influxdb /usr/bin/influx /usr/bin/
+COPY --from=influxdb /usr/bin/influxd /usr/bin/
+COPY --from=influxdb /etc/influxdb/influxdb.conf /etc/influxdb/
 
 # Set up directories with proper permissions
 RUN mkdir -p /var/lib/influxdb /var/log/influxdb /var/lib/grafana /data \
