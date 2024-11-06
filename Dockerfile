@@ -35,22 +35,15 @@ RUN apk add --no-cache \
     wget \
     gnupg
 
-# Install Grafana
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
-    && apk add --no-cache grafana
+# Add community repositories and install Grafana and InfluxDB
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache grafana influxdb
 
-# Method 1: Install InfluxDB using apk
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories \
-    && apk add --no-cache influxdb
-
-# Alternative Method 2: Install InfluxDB using official package
-RUN wget https://dl.influxdata.com/influxdb/releases/influxdb-1.8.10-static_linux_$(case "${BUILD_ARCH}" in "aarch64") echo "arm64";; "amd64") echo "amd64";; "armv7") echo "armhf";; *) echo "amd64";; esac).tar.gz -O influxdb.tar.gz \
-    && tar xvfz influxdb.tar.gz \
-    && cp influxdb-*/influxd /usr/bin/ \
-    && cp influxdb-*/influx /usr/bin/ \
-    && rm -rf influxdb* \
-    && mkdir -p /etc/influxdb \
-    && wget https://raw.githubusercontent.com/influxdata/influxdb/1.8/etc/config.sample.toml -O /etc/influxdb/influxdb.conf
+# Configure InfluxDB
+RUN mkdir -p /etc/influxdb && \
+    wget -q https://raw.githubusercontent.com/influxdata/influxdb/1.8/etc/config.sample.toml -O /etc/influxdb/influxdb.conf
 
 # Set up directories with proper permissions
 RUN mkdir -p /var/lib/influxdb /var/log/influxdb /var/lib/grafana /data \
@@ -59,11 +52,12 @@ RUN mkdir -p /var/lib/influxdb /var/log/influxdb /var/lib/grafana /data \
 # Set work directory
 WORKDIR /usr/src/app
 
-# Rest of your Dockerfile remains the same...
+# Copy package.json and install dependencies with production flag
 COPY package.json .
 RUN npm install --frozen-lockfile --production \
     && npm cache clean --force
 
+# Copy application code and configurations
 COPY rootfs /
 COPY . .
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
@@ -85,7 +79,25 @@ ARG BUILD_DATE
 ARG BUILD_REF
 ARG BUILD_VERSION
 
-# Labels remain the same...
+# Labels
+LABEL \
+    io.hass.name="Carbonoz SolarAutopilot" \
+    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control" \
+    io.hass.arch="${BUILD_ARCH}" \
+    io.hass.type="addon" \
+    io.hass.version=${BUILD_VERSION} \
+    maintainer="Elite Desire <eelitedesire@gmail.com>" \
+    org.opencontainers.image.title="Carbonoz SolarAutopilot" \
+    org.opencontainers.image.description="CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control" \
+    org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
+    org.opencontainers.image.authors="Elite Desire <eelitedesire@gmail.com>" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.url="https://github.com/eelitedesire/carbonoz_solarautopilot" \
+    org.opencontainers.image.source="https://github.com/eelitedesire/carbonoz_solarautopilot" \
+    org.opencontainers.image.documentation="https://github.com/eelitedesire/carbonoz_solarautopilot/blob/main/README.md" \
+    org.opencontainers.image.created=${BUILD_DATE} \
+    org.opencontainers.image.revision=${BUILD_REF} \
+    org.opencontainers.image.version=${BUILD_VERSION}
 
 # Environment variables for memory optimization
 ENV NODE_ENV=production
