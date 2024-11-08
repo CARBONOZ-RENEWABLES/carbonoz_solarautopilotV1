@@ -58,7 +58,7 @@ const influx = new Influx.InfluxDB(influxConfig)
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'homeassistant.local',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,

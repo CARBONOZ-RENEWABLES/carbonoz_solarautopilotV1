@@ -19,6 +19,7 @@ arch:
 map:
   - share:rw
   - ssl
+  - /data:/data
 ports:
   3001/tcp: 3001
   6789/tcp: 6789
