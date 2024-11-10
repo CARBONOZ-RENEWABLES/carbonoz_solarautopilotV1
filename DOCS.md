@@ -49,8 +49,6 @@ CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of yo
 Configure the add-on using the following YAML structure:
 
 ```yaml
-mqtt_host: 192.168.160.55    # Your MQTT broker IP address
-mqtt_port: 1883              # MQTT broker port
 mqtt_username: ""            # MQTT username (if required)
 mqtt_password: ""            # MQTT password (if required)
 battery_number:              # Number of batteries in your system

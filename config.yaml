@@ -30,8 +30,6 @@ ports_description:
   6789/tcp: Main application
   7100/tcp: WebSocket
 options:
-  mqtt_host: ""
-  mqtt_port: 1883
   mqtt_username: ""
   mqtt_password: ""
   mqtt_topic_prefix: "solar_assistant_DEYE"
@@ -40,8 +38,6 @@ options:
   clientId: ""
   clientSecret: ""
 schema:
-  mqtt_host: str
-  mqtt_port: port
   mqtt_username: str?
   mqtt_password: password?
   mqtt_topic_prefix: str
