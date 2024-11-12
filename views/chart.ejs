@@ -170,7 +170,7 @@
                     <div class="dashboard-container">
                         <iframe 
                             id="grafanaDashboard"
-                            src="<%= grafanaUrl %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=light" 
+                            src="http://<%= mqtt_host %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=light" 
                             allowfullscreen>
                         </iframe>
                     </div>
@@ -198,7 +198,7 @@ function updateIframe() {
         const fromUnix = new Date(from).getTime();
         const toUnix = new Date(to).getTime();
         const theme = isDarkMode ? 'dark' : 'light'; // Set the correct theme based on dark mode state
-        iframe.src = `<%= grafanaUrl %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=${theme}&from=${fromUnix}&to=${toUnix}&tz=${timezone}`;
+        iframe.src = `http://<%= mqtt_host %>:3001/d/solar_dashboard/solar-dashboard?orgId=1&kiosk=1&refresh=1m&theme=${theme}&from=${fromUnix}&to=${toUnix}&tz=${timezone}`;
     } else {
         alert("Please select both a start and end time.");
     }
