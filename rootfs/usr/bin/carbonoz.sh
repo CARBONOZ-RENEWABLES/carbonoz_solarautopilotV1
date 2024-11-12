@@ -9,6 +9,7 @@ export NODE_ENV=production
 export NODE_OPTIONS="--max-old-space-size=256"
 
 # Get MQTT configuration
+export MQTT_HOST=$(bashio::config 'mqtt_host')
 export MQTT_USERNAME=$(bashio::config 'mqtt_username')
 export MQTT_PASSWORD=$(bashio::config 'mqtt_password')
 export MQTT_TOPIC_PREFIX=$(bashio::config 'mqtt_topic_prefix')
