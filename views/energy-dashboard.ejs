@@ -29,7 +29,7 @@
             <div class="main-content">
                     <div class="dashboard-column">
                         <div class="card">
-                            <iframe src="<%= grafanaUrl %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
+                            <iframe src="http://<%= mqtt_host %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
                                     class="iframe-moving"
                                     scrolling="no"
                                     frameborder="0">
@@ -39,7 +39,7 @@
                 
                     <div class="dashboard-column">
                         <div class="card">
-                            <iframe src="<%= grafanaUrl %>:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=2&theme=light" class="iframe-overview" scrolling="no"
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=2&theme=light" class="iframe-overview" scrolling="no"
                                     frameborder="0">
                             </iframe>
                         </div>
@@ -47,13 +47,13 @@
                 
                     <div class="dashboard-column">
                         <div class="card column-4">
-                            <iframe src="<%= grafanaUrl %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=116&theme=light" class="iframe-battery-soc"
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=116&theme=light" class="iframe-battery-soc"
                                     scrolling="no" frameborder="0">
                             </iframe>
-                            <iframe src="<%= grafanaUrl %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=139&theme=light" class="iframe-battery-soc"
+                            <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=139&theme=light" class="iframe-battery-soc"
                               scrolling="no" frameborder="0">
                       </iframe>
-                      <iframe src="<%= grafanaUrl %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=135&theme=light" class="iframe-battery-soc"
+                      <iframe src="http://<%= mqtt_host %>:3001/d-solo/solar_dashboard??orgId=1&refresh=1m&panelId=135&theme=light" class="iframe-battery-soc"
                         scrolling="no" frameborder="0">
                 </iframe>
                         </div>
