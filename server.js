@@ -37,7 +37,7 @@ app.use(cookieParser())
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-const grafanaUrl = options.mqtt_host
+
 // Extract inverter and battery numbers from options
 const inverterNumber = options.inverter_number || 1
 const batteryNumber = options.battery_number || 1
@@ -46,7 +46,7 @@ const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}'
 
 // InfluxDB configuration
 const influxConfig = {
-   host: 'localhost', 
+  host: options.mqtt_host,
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -58,7 +58,7 @@ const influx = new Influx.InfluxDB(influxConfig)
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'homeassistant.local',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -227,7 +227,7 @@ app.get('/api/messages', (req, res) => {
 app.get('/chart', (req, res) => {
   res.render('chart', {
     ingress_path: process.env.INGRESS_PATH || '',
-    grafanaUrl, 
+    mqtt_host: options.mqtt_host, // Include mqtt_host here
   })
 })
 
@@ -378,7 +378,7 @@ app.get('/', (req, res) => {
 
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
-    grafanaUrl,
+    mqtt_host: options.mqtt_host,
     inverterWarning,
     batteryWarning,
     batteryMessages: debugBatteryMessages(incomingMessages) // Add this for debugging in the view
