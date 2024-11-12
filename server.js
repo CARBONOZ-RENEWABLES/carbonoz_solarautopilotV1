@@ -37,7 +37,7 @@ app.use(cookieParser())
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-const grafanaUrl = 'http://homeassistant.local';
+const grafanaUrl = options.mqtt_host
 // Extract inverter and battery numbers from options
 const inverterNumber = options.inverter_number || 1
 const batteryNumber = options.battery_number || 1
