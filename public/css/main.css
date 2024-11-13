@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 body {
     font-family: 'Inter', sans-serif;
 }
@@ -486,11 +486,16 @@ border: 0;
 .dashboard-column .card .iframe-moving {
 display: block;
 height: 100%;
-min-height: 29em;
+min-height: 33em;
 position: relative;
 width: 100%;
 }
 
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-moving {
+ min-height: 107em;
+}
+}
 .dashboard-column .card .iframe-overview {
 display: block;
 height: 100%;
