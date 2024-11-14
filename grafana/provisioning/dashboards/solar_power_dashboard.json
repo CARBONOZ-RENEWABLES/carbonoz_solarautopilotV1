@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -72,13 +72,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -142,13 +142,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -215,13 +215,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -288,13 +288,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -361,13 +361,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -431,13 +431,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -502,13 +502,13 @@
             "lastNotNull"
           ],
           "fields": "",
-          "values": false
+          "values": true
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0",
+      "pluginVersion": "11.3.0+security-01",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -523,7 +523,7 @@
       "type": "gauge"
     }
   ],
-  "preload": false,
+  "preload": true,
   "refresh": "1s",
   "schemaVersion": 40,
   "tags": [],
@@ -531,13 +531,13 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 1,
+  "version": 9,
   "weekStart": ""
 }
