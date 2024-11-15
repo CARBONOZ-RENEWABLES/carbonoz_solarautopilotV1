@@ -49,7 +49,7 @@ CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of yo
 Configure the add-on using the following YAML structure:
 
 ```yaml
-mqtt_host: "homeassistant-andreas-raspberry.zebu-beaufort.ts.net|| homeassistant ip"
+mqtt_host: "broker.carbonoz.com"
 mqtt_username: ""            # MQTT username (if required)
 mqtt_password: ""            # MQTT password (if required)
 battery_number:              # Number of batteries in your system
