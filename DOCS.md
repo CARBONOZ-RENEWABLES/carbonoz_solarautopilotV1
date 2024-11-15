@@ -60,7 +60,7 @@ clientSecret: ""            # Your client secret
 ```
 
 ## Additional Resources
-For detailed documentation and support, visit [https://solarautopilot.com/](https://solarautopilot.com/)
+For detailed documentation and support, visit [https://solarautopilot.com/](https://solarautopilot.com)
 
 ## License
 MIT License
