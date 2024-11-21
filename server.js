@@ -19,7 +19,6 @@ const port = process.env.PORT || 6789
 const socketPort = 7100
 const { http } = require('follow-redirects')
 const cors = require('cors')
-const { connectDatabase, prisma } = require('./config/mongodb')
 const { startOfDay } = require('date-fns')
 const { AuthenticateUser } = require('./utils/mongoService')
 
@@ -474,9 +473,6 @@ const getRealTimeData = async () => {
 const server = app.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running on http://0.0.0.0:${port}`)
   connectToMqtt()
-  connectDatabase()
-    .then(() => console.log('Database connected'))
-    .catch((err) => console.log({ err }))
 })
 
 const wss = new WebSocket.Server({ server })
@@ -503,37 +499,6 @@ wss.on('connection', (ws) => {
       }
     }
   })()
-
-  // mqttClient.on('message', async () => {
-  //   const { load, pv, gridIn, gridOut, batteryCharged, batteryDischarged } =
-  //     await getRealTimeData()
-  //   const topics = await prisma.topic.findMany()
-  //   const port = options.mqtt_host
-  //   const date = new Date()
-  //   const isForServer = true
-  //   topics.forEach((t) => {
-  //     wss.clients.forEach((client) => {
-  //       if (client.readyState === WebSocket.OPEN) {
-  //         topics.forEach((t) => {
-  //           client.send(
-  //             JSON.stringify({
-  //               date,
-  //               userId: t.userId,
-  //               pv,
-  //               load,
-  //               gridIn,
-  //               gridOut,
-  //               batteryCharged,
-  //               batteryDischarged,
-  //               port,
-  //               isForServer,
-  //             })
-  //           )
-  //         })
-  //       }
-  //     })
-  //   })
-  // })
   ws.on('error', (error) => {
     console.error('WebSocket error:', error)
   })

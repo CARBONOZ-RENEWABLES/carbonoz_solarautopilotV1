@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const url = `http://192.168.160.190/api/v1/auth/authenticate`;
+const url = `https://api.carbonoz.com:9000/api/v1/auth/authenticate`;
 
 const AuthenticateUser = async (options) => {
   const clientId = options.clientId;
