@@ -10,12 +10,12 @@ ARG S6_OVERLAY_VERSION=3.1.5.0
 RUN \
     curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -Jxpf - -C / \
     && case "${BUILD_ARCH}" in \
-        "aarch64") S6_ARCH="aarch64" ;; \
-        "amd64") S6_ARCH="x86_64" ;; \
-        "armhf") S6_ARCH="armhf" ;; \
-        "armv7") S6_ARCH="arm" ;; \
-        "i386") S6_ARCH="i686" ;; \
-        *) S6_ARCH="x86_64" ;; \
+    "aarch64") S6_ARCH="aarch64" ;; \
+    "amd64") S6_ARCH="x86_64" ;; \
+    "armhf") S6_ARCH="armhf" ;; \
+    "armv7") S6_ARCH="arm" ;; \
+    "i386") S6_ARCH="i686" ;; \
+    *) S6_ARCH="x86_64" ;; \
     esac \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
 # Install base system dependencies
@@ -52,9 +52,6 @@ COPY rootfs /
 COPY . .
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
-# Generate Prisma client with production optimization
-RUN npx prisma generate \
-    && npm prune --production
 # Make scripts executable
 RUN chmod a+x /etc/services.d/carbonoz/run \
     && chmod a+x /etc/services.d/carbonoz/finish \
