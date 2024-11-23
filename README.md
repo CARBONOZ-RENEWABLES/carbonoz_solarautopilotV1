@@ -31,7 +31,7 @@ Join CARBONOZ to:
 - MQTT Support
 - Custom Automation Templates
   
-![Solar Autopilot](logo.png)
+![Solar Autopilot](images/screenshot.png)
 
 ### 📚 Documentation
 
