@@ -1,6 +1,5 @@
 # CARBONOZ SolarAutopilot
 
-![Solar Autopilot](logo.png)
 
 ## Home Assistant Add-on: CARBONOZ SolarAutopilot
 
@@ -31,6 +30,8 @@ Join CARBONOZ to:
 - Home Assistant Integration
 - MQTT Support
 - Custom Automation Templates
+  
+![Solar Autopilot](logo.png)
 
 ### 📚 Documentation
 
