@@ -8,13 +8,9 @@ CARBONOZ SolarAutopilot is a comprehensive solar monitoring and control solution
 
 CO2 offsetting is a strategy used to mitigate the impact of greenhouse gas emissions by compensating for them through activities that reduce or remove an equivalent amount of CO2 from the atmosphere. This can include investing in renewable energy projects, reforestation, or other sustainability initiatives. By contributing to CO2 offsets, individuals and businesses can play a significant role in addressing climate change and achieving global carbon neutrality goals.
 
-For solar system owners, CO2 offsetting is particularly relevant. Solar energy systems generate clean, renewable energy, reducing the need for electricity from fossil fuel-powered plants. Each kilowatt-hour (kWh) of solar energy produced prevents the release of a measurable amount of CO2 into the atmosphere. By tracking their system's energy output, solar owners can calculate the amount of CO2 their system offsets and leverage this data for economic and environmental benefits.
+For solar system owners, CO2 offsetting is particularly relevant. Solar energy systems generate clean, renewable energy, reducing the need for electricity from fossil fuel-powered plants. Each kilowatt-hour (kWh) of solar energy produced prevents the release of a measurable amount of CO2 into the atmosphere. By tracking their system’s energy output, solar owners can calculate the amount of CO2 their system offsets and leverage this data for economic and environmental benefits.
 
-Create your own account at [login.carbonoz.com](https://login.carbonoz.com) to become part of our movement to:
-- Log your electricity production
-- Receive valuable system optimization advice
-- Offer your CO2 offsets on the market
-- Soon: Receive compensation for your CO2 offsets (under development)
+Create your own account under login.carbonoz.com to become part of our movement to log your electricity production. This also offers you valuable system optimisation advice and make your CO2 offsets marketable. Soon we will offer paybacks for your CO2 offset evidence (under development).
 
 ## Features
 
