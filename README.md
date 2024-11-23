@@ -1,8 +1,7 @@
 # CARBONOZ SolarAutopilot
 
-## About
-
-CARBONOZ SolarAutopilot is a comprehensive solar monitoring and control solution for Home Assistant that combines powerful system management with environmental impact tracking.
+## Home Assistant Add-on: CARBONOZ SolarAutopilot
+CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
 
 ### Environmental Impact & CO2 Offsetting
 
@@ -12,55 +11,5 @@ For solar system owners, CO2 offsetting is particularly relevant. Solar energy s
 
 Create your own account under login.carbonoz.com to become part of our movement to log your electricity production. This also offers you valuable system optimisation advice and make your CO2 offsets marketable. Soon we will offer paybacks for your CO2 offset evidence (under development).
 
-## Features
 
-- Live Solar Dashboard with real-time monitoring
-- MQTT inverter control integration
-- CO2 offset tracking and reporting
-- System optimization recommendations
-- Multiple architecture support (aarch64, amd64, armhf, armv7, i386)
-- Integrated web interface
-- Secure WebSocket communication
-- Built-in InfluxDB for data storage
 
-## Installation
-
-1. Add our repository to your Home Assistant instance
-2. Search for "CARBONOZ SolarAutopilot" in the add-on store
-3. Install the add-on
-4. Configure the required settings
-
-## Configuration
-
-```yaml
-mqtt_host: ""          # Your MQTT broker host
-mqtt_username: ""      # MQTT username (optional)
-mqtt_password: ""      # MQTT password (optional)
-mqtt_topic_prefix: "solar_assistant_DEYE"  # MQTT topic prefix
-battery_number: 1      # Number of batteries in your system
-inverter_number: 1     # Number of inverters in your system
-clientId: ""          # Your CARBONOZ client ID
-clientSecret: ""      # Your CARBONOZ client secret
-```
-
-## Network Ports
-
-The add-on uses the following ports:
-- 3001/tcp: Web interface (optional)
-- 6789/tcp: Main application
-- 7100/tcp: WebSocket
-- 8086/tcp: InfluxDB
-
-## Support
-
-For support, please visit:
-- GitHub Issues: [https://github.com/CARBONOZ-RENEWABLES/solarautopilot/issues](https://github.com/CARBONOZ-RENEWABLES/solarautopilot/issues)
-- Website: [https://carbonoz.com](https://carbonoz.com)
-
-## License
-
-This project is licensed under the MIT License.
-
-## Contributing
-
-We welcome contributions! Please see our contributing guidelines in the repository.
