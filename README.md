@@ -15,7 +15,7 @@ Create your own account under  [[https://login.carbonoz.com](https://login.carbo
 
 
   
-![Solar Autopilot](images/screenshot.png)
+![Solar Autopilot](https://carbonoz.com/assets/images/image07.jpg?v=ec2a6fe4)
 
 
 
