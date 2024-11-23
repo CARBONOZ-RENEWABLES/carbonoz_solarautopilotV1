@@ -16,7 +16,7 @@ const carbonIntensityCache = new Map();
 
 const app = express()
 const port = process.env.PORT || 6789
-const socketPort = 7100
+const socketPort = 8000
 const { http } = require('follow-redirects')
 const cors = require('cors')
 const { startOfDay } = require('date-fns')

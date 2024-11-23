@@ -17,12 +17,12 @@ map:
 ports:
   "3001/tcp": 3001
   "6789/tcp": 6789
-  "7100/tcp": 7100
+  "8000/tcp": 8000
   "8086/tcp": 8086
 ports_description:
   3001/tcp: "Web interface (optional)"
   6789/tcp: "Main application"
-  7100/tcp: "WebSocket"
+  8000/tcp: "WebSocket"
   8086/tcp: "InfluxDB"
 panel_icon: "mdi:solar-power"
 panel_title: "Carbonoz SolarAutopilot"
