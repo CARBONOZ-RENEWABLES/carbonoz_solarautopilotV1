@@ -13,6 +13,7 @@ map:
   - share:rw
   - ssl
   - /data:/data
+  - /data/backup:/data/backup
 ports:
   "3001/tcp": 3001
   "6789/tcp": 6789

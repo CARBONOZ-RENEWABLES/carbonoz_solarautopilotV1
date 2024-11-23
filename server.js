@@ -377,7 +377,7 @@ app.get('/', (req, res) => {
 
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
-    mqtt_host: options.mqtt_host,
+    mqtt_host: options.mqtt_host, // Include mqtt_host here
     inverterWarning,
     batteryWarning,
     batteryMessages: debugBatteryMessages(incomingMessages) // Add this for debugging in the view

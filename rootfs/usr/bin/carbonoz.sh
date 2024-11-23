@@ -18,20 +18,35 @@ export INVERTER_NUMBER=$(bashio::config 'inverter_number')
 export CLIENT_USERNAME=$(bashio::config 'client_username')
 export CLIENT_PASSWORD=$(bashio::config 'client_password')
 
+# Set directory permissions
+bashio::log.info "Setting directory permissions..."
+chown -R nobody:nobody /data/influxdb
+chmod -R 755 /data/influxdb
+
 # Update Grafana configuration
 sed -i "s|^root_url = .*|root_url = ${INGRESS_PATH}|g" /etc/grafana/grafana.ini
 
-# Start services with reduced memory footprint
-grafana-server \
-    --config /etc/grafana/grafana.ini \
-    --homepath /usr/share/grafana \
-    --pidfile /var/run/grafana.pid &
+# Check if InfluxDB data exists
+if [ ! -d "/data/influxdb/meta" ]; then
+    bashio::log.warning "No existing InfluxDB data found, initializing fresh setup..."
+    mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal
+    chown -R nobody:nobody /data/influxdb
+else
+    bashio::log.info "Existing InfluxDB data found, using it..."
+fi
 
-# Start InfluxDB with memory limits
+# Restore data if needed
+if [ ! -d "/data/influxdb/meta" ] && [ -d "/data/influxdb/backup" ]; then
+    bashio::log.warning "Restoring InfluxDB data from backup..."
+    influxd restore -portable -db home_assistant /data/influxdb/backup
+fi
+
+# Start InfluxDB
+bashio::log.info "Starting InfluxDB..."
 influxd -config /etc/influxdb/influxdb.conf &
 
-# Wait for InfluxDB to start
-bashio::log.info "Waiting for InfluxDB to start..."
+# Wait for InfluxDB to initialize
+bashio::log.info "Waiting for InfluxDB to initialize..."
 for i in {1..30}; do
     if influx -execute "SHOW DATABASES" >/dev/null 2>&1; then
         break
@@ -39,21 +54,25 @@ for i in {1..30}; do
     sleep 1
 done
 
-# Initialize database with error handling
-if ! influx -execute "CREATE DATABASE home_assistant" 2>/dev/null; then
-    bashio::log.info "Database already exists or creation failed"
+# Database and user setup
+if ! influx -execute "SHOW DATABASES" | grep -q "home_assistant"; then
+    bashio::log.info "Creating 'home_assistant' database..."
+    influx -execute "CREATE DATABASE home_assistant"
+else
+    bashio::log.info "'home_assistant' database already exists."
 fi
 
-if ! influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'" 2>/dev/null; then
-    bashio::log.info "User already exists or creation failed"
+if ! influx -execute "SHOW USERS" | grep -q "admin"; then
+    bashio::log.info "Creating 'admin' user..."
+    influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'"
+    influx -execute "GRANT ALL ON home_assistant TO admin"
+else
+    bashio::log.info "'admin' user already exists."
 fi
 
-influx -execute "GRANT ALL ON home_assistant TO admin"
+# Start Grafana
+grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana --pidfile /var/run/grafana.pid &
 
-# Start Node.js application with memory optimization
+# Start Node.js application
 cd /usr/src/app
-exec node \
-    --max-old-space-size=256 \
-    --gc-interval=100 \
-    --optimize-for-size \
-    server.js
+exec node --max-old-space-size=256 --gc-interval=100 --optimize-for-size server.js
