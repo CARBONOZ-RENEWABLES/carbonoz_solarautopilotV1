@@ -17,16 +17,8 @@ Create your own account under  [[https://login.carbonoz.com](https://login.carbo
   
 ![Solar Autopilot](images/screenshot.png)
 
-### 📚 Documentation
 
-For complete documentation, visit:
-[CARBONOZ Documentation](https://docs.carbonoz.com)
 
-### 🤝 Support
 
-Need help? Reach out to us:
-- [GitHub Issues](https://github.com/CARBONOZ-RENEWABLES/solarautopilot/issues)
-- [Community Forum](https://login.carbonoz.com)
-- [Email Support](mailto:support@carbonoz.com)
 
 
