@@ -11,7 +11,7 @@ CO2 offsetting is a strategy used to mitigate the impact of greenhouse gas emiss
 
 For solar system owners, CO2 offsetting is particularly relevant. Solar energy systems generate clean, renewable energy, reducing the need for electricity from fossil fuel-powered plants. Each kilowatt-hour (kWh) of solar energy produced prevents the release of a measurable amount of CO2 into the atmosphere. By tracking their system's energy output, solar owners can calculate the amount of CO2 their system offsets and leverage this data for economic and environmental benefits.
 
-Create your own account under  [[https://solarautopilot.com](https://solarautopilot.com)/](https://solarautopilot.com/) to become part of our movement to log your electricity production. This also offers you valuable system optimisation advice and make your CO2 offsets marketable. Soon we will offer paybacks for your CO2 offset evidence (under development).
+Create your own account under  [[https://solarautopilot.com](https://solarautopilot.com)/] to become part of our movement to log your electricity production. This also offers you valuable system optimisation advice and make your CO2 offsets marketable. Soon we will offer paybacks for your CO2 offset evidence (under development).
 
 
   
