@@ -509,15 +509,15 @@ wss.on('connection', (ws) => {
 let currentApiKey = '';  // API key stored in memory
 
 app.get('/settings', async (req, res) => {
-  const zones = await getZones()
-  const selectedZone = req.cookies[COOKIE_NAME] || ''
+  const zones = await getZones();
+  const selectedZone = req.cookies[COOKIE_NAME] || '';
   res.render('settings', {
     zones,
     selectedZone,
     api_key: currentApiKey,
     ingress_path: process.env.INGRESS_PATH || '',
-  })
-})
+  });
+});
 
 app.post('/api/api-key', (req, res) => {
   const { api_key } = req.body;  // Get the submitted API key from the form
@@ -534,11 +534,15 @@ app.post('/api/api-key', (req, res) => {
 
 // Route for displaying results
 app.get('/results', async (req, res) => {
+  // Retrieve the selected zone, prioritizing in this order:
+  // 1. Query parameter
+  // 2. Existing cookie
+  // 3. Null (if no zone has been selected before)
   let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null;
   const zones = await getZones();
 
   // If a new zone is selected, update the cookie
-  if (req.query.zone && req.query.zone !== req.cookies[COOKIE_NAME]) {
+  if (req.query.zone) {
     res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS);
     selectedZone = req.query.zone;
   }
@@ -547,6 +551,7 @@ app.get('/results', async (req, res) => {
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
     let error = null;
 
+    // Only attempt to fetch data if a zone is selected
     if (selectedZone) {
       try {
         [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
@@ -622,10 +627,20 @@ async function getZones() {
     return [];
   }
 }
+
+
 app.get('/clear-zone', (req, res) => {
-  res.clearCookie(COOKIE_NAME)
-  res.redirect(`${process.env.INGRESS_PATH || ''}/results`)
-})
+  // Instead of completely clearing the cookie, you could:
+  // 1. Redirect to results page with the existing zone
+  const existingZone = req.cookies[COOKIE_NAME];
+  if (existingZone) {
+    res.redirect(`${process.env.INGRESS_PATH || ''}/results?zone=${existingZone}`);
+  } else {
+    // If no zone exists, then clear the cookie and redirect
+    res.clearCookie(COOKIE_NAME);
+    res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
+  }
+});
 
 
 
