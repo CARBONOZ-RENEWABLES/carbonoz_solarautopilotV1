@@ -9,10 +9,10 @@ const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
 const axios = require('axios')
-const cookieParser = require('cookie-parser');
-const { backOff } = require('exponential-backoff');
-const CACHE_DURATION = 3600000; // 1 hour in milliseconds
-const carbonIntensityCache = new Map();
+const cookieParser = require('cookie-parser')
+const { backOff } = require('exponential-backoff')
+const CACHE_DURATION = 3600000 // 1 hour in milliseconds
+const carbonIntensityCache = new Map()
 
 const app = express()
 const port = process.env.PORT || 6789
@@ -129,28 +129,34 @@ function connectToMqtt() {
 // Save MQTT message to InfluxDB
 async function saveMessageToInfluxDB(topic, message) {
   try {
-      const parsedMessage = parseFloat(message.toString());
+    const parsedMessage = parseFloat(message.toString())
 
-      if (isNaN(parsedMessage)) {
-          return;
+    if (isNaN(parsedMessage)) {
+      return
+    }
+
+    const timestamp = new Date().getTime()
+    const dataPoint = {
+      measurement: 'state',
+      fields: { value: parsedMessage },
+      tags: { topic: topic },
+      timestamp: timestamp * 1000000,
+    }
+
+    await retry(
+      async () => {
+        await influx.writePoints([dataPoint])
+      },
+      {
+        retries: 5,
+        minTimeout: 1000,
       }
-
-      const timestamp = new Date().getTime();
-      const dataPoint = {
-          measurement: 'state',
-          fields: { value: parsedMessage },
-          tags: { topic: topic },
-          timestamp: timestamp * 1000000,
-      };
-
-      await retry(async () => {
-          await influx.writePoints([dataPoint]);
-      }, {
-          retries: 5,
-          minTimeout: 1000
-      });
+    )
   } catch (err) {
-      console.error('Error saving message to InfluxDB:', err.response ? err.response.body : err.message);
+    console.error(
+      'Error saving message to InfluxDB:',
+      err.response ? err.response.body : err.message
+    )
   }
 }
 
@@ -182,12 +188,15 @@ async function queryInfluxDBForYear(topic) {
     WHERE "topic" = '${topic}'
     AND time >= now() - 365d
     GROUP BY time(1d) tz('${currentTimezone}')
-  `;
+  `
   try {
-    return await influx.query(query);
+    return await influx.query(query)
   } catch (error) {
-    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-    throw error;
+    console.error(
+      `Error querying InfluxDB for topic ${topic}:`,
+      error.toString()
+    )
+    throw error
   }
 }
 
@@ -198,16 +207,17 @@ async function queryInfluxDBForDecade(topic) {
     WHERE "topic" = '${topic}'
     AND time >= now() - 3650d
     GROUP BY time(1d) tz('${currentTimezone}')
-  `;
+  `
   try {
-    return await influx.query(query);
+    return await influx.query(query)
   } catch (error) {
-    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-    throw error;
+    console.error(
+      `Error querying InfluxDB for topic ${topic}:`,
+      error.toString()
+    )
+    throw error
   }
 }
-
-
 
 // Route handlers
 app.get('/messages', (req, res) => {
@@ -237,19 +247,19 @@ app.get('/analytics', async (req, res) => {
 
     if (selectedZone) {
       try {
-        carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
+        carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone)
       } catch (carbonError) {
-        console.error('Error fetching carbon intensity data:', carbonError);
+        console.error('Error fetching carbon intensity data:', carbonError)
         // Continue without carbon intensity data
       }
     }
-    
+
     const [
-      loadPowerData, 
-      pvPowerData, 
-      batteryStateOfChargeData, 
-      batteryPowerData, 
-      gridPowerData, 
+      loadPowerData,
+      pvPowerData,
+      batteryStateOfChargeData,
+      batteryPowerData,
+      gridPowerData,
       gridVoltageData,
       loadPowerYear,
       pvPowerYear,
@@ -262,7 +272,7 @@ app.get('/analytics', async (req, res) => {
       batteryStateOfChargeDecade,
       batteryPowerDecade,
       gridPowerDecade,
-      gridVoltageDecade
+      gridVoltageDecade,
     ] = await Promise.all([
       queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
       queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
@@ -278,11 +288,15 @@ app.get('/analytics', async (req, res) => {
       queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDBForDecade(
+        `${mqttTopicPrefix}/total/battery_energy_in/state`
+      ),
+      queryInfluxDBForDecade(
+        `${mqttTopicPrefix}/total/battery_energy_out/state`
+      ),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-    ]);
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+    ])
 
     const data = {
       loadPowerData,
@@ -304,38 +318,38 @@ app.get('/analytics', async (req, res) => {
       batteryStateOfChargeDecade,
       batteryPowerDecade,
       gridPowerDecade,
-      gridVoltageDecade
-    };
+      gridVoltageDecade,
+    }
 
     res.render('analytics', {
       data,
       ingress_path: process.env.INGRESS_PATH || '',
     })
   } catch (error) {
-    console.error('Error fetching analytics data:', error);
-    res.status(500).json({ 
+    console.error('Error fetching analytics data:', error)
+    res.status(500).json({
       error: 'Error fetching analytics data',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+      details:
+        process.env.NODE_ENV === 'development' ? error.message : undefined,
+    })
   }
 })
 
-
 function checkInverterMessages(messages, expectedInverters) {
-  const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`);
-  const foundInverters = new Set();
-  
-  messages.forEach(message => {
-    const match = message.match(inverterPattern);
+  const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`)
+  const foundInverters = new Set()
+
+  messages.forEach((message) => {
+    const match = message.match(inverterPattern)
     if (match) {
-      foundInverters.add(parseInt(match[1]));
+      foundInverters.add(parseInt(match[1]))
     }
-  });
+  })
 
   if (foundInverters.size !== expectedInverters) {
-    return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s).`;
+    return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s).`
   }
-  return null;
+  return null
 }
 
 function checkBatteryInformation(messages) {
@@ -344,46 +358,52 @@ function checkBatteryInformation(messages) {
     new RegExp(`${mqttTopicPrefix}/battery_\\d+/`),
     new RegExp(`${mqttTopicPrefix}/battery/`),
     new RegExp(`${mqttTopicPrefix}/total/battery`),
-    new RegExp(`${mqttTopicPrefix}/\\w+/battery`)
-  ];
-  
+    new RegExp(`${mqttTopicPrefix}/\\w+/battery`),
+  ]
+
   // Check if any message matches any of the battery patterns
-  const hasBatteryInfo = messages.some(message => 
-    batteryPatterns.some(pattern => pattern.test(message))
-  );
-  
+  const hasBatteryInfo = messages.some((message) =>
+    batteryPatterns.some((pattern) => pattern.test(message))
+  )
+
   // Add debug logging to help troubleshoot
   if (!hasBatteryInfo) {
-    console.log('Debug: No battery messages found. Current messages:', 
-      messages.filter(msg => msg.toLowerCase().includes('battery')));
-    return "Warning: No battery information found in recent messages.";
+    console.log(
+      'Debug: No battery messages found. Current messages:',
+      messages.filter((msg) => msg.toLowerCase().includes('battery'))
+    )
+    return 'Warning: No battery information found in recent messages.'
   }
 
-  return null;
+  return null
 }
 
 // Helper function to see what battery messages are being received
 function debugBatteryMessages(messages) {
-  const batteryMessages = messages.filter(msg => msg.toLowerCase().includes('battery'));
-  console.log('Current battery-related messages:', batteryMessages);
-  return batteryMessages;
+  const batteryMessages = messages.filter((msg) =>
+    msg.toLowerCase().includes('battery')
+  )
+  console.log('Current battery-related messages:', batteryMessages)
+  return batteryMessages
 }
 
 app.get('/', (req, res) => {
-  const expectedInverters = parseInt(options.inverter_number) || 1;
-  const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-    
-  const batteryWarning = checkBatteryInformation(incomingMessages);
+  const expectedInverters = parseInt(options.inverter_number) || 1
+  const inverterWarning = checkInverterMessages(
+    incomingMessages,
+    expectedInverters
+  )
+
+  const batteryWarning = checkBatteryInformation(incomingMessages)
 
   res.render('energy-dashboard', {
     ingress_path: process.env.INGRESS_PATH || '',
     mqtt_host: options.mqtt_host, // Include mqtt_host here
     inverterWarning,
     batteryWarning,
-    batteryMessages: debugBatteryMessages(incomingMessages) // Add this for debugging in the view
-  });
-});
-
+    batteryMessages: debugBatteryMessages(incomingMessages), // Add this for debugging in the view
+  })
+})
 
 app.get('/api/timezone', (req, res) => {
   res.json({ timezone: currentTimezone })
@@ -398,8 +418,7 @@ app.post('/api/timezone', (req, res) => {
   } else {
     res.status(400).json({ error: 'Invalid timezone' })
   }
-});
-
+})
 
 // Function to filter messages by category
 function filterMessagesByCategory(category) {
@@ -470,23 +489,19 @@ const getRealTimeData = async () => {
 }
 //send  on connection
 
-const server = app.listen(port, '0.0.0.0', async () => {
-  console.log(`Server is running on http://0.0.0.0:${port}`)
-  connectToMqtt()
-})
-
-const wss = new WebSocket.Server({ server })
-
-wss.on('connection', (ws) => {
-  ;(async () => {
+const connectToWebSocketBroker = async () => {
+  try {
+    const brokerServerUrl = `wss://broker.carbonoz.com:8000`
+    const wsClient = new WebSocket(brokerServerUrl)
     const isUser = await AuthenticateUser(options)
-    if (isUser) {
-      console.log('Client connected')
-      if (mqttClient) {
-        mqttClient.on('message', (topic, message) => {
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
+
+    wsClient.on('open', () => {
+      console.log('connected to WebSocket broker')
+      if (isUser) {
+        if (mqttClient) {
+          mqttClient.on('message', (topic, message) => {
+            if (wsClient.readyState === WebSocket.OPEN) {
+              wsClient.send(
                 JSON.stringify({
                   topic,
                   message: message.toString(),
@@ -495,42 +510,51 @@ wss.on('connection', (ws) => {
               )
             }
           })
-        })
+        }
       }
-    }
-  })()
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error)
-  })
-  ws.on('close', () => console.log('Client disconnected'))
+    })
+    wsClient.on('error', (error) => {
+      console.error('WebSocket Error:', error)
+    })
+
+    wsClient.on('close', () => {
+      console.log('Disconnected from WebSocket broker')
+    })
+  } catch (error) {
+    console.error({ error })
+  }
+}
+
+const server = app.listen(port, '0.0.0.0', async () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`)
+  connectToMqtt()
+  connectToWebSocketBroker()
 })
 
 // carbon intensity
-let currentApiKey = '';  // API key stored in memory
+let currentApiKey = '' // API key stored in memory
 
 app.get('/settings', async (req, res) => {
-  const zones = await getZones();
-  const selectedZone = req.cookies[COOKIE_NAME] || '';
+  const zones = await getZones()
+  const selectedZone = req.cookies[COOKIE_NAME] || ''
   res.render('settings', {
     zones,
     selectedZone,
     api_key: currentApiKey,
     ingress_path: process.env.INGRESS_PATH || '',
-  });
-});
+  })
+})
 
 app.post('/api/api-key', (req, res) => {
-  const { api_key } = req.body;  // Get the submitted API key from the form
+  const { api_key } = req.body // Get the submitted API key from the form
 
   if (api_key && typeof api_key === 'string') {
-    currentApiKey = api_key;  // Update the API key in memory
-    res.json({ success: true, api_key: currentApiKey });
+    currentApiKey = api_key // Update the API key in memory
+    res.json({ success: true, api_key: currentApiKey })
   } else {
-    res.status(400).json({ error: 'Invalid API Key' });
+    res.status(400).json({ error: 'Invalid API Key' })
   }
-});
-
-
+})
 
 // Route for displaying results
 app.get('/results', async (req, res) => {
@@ -538,48 +562,64 @@ app.get('/results', async (req, res) => {
   // 1. Query parameter
   // 2. Existing cookie
   // 3. Null (if no zone has been selected before)
-  let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null;
-  const zones = await getZones();
+  let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null
+  const zones = await getZones()
 
   // If a new zone is selected, update the cookie
   if (req.query.zone) {
-    res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS);
-    selectedZone = req.query.zone;
+    res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS)
+    selectedZone = req.query.zone
   }
 
   try {
-    let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
-    let error = null;
+    let historyData = [],
+      gridEnergyIn = [],
+      pvEnergy = [],
+      gridVoltage = []
+    let error = null
 
     // Only attempt to fetch data if a zone is selected
     if (selectedZone) {
       try {
-        [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
-          fetchCarbonIntensityHistory(selectedZone),
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
-        ]);
+        ;[historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all(
+          [
+            fetchCarbonIntensityHistory(selectedZone),
+            queryInfluxData(
+              `${mqttTopicPrefix}/total/grid_energy_in/state`,
+              '365d'
+            ),
+            queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
+            queryInfluxData(
+              `${mqttTopicPrefix}/total/grid_voltage/state`,
+              '365d'
+            ),
+          ]
+        )
       } catch (e) {
-        console.error('Error fetching data:', e);
-        error = 'Error fetching data. Please try again later.';
+        console.error('Error fetching data:', e)
+        error = 'Error fetching data. Please try again later.'
       }
     }
 
-    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+    const emissionsData = calculateEmissionsForPeriod(
+      historyData,
+      gridEnergyIn,
+      pvEnergy,
+      gridVoltage
+    )
 
     const periods = {
       week: emissionsData.slice(-7),
       month: emissionsData.slice(-30),
       quarter: emissionsData.slice(-90),
-      year: emissionsData
-    };
+      year: emissionsData,
+    }
 
     const todayData = emissionsData[emissionsData.length - 1] || {
       unavoidableEmissions: 0,
       avoidedEmissions: 0,
-      selfSufficiencyScore: 0
-    };
+      selfSufficiencyScore: 0,
+    }
 
     res.render('results', {
       selectedZone,
@@ -591,58 +631,60 @@ app.get('/results', async (req, res) => {
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
       ingress_path: process.env.INGRESS_PATH || '',
-    });
+    })
   } catch (error) {
-    console.error('Error processing data:', error);
+    console.error('Error processing data:', error)
     res.render('results', {
       selectedZone,
       zones,
       ingress_path: process.env.INGRESS_PATH || '',
-      error: 'Error processing data'
-    });
+      error: 'Error processing data',
+    })
   }
-});
+})
 
 // Helper functions
-const COOKIE_NAME = 'selectedZone';
+const COOKIE_NAME = 'selectedZone'
 const COOKIE_OPTIONS = {
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production'
-};
+  secure: process.env.NODE_ENV === 'production',
+}
 
 async function getZones() {
   try {
-    const response = await axios.get('https://api.electricitymap.org/v3/zones', { timeout: 10000 });
-    const data = response.data;
+    const response = await axios.get(
+      'https://api.electricitymap.org/v3/zones',
+      { timeout: 10000 }
+    )
+    const data = response.data
 
     return Object.entries(data)
       .map(([key, value]) => ({
         code: key,
-        zoneName: value.zoneName || key
+        zoneName: value.zoneName || key,
       }))
-      .sort((a, b) => a.zoneName.localeCompare(b.zoneName));
+      .sort((a, b) => a.zoneName.localeCompare(b.zoneName))
   } catch (error) {
-    console.error('Error fetching zones data:', error);
-    return [];
+    console.error('Error fetching zones data:', error)
+    return []
   }
 }
-
 
 app.get('/clear-zone', (req, res) => {
   // Instead of completely clearing the cookie, you could:
   // 1. Redirect to results page with the existing zone
-  const existingZone = req.cookies[COOKIE_NAME];
+  const existingZone = req.cookies[COOKIE_NAME]
   if (existingZone) {
-    res.redirect(`${process.env.INGRESS_PATH || ''}/results?zone=${existingZone}`);
+    res.redirect(
+      `${process.env.INGRESS_PATH || ''}/results?zone=${existingZone}`
+    )
   } else {
     // If no zone exists, then clear the cookie and redirect
-    res.clearCookie(COOKIE_NAME);
-    res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
+    res.clearCookie(COOKIE_NAME)
+    res.redirect(`${process.env.INGRESS_PATH || ''}/results`)
   }
-});
-
-
+})
 
 async function queryInfluxData(topic, duration = '365d') {
   const query = `
@@ -651,36 +693,47 @@ async function queryInfluxData(topic, duration = '365d') {
     WHERE "topic" = '${topic}'
     AND time >= now() - ${duration}
     GROUP BY time(1d) tz('${currentTimezone}')
-  `;
+  `
   try {
-    return await influx.query(query);
+    return await influx.query(query)
   } catch (error) {
-    console.error(`Error querying InfluxDB for topic ${topic}:`, error.toString());
-    throw error;
+    console.error(
+      `Error querying InfluxDB for topic ${topic}:`,
+      error.toString()
+    )
+    throw error
   }
 }
 
 async function fetchCarbonIntensityHistory(selectedZone) {
-  if (!selectedZone) return [];
+  if (!selectedZone) return []
 
-  const cacheKey = `${selectedZone}-${moment().format('YYYY-MM-DD')}`;
+  const cacheKey = `${selectedZone}-${moment().format('YYYY-MM-DD')}`
   if (carbonIntensityCache.has(cacheKey)) {
-    const cachedData = carbonIntensityCache.get(cacheKey);
+    const cachedData = carbonIntensityCache.get(cacheKey)
     if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
-      return cachedData.data;
+      return cachedData.data
     }
   }
 
-  const historyData = [];
-  const today = moment();
-  const oneYearAgo = moment().subtract(1, 'year');
-  const batchSize = 7;
+  const historyData = []
+  const today = moment()
+  const oneYearAgo = moment().subtract(1, 'year')
+  const batchSize = 7
 
   try {
-    for (let m = moment(oneYearAgo); m.isBefore(today); m.add(batchSize, 'days')) {
-      const batchPromises = [];
-      for (let i = 0; i < batchSize && m.clone().add(i, 'days').isBefore(today); i++) {
-        const date = m.clone().add(i, 'days').format('YYYY-MM-DD');
+    for (
+      let m = moment(oneYearAgo);
+      m.isBefore(today);
+      m.add(batchSize, 'days')
+    ) {
+      const batchPromises = []
+      for (
+        let i = 0;
+        i < batchSize && m.clone().add(i, 'days').isBefore(today);
+        i++
+      ) {
+        const date = m.clone().add(i, 'days').format('YYYY-MM-DD')
         batchPromises.push(
           backOff(() => fetchWithRetry(selectedZone, date), {
             numOfAttempts: 5,
@@ -688,82 +741,91 @@ async function fetchCarbonIntensityHistory(selectedZone) {
             timeMultiple: 2,
             maxDelay: 30000,
           })
-        );
+        )
       }
 
-      const batchResults = await Promise.all(batchPromises);
+      const batchResults = await Promise.all(batchPromises)
       batchResults.forEach((result, index) => {
         if (result && result.history && result.history.length > 0) {
           historyData.push({
             date: m.clone().add(index, 'days').format('YYYY-MM-DD'),
-            carbonIntensity: result.history[0].carbonIntensity
-          });
+            carbonIntensity: result.history[0].carbonIntensity,
+          })
         }
-      });
+      })
     }
 
     carbonIntensityCache.set(cacheKey, {
       data: historyData,
-      timestamp: Date.now()
-    });
+      timestamp: Date.now(),
+    })
 
-    return historyData;
+    return historyData
   } catch (error) {
-    console.error('Error in fetchCarbonIntensityHistory:', error);
-    return []; // Return empty array on error
+    console.error('Error in fetchCarbonIntensityHistory:', error)
+    return [] // Return empty array on error
   }
 }
 async function fetchWithRetry(selectedZone, date) {
   try {
-    const response = await axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
-      headers: { 
-        'Authorization': `Bearer ${currentApiKey}` // Correct template literal usage
-      },
-      timeout: 5000
-    });
-    return response.data;
+    const response = await axios.get(
+      `https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`,
+      {
+        headers: {
+          Authorization: `Bearer ${currentApiKey}`, // Correct template literal usage
+        },
+        timeout: 5000,
+      }
+    )
+    return response.data
   } catch (error) {
     if (error.response && error.response.status === 429) {
       // If rate limited, throw an error to trigger backoff
-      throw new Error('Rate limited');
+      throw new Error('Rate limited')
     }
-    console.error(`Error fetching data for ${date}:`, error.message);
-    return null;
+    console.error(`Error fetching data for ${date}:`, error.message)
+    return null
   }
 }
 
-
-function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage) {
+function calculateEmissionsForPeriod(
+  historyData,
+  gridEnergyIn,
+  pvEnergy,
+  gridVoltage
+) {
   return historyData.map((dayData, index) => {
-    const carbonIntensity = dayData.carbonIntensity;
-    const currentGridVoltage = gridVoltage[index]?.value || 0;
-    const isGridActive = Math.abs(currentGridVoltage) > 20;
+    const carbonIntensity = dayData.carbonIntensity
+    const currentGridVoltage = gridVoltage[index]?.value || 0
+    const isGridActive = Math.abs(currentGridVoltage) > 20
 
     // Get current day's grid and PV energy
-    let gridEnergy = gridEnergyIn[index]?.value || 0;
-    let solarEnergy = pvEnergy[index]?.value || 0;
+    let gridEnergy = gridEnergyIn[index]?.value || 0
+    let solarEnergy = pvEnergy[index]?.value || 0
 
     // Compare with the previous day's data
-    if (index > 0) { // Avoid comparison for the first entry
-      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0;
-      const prevPvEnergy = pvEnergy[index - 1]?.value || 0;
+    if (index > 0) {
+      // Avoid comparison for the first entry
+      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0
+      const prevPvEnergy = pvEnergy[index - 1]?.value || 0
 
       // Calculate the difference in grid and solar energy from the previous day
-      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy);
-      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy);
+      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy)
+      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy)
     }
 
     // Calculate emissions and self-sufficiency
-    let unavoidableEmissions = 0;
-    let avoidedEmissions = 0;
+    let unavoidableEmissions = 0
+    let avoidedEmissions = 0
 
     if (isGridActive) {
-      unavoidableEmissions = (gridEnergy * carbonIntensity) / 1000;
-      avoidedEmissions = (solarEnergy * carbonIntensity) / 1000;
+      unavoidableEmissions = (gridEnergy * carbonIntensity) / 1000
+      avoidedEmissions = (solarEnergy * carbonIntensity) / 1000
     }
 
-    const totalEnergy = gridEnergy + solarEnergy;
-    const selfSufficiencyScore = totalEnergy > 0 ? (solarEnergy / totalEnergy) * 100 : 0;
+    const totalEnergy = gridEnergy + solarEnergy
+    const selfSufficiencyScore =
+      totalEnergy > 0 ? (solarEnergy / totalEnergy) * 100 : 0
 
     return {
       date: dayData.date,
@@ -773,12 +835,10 @@ function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVo
       solarEnergy: solarEnergy,
       unavoidableEmissions: unavoidableEmissions,
       avoidedEmissions: avoidedEmissions,
-      selfSufficiencyScore: selfSufficiencyScore
-    };
-  });
+      selfSufficiencyScore: selfSufficiencyScore,
+    }
+  })
 }
-
-
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {
@@ -787,13 +847,13 @@ app.get('/api/grid-voltage', async (req, res) => {
       FROM "state"
       WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
       LIMIT 1
-    `);
-    res.json({ voltage: result[0]?.value || 0 });
+    `)
+    res.json({ voltage: result[0]?.value || 0 })
   } catch (error) {
-    console.error('Error fetching grid voltage:', error);
-    res.status(500).json({ error: 'Failed to fetch grid voltage' });
+    console.error('Error fetching grid voltage:', error)
+    res.status(500).json({ error: 'Failed to fetch grid voltage' })
   }
-});
+})
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {
