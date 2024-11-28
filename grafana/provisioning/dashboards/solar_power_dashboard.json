@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 7,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -82,7 +82,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -156,7 +156,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -233,7 +233,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -310,7 +310,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -387,11 +387,11 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "SELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/battery_[0-9]+\\/state_of_charge\\/state/\nLIMIT 1\n",
+          "query": "SELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/total\\/battery_state_of_charge\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -461,12 +461,12 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~ /.+\\/battery_[0-9]+\\/voltage\\/state/\nLIMIT 1\n",
+          "query": "\nSELECT last(\"value\") AS \"value\"\nFROM \"state\"\nWHERE \"topic\" =~  /.+\\/inverter_\\d+\\/battery_voltage\\/state/\nLIMIT 1\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -536,7 +536,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.0+security-01",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -566,6 +566,6 @@
   "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 9,
+  "version": 10,
   "weekStart": ""
 }
