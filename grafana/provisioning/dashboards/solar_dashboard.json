@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -2417,40 +2417,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "continuous-RdYlGr"
           },
           "decimals": 1,
           "mappings": [],
@@ -2499,18 +2466,30 @@
         "x": 0,
         "y": 72
       },
-      "id": 243,
+      "id": 135,
       "options": {
+        "displayMode": "lcd",
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
       },
       "pluginVersion": "11.3.1",
       "targets": [
@@ -2552,7 +2531,7 @@
           }
         }
       ],
-      "type": "timeseries"
+      "type": "bargauge"
     },
     {
       "datasource": "InfluxDB",
@@ -2911,7 +2890,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"value\") AS \"Battery Temperature\" FROM \"state\" WHERE \"topic\" =~ /.+\\/battery_\\d+\\/temperature\\/state/ ORDER BY time DESC LIMIT 1",
+          "query": "SELECT last(\"value\") AS \"Load Power\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /.+\\/battery_\\d+\\/temperature\\/state/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -3824,6 +3803,6 @@
   "timezone": "Indian/Mauritius",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 10,
+  "version": 3,
   "weekStart": ""
 }
