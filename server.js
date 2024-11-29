@@ -514,6 +514,9 @@ const connectToWebSocketBroker = async () => {
       const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
       wsClient = new WebSocket(brokerServerUrl);
       const isUser = await AuthenticateUser(options);
+      console.log({wsClient})
+
+      console.log({isUser})
 
       wsClient.on('open', () => {
         console.log('Connected to WebSocket broker');
