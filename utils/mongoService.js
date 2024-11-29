@@ -6,11 +6,17 @@ const AuthenticateUser = async (options) => {
   const clientId = options.clientId;
   const clientSecret = options.clientSecret;
 
+  console.log({clientId},{clientSecret})
+
+  
+
   try {
     const response = await axios.post(url, {
       clientId: clientId,
       clientSecret: clientSecret,
     });
+
+    console.log({response})
 
     if (response.data && response.data.userId) {
       return response.data.userId;
