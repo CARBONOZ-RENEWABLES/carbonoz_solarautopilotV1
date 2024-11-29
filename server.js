@@ -490,46 +490,76 @@ const getRealTimeData = async () => {
 //send  on connection
 
 const connectToWebSocketBroker = async () => {
-  try {
-    const brokerServerUrl = `wss://broker.carbonoz.com:8000`
-    const wsClient = new WebSocket(brokerServerUrl)
-    const isUser = await AuthenticateUser(options)
+  let wsClient = null;
+  let reconnectTimeout = 5000; 
+  let heartbeatInterval = null; 
 
-    wsClient.on('open', () => {
-      console.log('connected to WebSocket broker')
-      if (isUser) {
-        if (mqttClient) {
-          mqttClient.on('message', (topic, message) => {
-            if (wsClient.readyState === WebSocket.OPEN) {
-              wsClient.send(
-                JSON.stringify({
-                  topic,
-                  message: message.toString(),
-                  userId: isUser,
-                })
-              )
-            }
-          })
-        }
+  const startHeartbeat = () => {
+    heartbeatInterval = setInterval(() => {
+      if (wsClient.readyState === WebSocket.OPEN) {
+        wsClient.send(JSON.stringify({ type: 'ping' }));
       }
-    })
-    wsClient.on('error', (error) => {
-      console.error('WebSocket Error:', error)
-    })
+    }, 30000); 
+  };
 
-    wsClient.on('close', () => {
-      console.log('Disconnected from WebSocket broker')
-    })
-  } catch (error) {
-    console.error({ error })
-  }
-}
+  const stopHeartbeat = () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  };
+
+  const connect = async () => {
+    try {
+      const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+      wsClient = new WebSocket(brokerServerUrl);
+      const isUser = await AuthenticateUser(options);
+
+      wsClient.on('open', () => {
+        console.log('Connected to WebSocket broker');
+        startHeartbeat();
+
+        if (isUser) {
+          if (mqttClient) {
+            mqttClient.on('message', (topic, message) => {
+              if (wsClient.readyState === WebSocket.OPEN) {
+                wsClient.send(
+                  JSON.stringify({
+                    topic,
+                    message: message.toString(),
+                    userId: isUser,
+                  })
+                );
+              }
+            });
+          }
+        }
+      });
+
+      wsClient.on('error', (error) => {
+        console.error('WebSocket Error:', error);
+      });
+
+      wsClient.on('close', () => {
+        console.log('Disconnected from WebSocket broker. Reconnecting...');
+        stopHeartbeat();
+        setTimeout(connect, reconnectTimeout); 
+      });
+    } catch (error) {
+      console.error({ error });
+      setTimeout(connect, reconnectTimeout); 
+    }
+  };
+
+  connect();
+};
 
 const server = app.listen(port, '0.0.0.0', async () => {
-  console.log(`Server is running on http://0.0.0.0:${port}`)
-  connectToMqtt()
-  connectToWebSocketBroker()
-})
+  console.log(`Server is running on http://0.0.0.0:${port}`);
+  connectToMqtt();
+  connectToWebSocketBroker();
+});
+
 
 // carbon intensity
 let currentApiKey = '' // API key stored in memory
