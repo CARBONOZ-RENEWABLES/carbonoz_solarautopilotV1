@@ -491,7 +491,7 @@ const getRealTimeData = async () => {
 
 const connectToWebSocketBroker = async () => {
   try {
-    const brokerServerUrl = `wss://192.168.160.160:8000`
+    const brokerServerUrl = `wss://192.168.160.190:8000`
     const wsClient = new WebSocket(brokerServerUrl)
     const isUser = await AuthenticateUser(options)
 
