@@ -525,11 +525,11 @@ const connectToWebSocketBroker = async () => {
         startHeartbeat();
 
         // Ensure both authentication and MQTT client exist
-        if (isUser && mqttClient) {
+        if (isUser) {
           
           console.log('Setting up MQTT message forwarding');
           
-          mqttClient.on('message', (topic, message) => {
+          mqttClient?.on('message', (topic, message) => {
             console.log('Received MQTT message:', { topic, message: message.toString() });
             
             if (wsClient.readyState === WebSocket.OPEN) {
