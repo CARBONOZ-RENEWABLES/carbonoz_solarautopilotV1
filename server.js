@@ -496,7 +496,7 @@ const connectToWebSocketBroker = async () => {
 
   const startHeartbeat = () => {
     heartbeatInterval = setInterval(() => {
-      if (wsClient.readyState === WebSocket.OPEN) {
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
         wsClient.send(JSON.stringify({ type: 'ping' }));
       }
     }, 30000); 
@@ -513,19 +513,25 @@ const connectToWebSocketBroker = async () => {
     try {
       const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
       wsClient = new WebSocket(brokerServerUrl);
+      
+      // Log all options for debugging
+      console.log('Authentication Options:', options);
+      
       const isUser = await AuthenticateUser(options);
-      console.log({wsClient})
-
-      console.log({isUser})
+      console.log('Authentication Result:', { isUser });
 
       wsClient.on('open', () => {
         console.log('Connected to WebSocket broker');
         startHeartbeat();
 
-        if (isUser) {
-          if (mqttClient) {
-            mqttClient.on('message', (topic, message) => {
-              if (wsClient.readyState === WebSocket.OPEN) {
+        // Ensure both authentication and MQTT client exist
+        if (isUser && mqttClient) {
+          console.log('Setting up MQTT message forwarding');
+          mqttClient.on('message', (topic, message) => {
+            console.log('Received MQTT message:', { topic, message: message.toString() });
+            
+            if (wsClient.readyState === WebSocket.OPEN) {
+              try {
                 wsClient.send(
                   JSON.stringify({
                     topic,
@@ -533,9 +539,19 @@ const connectToWebSocketBroker = async () => {
                     userId: isUser,
                   })
                 );
+                console.log('Sent message to WebSocket server');
+              } catch (sendError) {
+                console.error('Error sending message to WebSocket:', sendError);
               }
-            });
-          }
+            } else {
+              console.warn('WebSocket is not open. Cannot send message');
+            }
+          });
+        } else {
+          console.warn('Cannot set up message forwarding:', { 
+            isUserAuthenticated: !!isUser, 
+            mqttClientExists: !!mqttClient 
+          });
         }
       });
 
@@ -549,7 +565,7 @@ const connectToWebSocketBroker = async () => {
         setTimeout(connect, reconnectTimeout); 
       });
     } catch (error) {
-      console.error({ error });
+      console.error('Connection setup error:', error);
       setTimeout(connect, reconnectTimeout); 
     }
   };
@@ -872,21 +888,6 @@ function calculateEmissionsForPeriod(
     }
   })
 }
-
-app.get('/api/grid-voltage', async (req, res) => {
-  try {
-    const result = await influx.query(`
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
-      LIMIT 1
-    `)
-    res.json({ voltage: result[0]?.value || 0 })
-  } catch (error) {
-    console.error('Error fetching grid voltage:', error)
-    res.status(500).json({ error: 'Failed to fetch grid voltage' })
-  }
-})
 
 app.get('/api/grid-voltage', async (req, res) => {
   try {
