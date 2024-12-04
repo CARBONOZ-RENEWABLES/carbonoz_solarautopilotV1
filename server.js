@@ -509,24 +509,43 @@ const connectToWebSocketBroker = async () => {
     }
   };
 
+  const sendRecentMessages = () => {
+    if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
+
+    try {
+      // Send the current incomingMessages array to WebSocket
+      wsClient.send(JSON.stringify({
+        type: 'recent_messages',
+        messages: incomingMessages.map(message => {
+          const [topic, ...messageParts] = message.split(':');
+          return {
+            topic: topic.trim(),
+            message: messageParts.join(':').trim(),
+            timestamp: new Date().toISOString()
+          };
+        })
+      }));
+    } catch (error) {
+      console.error('Error sending recent messages:', error);
+    }
+  };
+
   const connect = async () => {
     try {
       const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
       wsClient = new WebSocket(brokerServerUrl);
       
-      // Log all options for debugging
       console.log('Authentication Options:', options);
       
       const isUser = await AuthenticateUser(options);
       console.log('Authentication Result:', { isUser });
-      console.log('Mqtt broker:', {mqttClient});
+      
       wsClient.on('open', () => {
         console.log('Connected to WebSocket broker');
         startHeartbeat();
+        sendRecentMessages(); // Send recent messages on connection
 
-        // Ensure both authentication and MQTT client exist
         if (isUser) {
-          
           console.log('Setting up MQTT message forwarding');
           
           mqttClient?.on('message', (topic, message) => {
@@ -536,9 +555,11 @@ const connectToWebSocketBroker = async () => {
               try {
                 wsClient.send(
                   JSON.stringify({
+                    type: 'mqtt_message',
                     topic,
                     message: message.toString(),
                     userId: isUser,
+                    timestamp: new Date().toISOString()
                   })
                 );
                 console.log('Sent message to WebSocket server');
