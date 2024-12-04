@@ -1,5 +1,7 @@
 #!/usr/bin/with-contenv bashio
 
-# Perform backup before shutting down
-bashio::log.info "Backing up InfluxDB data..."
-influxd backup -portable /data/influxdb/backup
+# Log the exit reason
+bashio::log.warning "InfluxDB service exited. Attempting restart..."
+
+# Optional: Add any cleanup or pre-restart tasks here
+exit 0
