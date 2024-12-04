@@ -20,41 +20,19 @@ chmod -R 755 /data/influxdb
 # Update Grafana configuration
 sed -i "s|^root_url = .*|root_url = ${INGRESS_PATH}|g" /etc/grafana/grafana.ini
 
-# Initialize InfluxDB data if not exists
-if [ ! -d "/data/influxdb/meta" ]; then
-    mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal
-    chown -R nobody:nobody /data/influxdb
-fi
-
-# Restore data from backup if needed
-if [ ! -d "/data/influxdb/meta" ] && [ -d "/data/influxdb/backup" ]; then
-    influxd restore -portable -db home_assistant /data/influxdb/backup
-fi
-
-# Start InfluxDB
-influxd -config /etc/influxdb/influxdb.conf &
-
-# Wait for InfluxDB to initialize
-for i in {1..30}; do
-    if influx -execute "SHOW DATABASES" >/dev/null 2>&1; then
-        break
-    fi
-    sleep 1
-done
-
-# Create database if not exists
-if ! influx -execute "SHOW DATABASES" | grep -q "home_assistant"; then
-    influx -execute "CREATE DATABASE home_assistant"
-fi
-
-# Create admin user if not exists
-if ! influx -execute "SHOW USERS" | grep -q "admin"; then
-    influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'"
-    influx -execute "GRANT ALL ON home_assistant TO admin"
-fi
-
 # Start Grafana
-grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana --pidfile /var/run/grafana.pid &
+grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana &
+influxd &
+
+# Wait for InfluxDB to start
+sleep 10
+
+# Create the InfluxDB database
+influx -execute "CREATE DATABASE home_assistant"
+
+# Create a user with a password and grant privileges
+influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'"
+influx -execute "GRANT ALL ON home_assistant TO admin"
 
 # Start Node.js application
 cd /usr/src/app
