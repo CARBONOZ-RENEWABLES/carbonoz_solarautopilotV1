@@ -3,7 +3,7 @@
 export INGRESS_PATH="$(bashio::addon.ingress_entry)"
 export PORT=6789
 export NODE_ENV=production
-export NODE_OPTIONS="--max-old-space-size=256"
+export NODE_OPTIONS="--max-old-space-size=128"
 export MQTT_HOST=$(bashio::config 'mqtt_host')
 export MQTT_USERNAME=$(bashio::config 'mqtt_username')
 export MQTT_PASSWORD=$(bashio::config 'mqtt_password')
@@ -36,4 +36,4 @@ influx -execute "GRANT ALL ON home_assistant TO admin"
 
 # Start Node.js application
 cd /usr/src/app
-exec node --max-old-space-size=256 --gc-interval=100 --optimize-for-size server.js
+exec node --max-old-space-size=128 --gc-interval=100 --optimize-for-size server.js
