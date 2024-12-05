@@ -1,25 +1,14 @@
 #!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start the InfluxDB service
+# ==============================================================================
 
-# Ensure data directories exist
-mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal
-chown -R nobody:nobody /data/influxdb
-chmod -R 755 /data/influxdb
-
-# Backup function
-backup_influxdb() {
-    bashio::log.info "Performing daily InfluxDB backup..."
-    influxd backup -portable /data/influxdb/backup/$(date +"%Y-%m-%d")
-}
-
-# Periodic backup (daily)
-(
-    while true; do
-        # Wait for 24 hours
-        sleep 86400
-        backup_influxdb
-    done
-) &
-
-# Start InfluxDB and keep it running
 bashio::log.info "Starting InfluxDB..."
+
+# Ensure directories exist with correct permissions
+mkdir -p /var/lib/influxdb
+mkdir -p /var/log/influxdb
+chown -R nobody:nobody /var/lib/influxdb /var/log/influxdb
+
+# Start InfluxDB with config
 exec s6-setuidgid nobody influxd -config /etc/influxdb/influxdb.conf
