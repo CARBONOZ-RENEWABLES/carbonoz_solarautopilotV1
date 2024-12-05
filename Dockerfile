@@ -83,7 +83,7 @@ LABEL \
     org.opencontainers.image.version=${BUILD_VERSION}
 # Environment variables for memory optimization
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=256"
+ENV NODE_OPTIONS="--max-old-space-size=128"
 # Expose ports
 EXPOSE 3000 8086
 # Set entrypoint to s6-overlay init
