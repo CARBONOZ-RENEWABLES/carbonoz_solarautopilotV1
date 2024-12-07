@@ -104,61 +104,26 @@ function connectToMqtt() {
   mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
     username: mqttConfig.username,
     password: mqttConfig.password,
-  });
+  })
 
   mqttClient.on('connect', () => {
-    console.log('Connected to MQTT broker');
-    mqttClient.subscribe(`${mqttTopicPrefix}/#`);
-  });
+    console.log('Connected to MQTT broker')
+    mqttClient.subscribe(`${mqttTopicPrefix}/#`)
+  })
 
-  mqttClient.on('message', async (topic, message) => {
-    const formattedMessage = `${topic}: ${message.toString()}`;
-    incomingMessages.push(formattedMessage);
-    
-    // Maintain maximum message history
+  mqttClient.on('message', (topic, message) => {
+    const formattedMessage = `${topic}: ${message.toString()}`
+    incomingMessages.push(formattedMessage)
     if (incomingMessages.length > MAX_MESSAGES) {
-      incomingMessages.shift();
+      incomingMessages.shift()
     }
-
-    // Save message to InfluxDB
-    saveMessageToInfluxDB(topic, message);
-
-    // Prepare message data for WebSocket
-    const messageData = {
-      topic: topic,
-      message: message.toString(),
-      userId: options.clientId
-    };
-    
-    try {
-      // Check WebSocket connection and send message
-      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        wsClient.send(JSON.stringify(messageData));
-        console.log('Message sent to WebSocket server');
-      } else {
-        console.warn('WebSocket not connected. Attempting to reconnect...');
-        await connectToWebSocketServer();
-      }
-    } catch (error) {
-      console.error('Error sending message to WebSocket:', error);
-    }
-  });
+    saveMessageToInfluxDB(topic, message)
+  })
 
   mqttClient.on('error', (err) => {
-    console.error('Error connecting to MQTT broker:', err.message);
-    mqttClient = null;
-    
-    // Optional: Implement reconnection logic
-    setTimeout(() => {
-      console.log('Attempting to reconnect to MQTT broker...');
-      connectToMqtt();
-    }, 5000); // Retry after 5 seconds
-  });
-
-  mqttClient.on('close', () => {
-    console.warn('MQTT connection closed');
-    mqttClient = null;
-  });
+    console.error('Error connecting to MQTT broker:', err.message)
+    mqttClient = null
+  })
 }
 
 // Save MQTT message to InfluxDB
@@ -524,72 +489,117 @@ const getRealTimeData = async () => {
 }
 //send  on connection
 
-function connectToWebSocketServer() {
-  return new Promise(async (resolve, reject) => {
-      try {
-          const userId = await AuthenticateUser(options);
-          if (!userId) {
-              throw new Error('Authentication failed');
-          }
+const connectToWebSocketBroker = async () => {
+  let wsClient = null;
+  let reconnectTimeout = 5000; 
+  let heartbeatInterval = null; 
 
-          // Detailed WebSocket connection with full error logging
-          const brokerUrl = 'wss://broker.carbonoz.com:8000'; // Confirm exact URL
-          
-          wsClient = new WebSocket(brokerUrl, {
-              headers: {
-                  'User-Agent': 'MQTT-WebSocket-Bridge',
-                  'X-Client-ID': options.clientId,
-                  'Authorization': `Bearer ${userId}`
-              }
-          });
-
-          wsClient.on('open', () => {
-              console.log('WebSocket Connection Successful');
-              console.log('Connection Details:', {
-                  url: brokerUrl,
-                  userId: userId
-              });
-              resolve(wsClient);
-          });
-
-          wsClient.on('unexpected-response', (req, res) => {
-              console.error('Unexpected WebSocket Response:', {
-                  statusCode: res.statusCode,
-                  headers: res.headers
-              });
-              reject(new Error(`Unexpected response: ${res.statusCode}`));
-          });
-
-          wsClient.on('error', (error) => {
-              console.error('Detailed WebSocket Error:', {
-                  name: error.name,
-                  message: error.message,
-                  stack: error.stack
-              });
-              reject(error);
-          });
-
-          wsClient.on('close', (code, reason) => {
-              console.log('WebSocket Closed:', {
-                  code: code,
-                  reason: reason.toString()
-              });
-              setTimeout(() => {
-                  console.log('Attempting WebSocket Reconnection...');
-                  connectToWebSocketServer();
-              }, 5000);
-          });
-      } catch (error) {
-          console.error('WebSocket Connection Setup Error:', error);
-          reject(error);
+  const startHeartbeat = () => {
+    heartbeatInterval = setInterval(() => {
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        wsClient.send(JSON.stringify({ type: 'ping' }));
       }
-  });
-}
+    }, 30000); 
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  };
+
+  const sendRecentMessages = () => {
+    if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
+
+    try {
+      // Send the current incomingMessages array to WebSocket
+      wsClient.send(JSON.stringify({
+        type: 'recent_messages',
+        messages: incomingMessages.map(message => {
+          const [topic, ...messageParts] = message.split(':');
+          return {
+            topic: topic.trim(),
+            message: messageParts.join(':').trim(),
+            timestamp: new Date().toISOString()
+          };
+        })
+      }));
+    } catch (error) {
+      console.error('Error sending recent messages:', error);
+    }
+  };
+
+  const connect = async () => {
+    try {
+      const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+      wsClient = new WebSocket(brokerServerUrl);
+      
+      console.log('Authentication Options:', options);
+      
+      const isUser = await AuthenticateUser(options);
+      console.log('Authentication Result:', { isUser });
+      
+      wsClient.on('open', () => {
+        console.log('Connected to WebSocket broker');
+        startHeartbeat();
+        sendRecentMessages(); // Send recent messages on connection
+
+        if (isUser) {
+          console.log('Setting up MQTT message forwarding');
+          
+          mqttClient?.on('message', (topic, message) => {
+            console.log('Received MQTT message:', { topic, message: message.toString() });
+            
+            if (wsClient.readyState === WebSocket.OPEN) {
+              try {
+                wsClient.send(
+                  JSON.stringify({
+                    type: 'mqtt_message',
+                    topic,
+                    message: message.toString(),
+                    userId: isUser,
+                    timestamp: new Date().toISOString()
+                  })
+                );
+                console.log('Sent message to WebSocket server');
+              } catch (sendError) {
+                console.error('Error sending message to WebSocket:', sendError);
+              }
+            } else {
+              console.warn('WebSocket is not open. Cannot send message');
+            }
+          });
+        } else {
+          console.warn('Cannot set up message forwarding:', { 
+            isUserAuthenticated: !!isUser, 
+            mqttClientExists: !!mqttClient 
+          });
+        }
+      });
+
+      wsClient.on('error', (error) => {
+        console.error('WebSocket Error:', error);
+      });
+
+      wsClient.on('close', () => {
+        console.log('Disconnected from WebSocket broker. Reconnecting...');
+        stopHeartbeat();
+        setTimeout(connect, reconnectTimeout); 
+      });
+    } catch (error) {
+      console.error('Connection setup error:', error);
+      setTimeout(connect, reconnectTimeout); 
+    }
+  };
+
+  connect();
+};
 
 const server = app.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
   connectToMqtt();
-  connectToWebSocketServer(); 
+  connectToWebSocketBroker();
 });
 
 
