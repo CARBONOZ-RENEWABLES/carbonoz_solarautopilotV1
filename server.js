@@ -489,46 +489,43 @@ const getRealTimeData = async () => {
 }
 //send  on connection
 
+// WebSocket Connection & MQTT Message Forwarding
 const connectToWebSocketBroker = async () => {
-  let wsClient = null;
-  let reconnectTimeout = 5000; 
-  let heartbeatInterval = null; 
-
   const startHeartbeat = () => {
-    heartbeatInterval = setInterval(() => {
-      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        wsClient.send(JSON.stringify({ type: 'ping' }));
-      }
-    }, 30000); 
+      heartbeatInterval = setInterval(() => {
+          if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+              wsClient.send(JSON.stringify({ type: 'ping' }));
+          }
+      }, 30000); // Send ping every 30 seconds
   };
 
   const stopHeartbeat = () => {
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
+      if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+      }
   };
 
   const sendRecentMessages = () => {
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
 
     try {
-      // Send the current incomingMessages array to WebSocket
-      wsClient.send(JSON.stringify({
-        type: 'recent_messages',
-        messages: incomingMessages.map(message => {
-          const [topic, ...messageParts] = message.split(':');
-          return {
-            topic: topic.trim(),
-            message: messageParts.join(':').trim(),
-            timestamp: new Date().toISOString()
-          };
-        })
-      }));
+        // Send the current incomingMessages array to WebSocket
+        wsClient.send(JSON.stringify({
+            type: 'recent_messages',
+            messages: incomingMessages.map(message => {
+                const [topic, ...messageParts] = message.split(':');
+                return {
+                    topic: topic.trim(),
+                    message: messageParts.join(':').trim(),
+                    timestamp: new Date().toISOString()
+                };
+            })
+        }));
     } catch (error) {
-      console.error('Error sending recent messages:', error);
+        console.error('Error sending recent messages:', error);
     }
-  };
+};
 
   const connect = async () => {
     try {
@@ -539,61 +536,60 @@ const connectToWebSocketBroker = async () => {
       
       const isUser = await AuthenticateUser(options);
       console.log('Authentication Result:', { isUser });
-      
-      wsClient.on('open', () => {
-        console.log('Connected to WebSocket broker');
-        startHeartbeat();
-        sendRecentMessages(); // Send recent messages on connection
 
-        if (isUser) {
-          console.log('Setting up MQTT message forwarding');
-          
-          mqttClient?.on('message', (topic, message) => {
-            console.log('Received MQTT message:', { topic, message: message.toString() });
-            
-            if (wsClient.readyState === WebSocket.OPEN) {
-              try {
-                wsClient.send(
-                  JSON.stringify({
-                    type: 'mqtt_message',
-                    topic,
-                    message: message.toString(),
-                    userId: isUser,
-                    timestamp: new Date().toISOString()
-                  })
-                );
-                console.log('Sent message to WebSocket server');
-              } catch (sendError) {
-                console.error('Error sending message to WebSocket:', sendError);
-              }
+        wsClient.on('open', () => {
+            console.log('Connected to WebSocket broker');
+            startHeartbeat();
+            sendRecentMessages();
+
+            if (isUser) {
+                console.log('Setting up MQTT message forwarding');
+                mqttClient?.on('message', (topic, message) => {
+                    console.log('Received MQTT message:', { topic, message: message.toString() });
+
+                    if (wsClient.readyState === WebSocket.OPEN) {
+                        try {
+                            wsClient.send(
+                                JSON.stringify({
+                                    type: 'mqtt_message',
+                                    topic,
+                                    message: message.toString(),
+                                    userId: isUser,
+                                    timestamp: new Date().toISOString()
+                                })
+                            );
+                            console.log('Sent message to WebSocket server');
+                        } catch (sendError) {
+                            console.error('Error sending message to WebSocket:', sendError);
+                        }
+                    } else {
+                        console.warn('WebSocket is not open. Cannot send message');
+                    }
+                });
             } else {
-              console.warn('WebSocket is not open. Cannot send message');
+                console.warn('Cannot set up message forwarding:', { 
+                    isUserAuthenticated: !!isUser, 
+                    mqttClientExists: !!mqttClient 
+                });
             }
-          });
-        } else {
-          console.warn('Cannot set up message forwarding:', { 
-            isUserAuthenticated: !!isUser, 
-            mqttClientExists: !!mqttClient 
-          });
-        }
-      });
+        });
 
-      wsClient.on('error', (error) => {
-        console.error('WebSocket Error:', error);
-      });
+        wsClient.on('error', (error) => {
+            console.error('WebSocket Error:', error);
+        });
 
-      wsClient.on('close', () => {
-        console.log('Disconnected from WebSocket broker. Reconnecting...');
-        stopHeartbeat();
-        setTimeout(connect, reconnectTimeout); 
-      });
+        wsClient.on('close', () => {
+            console.log('Disconnected from WebSocket broker. Reconnecting...');
+            stopHeartbeat();
+            setTimeout(connect, reconnectTimeout); // Reconnect after a delay
+        });
     } catch (error) {
-      console.error('Connection setup error:', error);
-      setTimeout(connect, reconnectTimeout); 
+        console.error('Connection setup error:', error);
+        setTimeout(connect, reconnectTimeout); // Retry connection after a delay
     }
-  };
+};
 
-  connect();
+connect();
 };
 
 const server = app.listen(port, '0.0.0.0', async () => {
