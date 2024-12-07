@@ -600,7 +600,7 @@ const server = app.listen(port, '0.0.0.0', async () => {
 
 
 // carbon intensity
-let currentApiKey = '' // API key stored in memory
+let currentApiKey = 'OHMZITPqgZxSJ' // API key stored in memory
 
 app.get('/settings', async (req, res) => {
   const zones = await getZones()
