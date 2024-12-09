@@ -11,9 +11,15 @@ const retry = require('async-retry')
 const axios = require('axios')
 const cookieParser = require('cookie-parser')
 const { backOff } = require('exponential-backoff')
-const CACHE_DURATION = 3600000 // 1 hour in milliseconds
-const carbonIntensityCache = new Map()
-
+const carbonIntensityCache = new Map();
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+const COOKIE_NAME = 'selectedZone';
+const COOKIE_OPTIONS = {
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict'
+}
 const app = express()
 const port = process.env.PORT || 6789
 const socketPort = 8000
@@ -240,6 +246,7 @@ app.get('/chart', (req, res) => {
   })
 })
 
+
 app.get('/analytics', async (req, res) => {
   try {
     const selectedZone = req.cookies[COOKIE_NAME] || null
@@ -247,19 +254,19 @@ app.get('/analytics', async (req, res) => {
 
     if (selectedZone) {
       try {
-        carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone)
+        carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
       } catch (carbonError) {
-        console.error('Error fetching carbon intensity data:', carbonError)
+        console.error('Error fetching carbon intensity data:', carbonError);
         // Continue without carbon intensity data
       }
     }
-
+    
     const [
-      loadPowerData,
-      pvPowerData,
-      batteryStateOfChargeData,
-      batteryPowerData,
-      gridPowerData,
+      loadPowerData, 
+      pvPowerData, 
+      batteryStateOfChargeData, 
+      batteryPowerData, 
+      gridPowerData, 
       gridVoltageData,
       loadPowerYear,
       pvPowerYear,
@@ -272,7 +279,7 @@ app.get('/analytics', async (req, res) => {
       batteryStateOfChargeDecade,
       batteryPowerDecade,
       gridPowerDecade,
-      gridVoltageDecade,
+      gridVoltageDecade
     ] = await Promise.all([
       queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
       queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
@@ -288,15 +295,11 @@ app.get('/analytics', async (req, res) => {
       queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
-      queryInfluxDBForDecade(
-        `${mqttTopicPrefix}/total/battery_energy_in/state`
-      ),
-      queryInfluxDBForDecade(
-        `${mqttTopicPrefix}/total/battery_energy_out/state`
-      ),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`),
-    ])
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
+    ]);
 
     const data = {
       loadPowerData,
@@ -318,20 +321,19 @@ app.get('/analytics', async (req, res) => {
       batteryStateOfChargeDecade,
       batteryPowerDecade,
       gridPowerDecade,
-      gridVoltageDecade,
-    }
+      gridVoltageDecade
+    };
 
     res.render('analytics', {
       data,
       ingress_path: process.env.INGRESS_PATH || '',
     })
   } catch (error) {
-    console.error('Error fetching analytics data:', error)
-    res.status(500).json({
+    console.error('Error fetching analytics data:', error);
+    res.status(500).json({ 
       error: 'Error fetching analytics data',
-      details:
-        process.env.NODE_ENV === 'development' ? error.message : undefined,
-    })
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 })
 
@@ -453,40 +455,6 @@ function filterMessagesByCategory(category) {
   })
 }
 
-//socket data
-const getRealTimeData = async () => {
-  const loadPowerData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/load_energy/state`
-  )
-  const pvPowerData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/pv_energy/state`
-  )
-  const batteryStateOfChargeData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/battery_energy_in/state`
-  )
-  const batteryPowerData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/battery_energy_out/state`
-  )
-  const gridPowerData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/grid_energy_in/state`
-  )
-  const gridVoltageData = await queryInfluxDB(
-    `${mqttTopicPrefix}/total/grid_energy_out/state`
-  )
-
-  const data = {
-    load: calculateDailyDifferenceForSockets(loadPowerData),
-    pv: calculateDailyDifferenceForSockets(pvPowerData),
-    gridIn: calculateDailyDifferenceForSockets(gridPowerData),
-    gridOut: calculateDailyDifferenceForSockets(gridVoltageData),
-    batteryCharged: calculateDailyDifferenceForSockets(
-      batteryStateOfChargeData
-    ),
-    batteryDischarged: calculateDailyDifferenceForSockets(batteryPowerData),
-  }
-
-  return data
-}
 //send  on connection
 
 // WebSocket Connection & MQTT Message Forwarding
@@ -599,95 +567,82 @@ const server = app.listen(port, '0.0.0.0', async () => {
 });
 
 
-// carbon intensity
-let currentApiKey = 'OHMZITPqgZxSJ' // API key stored in memory
+// Fetch zones without caching
+async function getZones() {
+  try {
+    const response = await axios.get('https://api.electricitymap.org/v3/zones', { timeout: 10000 });
+    const data = response.data;
+
+    return Object.entries(data)
+      .map(([key, value]) => ({
+        code: key,
+        zoneName: value.zoneName || key
+      }))
+      .sort((a, b) => a.zoneName.localeCompare(b.zoneName));
+  } catch (error) {
+    console.error('Error fetching zones data:', error);
+    return [];
+  }
+}
+
 
 app.get('/settings', async (req, res) => {
-  const zones = await getZones()
-  const selectedZone = req.cookies[COOKIE_NAME] || ''
-  res.render('settings', {
-    zones,
-    selectedZone,
-    api_key: currentApiKey,
-    ingress_path: process.env.INGRESS_PATH || '',
-  })
-})
+  const zones = await getZones();
+  const selectedZone = req.cookies[COOKIE_NAME] || '';
+  res.render('settings', { zones, selectedZone,  ingress_path: process.env.INGRESS_PATH || '', });
+});
 
-app.post('/api/api-key', (req, res) => {
-  const { api_key } = req.body // Get the submitted API key from the form
-
-  if (api_key && typeof api_key === 'string') {
-    currentApiKey = api_key // Update the API key in memory
-    res.json({ success: true, api_key: currentApiKey })
-  } else {
-    res.status(400).json({ error: 'Invalid API Key' })
-  }
-})
-
-// Route for displaying results
 app.get('/results', async (req, res) => {
-  // Retrieve the selected zone, prioritizing in this order:
-  // 1. Query parameter
-  // 2. Existing cookie
-  // 3. Null (if no zone has been selected before)
-  let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null
-  const zones = await getZones()
+  const zones = await getZones();
+  let selectedZone = req.query.zone || req.cookies['selectedZone'] || null;
 
-  // If a new zone is selected, update the cookie
-  if (req.query.zone) {
-    res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS)
-    selectedZone = req.query.zone
+  // Log zone selection for debugging
+  console.log('Incoming Query Zone:', req.query.zone);
+  console.log('Existing Cookie Zone:', req.cookies['selectedZone']);
+
+  // Update cookie if a new zone is selected
+  if (req.query.zone && req.query.zone !== req.cookies['selectedZone']) {
+    res.cookie('selectedZone', req.query.zone, {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' // Added for better cross-site cookie protection
+    });
+    selectedZone = req.query.zone;
   }
 
   try {
-    let historyData = [],
-      gridEnergyIn = [],
-      pvEnergy = [],
-      gridVoltage = []
-    let error = null
+    let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+    let error = null;
 
-    // Only attempt to fetch data if a zone is selected
     if (selectedZone) {
       try {
-        ;[historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all(
-          [
-            fetchCarbonIntensityHistory(selectedZone),
-            queryInfluxData(
-              `${mqttTopicPrefix}/total/grid_energy_in/state`,
-              '365d'
-            ),
-            queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-            queryInfluxData(
-              `${mqttTopicPrefix}/total/grid_voltage/state`,
-              '365d'
-            ),
-          ]
-        )
+        [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
+          fetchCarbonIntensityHistory(selectedZone),
+          queryInfluxData('${mqttTopicPrefix}/total/grid_energy_in/state', '365d'),
+          queryInfluxData('${mqttTopicPrefix}/total/pv_energy/state', '365d'),
+          queryInfluxData('${mqttTopicPrefix}/total/grid_voltage/state', '365d')
+        ]);
       } catch (e) {
-        console.error('Error fetching data:', e)
-        error = 'Error fetching data. Please try again later.'
+        console.error('Error fetching data:', e);
+        error = 'Error fetching data. Please try again later.';
       }
     }
 
-    const emissionsData = calculateEmissionsForPeriod(
-      historyData,
-      gridEnergyIn,
-      pvEnergy,
-      gridVoltage
-    )
+    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
 
     const periods = {
       week: emissionsData.slice(-7),
       month: emissionsData.slice(-30),
       quarter: emissionsData.slice(-90),
-      year: emissionsData,
-    }
+      year: emissionsData
+    };
 
     const todayData = emissionsData[emissionsData.length - 1] || {
       unavoidableEmissions: 0,
       avoidedEmissions: 0,
-      selfSufficiencyScore: 0,
-    }
+      selfSufficiencyScore: 0
+    };
 
     res.render('results', {
       selectedZone,
@@ -699,60 +654,22 @@ app.get('/results', async (req, res) => {
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
       ingress_path: process.env.INGRESS_PATH || '',
-    })
+    });
   } catch (error) {
-    console.error('Error processing data:', error)
+    console.error('Error processing data:', error);
     res.render('results', {
       selectedZone,
       zones,
-      ingress_path: process.env.INGRESS_PATH || '',
-      error: 'Error processing data',
-    })
+      error: 'Error processing data'
+    });
   }
-})
+});
 
-// Helper functions
-const COOKIE_NAME = 'selectedZone'
-const COOKIE_OPTIONS = {
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-}
-
-async function getZones() {
-  try {
-    const response = await axios.get(
-      'https://api.electricitymap.org/v3/zones',
-      { timeout: 10000 }
-    )
-    const data = response.data
-
-    return Object.entries(data)
-      .map(([key, value]) => ({
-        code: key,
-        zoneName: value.zoneName || key,
-      }))
-      .sort((a, b) => a.zoneName.localeCompare(b.zoneName))
-  } catch (error) {
-    console.error('Error fetching zones data:', error)
-    return []
-  }
-}
 
 app.get('/clear-zone', (req, res) => {
-  // Instead of completely clearing the cookie, you could:
-  // 1. Redirect to results page with the existing zone
-  const existingZone = req.cookies[COOKIE_NAME]
-  if (existingZone) {
-    res.redirect(
-      `${process.env.INGRESS_PATH || ''}/results?zone=${existingZone}`
-    )
-  } else {
-    // If no zone exists, then clear the cookie and redirect
-    res.clearCookie(COOKIE_NAME)
-    res.redirect(`${process.env.INGRESS_PATH || ''}/results`)
-  }
-})
+  res.clearCookie(COOKIE_NAME);
+  res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
+});
 
 async function queryInfluxData(topic, duration = '365d') {
   const query = `
@@ -774,86 +691,49 @@ async function queryInfluxData(topic, duration = '365d') {
 }
 
 async function fetchCarbonIntensityHistory(selectedZone) {
-  if (!selectedZone) return []
+  if (!selectedZone) return [];
 
-  const cacheKey = `${selectedZone}-${moment().format('YYYY-MM-DD')}`
+  const cacheKey = `${selectedZone}-${moment().format('YYYY-MM-DD')}`;
   if (carbonIntensityCache.has(cacheKey)) {
-    const cachedData = carbonIntensityCache.get(cacheKey)
+    const cachedData = carbonIntensityCache.get(cacheKey);
     if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
-      return cachedData.data
+      return cachedData.data;
     }
   }
 
-  const historyData = []
-  const today = moment()
-  const oneYearAgo = moment().subtract(1, 'year')
-  const batchSize = 7
+  const historyData = [];
+  const today = moment();
+  const oneYearAgo = moment().subtract(1, 'year');
+  const batchSize = 7;
 
-  try {
-    for (
-      let m = moment(oneYearAgo);
-      m.isBefore(today);
-      m.add(batchSize, 'days')
-    ) {
-      const batchPromises = []
-      for (
-        let i = 0;
-        i < batchSize && m.clone().add(i, 'days').isBefore(today);
-        i++
-      ) {
-        const date = m.clone().add(i, 'days').format('YYYY-MM-DD')
-        batchPromises.push(
-          backOff(() => fetchWithRetry(selectedZone, date), {
-            numOfAttempts: 5,
-            startingDelay: 1000,
-            timeMultiple: 2,
-            maxDelay: 30000,
-          })
-        )
+  for (let m = moment(oneYearAgo); m.isBefore(today); m.add(batchSize, 'days')) {
+    const batchPromises = [];
+    for (let i = 0; i < batchSize && m.clone().add(i, 'days').isBefore(today); i++) {
+      const date = m.clone().add(i, 'days').format('YYYY-MM-DD');
+      batchPromises.push(
+        axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
+          headers: { 'Authorization': 'Bearer OHMZITPqgZxSJ' }
+        }).then(response => response.data)
+      );
+    }
+
+    const batchResults = await Promise.all(batchPromises);
+    batchResults.forEach((data, index) => {
+      if (data.history && data.history.length > 0) {
+        historyData.push({
+          date: m.clone().add(index, 'days').format('YYYY-MM-DD'),
+          carbonIntensity: data.history[0].carbonIntensity
+        });
       }
-
-      const batchResults = await Promise.all(batchPromises)
-      batchResults.forEach((result, index) => {
-        if (result && result.history && result.history.length > 0) {
-          historyData.push({
-            date: m.clone().add(index, 'days').format('YYYY-MM-DD'),
-            carbonIntensity: result.history[0].carbonIntensity,
-          })
-        }
-      })
-    }
-
-    carbonIntensityCache.set(cacheKey, {
-      data: historyData,
-      timestamp: Date.now(),
-    })
-
-    return historyData
-  } catch (error) {
-    console.error('Error in fetchCarbonIntensityHistory:', error)
-    return [] // Return empty array on error
+    });
   }
-}
-async function fetchWithRetry(selectedZone, date) {
-  try {
-    const response = await axios.get(
-      `https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`,
-      {
-        headers: {
-          Authorization: `Bearer ${currentApiKey}`, // Correct template literal usage
-        },
-        timeout: 5000,
-      }
-    )
-    return response.data
-  } catch (error) {
-    if (error.response && error.response.status === 429) {
-      // If rate limited, throw an error to trigger backoff
-      throw new Error('Rate limited')
-    }
-    console.error(`Error fetching data for ${date}:`, error.message)
-    return null
-  }
+
+  carbonIntensityCache.set(cacheKey, {
+    data: historyData,
+    timestamp: Date.now()
+  });
+
+  return historyData;
 }
 
 function calculateEmissionsForPeriod(
