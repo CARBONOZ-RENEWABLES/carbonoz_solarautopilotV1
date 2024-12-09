@@ -712,7 +712,7 @@ async function fetchCarbonIntensityHistory(selectedZone) {
       const date = m.clone().add(i, 'days').format('YYYY-MM-DD');
       batchPromises.push(
         axios.get(`https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, {
-          headers: { 'Authorization': 'Bearer OHMZITPqgZxSJ' }
+          headers: { 'Authorization': 'Bearer 1Y3iZe2x92dTr' }
         }).then(response => response.data)
       );
     }
