@@ -112,7 +112,10 @@
       "type": "stat"
     },
     {
-      "datasource": "InfluxDB",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "ae5aoqd8wyxvkc"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3803,6 +3806,6 @@
   "timezone": "Indian/Mauritius",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 3,
+  "version": 6,
   "weekStart": ""
 }
