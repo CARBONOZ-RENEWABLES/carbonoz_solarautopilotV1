@@ -823,7 +823,6 @@
     <!-- Sidebar -->
     <%- include('partials/sidebar') %>
 
-
     <!-- Main Content -->
     <main class="main-content">
       <div class="container-config">
@@ -958,7 +957,7 @@
           
           <form id="api-key-form" style="display: none;">
             <label for="api_key">Enter New API Key:</label>
-            <input type="text" id="api_key" name="api_key" value="<%= api_key %>" required />
+            <input type="text" id="api_key" name="api_key" value="" required />
             <div class="api-key-actions">
               <button type="submit" class="api-button primary">Save API Key</button>
               <button type="button" class="api-button secondary" id="cancelApiUpdate">Cancel</button>
@@ -1046,58 +1045,76 @@ document.getElementById('timezone').addEventListener('change', (event) => {
     const toggleButton = document.getElementById('toggleApiForm');
     const cancelButton = document.getElementById('cancelApiUpdate');
     const responseMessage = document.getElementById('responseMessage');
+    const apiKeyInput = document.getElementById('api_key');
+    
+    // Store API key securely in browser's localStorage
+    function storeApiKey(apiKey) {
+        try {
+            // Encrypt or obfuscate the key before storing (simple example)
+            const encodedKey = btoa(apiKey);
+            localStorage.setItem('userApiKey', encodedKey);
+            return true;
+        } catch (error) {
+            console.error('Error storing API key:', error);
+            return false;
+        }
+    }
+    
+    // Retrieve API key from localStorage
+    function getApiKey() {
+        try {
+            const encodedKey = localStorage.getItem('userApiKey');
+            return encodedKey ? atob(encodedKey) : null;
+        } catch (error) {
+            console.error('Error retrieving API key:', error);
+            return null;
+        }
+    }
+    
+    // Remove API key from localStorage
+    function clearApiKey() {
+        localStorage.removeItem('userApiKey');
+    }
     
     // Toggle form visibility
     toggleButton.addEventListener('click', () => {
-      apiKeyForm.style.display = 'flex';
-      toggleButton.style.display = 'none';
+        apiKeyForm.style.display = 'flex';
+        toggleButton.style.display = 'none';
     });
     
     // Handle cancel button
     cancelButton.addEventListener('click', () => {
-      apiKeyForm.style.display = 'none';
-      toggleButton.style.display = 'block';
-      apiKeyForm.reset();
+        apiKeyForm.style.display = 'none';
+        toggleButton.style.display = 'block';
+        apiKeyForm.reset();
     });
     
     // Handle form submission
     apiKeyForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      try {
-        const response = await fetch(`<%= ingress_path %>/api/api-key`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            api_key: document.getElementById('api_key').value
-          })
-        });
+        e.preventDefault();
         
-        const data = await response.json();
+        const apiKey = apiKeyInput.value.trim();
         
-        if (data.success) {
-          responseMessage.textContent = 'API key updated successfully';
-          responseMessage.className = 'success';
-          apiKeyForm.style.display = 'none';
-          toggleButton.style.display = 'block';
-        } else {
-          responseMessage.textContent = data.error || 'Failed to update API key';
-          responseMessage.className = 'error';
+        if (apiKey) {
+            if (storeApiKey(apiKey)) {
+                responseMessage.textContent = 'API key stored successfully';
+                responseMessage.className = 'success';
+                apiKeyForm.style.display = 'none';
+                toggleButton.style.display = 'block';
+            } else {
+                responseMessage.textContent = 'Failed to store API key';
+                responseMessage.className = 'error';
+            }
         }
-      } catch (error) {
-        responseMessage.textContent = 'An error occurred while updating the API key';
-        responseMessage.className = 'error';
-      }
-      
-      // Hide response message after 3 seconds
-      setTimeout(() => {
-        responseMessage.style.display = 'none';
-      }, 3000);
+        
+        // Clear input and hide message
+        apiKeyInput.value = '';
+        setTimeout(() => {
+            responseMessage.textContent = '';
+        }, 3000);
     });
-  });
-  </script>
+});
+</script>
 
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
