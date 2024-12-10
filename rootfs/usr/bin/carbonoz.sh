@@ -20,6 +20,8 @@ sed -i "s|^root_url = .*|root_url = ${INGRESS_PATH}|g" /etc/grafana/grafana.ini
 
 # Start Grafana
 grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana &
+
+# Start InfluxDB
 influxd &
 
 # Wait for InfluxDB to start
@@ -35,5 +37,5 @@ influx -execute "GRANT ALL ON home_assistant TO admin"
 # Run the Node.js application
 cd /usr/src/app
 
-# Start the Node.js application
-exec node --max-old-space-size=128 server.js
+# Start the Node.js application with increased heap size
+exec node --max-old-space-size=256 server.js
