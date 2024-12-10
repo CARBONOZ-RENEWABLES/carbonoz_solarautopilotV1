@@ -455,109 +455,87 @@ function filterMessagesByCategory(category) {
   })
 }
 
-//send  on connection
-
 // WebSocket Connection & MQTT Message Forwarding
 const connectToWebSocketBroker = async () => {
-  const startHeartbeat = () => {
-      heartbeatInterval = setInterval(() => {
-          if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-              wsClient.send(JSON.stringify({ type: 'ping' }));
-          }
-      }, 30000); // Send ping every 30 seconds
+  let heartbeatInterval = null;
+
+  const startHeartbeat = (wsClient) => {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    
+    heartbeatInterval = setInterval(() => {
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        wsClient.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 30000); // Send ping every 30 seconds
   };
 
   const stopHeartbeat = () => {
-      if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-      }
-  };
-
-  const sendRecentMessages = () => {
-    if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
-
-    try {
-        // Send the current incomingMessages array to WebSocket
-        wsClient.send(JSON.stringify({
-            type: 'recent_messages',
-            messages: incomingMessages.map(message => {
-                const [topic, ...messageParts] = message.split(':');
-                return {
-                    topic: topic.trim(),
-                    message: messageParts.join(':').trim(),
-                    timestamp: new Date().toISOString()
-                };
-            })
-        }));
-    } catch (error) {
-        console.error('Error sending recent messages:', error);
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
     }
-};
+  };
 
   const connect = async () => {
     try {
       const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
-      wsClient = new WebSocket(brokerServerUrl);
-      
-      console.log('Authentication Options:', options);
-      
-      const isUser = await AuthenticateUser(options);
-      console.log('Authentication Result:', { isUser });
+      const wsClient = new WebSocket(brokerServerUrl);
 
-        wsClient.on('open', () => {
-            console.log('Connected to WebSocket broker');
-            startHeartbeat();
-            sendRecentMessages();
+      wsClient.on('open', async () => {
+        console.log('Connected to WebSocket broker');
+        
+        try {
+          const isUser = await AuthenticateUser(options);
+          console.log('Authentication Result:', { isUser });
 
-            if (isUser) {
-                console.log('Setting up MQTT message forwarding');
-                mqttClient?.on('message', (topic, message) => {
-                    console.log('Received MQTT message:', { topic, message: message.toString() });
+          if (isUser) {
+            startHeartbeat(wsClient);
 
-                    if (wsClient.readyState === WebSocket.OPEN) {
-                        try {
-                            wsClient.send(
-                                JSON.stringify({
-                                    type: 'mqtt_message',
-                                    topic,
-                                    message: message.toString(),
-                                    userId: isUser,
-                                    timestamp: new Date().toISOString()
-                                })
-                            );
-                            console.log('Sent message to WebSocket server');
-                        } catch (sendError) {
-                            console.error('Error sending message to WebSocket:', sendError);
-                        }
-                    } else {
-                        console.warn('WebSocket is not open. Cannot send message');
-                    }
-                });
-            } else {
-                console.warn('Cannot set up message forwarding:', { 
-                    isUserAuthenticated: !!isUser, 
-                    mqttClientExists: !!mqttClient 
-                });
-            }
-        });
+            mqttClient.on('message', (topic, message) => {
+              if (wsClient.readyState === WebSocket.OPEN) {
+                try {
+                  wsClient.send(
+                    JSON.stringify({
+                      mqttTopicPrefix,
+                      topic,
+                      message: message.toString(),
+                      userId: isUser,
+                      timestamp: new Date().toISOString()
+                    })
+                  );
 
-        wsClient.on('error', (error) => {
-            console.error('WebSocket Error:', error);
-        });
+                } catch (sendError) {
+                  console.error('Error sending message to WebSocket:', sendError);
+                }
+              } else {
+                console.warn('WebSocket is not open. Cannot send message');
+              }
+            });
+          } else {
+            console.warn('Authentication failed. Message forwarding disabled.');
+          }
+        } catch (authError) {
+          console.error('Authentication error:', authError);
+        }
+      });
 
-        wsClient.on('close', () => {
-            console.log('Disconnected from WebSocket broker. Reconnecting...');
-            stopHeartbeat();
-            setTimeout(connect, reconnectTimeout); // Reconnect after a delay
-        });
+      wsClient.on('error', (error) => {
+        console.error('WebSocket Error:', error);
+        stopHeartbeat();
+      });
+
+      wsClient.on('close', (code, reason) => {
+        console.log(`WebSocket closed with code ${code}: ${reason}. Reconnecting...`);
+        stopHeartbeat();
+        connect(); 
+      });
+
     } catch (error) {
-        console.error('Connection setup error:', error);
-        setTimeout(connect, reconnectTimeout); // Retry connection after a delay
+      console.error('Connection setup error:', error);
     }
-};
+  };
 
-connect();
+  connect();
 };
 
 const server = app.listen(port, '0.0.0.0', async () => {
