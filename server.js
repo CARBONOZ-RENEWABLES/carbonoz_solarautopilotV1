@@ -449,6 +449,7 @@ function filterMessagesByCategory(category) {
 // WebSocket Connection & MQTT Message Forwarding
 const connectToWebSocketBroker = async () => {
   let heartbeatInterval = null;
+  const reconnectTimeout = 5000; // 5 seconds reconnection delay
 
   const startHeartbeat = (wsClient) => {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -482,6 +483,7 @@ const connectToWebSocketBroker = async () => {
           if (isUser) {
             startHeartbeat(wsClient);
 
+            // Move MQTT message forwarding outside of the WebSocket connection event
             mqttClient.on('message', (topic, message) => {
               if (wsClient.readyState === WebSocket.OPEN) {
                 try {
@@ -494,7 +496,7 @@ const connectToWebSocketBroker = async () => {
                       timestamp: new Date().toISOString()
                     })
                   );
-
+        
                 } catch (sendError) {
                   console.error('Error sending message to WebSocket:', sendError);
                 }
@@ -513,16 +515,18 @@ const connectToWebSocketBroker = async () => {
       wsClient.on('error', (error) => {
         console.error('WebSocket Error:', error);
         stopHeartbeat();
+        setTimeout(connect, reconnectTimeout);
       });
 
       wsClient.on('close', (code, reason) => {
         console.log(`WebSocket closed with code ${code}: ${reason}. Reconnecting...`);
         stopHeartbeat();
-        connect(); 
+        setTimeout(connect, reconnectTimeout);
       });
 
     } catch (error) {
       console.error('Connection setup error:', error);
+      setTimeout(connect, reconnectTimeout);
     }
   };
 
