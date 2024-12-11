@@ -539,136 +539,10 @@
    }
    a{
      text-decoration: none;
-   } /* API Key Container Styles */
-.api-key-container {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
+   } 
 
-.dark-mode .api-key-container {
-  background: rgb(32, 36, 41);
-  color: white;
-}
 
-/* API Key Form Styles */
-#api-key-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
 
-#api-key-form label {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #4b5563;
-}
-
-.dark-mode #api-key-form label {
-  color: #e5e7eb;
-}
-
-#api-key-form input[type="text"] {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-#api-key-form input[type="text"]:focus {
-  border-color: #DEAF0B;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.1);
-}
-
-/* Button Styles */
-.api-key-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.api-button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.api-button.primary {
-  background-color: #DEAF0B;
-  color: white;
-}
-
-.api-button.primary:hover {
-  background-color: #c59a0a;
-}
-
-.api-button.secondary {
-  background-color: #e5e7eb;
-  color: #4b5563;
-}
-
-.api-button.secondary:hover {
-  background-color: #d1d5db;
-}
-
-/* API Key Display Styles */
-.api-key-display {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-}
-
-.dark-mode .api-key-display {
-  background-color: rgba(24, 27, 31, 1);
-}
-
-.api-key-value {
-  font-family: monospace;
-  color: #374151;
-  flex-grow: 1;
-}
-
-.dark-mode .api-key-value {
-  color: #e5e7eb;
-}
-
-/* Response Message Styles */
-#responseMessage {
-  padding: 1rem;
-  margin: 1rem 0;
-  border-radius: 6px;
-  display: none;
-}
-
-#responseMessage.success {
-  background-color: #dcfce7;
-  color: #166534;
-  display: block;
-}
-
-#responseMessage.error {
-  background-color: #fee2e2;
-  color: #991b1b;
-  display: block;
-}
-
-/* Hidden State */
-.api-key-container.hidden #api-key-form {
-  display: none;
-}
 /* Mobile Sidebar Improvements */
 @media (max-width: 768px) {
     /* Sidebar base styles */
@@ -807,6 +681,167 @@
         pointer-events: none;
     }
 }
+
+.timezone-container, 
+.form-container {
+    background-color: #fff;
+    border: 1px solid #dbdbdb;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: auto;
+    margin: 2rem auto;
+    box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.form-container h3 {
+    text-align: center;
+    color: #262626;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.form-container label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    color: #a8a8a8;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.timezone-select,
+#zone {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1.5px solid #dbdbdb;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    appearance: none;
+    background-color:  #fafafa;
+    color:  #DEAF0B;
+    transition: all 0.2s ease;
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+}
+
+.timezone-select:focus,
+#zone:focus {
+    outline: none;
+    border-color: var(--ig-accent-blue);
+    box-shadow: 0 0 0 3px rgba(0, 149, 246, 0.1);
+}
+
+.button-container {
+    display: flex;
+    flex-direction: row; /* Change from column to row */
+    gap: 0.75rem;
+    justify-content: space-between; /* Optional: distributes space between buttons */
+}
+
+.button-container button {
+    flex: 1; /* Allows buttons to grow equally */
+    padding: 0.875rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-align: center;
+}
+
+.button-container button:nth-child(1) {
+    background: linear-gradient(to right, #eade04, #52df63, #833ab4, #c13584, #e1306c, #fd1d1d);;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.button-container button:nth-child(1)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.2);
+    z-index: -1;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.button-container button:nth-child(1):hover::before {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.button-container button:nth-child(2) {
+    background-color: #DEAF0B;
+    color: white;
+}
+
+.button-container button:nth-child(3) {
+    background-color: transparent;
+    color: var(--ig-accent-blue);
+    border: 1.5px solid #dbdbdb;
+}
+
+.button-container button:hover {
+    opacity: 0.9;
+}
+
+/* Dark Mode Adjustments */
+.dark-mode .timezone-container, 
+.dark-mode .form-container {
+    background-color: var(--ig-background);
+    border-color: var(--ig-border-gray);
+}
+
+.dark-mode .form-container h3 {
+    color: var(--ig-text-black);
+}
+
+.dark-mode .timezone-select,
+.dark-mode #zone {
+    background-color:transparent;
+   
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 768px) {
+    .timezone-container, 
+    .button-container {
+        flex-direction: column; /* Stack vertically on small screens */
+        gap: 0.5rem;
+    }
+    .timezone-select, 
+    #zone, 
+    .button-container button {
+        width: 100%; /* Full width on small screens */
+    }
+
+    .button-container {
+        gap: 0.5rem;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .timezone-container, 
+    .form-container {
+        margin: 0.5rem;
+        padding: 1rem;
+    }
+
+    .form-container h3 {
+        font-size: 1.1rem;
+    }
+}
        </style>
 </head>
 <body>
@@ -825,184 +860,149 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <div class="container-config">
+        <div class="container">
             <div class="timezone-container">
                 <h3>Timezone:</h3>
                 <select id="timezone" class="timezone-select">
-                  <option value="Pacific/Niue">(GMT-11:00) Niue</option>
-                  <option value="Pacific/Pago_Pago">(GMT-11:00) Pago Pago</option>
-                  <option value="Pacific/Honolulu">(GMT-10:00) Hawaii Time</option>
-                  <option value="Pacific/Rarotonga">(GMT-10:00) Rarotonga</option>
-                  <option value="Pacific/Tahiti">(GMT-10:00) Tahiti</option>
-                  <option value="Pacific/Marquesas">(GMT-09:30) Marquesas Islands</option>
-                  <option value="America/Anchorage">(GMT-09:00) Alaska Time</option>
-                  <option value="Pacific/Gambier">(GMT-09:00) Gambier Islands</option>
-                  <option value="America/Los_Angeles">(GMT-08:00) Pacific Time (US & Canada)</option>
-                  <option value="America/Tijuana">(GMT-08:00) Tijuana, Baja California</option>
-                  <option value="America/Vancouver">(GMT-08:00) Vancouver</option>
-                  <option value="America/Phoenix">(GMT-07:00) Arizona</option>
-                  <option value="America/Denver">(GMT-07:00) Mountain Time (US & Canada)</option>
-                  <option value="America/Mazatlan">(GMT-07:00) Mazatlan</option>
-                  <option value="America/Chicago">(GMT-06:00) Central Time (US & Canada)</option>
-                  <option value="America/Mexico_City">(GMT-06:00) Mexico City</option>
-                  <option value="America/Regina">(GMT-06:00) Saskatchewan</option>
-                  <option value="America/Bogota">(GMT-05:00) Bogota</option>
-                  <option value="America/New_York">(GMT-05:00) Eastern Time (US & Canada)</option>
-                  <option value="America/Havana">(GMT-05:00) Cuba</option>
-                  <option value="America/Lima">(GMT-05:00) Lima</option>
-                  <option value="America/Cayman">(GMT-05:00) Cayman Islands</option>
-                  <option value="America/Caracas">(GMT-04:30) Caracas</option>
-                  <option value="America/Halifax">(GMT-04:00) Atlantic Time (Canada)</option>
-                  <option value="America/La_Paz">(GMT-04:00) La Paz</option>
-                  <option value="America/Santiago">(GMT-04:00) Santiago</option>
-                  <option value="America/St_Johns">(GMT-03:30) Newfoundland</option>
-                  <option value="America/Sao_Paulo">(GMT-03:00) Brasilia</option>
-                  <option value="America/Argentina/Buenos_Aires">(GMT-03:00) Buenos Aires</option>
-                  <option value="America/Godthab">(GMT-03:00) Greenland</option>
-                  <option value="America/Montevideo">(GMT-03:00) Montevideo</option>
-                  <option value="Atlantic/South_Georgia">(GMT-02:00) Mid-Atlantic</option>
-                  <option value="Atlantic/Azores">(GMT-01:00) Azores</option>
-                  <option value="Atlantic/Cape_Verde">(GMT-01:00) Cape Verde Is.</option>
-                  <option value="Africa/Casablanca">(GMT+00:00) Casablanca</option>
-                  <option value="Europe/London">(GMT+00:00) Edinburgh, London</option>
-                  <option value="Europe/Lisbon">(GMT+00:00) Lisbon</option>
-                  <option value="Africa/Monrovia">(GMT+00:00) Monrovia</option>
-                  <option value="UTC">(GMT+00:00) UTC</option>
-                  <option value="Europe/Amsterdam">(GMT+01:00) Amsterdam</option>
-                  <option value="Europe/Belgrade">(GMT+01:00) Belgrade</option>
-                  <option value="Europe/Berlin">(GMT+01:00) Berlin</option>
-                  <option value="Europe/Bratislava">(GMT+01:00) Bratislava</option>
-                  <option value="Europe/Brussels">(GMT+01:00) Brussels</option>
-                  <option value="Europe/Budapest">(GMT+01:00) Budapest</option>
-                  <option value="Europe/Copenhagen">(GMT+01:00) Copenhagen</option>
-                  <option value="Europe/Ljubljana">(GMT+01:00) Ljubljana</option>
-                  <option value="Europe/Madrid">(GMT+01:00) Madrid</option>
-                  <option value="Europe/Paris">(GMT+01:00) Paris</option>
-                  <option value="Europe/Prague">(GMT+01:00) Prague</option>
-                  <option value="Europe/Rome">(GMT+01:00) Rome</option>
-                  <option value="Europe/Sarajevo">(GMT+01:00) Sarajevo</option>
-                  <option value="Europe/Skopje">(GMT+01:00) Skopje</option>
-                  <option value="Europe/Stockholm">(GMT+01:00) Stockholm</option>
-                  <option value="Europe/Vienna">(GMT+01:00) Vienna</option>
-                  <option value="Europe/Warsaw">(GMT+01:00) Warsaw</option>
-                  <option value="Africa/Lagos">(GMT+01:00) West Central Africa</option>
-                  <option value="Europe/Zagreb">(GMT+01:00) Zagreb</option>
-                  <option value="Europe/Athens">(GMT+02:00) Athens</option>
-                  <option value="Europe/Bucharest">(GMT+02:00) Bucharest</option>
-                  <option value="Africa/Cairo">(GMT+02:00) Cairo</option>
-                  <option value="Africa/Harare">(GMT+02:00) Harare</option>
-                  <option value="Europe/Helsinki">(GMT+02:00) Helsinki</option>
-                  <option value="Europe/Istanbul">(GMT+02:00) Istanbul</option>
-                  <option value="Asia/Jerusalem">(GMT+02:00) Jerusalem</option>
-                  <option value="Europe/Kiev">(GMT+02:00) Kyiv</option>
-                  <option value="Africa/Johannesburg">(GMT+02:00) Pretoria</option>
-                  <option value="Europe/Riga">(GMT+02:00) Riga</option>
-                  <option value="Europe/Sofia">(GMT+02:00) Sofia</option>
-                  <option value="Europe/Tallinn">(GMT+02:00) Tallinn</option>
-                  <option value="Europe/Vilnius">(GMT+02:00) Vilnius</option>
-                  <option value="Asia/Baghdad">(GMT+03:00) Baghdad</option>
-                  <option value="Asia/Kuwait">(GMT+03:00) Kuwait</option>
-                  <option value="Europe/Minsk">(GMT+03:00) Minsk</option>
-                  <option value="Africa/Nairobi">(GMT+03:00) Nairobi</option>
-                  <option value="Asia/Riyadh">(GMT+03:00) Riyadh</option>
-                  <option value="Europe/Volgograd">(GMT+03:00) Volgograd</option>
-                  <option value="Asia/Tehran">(GMT+03:30) Tehran</option>
-                  <option value="Asia/Muscat">(GMT+04:00) Abu Dhabi, Muscat</option>
-                  <option value="Asia/Baku">(GMT+04:00) Baku</option>
-                  <option value="Indian/Mauritius">(GMT+04:00) Port Louis, Mauritius</option>
-                  <option value="Europe/Moscow">(GMT+04:00) Moscow, St. Petersburg</option>
-                  <option value="Asia/Tbilisi">(GMT+04:00) Tbilisi</option>
-                  <option value="Asia/Yerevan">(GMT+04:00) Yerevan</option>
-                  <option value="Asia/Kabul">(GMT+04:30) Kabul</option>
-                  <option value="Asia/Karachi">(GMT+05:00) Karachi</option>
-                  <option value="Asia/Tashkent">(GMT+05:00) Tashkent</option>
-                  <option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>
-                  <option value="Asia/Colombo">(GMT+05:30) Sri Jayawardenepura</option>
-                  <option value="Asia/Kathmandu">(GMT+05:45) Kathmandu</option>
-                  <option value="Asia/Almaty">(GMT+06:00) Almaty</option>
-                  <option value="Asia/Dhaka">(GMT+06:00) Astana, Dhaka</option>
-                  <option value="Asia/Yekaterinburg">(GMT+06:00) Ekaterinburg</option>
-                  <option value="Asia/Rangoon">(GMT+06:30) Yangon (Rangoon)</option>
-                  <option value="Asia/Bangkok">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
-                  <option value="Asia/Novosibirsk">(GMT+07:00) Novosibirsk</option>
-                  <option value="Asia/Hong_Kong">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>
-                  <option value="Asia/Krasnoyarsk">(GMT+08:00) Krasnoyarsk</option>
-                  <option value="Asia/Kuala_Lumpur">(GMT+08:00) Kuala Lumpur</option>
-                  <option value="Australia/Perth">(GMT+08:00) Perth</option>
-                  <option value="Asia/Singapore">(GMT+08:00) Singapore</option>
-                  <option value="Asia/Taipei">(GMT+08:00) Taipei</option>
-                  <option value="Asia/Ulaanbaatar">(GMT+08:00) Ulaanbaatar</option>
-                  <option value="Asia/Irkutsk">(GMT+09:00) Irkutsk</option>
-                  <option value="Asia/Tokyo">(GMT+09:00) Osaka, Sapporo, Tokyo</option>
-                  <option value="Asia/Seoul">(GMT+09:00) Seoul</option>
-                  <option value="Australia/Adelaide">(GMT+09:30) Adelaide</option>
-                  <option value="Australia/Darwin">(GMT+09:30) Darwin</option>
-                  <option value="Australia/Brisbane">(GMT+10:00) Brisbane</option>
-                  <option value="Australia/Canberra">(GMT+10:00) Canberra, Melbourne, Sydney</option>
-                  <option value="Australia/Hobart">(GMT+10:00) Hobart</option>
-                  <option value="Pacific/Guam">(GMT+10:00) Guam, Port Moresby</option>
-                  <option value="Asia/Vladivostok">(GMT+11:00) Vladivostok</option>
-                  <option value="Asia/Magadan">(GMT+12:00) Magadan, Solomon Is., New Caledonia</option>
-                  <option value="Pacific/Auckland">(GMT+12:00) Auckland, Wellington</option>
-                  <option value="Pacific/Fiji">(GMT+12:00) Fiji</option>
-                  <option value="Pacific/Tongatapu">(GMT+13:00) Nuku'alofa</option>
-              </select>
-              </div>
-        </form>
-        <div class="api-key-container" id="apiKeyContainer">
-          <div class="api-key-display">
-            <span class="api-key-value">API Key: ••••••••••••</span>
-            <button class="api-button secondary" id="toggleApiForm">Update API Key</button>
-          </div>
-          
-          <form id="api-key-form" style="display: none;">
-            <label for="api_key">Enter New API Key:</label>
-            <input type="text" id="api_key" name="api_key" value="" required />
-            <div class="api-key-actions">
-              <button type="submit" class="api-button primary">Save API Key</button>
-              <button type="button" class="api-button secondary" id="cancelApiUpdate">Cancel</button>
+                    <option value="Pacific/Niue">(GMT-11:00) Niue</option>
+                    <option value="Pacific/Pago_Pago">(GMT-11:00) Pago Pago</option>
+                    <option value="Pacific/Honolulu">(GMT-10:00) Hawaii Time</option>
+                    <option value="Pacific/Rarotonga">(GMT-10:00) Rarotonga</option>
+                    <option value="Pacific/Tahiti">(GMT-10:00) Tahiti</option>
+                    <option value="Pacific/Marquesas">(GMT-09:30) Marquesas Islands</option>
+                    <option value="America/Anchorage">(GMT-09:00) Alaska Time</option>
+                    <option value="Pacific/Gambier">(GMT-09:00) Gambier Islands</option>
+                    <option value="America/Los_Angeles">(GMT-08:00) Pacific Time (US & Canada)</option>
+                    <option value="America/Tijuana">(GMT-08:00) Tijuana, Baja California</option>
+                    <option value="America/Vancouver">(GMT-08:00) Vancouver</option>
+                    <option value="America/Phoenix">(GMT-07:00) Arizona</option>
+                    <option value="America/Denver">(GMT-07:00) Mountain Time (US & Canada)</option>
+                    <option value="America/Mazatlan">(GMT-07:00) Mazatlan</option>
+                    <option value="America/Chicago">(GMT-06:00) Central Time (US & Canada)</option>
+                    <option value="America/Mexico_City">(GMT-06:00) Mexico City</option>
+                    <option value="America/Regina">(GMT-06:00) Saskatchewan</option>
+                    <option value="America/Bogota">(GMT-05:00) Bogota</option>
+                    <option value="America/New_York">(GMT-05:00) Eastern Time (US & Canada)</option>
+                    <option value="America/Havana">(GMT-05:00) Cuba</option>
+                    <option value="America/Lima">(GMT-05:00) Lima</option>
+                    <option value="America/Cayman">(GMT-05:00) Cayman Islands</option>
+                    <option value="America/Caracas">(GMT-04:30) Caracas</option>
+                    <option value="America/Halifax">(GMT-04:00) Atlantic Time (Canada)</option>
+                    <option value="America/La_Paz">(GMT-04:00) La Paz</option>
+                    <option value="America/Santiago">(GMT-04:00) Santiago</option>
+                    <option value="America/St_Johns">(GMT-03:30) Newfoundland</option>
+                    <option value="America/Sao_Paulo">(GMT-03:00) Brasilia</option>
+                    <option value="America/Argentina/Buenos_Aires">(GMT-03:00) Buenos Aires</option>
+                    <option value="America/Godthab">(GMT-03:00) Greenland</option>
+                    <option value="America/Montevideo">(GMT-03:00) Montevideo</option>
+                    <option value="Atlantic/South_Georgia">(GMT-02:00) Mid-Atlantic</option>
+                    <option value="Atlantic/Azores">(GMT-01:00) Azores</option>
+                    <option value="Atlantic/Cape_Verde">(GMT-01:00) Cape Verde Is.</option>
+                    <option value="Africa/Casablanca">(GMT+00:00) Casablanca</option>
+                    <option value="Europe/London">(GMT+00:00) Edinburgh, London</option>
+                    <option value="Europe/Lisbon">(GMT+00:00) Lisbon</option>
+                    <option value="Africa/Monrovia">(GMT+00:00) Monrovia</option>
+                    <option value="UTC">(GMT+00:00) UTC</option>
+                    <option value="Europe/Amsterdam">(GMT+01:00) Amsterdam</option>
+                    <option value="Europe/Belgrade">(GMT+01:00) Belgrade</option>
+                    <option value="Europe/Berlin">(GMT+01:00) Berlin</option>
+                    <option value="Europe/Bratislava">(GMT+01:00) Bratislava</option>
+                    <option value="Europe/Brussels">(GMT+01:00) Brussels</option>
+                    <option value="Europe/Budapest">(GMT+01:00) Budapest</option>
+                    <option value="Europe/Copenhagen">(GMT+01:00) Copenhagen</option>
+                    <option value="Europe/Ljubljana">(GMT+01:00) Ljubljana</option>
+                    <option value="Europe/Madrid">(GMT+01:00) Madrid</option>
+                    <option value="Europe/Paris">(GMT+01:00) Paris</option>
+                    <option value="Europe/Prague">(GMT+01:00) Prague</option>
+                    <option value="Europe/Rome">(GMT+01:00) Rome</option>
+                    <option value="Europe/Sarajevo">(GMT+01:00) Sarajevo</option>
+                    <option value="Europe/Skopje">(GMT+01:00) Skopje</option>
+                    <option value="Europe/Stockholm">(GMT+01:00) Stockholm</option>
+                    <option value="Europe/Vienna">(GMT+01:00) Vienna</option>
+                    <option value="Europe/Warsaw">(GMT+01:00) Warsaw</option>
+                    <option value="Africa/Lagos">(GMT+01:00) West Central Africa</option>
+                    <option value="Europe/Zagreb">(GMT+01:00) Zagreb</option>
+                    <option value="Europe/Athens">(GMT+02:00) Athens</option>
+                    <option value="Europe/Bucharest">(GMT+02:00) Bucharest</option>
+                    <option value="Africa/Cairo">(GMT+02:00) Cairo</option>
+                    <option value="Africa/Harare">(GMT+02:00) Harare</option>
+                    <option value="Europe/Helsinki">(GMT+02:00) Helsinki</option>
+                    <option value="Europe/Istanbul">(GMT+02:00) Istanbul</option>
+                    <option value="Asia/Jerusalem">(GMT+02:00) Jerusalem</option>
+                    <option value="Europe/Kiev">(GMT+02:00) Kyiv</option>
+                    <option value="Africa/Johannesburg">(GMT+02:00) Pretoria</option>
+                    <option value="Europe/Riga">(GMT+02:00) Riga</option>
+                    <option value="Europe/Sofia">(GMT+02:00) Sofia</option>
+                    <option value="Europe/Tallinn">(GMT+02:00) Tallinn</option>
+                    <option value="Europe/Vilnius">(GMT+02:00) Vilnius</option>
+                    <option value="Asia/Baghdad">(GMT+03:00) Baghdad</option>
+                    <option value="Asia/Kuwait">(GMT+03:00) Kuwait</option>
+                    <option value="Europe/Minsk">(GMT+03:00) Minsk</option>
+                    <option value="Africa/Nairobi">(GMT+03:00) Nairobi</option>
+                    <option value="Asia/Riyadh">(GMT+03:00) Riyadh</option>
+                    <option value="Europe/Volgograd">(GMT+03:00) Volgograd</option>
+                    <option value="Asia/Tehran">(GMT+03:30) Tehran</option>
+                    <option value="Asia/Muscat">(GMT+04:00) Abu Dhabi, Muscat</option>
+                    <option value="Asia/Baku">(GMT+04:00) Baku</option>
+                    <option value="Indian/Mauritius">(GMT+04:00) Port Louis, Mauritius</option>
+                    <option value="Europe/Moscow">(GMT+04:00) Moscow, St. Petersburg</option>
+                    <option value="Asia/Tbilisi">(GMT+04:00) Tbilisi</option>
+                    <option value="Asia/Yerevan">(GMT+04:00) Yerevan</option>
+                    <option value="Asia/Kabul">(GMT+04:30) Kabul</option>
+                    <option value="Asia/Karachi">(GMT+05:00) Karachi</option>
+                    <option value="Asia/Tashkent">(GMT+05:00) Tashkent</option>
+                    <option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>
+                    <option value="Asia/Colombo">(GMT+05:30) Sri Jayawardenepura</option>
+                    <option value="Asia/Kathmandu">(GMT+05:45) Kathmandu</option>
+                    <option value="Asia/Almaty">(GMT+06:00) Almaty</option>
+                    <option value="Asia/Dhaka">(GMT+06:00) Astana, Dhaka</option>
+                    <option value="Asia/Yekaterinburg">(GMT+06:00) Ekaterinburg</option>
+                    <option value="Asia/Rangoon">(GMT+06:30) Yangon (Rangoon)</option>
+                    <option value="Asia/Bangkok">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
+                    <option value="Asia/Novosibirsk">(GMT+07:00) Novosibirsk</option>
+                    <option value="Asia/Hong_Kong">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>
+                    <option value="Asia/Krasnoyarsk">(GMT+08:00) Krasnoyarsk</option>
+                    <option value="Asia/Kuala_Lumpur">(GMT+08:00) Kuala Lumpur</option>
+                    <option value="Australia/Perth">(GMT+08:00) Perth</option>
+                    <option value="Asia/Singapore">(GMT+08:00) Singapore</option>
+                    <option value="Asia/Taipei">(GMT+08:00) Taipei</option>
+                    <option value="Asia/Ulaanbaatar">(GMT+08:00) Ulaanbaatar</option>
+                    <option value="Asia/Irkutsk">(GMT+09:00) Irkutsk</option>
+                    <option value="Asia/Tokyo">(GMT+09:00) Osaka, Sapporo, Tokyo</option>
+                    <option value="Asia/Seoul">(GMT+09:00) Seoul</option>
+                    <option value="Australia/Adelaide">(GMT+09:30) Adelaide</option>
+                    <option value="Australia/Darwin">(GMT+09:30) Darwin</option>
+                    <option value="Australia/Brisbane">(GMT+10:00) Brisbane</option>
+                    <option value="Australia/Canberra">(GMT+10:00) Canberra, Melbourne, Sydney</option>
+                    <option value="Australia/Hobart">(GMT+10:00) Hobart</option>
+                    <option value="Pacific/Guam">(GMT+10:00) Guam, Port Moresby</option>
+                    <option value="Asia/Vladivostok">(GMT+11:00) Vladivostok</option>
+                    <option value="Asia/Magadan">(GMT+12:00) Magadan, Solomon Is., New Caledonia</option>
+                    <option value="Pacific/Auckland">(GMT+12:00) Auckland, Wellington</option>
+                    <option value="Pacific/Fiji">(GMT+12:00) Fiji</option>
+                    <option value="Pacific/Tongatapu">(GMT+13:00) Nuku'alofa</option>
+                </select>
             </div>
-          </form>
-          <div id="responseMessage"></div>
+            <div class="form-container">
+                <form onsubmit="event.preventDefault(); saveSelectedZone('results');">
+                    <label for="zone">Choose a Carbon Intensity zone:</label>
+                    <select name="zone" id="zone">
+                        <option value="">-- Select a zone --</option>
+                        <% zones.forEach(function(zone) { %>
+                            <option value="<%= zone.code %>">
+                                <%= zone.zoneName %> (<%= zone.code %>)
+                            </option>
+                        <% }); %>
+                    </select>
+                    
+                    <div class="button-container">
+                        <button type="submit">View Carbon Intensity Results</button>
+                        <button type="button" onclick="saveSelectedZone('analytics')">View Carbon Intensity Analytics</button>
+                        <button type="button" onclick="clearSelectedZone()">Clear Selection</button>
+                    </div>
+                </form>
+            </div>
         </div>
-        
-        <div class="form-container">
-          <% if (selectedZone) { %>
-            <div class="current-zone">
-              Currently selected zone: <%= zones.find(z => z.code === selectedZone)?.zoneName || selectedZone %>
-            </div>
-          <% } %>
-          <form action="<%= ingress_path %>/results" method="GET">
-            <label for="zone">Choose a Carbon Intensity zone:</label>
-            <select name="zone" id="zone" class="form-select">
-              <option value="">-- Select a zone --</option>
-              <% zones.forEach(function(zone) { %>
-                <option value="<%= zone.code %>" <%= selectedZone === zone.code ? 'selected' : '' %>>
-                  <%= zone.zoneName %> (<%= zone.code %>)
-                </option>
-              <% }); %>
-            </select>
-            
-            <div class="button-container" style="display: flex; gap: 10px;">
-              <button type="submit" class="form-button">
-                Update Zone
-              </button>
-              
-              <% if (selectedZone) { %>
-                <a href="<%= ingress_path %>/clear-zone" class="button danger">
-                  Clear Selection
-                </a>
-              <% } %>
-            </div>
-            
-          </form>
-          
-          <div style="margin-top: 20px; text-align: center;">
-            <a href="<%= ingress_path %>/results" class="button" style="display: inline-block; text-decoration: none;">
-              View Current Results
-            </a>
-        </div>
-    </div>
     </main>
 </div>
   
@@ -1039,81 +1039,55 @@ document.getElementById('timezone').addEventListener('change', (event) => {
 </script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const apiKeyContainer = document.getElementById('apiKeyContainer');
-    const apiKeyForm = document.getElementById('api-key-form');
-    const toggleButton = document.getElementById('toggleApiForm');
-    const cancelButton = document.getElementById('cancelApiUpdate');
-    const responseMessage = document.getElementById('responseMessage');
-    const apiKeyInput = document.getElementById('api_key');
-    
-    // Store API key securely in browser's localStorage
-    function storeApiKey(apiKey) {
-        try {
-            // Encrypt or obfuscate the key before storing (simple example)
-            const encodedKey = btoa(apiKey);
-            localStorage.setItem('userApiKey', encodedKey);
-            return true;
-        } catch (error) {
-            console.error('Error storing API key:', error);
-            return false;
-        }
-    }
-    
-    // Retrieve API key from localStorage
-    function getApiKey() {
-        try {
-            const encodedKey = localStorage.getItem('userApiKey');
-            return encodedKey ? atob(encodedKey) : null;
-        } catch (error) {
-            console.error('Error retrieving API key:', error);
-            return null;
-        }
-    }
-    
-    // Remove API key from localStorage
-    function clearApiKey() {
-        localStorage.removeItem('userApiKey');
-    }
-    
-    // Toggle form visibility
-    toggleButton.addEventListener('click', () => {
-        apiKeyForm.style.display = 'flex';
-        toggleButton.style.display = 'none';
-    });
-    
-    // Handle cancel button
-    cancelButton.addEventListener('click', () => {
-        apiKeyForm.style.display = 'none';
-        toggleButton.style.display = 'block';
-        apiKeyForm.reset();
-    });
-    
-    // Handle form submission
-    apiKeyForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // Function to save selected zone to localStorage
+    function saveSelectedZone(destination) {
+        const zoneSelect = document.getElementById('zone');
+        const selectedZone = zoneSelect.value;
         
-        const apiKey = apiKeyInput.value.trim();
-        
-        if (apiKey) {
-            if (storeApiKey(apiKey)) {
-                responseMessage.textContent = 'API key stored successfully';
-                responseMessage.className = 'success';
-                apiKeyForm.style.display = 'none';
-                toggleButton.style.display = 'block';
-            } else {
-                responseMessage.textContent = 'Failed to store API key';
-                responseMessage.className = 'error';
+        if (selectedZone) {
+            // Save to localStorage
+            localStorage.setItem('selectedZone', JSON.stringify({ 
+                zone: selectedZone, 
+                timestamp: new Date().getTime() 
+            }));
+
+            // Send to server (optional, for logging or future use)
+            fetch('/save-zone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ zone: selectedZone })
+            });
+
+            // Redirect based on destination
+            if (destination === 'results') {
+                window.location.href = `<%= ingress_path %>/results?zone=${selectedZone}`;
+            } else if (destination === 'analytics') {
+                window.location.href = `<%= ingress_path %>/analytics?zone=${selectedZone}`;
             }
         }
-        
-        // Clear input and hide message
-        apiKeyInput.value = '';
-        setTimeout(() => {
-            responseMessage.textContent = '';
-        }, 3000);
-    });
-});
+    }
+
+    // Function to load saved zone on page load
+    function loadSavedZone() {
+        const savedZone = localStorage.getItem('selectedZone');
+        if (savedZone) {
+            const { zone } = JSON.parse(savedZone);
+            const zoneSelect = document.getElementById('zone');
+            zoneSelect.value = zone;
+        }
+    }
+
+    // Function to clear saved zone
+    function clearSelectedZone() {
+        localStorage.removeItem('selectedZone');
+        const zoneSelect = document.getElementById('zone');
+        zoneSelect.selectedIndex = 0;
+    }
+
+    // Load saved zone when page loads
+    window.onload = loadSavedZone;
 </script>
 
 

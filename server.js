@@ -9,7 +9,6 @@ const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
 const axios = require('axios')
-const cookieParser = require('cookie-parser');
 const { backOff } = require('exponential-backoff')
 const app = express()
 const port = process.env.PORT || 6789
@@ -28,8 +27,6 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 
-// Add cookie parser middleware
-app.use(cookieParser());
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
@@ -237,11 +234,19 @@ app.get('/chart', (req, res) => {
   })
 })
 
+function getSelectedZone(req) {
+  // First, check if a zone is provided in the query
+  if (req.query.zone) {
+    return req.query.zone;
+  }
+  return null;
+}
 
 app.get('/analytics', async (req, res) => {
   try {
-    const selectedZone = req.cookies[COOKIE_NAME] || null
-    let carbonIntensityData = []
+    // Get the selected zone, prioritizing query param
+    const selectedZone = getSelectedZone(req);
+    let carbonIntensityData = [];
 
     if (selectedZone) {
       try {
@@ -272,25 +277,28 @@ app.get('/analytics', async (req, res) => {
       gridPowerDecade,
       gridVoltageDecade
     ] = await Promise.all([
-      queryInfluxDB(`${mqttTopicPrefix}/load_energy/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/pv_energy/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/battery_energy_in/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/battery_energy_out/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/grid_energy_in/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/grid_energy_out/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/load_energy/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/pv_energy/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/battery_energy_in/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/battery_energy_out/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/grid_energy_in/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/grid_energy_out/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/load_energy/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/pv_energy/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/battery_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/battery_energy_out/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/grid_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/grid_energy_out/state`)
+      queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
     ]);
+
+    // Get the list of zones to pass to the template
+    const zones = await getZones();
 
     const data = {
       loadPowerData,
@@ -301,6 +309,7 @@ app.get('/analytics', async (req, res) => {
       gridVoltageData,
       carbonIntensityData,
       selectedZone,
+      zones, // Add zones to the data object
       loadPowerYear,
       pvPowerYear,
       batteryStateOfChargeYear,
@@ -318,6 +327,7 @@ app.get('/analytics', async (req, res) => {
     res.render('analytics', {
       data,
       ingress_path: process.env.INGRESS_PATH || '',
+      selectedZone // Pass selectedZone to the template for pre-selecting in dropdowns
     })
   } catch (error) {
     console.error('Error fetching analytics data:', error);
@@ -543,12 +553,6 @@ const server = app.listen(port, '0.0.0.0', async () => {
 // Cache for carbon intensity data
 const carbonIntensityCache = new Map();
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
-const COOKIE_NAME = 'selectedZone';
-const COOKIE_OPTIONS = {
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production'
-};
 
 // Fetch zones without caching
 async function getZones() {
@@ -569,22 +573,23 @@ async function getZones() {
 }
 
 
+app.post('/save-zone', (req, res) => {
+  const { zone } = req.body;
+  console.log(`Zone saved: ${zone}`);
+  res.json({ success: true, message: 'Zone saved successfully' });
+});
+
 app.get('/settings', async (req, res) => {
   const zones = await getZones();
-  const selectedZone = req.cookies[COOKIE_NAME] || '';
-  res.render('settings', { zones, selectedZone ,ingress_path: process.env.INGRESS_PATH || ''});
+  res.render('settings', { zones,ingress_path: process.env.INGRESS_PATH || '' });
 });
 
 
 app.get('/results', async (req, res) => {
-  let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null;
+  // Get the selected zone, prioritizing query param
+  let selectedZone = getSelectedZone(req);
+  
   const zones = await getZones();
-
-  // If a new zone is selected, update the cookie
-  if (req.query.zone && req.query.zone !== req.cookies[COOKIE_NAME]) {
-    res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS);
-    selectedZone = req.query.zone;
-  }
 
   try {
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
@@ -629,7 +634,6 @@ app.get('/results', async (req, res) => {
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
       ingress_path: process.env.INGRESS_PATH || '',
-      
     });
   } catch (error) {
     console.error('Error processing data:', error);
@@ -639,12 +643,6 @@ app.get('/results', async (req, res) => {
       error: 'Error processing data'
     });
   }
-});
-
-
-app.get('/clear-zone', (req, res) => {
-  res.clearCookie(COOKIE_NAME);
-  res.redirect(`${process.env.INGRESS_PATH || ''}/results`);
 });
 
 
