@@ -35,7 +35,7 @@ options:
   mqtt_host: ""
   mqtt_username: ""
   mqtt_password: ""
-  mqtt_topic_prefix: "solar_assistant_DEYE"
+  mqtt_topic_prefix: ""
   battery_number: 1
   inverter_number: 1
   clientId: ""
