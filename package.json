@@ -18,6 +18,7 @@
     "follow-redirects": "^1.15.6",
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
+    "cookie-parser": "^1.4.7",
     "mqtt": "^4.2.8",
     "ws": "^8.2.3"
   }
