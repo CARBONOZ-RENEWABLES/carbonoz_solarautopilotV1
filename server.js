@@ -10,7 +10,6 @@ const WebSocket = require('ws')
 const retry = require('async-retry')
 const axios = require('axios')
 const { backOff } = require('exponential-backoff')
-const cookieParser = require('cookie-parser');
 const app = express()
 const port = process.env.PORT || 6789
 const socketPort = 8000
@@ -27,7 +26,6 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
-app.use(cookieParser());
 
 
 // Read configuration from Home Assistant add-on options
@@ -552,14 +550,9 @@ const server = app.listen(port, '0.0.0.0', async () => {
 });
 
 
+// Cache for carbon intensity data
 const carbonIntensityCache = new Map();
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
-const COOKIE_NAME = 'selectedZone';
-const COOKIE_OPTIONS = {
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production'
-};
 
 // Fetch zones without caching
 async function getZones() {
@@ -593,14 +586,10 @@ app.get('/settings', async (req, res) => {
 
 
 app.get('/results', async (req, res) => {
-  let selectedZone = req.query.zone || req.cookies[COOKIE_NAME] || null;
+  // Get the selected zone, prioritizing query param
+  let selectedZone = getSelectedZone(req);
+  
   const zones = await getZones();
-
-  // If a new zone is selected, update the cookie
-  if (req.query.zone && req.query.zone !== req.cookies[COOKIE_NAME]) {
-    res.cookie(COOKIE_NAME, req.query.zone, COOKIE_OPTIONS);
-    selectedZone = req.query.zone;
-  }
 
   try {
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
@@ -645,7 +634,6 @@ app.get('/results', async (req, res) => {
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
       ingress_path: process.env.INGRESS_PATH || '',
-      
     });
   } catch (error) {
     console.error('Error processing data:', error);
@@ -656,6 +644,7 @@ app.get('/results', async (req, res) => {
     });
   }
 });
+
 
 async function queryInfluxData(topic, duration = '365d') {
   const query = `
@@ -774,20 +763,19 @@ function calculateEmissionsForPeriod(
   })
 }
 
-
 app.get('/api/grid-voltage', async (req, res) => {
   try {
     const result = await influx.query(`
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
-    `);
-    res.json({ voltage: result[0]?.value || 0 });
+        SELECT last("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+      `)
+    res.json({ voltage: result[0]?.value || 0 })
   } catch (error) {
-    console.error('Error fetching grid voltage:', error);
-    res.status(500).json({ error: 'Failed to fetch grid voltage' });
+    console.error('Error fetching grid voltage:', error)
+    res.status(500).json({ error: 'Failed to fetch grid voltage' })
   }
-});
+})
 
 // Error handling middleware
 app.use((err, req, res, next) => {
