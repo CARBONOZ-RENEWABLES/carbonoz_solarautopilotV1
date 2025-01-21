@@ -1,147 +1,67 @@
-/* Filter Container Base Styles */
-.filter-container {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    margin-bottom: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: flex-end;
-    justify-content: space-between;
-}
-
-/* Form Group Styles */
-.form-group {
-    flex: 1;
-    min-width: 200px;
-    margin: 0;
-}
-
-/* Label Styles */
-.filter-container label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
-}
-
-/* Input and Select Styles */
-.filter-container input,
-.filter-container select {
+/* Dashboard Container Styles */
+.dashboard-container {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 16px;
-    box-sizing: border-box;
-    color: #DEAF0B;
-    background-color: transparent;
-    transition: border-color 0.3s ease;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.filter-container input:focus,
-.filter-container select:focus {
-    border-color: #DEAF0B;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(222, 175, 11, 0.1);
-}
-
-/* Button Styles */
-.filter-container button {
-    background-color: var(--primary-color);
-    color: #000;
-    border: 2px solid #000;
-    padding: 12px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 16px;
-    font-weight: bold;
-    margin: 0;
-    min-width: 120px;
-}
-
-.filter-container button:hover {
-    background-color: #cca30f;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.filter-container button:active {
-    transform: translateY(0);
-}
-
-/* Dashboard Container */
 .dashboard-container iframe {
     width: 100%;
-    height: calc(100vh - 160px);
+    height: 100vh;
     border: none;
     display: block;
-    border-radius: 8px;
+    background: #ffffff;
 }
 
-/* Dark Mode Styles */
-.dark-mode .filter-container {
-    background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark-mode .filter-container label {
-    color: #fff;
-}
-
-.dark-mode .filter-container input,
-.dark-mode .filter-container select {
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #DEAF0B;
-}
-
-.dark-mode .filter-container input:focus,
-.dark-mode .filter-container select:focus {
-    border-color: #DEAF0B;
-    box-shadow: 0 0 0 2px rgba(222, 175, 11, 0.2);
-}
-
-/* Responsive Styles */
-@media screen and (max-width: 768px) {
-    .filter-container {
-        flex-direction: column;
-        padding: 15px;
-        gap: 15px;
+/* Large Screens (above 1200px) */
+@media screen and (min-width: 1201px) {
+    .dashboard-container iframe {
+        height: calc(100vh - 40px);
     }
+}
 
-    .form-group {
-        width: 100%;
+/* Medium Screens (between 769px and 1200px) */
+@media screen and (min-width: 769px) and (max-width: 1200px) {
+    .dashboard-container iframe {
+        height: calc(100vh - 60px);
     }
+}
 
-    .filter-container button {
-        width: 100%;
+/* Tablet Screens (between 481px and 768px) */
+@media screen and (min-width: 481px) and (max-width: 768px) {
+    .dashboard-container {
         margin-top: 10px;
     }
+    
+    .dashboard-container iframe {
+        height: calc(100vh - 80px);
+    }
 }
 
-/* Mobile Optimizations */
+/* Mobile Screens (480px and below) */
 @media screen and (max-width: 480px) {
-    .filter-container {
-        padding: 12px;
-        gap: 12px;
+    .dashboard-container {
+        margin-top: 5px;
+        border-radius: 6px;
     }
-
-    .filter-container input,
-    .filter-container select {
-        font-size: 16px;
-        padding: 10px;
-    }
-
-    .filter-container label {
-        font-size: 13px;
-    }
-
+    
     .dashboard-container iframe {
-        height: calc(100vh - 140px);
+        height: calc(100vh - 100px);
+    }
+}
+
+/* Dark Mode Support */
+.dark-mode .dashboard-container {
+    background: #2d2d2d;
+}
+
+/* Handle landscape orientation on mobile */
+@media screen and (max-width: 900px) and (orientation: landscape) {
+    .dashboard-container iframe {
+        height: calc(100vh - 40px);
     }
 }
