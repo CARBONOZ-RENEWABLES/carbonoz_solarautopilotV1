@@ -225,3 +225,169 @@ ingress_stream: true
 - Persistent data in `/data`
 - Write-ahead logging
 - Backup support
+
+# WebSocket Client Implementation and Data Synchronization
+
+## Overview
+The system uses a WebSocket client to establish a persistent connection with a broker server at `wss://broker.carbonoz.com:8000`. This connection is used to forward MQTT messages to the broker after user authentication.
+
+## WebSocket Client Implementation
+
+### 1. Connection Management
+```javascript
+const connectToWebSocketBroker = async () => {
+  let heartbeatInterval = null;
+  const reconnectTimeout = 5000; // 5 seconds reconnection delay
+```
+
+The implementation includes:
+- Heartbeat mechanism to maintain connection health
+- Automatic reconnection with a 5-second delay
+- Error handling and connection state management
+
+### 2. Heartbeat System
+```javascript
+const startHeartbeat = (wsClient) => {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  
+  heartbeatInterval = setInterval(() => {
+    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+      wsClient.send(JSON.stringify({ type: 'ping' }));
+    }
+  }, 30000); // Send ping every 30 seconds
+};
+```
+
+Key features:
+- 30-second ping interval
+- Clears existing heartbeat before starting new one
+- Checks connection state before sending ping
+
+### 3. Authentication Flow
+```javascript
+wsClient.on('open', async () => {
+  console.log('Connected to WebSocket broker');
+  
+  try {
+    const isUser = await AuthenticateUser(options);
+    console.log('Authentication Result:', { isUser });
+
+    if (isUser) {
+      startHeartbeat(wsClient);
+      // Message forwarding setup...
+    }
+  } catch (authError) {
+    console.error('Authentication error:', authError);
+  }
+});
+```
+
+Authentication process:
+1. Establishes WebSocket connection
+2. Authenticates user with provided credentials
+3. Starts heartbeat if authentication successful
+4. Sets up message forwarding on successful auth
+
+## Data Synchronization
+
+### 1. MQTT to WebSocket Message Forwarding
+```javascript
+mqttClient.on('message', (topic, message) => {
+  if (wsClient.readyState === WebSocket.OPEN) {
+    try {
+      wsClient.send(
+        JSON.stringify({
+          mqttTopicPrefix,
+          topic,
+          message: message.toString(),
+          userId: isUser,
+          timestamp: new Date().toISOString()
+        })
+      );
+    } catch (sendError) {
+      console.error('Error sending message to WebSocket:', sendError);
+    }
+  } else {
+    console.warn('WebSocket is not open. Cannot send message');
+  }
+});
+```
+
+Message forwarding includes:
+- Topic prefix for message categorization
+- Original MQTT topic and message
+- User ID for authentication
+- Timestamp for message ordering
+- Connection state verification before sending
+
+### 2. Error Handling and Reconnection
+```javascript
+wsClient.on('error', (error) => {
+  console.error('WebSocket Error:', error);
+  stopHeartbeat();
+  setTimeout(connect, reconnectTimeout);
+});
+
+wsClient.on('close', (code, reason) => {
+  console.log(`WebSocket closed with code ${code}: ${reason}. Reconnecting...`);
+  stopHeartbeat();
+  setTimeout(connect, reconnectTimeout);
+});
+```
+
+Error handling features:
+- Automatic reconnection on connection loss
+- Heartbeat cleanup on disconnection
+- Error logging with codes and reasons
+- Graceful connection closure handling
+
+### 3. Data Flow Architecture
+
+```
+MQTT Source → MQTT Client → WebSocket Client → Broker Server
+     ↓             ↓              ↓                ↓
+Real-time    Message Queue    Connection     Data Processing
+  Data         Buffer        Management      & Distribution
+```
+
+Key components:
+1. MQTT Source: Provides real-time data
+2. MQTT Client: Receives and buffers messages
+3. WebSocket Client: Manages connection and forwards data
+4. Broker Server: Processes and distributes data
+
+## Security Considerations
+
+1. Authentication:
+   - Client ID and Secret required
+   - User verification before message forwarding
+   - Secure WebSocket (WSS) protocol
+
+2. Connection Security:
+   - Heartbeat monitoring
+   - Automatic reconnection
+   - Error handling and logging
+
+3. Data Integrity:
+   - Message validation
+   - Connection state verification
+   - Timestamp inclusion
+
+## Implementation Notes
+
+1. The system uses native WebSocket instead of Socket.IO for:
+   - Lower overhead
+   - Simpler implementation
+   - Direct message forwarding
+
+2. Connection management is handled through:
+   - Automatic reconnection
+   - Heartbeat monitoring
+   - Error handling
+
+3. Data synchronization is achieved via:
+   - Real-time message forwarding
+   - Connection state monitoring
+   - User authentication verification
+
+This implementation ensures reliable, secure, and efficient data synchronization between MQTT sources and the broker server while maintaining connection stability through heartbeat monitoring and automatic reconnection mechanisms.
