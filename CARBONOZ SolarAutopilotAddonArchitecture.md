@@ -92,7 +92,6 @@ wal-dir = "/data/influxdb/wal"
 - Custom configuration via `grafana.ini`
 - Automatic provisioning
 - Integration with InfluxDB
-- Ingress support for Home Assistant
 
 ### 4. Application Layer
 #### Node.js Application
