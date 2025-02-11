@@ -171,7 +171,7 @@ ports:
   "8000/tcp": 8000
   "8086/tcp": 8086
 ```
-- Web interface: 3001
+- Grafana: 3001
 - Main application: 6789
 - WebSocket: 8000
 - InfluxDB: 8086
