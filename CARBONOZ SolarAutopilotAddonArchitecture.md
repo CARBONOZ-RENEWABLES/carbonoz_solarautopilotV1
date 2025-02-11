@@ -221,12 +221,7 @@ ingress_stream: true
 - InfluxDB: 64MB cache max
 - Grafana: Default configuration
 
-### Storage Management
-- Persistent data in `/data`
-- Write-ahead logging
-- Backup support
-
-# WebSocket Client Implementation and Data Synchronization
+## WebSocket Client Implementation and Data Synchronization
 
 ## Overview
 The system uses a WebSocket client to establish a persistent connection with a broker server at `wss://broker.carbonoz.com:8000`. This connection is used to forward MQTT messages to the broker after user authentication.
