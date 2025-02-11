@@ -30,23 +30,15 @@ FROM ${BUILD_FROM} as base
 │   │   └── influxdb/
 │   │       ├── run
 │   │       └── finish
-│   ├── influxdb/
-│   │   └── influxdb.conf
 │   └── grafana/
 │       ├── grafana.ini
 │       └── provisioning/
 ├── usr/
-│   ├── src/app/
-│   │   ├── server.js
-│   │   └── package.json
+│   ├── src/
 │   └── bin/
 │       └── carbonoz.sh
-└── data/
-    ├── influxdb/
-    │   ├── meta/
-    │   ├── data/
-    │   └── wal/
-    └── backup/
+├── Dockerfile
+└── server.js
 ```
 
 ## Component Architecture
