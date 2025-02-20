@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 6,
   "links": [],
   "panels": [
     {
@@ -552,7 +552,7 @@
     }
   ],
   "preload": false,
-  "refresh": false,
+  "refresh": "auto",
   "schemaVersion": 40,
   "tags": [],
   "templating": {
@@ -562,13 +562,10 @@
     "from": "now-1s",
     "to": "now"
   },
-  "timepicker": {
-    "hidden": true,
-    "refresh_intervals": []
-  },
+  "timepicker": {},
   "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
