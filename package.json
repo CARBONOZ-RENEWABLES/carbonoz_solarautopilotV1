@@ -19,6 +19,9 @@
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
     "mqtt": "^4.2.8",
-    "ws": "^8.2.3"
+    "ws": "^8.2.3",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "express-session": "^1.18.1"
   }
 }
