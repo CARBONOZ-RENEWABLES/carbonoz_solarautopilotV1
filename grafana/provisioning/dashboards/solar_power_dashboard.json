@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 5,
   "links": [],
   "panels": [
     {
@@ -82,7 +82,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -156,7 +156,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -233,7 +233,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -310,7 +310,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -387,7 +387,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -461,7 +461,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -536,7 +536,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -552,20 +552,23 @@
     }
   ],
   "preload": false,
-  "refresh": "5s",
+  "refresh": false,
   "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-1m",
+    "from": "now-1s",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "hidden": true,
+    "refresh_intervals": []
+  },
   "timezone": "",
   "title": "Solar Power Dashboard",
   "uid": "solar_power_dashboard",
-  "version": 10,
+  "version": 2,
   "weekStart": ""
 }
