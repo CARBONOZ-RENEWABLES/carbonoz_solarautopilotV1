@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -87,7 +87,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "",
@@ -158,7 +158,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -229,7 +229,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -310,7 +310,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -625,12 +625,13 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "maxHeight": 600,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Load power",
@@ -810,11 +811,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -948,11 +950,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1103,11 +1106,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1239,11 +1243,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1377,11 +1382,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1527,11 +1533,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1660,12 +1667,13 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "maxHeight": 600,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1749,7 +1757,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Netzbezug",
@@ -1870,11 +1878,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Inverter $tag_topic",
@@ -1996,11 +2005,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2148,11 +2158,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2300,11 +2311,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2491,7 +2503,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Battery temperature",
@@ -2645,11 +2657,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Inverter $tag_topic",
@@ -2865,11 +2878,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Battery Temperature",
@@ -3082,11 +3096,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3299,11 +3314,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3475,11 +3491,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3586,7 +3603,7 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "#000000",
+                  "fixedColor": "light-blue",
                   "mode": "shades"
                 }
               }
@@ -3633,11 +3650,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "alias": "Battery Power",
@@ -3803,6 +3821,6 @@
   "timezone": "",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 3,
+  "version": 6,
   "weekStart": ""
 }
