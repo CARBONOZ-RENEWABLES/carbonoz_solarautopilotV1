@@ -261,6 +261,127 @@ async function queryInfluxDBForDecade(topic) {
   }
 }
 
+const DASHBOARD_CONFIG_PATH = path.join(__dirname, 'grafana', 'provisioning', 'dashboards', 'solar_power_dashboard.json');
+
+// API endpoint to get solar data from the JSON file
+app.get('/api/solar-data', (req, res) => {
+  try {
+      const dashboardData = JSON.parse(fs.readFileSync(DASHBOARD_CONFIG_PATH, 'utf8'));
+      
+      // Extract the necessary panel information from the dashboard config
+      const solarData = {};
+      
+      // Parse through panels and extract configuration
+      dashboardData.panels.forEach(panel => {
+          const panelId = panel.id.toString();
+          const title = panel.title;
+          const fieldConfig = panel.fieldConfig?.defaults || {};
+          
+          solarData[panelId] = {
+              title,
+              unit: fieldConfig.unit || '',
+              min: fieldConfig.min,
+              max: fieldConfig.max,
+              thresholds: fieldConfig.thresholds?.steps || [],
+              customProperties: {
+                  neutral: fieldConfig.custom?.neutral,
+                  orientation: panel.options?.orientation || 'auto'
+              }
+          };
+          
+          // Add any special configurations based on panel type
+          if (panel.type === 'gauge') {
+              solarData[panelId].gaugeConfig = {
+                  showThresholdLabels: panel.options?.showThresholdLabels || false,
+                  showThresholdMarkers: panel.options?.showThresholdMarkers || true
+              };
+          }
+      });
+      
+      res.json(solarData);
+  } catch (error) {
+      console.error('Error reading dashboard config:', error);
+      res.status(500).json({ 
+          success: false, 
+          message: 'Failed to retrieve solar data',
+          error: error.message 
+      });
+  }
+});
+
+// API endpoint to update panel configuration including thresholds
+app.post('/api/update-panel-config', (req, res) => {
+  try {
+      const { panelId, min, max, thresholds } = req.body;
+      
+      if (typeof min !== 'number' || typeof max !== 'number') {
+          return res.status(400).json({
+              success: false,
+              message: 'Min and max values must be numbers'
+          });
+      }
+      
+      // Read the current dashboard config
+      const dashboardData = JSON.parse(fs.readFileSync(DASHBOARD_CONFIG_PATH, 'utf8'));
+      
+      // Find the specific panel by ID
+      const panel = dashboardData.panels.find(p => p.id.toString() === panelId);
+      
+      if (!panel) {
+          return res.status(404).json({ 
+              success: false, 
+              message: `Panel with ID ${panelId} not found` 
+          });
+      }
+      
+      // Ensure the fieldConfig structure exists
+      if (!panel.fieldConfig) panel.fieldConfig = {};
+      if (!panel.fieldConfig.defaults) panel.fieldConfig.defaults = {};
+      
+      // Update the min and max values
+      panel.fieldConfig.defaults.min = min;
+      panel.fieldConfig.defaults.max = max;
+      
+      // Update thresholds if provided
+      if (thresholds && Array.isArray(thresholds)) {
+          // Ensure thresholds structure exists
+          if (!panel.fieldConfig.defaults.thresholds) {
+              panel.fieldConfig.defaults.thresholds = { mode: 'absolute', steps: [] };
+          }
+          
+          // Convert thresholds array to the format expected by Grafana
+          panel.fieldConfig.defaults.thresholds.steps = thresholds.map((threshold, index) => {
+              return {
+                  color: threshold.color,
+                  value: index === 0 ? null : threshold.value // First threshold has null value in Grafana
+              };
+          });
+      }
+      
+      // Write the updated config back to the file
+      fs.writeFileSync(DASHBOARD_CONFIG_PATH, JSON.stringify(dashboardData, null, 2), 'utf8');
+      
+      res.json({ 
+          success: true, 
+          message: 'Panel configuration updated successfully',
+          updatedConfig: {
+              min,
+              max,
+              thresholds: panel.fieldConfig.defaults.thresholds.steps,
+              panelId
+          }
+      });
+  } catch (error) {
+      console.error('Error updating panel configuration:', error);
+      res.status(500).json({ 
+          success: false, 
+          message: 'Failed to update panel configuration',
+          error: error.message 
+      });
+  }
+});
+
+
 // Route handlers
 app.get('/messages', (req, res) => {
   res.render('messages', {
