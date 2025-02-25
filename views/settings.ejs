@@ -764,10 +764,6 @@ background-color: #fff;
             transition: all 0.3s ease;
         }
 
-        .dark-mode input, select{
-            background-color: transparent;
-            color: #fff;
-        }
 
         input:focus,
         select:focus {
@@ -1882,7 +1878,7 @@ async function fetchSolarData() {
         document.getElementById('loading').style.display = 'flex';
         document.getElementById('dashboard').style.display = 'none';
         
-        const response = await fetch('/api/solar-data');
+        const response = await fetch('<%= ingress_path %>/api/solar-data');
         if (!response.ok) {
             throw new Error('Failed to fetch data');
         }
@@ -2100,7 +2096,7 @@ async function saveSettings(id) {
     
     try {
         // First try to use existing API
-        let response = await fetch('/api/update-panel-config', {
+        let response = await fetch('<%= ingress_path %>/api/update-panel-config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2115,7 +2111,7 @@ async function saveSettings(id) {
         
         // If that fails, try the simpler endpoint
         if (!response.ok) {
-            response = await fetch('/api/update-panel-range', {
+            response = await fetch('<%= ingress_path %>/api/update-panel-range', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
