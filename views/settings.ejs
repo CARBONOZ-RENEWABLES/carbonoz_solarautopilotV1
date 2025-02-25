@@ -7,16 +7,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
    body {
        font-family: 'Inter', sans-serif;
    }
    :root {
-    --primary-color: #DEAF0B;
-    --bg-color: #f5f6fa;
-    --text-color: #2f3640;
-    --icon-color: #636e72;
+            --primary-accent: #DEAF0B;
+            --primary-accent-hover: #c49c0b;
+            --card-bg: #ffffff;
+            --text-color: #2d3748;
+            --muted-text: #666666;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+            --green: #27ae60;
+            --yellow: #f1c40f;
+            --orange: #e67e22;
+            --red: #e74c3c;
+            --blue: #DEAF0B;
    }
    
    body, html {
@@ -24,7 +33,7 @@
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: var(--bg-color);
+    background-color: #fff;
     
    }
     /* Sidebar styles */
@@ -686,43 +695,67 @@
     background-color: rgb(32, 36, 41);
 }
 .settings-container {
+background-color: #fff;
             margin: 2rem auto;
             padding: 2rem;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
         }
 
+        /* Headers */
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 1rem;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: rgb(32, 36, 41);
+        }
+
+        .dark-mode h3{
+            color: #fff;
+        }
 
         /* Form groups */
         .form-group {
             margin-bottom: 2rem;
         }
 
-        /* Timezone container */
-        .timezone-container {
+        /* Containers */
+        .container-box {
             margin-bottom: 2rem;
             padding: 1.5rem;
             background: #f8fafc;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
         }
-        
+
+        .dark-mode .container-box {
+         
+            background:rgba(24, 27, 31, 1);
+         
+        }
 
         /* Labels */
         label {
             display: block;
             margin-bottom: 0.75rem;
             font-weight: 600;
-            color: #4a5568;
+            color: #000;
         }
+
         .dark-mode label{
             color: #fff;
         }
 
         /* Inputs and selects */
-
-        select{
+        input,
+        select {
             width: 100%;
             padding: 0.75rem;
             border: 2px solid #e2e8f0;
@@ -731,23 +764,9 @@
             transition: all 0.3s ease;
         }
 
-        .dark-mode select{
-            background-color: rgba(24, 27, 31, 1);
+        .dark-mode input, select{
+            background-color: transparent;
             color: #fff;
-            border: none;
-        }
-        .dark-mode input{
-            background-color: rgba(24, 27, 31, 1);
-            border: none;
-            color: #fff;
-        }
-        input {
-            width: 97%;
-            padding: 0.75rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
         }
 
         input:focus,
@@ -786,10 +805,11 @@
             font-size: 0.95rem;
             border: 1px solid #e2e8f0;
         }
-        .dark-mode .api-info{
-            background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-   
+
+        .dark-mode  .api-info {
+        
+            background: rgba(24, 27, 31, 1);
+         
         }
 
         .api-info ol {
@@ -801,6 +821,9 @@
             margin-bottom: 0.5rem;
         }
 
+        .dark-mode  .api-info a{
+       color: #DEAF0B;
+        }
         /* Validation message */
         .validation-message {
             margin-top: 0.75rem;
@@ -808,28 +831,343 @@
             font-weight: 500;
         }
 
-        /* Submit button */
-        button[type="submit"] {
-            background-color:#DEAF0B;
+        /* Buttons */
+        .button {
+            background-color: var(--primary-accent);
             color: white;
             padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            width: 100%;
             transition: background-color 0.3s ease;
+            display: inline-block;
+            text-align: center;
         }
 
-        button[type="submit"]:hover {
-            background-color: #c49c0b;;
+        .button:hover {
+            background-color: var(--primary-accent-hover);
         }
 
-        button[type="submit"]:focus {
+        .button:focus {
             outline: none;
-            box-shadow: 0 0 0 3px #DEAF0B;;
+            box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.3);
         }
 
+        .button-full {
+            width: 100%;
+        }
+
+        .button-blue {
+            background-color: var(--blue);
+        }
+
+        .button-blue:hover {
+            background-color: rgba(222, 175, 11, 0.3);;
+        }
+
+     
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #edf2f7;
+            margin-bottom: 2rem;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            color: var(--muted-text);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: var(--primary-accent);
+            border-bottom-color: var(--primary-accent);
+        }
+
+        .tab-button:hover:not(.active) {
+            color: var(--primary-color);
+            border-bottom-color: #e2e8f0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    
+
+        .widget-card {
+            position: relative;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .dark-mode .widget-card{
+            background-color: rgb(32, 36, 41);
+        }
+        
+        .widget-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .widget-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .dark-mode  .widget-title{
+           color: #fff;
+        }
+
+        .edit-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #95a5a6;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        
+        .edit-button:hover {
+            background-color: #ecf0f1;
+            color: var(--primary-color);
+        }
+
+       
+        .widget-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .widget-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            transition: transform 0.3s;
+        }
+        
+        .widget-card:hover .widget-icon {
+            transform: scale(1.1);
+        }
+
+        .widget-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .widget-unit {
+            font-size: 14px;
+            color: var(--muted-text);
+        }
+        .dark-mode .widget-unit{
+            color: #f5f6fa;
+        }
+
+
+        .widget-settings {
+            margin-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            padding-top: 20px;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+        }
+
+        .settings-section h4 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+.dark-mode  .settings-section h4 {
+          color:  #ecf0f1;
+        }
+        .settings-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .setting-field {
+            flex: 1;
+        }
+
+        .setting-field label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: black;
+        }
+
+        .dark-mode  .setting-field label {
+           color: #f8fafc;
+        }
+
+        .setting-field input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .setting-field input:focus {
+            border-color: var(--blue);
+            outline: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .settings-button {
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        
+        .settings-button:active {
+            transform: scale(0.98);
+        }
+
+        .save-button {
+            background-color: var(--blue);
+            color: white;
+        }
+        
+        .save-button:hover {
+            background-color: #cda208;
+        }
+
+        .cancel-button {
+            background-color: #ecf0f1;
+            color: var(--text-color);
+        }
+        
+        .cancel-button:hover {
+            background-color: #dfe6e9;
+        }
+
+        .api-key-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .api-key-container .toggle-visibility {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #4299e1;
+            padding: 5px;
+        }
+
+        .api-key-container .toggle-visibility:hover {
+            color: #3182ce;
+        }
+
+        /* Dashboard-specific styles */
+        .dashboard-container {
+            margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 18px;
+            color: var(--muted-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .loading i {
+            font-size: 48px;
+            color: var(--blue);
+            animation: spin 1.5s infinite linear;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Color map for threshold colors */
+        .color-option {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .color-option.selected {
+            border-color: #3498db;
+        }
+        
+        .color-settings {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .color-settings label {
+            width: 80px;
+            margin-bottom: 0;
+        }
+        
+        .color-options {
+            display: flex;
+            gap: 5px;
+        }
 
         /* Responsive styles */
         @media (max-width: 768px) {
@@ -838,9 +1176,23 @@
                 padding: 1.5rem;
             }
 
+            h1 {
+                font-size: 1.75rem;
+            }
+
             input,
             select {
                 font-size: 16px;
+            }
+            
+            .range-settings {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 15px;
+                gap: 20px;
             }
         }
 
@@ -854,13 +1206,192 @@
                 padding: 1rem;
             }
 
-            .timezone-container,
+            .container-box,
             .api-info {
                 padding: 1rem;
             }
 
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .tabs {
+                flex-direction: column;
+                border-bottom: none;
+            }
+            
+            .tab-button {
+                border-bottom: 1px solid #edf2f7;
+                text-align: left;
+            }
+            
+            .tab-button.active {
+                border-left: 3px solid var(--primary-accent);
+                border-bottom-color: #edf2f7;
+                background-color: #f8fafc;
+            }
         }
-        .api-key-container {
+
+        /* Add this to your existing CSS */
+
+/* Grid Layout for Dashboard Widgets */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Responsive Form Elements */
+input, select {
+    width: 100%;
+    color: #2f3640;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+}
+
+.dark-mode input, select {
+    color: #fff;
+}
+/* Improved Button Styling */
+.button {
+    background-color: var(--primary-accent);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: inline-block;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: var(--primary-accent-hover);
+    transform: translateY(-2px);
+}
+
+.button:active {
+    transform: translateY(0);
+}
+
+.button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.3);
+}
+
+/* Enhanced Loading State */
+.loading {
+    text-align: center;
+    padding: 60px;
+    font-size: 18px;
+    color: var(--muted-text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.loading i {
+    font-size: 48px;
+    color: var(--blue);
+    animation: spin 1.5s infinite linear;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Accessibility Improvements */
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    color: var(--muted-text);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none; /* Remove default outline */
+}
+
+.tab-button:focus {
+    border-bottom-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .dashboard {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .settings-container {
+        margin: 1rem auto;
+        padding: 1.5rem;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    input, select {
+        font-size: 16px;
+    }
+
+    .range-settings {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard {
+        grid-template-columns: 1fr;
+        padding: 15px;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 0.5rem;
+    }
+
+    .settings-container {
+        margin: 0.5rem auto;
+        padding: 1rem;
+    }
+
+    .container-box, .api-info {
+        padding: 1rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .tabs {
+        flex-direction: column;
+        border-bottom: none;
+    }
+
+    .tab-button {
+        border-bottom: 1px solid #edf2f7;
+        text-align: left;
+    }
+
+    .tab-button.active {
+        border-left: 3px solid var(--primary-accent);
+        border-bottom-color: #edf2f7;
+        background-color: #f8fafc;
+    }
+}   .api-key-container {
     position: relative;
     width: 100%;
     display: flex;
@@ -904,12 +1435,11 @@
 </div>
 <div id="pageContent">
     <!-- Sidebar -->
+ 
     <%- include('partials/sidebar') %>
-
     <!-- Main Content -->
     <main class="main-content">
         <div class="settings-container">
-            
             <% if (message) { %>
                 <div class="message success"><%= message %></div>
             <% } %>
@@ -925,11 +1455,19 @@
                 <% if (error) { %>
                     <div class="alert alert-danger"><%= error %></div>
                 <% } %>
-                
+            
+            <div id="message-container"></div>
+            
+            <div class="tabs">
+                <button class="tab-button active" data-tab="general">General Settings</button>
+                <button class="tab-button" data-tab="range">Range Settings</button>
+            </div>
+            
+            <div id="general-tab" class="tab-content active">
                 <form id="settingsForm" action="<%= ingress_path %>/settings" method="POST">
-                    <div class="form-group">
-                        <label for="timezone">Timezone</label>
-                        <select name="timezone" id="timezone">
+                    <div class="container-box">
+                        <h3>Timezone</h3>
+                        <select name="timezone" id="timezone" class="timezone-select">
                             <option value="Pacific/Niue">(GMT-11:00) Niue</option>
                             <option value="Pacific/Pago_Pago">(GMT-11:00) Pago Pago</option>
                             <option value="Pacific/Honolulu">(GMT-10:00) Hawaii Time</option>
@@ -1047,46 +1585,67 @@
                             <option value="Pacific/Auckland">(GMT+12:00) Auckland, Wellington</option>
                             <option value="Pacific/Fiji">(GMT+12:00) Fiji</option>
                             <option value="Pacific/Tongatapu">(GMT+13:00) Nuku'alofa</option>
+                           
                         </select>
                     </div>
+    
+                    <div class="form-group">
+                        <label for="apiKey">Electricity Map API Key</label>
+                        <div class="api-key-container">
+                            <input type="password" id="apiKey" name="apiKey" value="<%= settings.apiKey %>">
+                            <button type="button" id="toggleApiKey">Show</button>
+                        </div>
+                        <div id="apiKeyValidation" class="validation-message"></div>
+                        <div class="api-info">
+                            <p>To get your API key:</p>
+                            <ol>
+                                <li>Visit <a href="https://www.electricitymaps.com/" target="_blank">Electricity Map</a></li>
+                                <li>Navigate to your account settings</li>
+                                <li>Copy your API key and paste it here</li>
+                            </ol>
+                        </div>
+                    </div>
+    
+                    <div class="form-group">
+                        <label for="zone">Default Carbon Intensity Zone</label>
+                        <select name="selectedZone" id="zone" <%= !settings.apiKey ? 'disabled' : '' %>>
+                            <option value="">-- Select a zone --</option>
+                            <% zones.forEach(function(zone) { %>
+                                <option value="<%= zone.code %>"
+                                        <%= settings.selectedZone === zone.code ? 'selected' : '' %>>
+                                    <%= zone.zoneName %> (<%= zone.code %>)
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+    
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" value="<%= settings.username %>">
+                    </div>
+    
+                    <button type="submit" class="button button-full">Save Settings</button>
+                </form>
+            </div>
             
-                <div class="form-group">
-                    <label for="apiKey">Electricity Map API Key</label>
-                    <div class="api-key-container">
-                        <input type="password" id="apiKey" name="apiKey" value="<%= settings.apiKey %>">
-                        <button type="button" id="toggleApiKey">Show</button>
+            <div id="range-tab" class="tab-content">
+                <div class="container-box">
+                    <h3>Device Range Configuration</h3>
+                    <p style="margin-bottom: 1rem;">Configure the min/max values for your devices.</p>
+                    
+                    <!-- Dashboard container inserted here -->
+                    <div class="dashboard-container">
+                        <div class="range-settings" id="range-settings">
+                         
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner"></i>
+            <div>Loading dashboard data...</div>
+        </div>
+        <div class="dashboard" id="dashboard" style="display: none;"></div>
+                        </div>
                     </div>
-                    <div id="apiKeyValidation" class="validation-message"></div>
-                    <div class="api-info">
-                        <p>To get your API key:</p>
-                        <ol>
-                            <li>Visit <a href="https://www.electricitymaps.com/" target="_blank">Electricity Map</a></li>
-                            <li>Navigate to your account settings</li>
-                            <li>Copy your API key and paste it here</li>
-                        </ol>
-                    </div>
                 </div>
-    
-                <div class="form-group">
-                    <label for="zone">Default Carbon Intensity Zone</label>
-                    <select name="selectedZone" id="zone" <%= !settings.apiKey ? 'disabled' : '' %>>
-                        <option value="">-- Select a zone --</option>
-                        <% zones.forEach(function(zone) { %>
-                            <option value="<%= zone.code %>"
-                                    <%= settings.selectedZone === zone.code ? 'selected' : '' %>>
-                                <%= zone.zoneName %> (<%= zone.code %>)
-                            </option>
-                        <% }); %>
-                    </select>
-                </div>
-    
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" value="<%= settings.username %>">
-                </div>
-    
-                <button type="submit">Save Settings</button>
-            </form>
+            </div>
         </div>
     </main>
 </div>
@@ -1212,11 +1771,415 @@
     });
     </script>
 
-
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const tabButtons = document.querySelectorAll(".tab-button");
+        const tabContents = document.querySelectorAll(".tab-content");
+
+        // Tab Switching Logic
+        tabButtons.forEach(button => {
+            button.addEventListener("click", function () {
+                const tab = this.getAttribute("data-tab");
+
+                // Remove active class from all tabs and contents
+                tabButtons.forEach(btn => btn.classList.remove("active"));
+                tabContents.forEach(content => content.classList.remove("active"));
+
+                // Activate the clicked tab and its content
+                this.classList.add("active");
+                document.getElementById(`${tab}-tab`).classList.add("active");
+            });
+        });
+    });
+</script>
+
+<script>
+// Mock data for testing if API fails
+const mockData = {
+    "1": {
+        "title": "Load Power",
+        "unit": "W",
+        "min": 0,
+        "max": 20000,
+        "thresholds": [
+            {"color": "dark-green", "value": null},
+            {"color": "dark-yellow", "value": 5000},
+            {"color": "dark-orange", "value": 10000},
+            {"color": "dark-red", "value": 14000}
+        ],
+        "icon": "fa-plug"
+    },
+    "4": {
+        "title": "Battery Power",
+        "unit": "W",
+        "min": -6000,
+        "max": 6000,
+        "thresholds": [
+            {"color": "dark-red", "value": null},
+            {"color": "dark-orange", "value": -3000},
+            {"color": "dark-yellow", "value": 0},
+            {"color": "dark-green", "value": 3000}
+        ],
+        "icon": "fa-battery-half"
+    },
+    "7": {
+        "title": "Grid Power",
+        "unit": "W",
+        "min": -12000,
+        "max": 12000,
+        "thresholds": [
+            {"color": "dark-green", "value": null},
+            {"color": "yellow", "value": -6000},
+            {"color": "dark-orange", "value": 0},
+            {"color": "dark-red", "value": 6000}
+        ],
+        "icon": "fa-bolt"
+    },
+    "8": {
+        "title": "Solar PV Power",
+        "unit": "W",
+        "min": 0,
+        "max": 16000,
+        "thresholds": [
+            {"color": "semi-dark-red", "value": null},
+            {"color": "dark-orange", "value": 4000},
+            {"color": "yellow", "value": 8000},
+            {"color": "dark-green", "value": 12000}
+        ],
+        "icon": "fa-sun"
+    }
+};
+
+// Map of default icons if not specified in data
+const defaultIcons = {
+    "Load Power": "fa-plug",
+    "Battery Power": "fa-battery-half",
+    "Grid Power": "fa-bolt",
+    "Solar PV Power": "fa-sun",
+    "default": "fa-chart-line"
+};
+
+// Color mapping for thresholds
+const colorMap = {
+    'dark-green': '#27ae60',
+    'green': '#2ecc71',
+    'dark-yellow': '#f39c12',
+    'yellow': '#f1c40f',
+    'dark-orange': '#d35400',
+    'orange': '#e67e22',
+    'dark-red': '#c0392b',
+    'red': '#e74c3c',
+    'semi-dark-red': '#e74c3c',
+    'default': '#3498db'
+};
+
+async function fetchSolarData() {
+    try {
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'none';
+        
+        const response = await fetch('/api/solar-data');
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        const data = await response.json();
+        updateDashboard(data);
+    } catch (error) {
+        console.error('Error fetching solar data:', error);
+        // Use mock data if API fails
+        console.log('Using mock data instead');
+        updateDashboard(mockData);
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'grid';
+    }
+}
+
+function updateDashboard(data) {
+    const dashboard = document.getElementById('dashboard');
+    dashboard.innerHTML = '';
+    
+    for (const [key, value] of Object.entries(data)) {
+        if (value) {
+            // Generate a random value between min and max for demonstration
+            const randomValue = value.min + Math.random() * (value.max - value.min);
+            
+            const card = createWidgetCard(
+                key,
+                value.title || formatTitle(key),
+                randomValue,
+                value.unit || '',
+                value.min || 0,
+                value.max || 100,
+                value.thresholds || [],
+                value.icon || getDefaultIcon(value.title || formatTitle(key))
+            );
+            dashboard.appendChild(card);
+        }
+    }
+}
+
+function getDefaultIcon(title) {
+    return defaultIcons[title] || defaultIcons.default;
+}
+
+function createWidgetCard(id, title, value, unit, min, max, thresholds = [], iconClass) {
+const card = document.createElement('div');
+card.className = 'widget-card';
+card.dataset.id = id;
+
+// Determine color based on thresholds
+const valueColor = getColorForValue(value, min, max, thresholds);
+
+// Determine icon class based on value (for battery icon)
+let dynamicIcon = iconClass;
+if (iconClass === 'fa-battery-half') {
+    const batteryLevel = ((value - min) / (max - min)) * 100;
+    if (batteryLevel <= 5) dynamicIcon = 'fa-battery-empty';
+    else if (batteryLevel <= 25) dynamicIcon = 'fa-battery-quarter';
+    else if (batteryLevel <= 50) dynamicIcon = 'fa-battery-half';
+    else if (batteryLevel <= 75) dynamicIcon = 'fa-battery-three-quarters';
+    else dynamicIcon = 'fa-battery-full';
+}
+
+card.innerHTML = `
+    <div class="widget-header">
+        <div class="widget-title">${title}</div>
+        <button class="edit-button" onclick="toggleSettings('${id}')">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
+    <div class="widget-content">
+        <i class="widget-icon fas ${dynamicIcon}" style="color: ${valueColor};"></i>
+    </div>
+    <div class="widget-settings" id="settings-${id}" style="display: none;">
+        <div class="settings-section">
+            <h4>Range Settings</h4>
+            <div class="settings-group">
+                <div class="setting-field">
+                    <label for="min-${id}">Min Value</label>
+                    <input type="number" id="min-${id}" value="${min}">
+                </div>
+                <div class="setting-field">
+                    <label for="max-${id}">Max Value</label>
+                    <input type="number" id="max-${id}" value="${max}">
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h4>Color Settings</h4>
+            <input type="hidden" id="color1-${id}" value="${getThresholdColors(thresholds)[0]}">
+            <input type="hidden" id="color2-${id}" value="${getThresholdColors(thresholds)[1]}">
+            <input type="hidden" id="color3-${id}" value="${getThresholdColors(thresholds)[2]}">
+            <input type="hidden" id="color4-${id}" value="${getThresholdColors(thresholds)[3]}">
+        </div>
+        
+        <div class="button-group">
+            <button class="settings-button save-button" onclick="saveSettings('${id}')">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button class="settings-button cancel-button" onclick="toggleSettings('${id}')">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    </div>
+`;
+
+return card;
+}
+
+function toggleSettings(id) {
+const settings = document.getElementById(`settings-${id}`);
+if (settings.style.display === 'none') {
+    settings.style.display = 'block';
+} else {
+    settings.style.display = 'none';
+}
+}
+// Function to extract colors from thresholds
+function getThresholdColors(thresholds) {
+    // Default colors if no thresholds provided
+    const defaultColors = ['#e74c3c', '#e67e22', '#f1c40f', '#27ae60'];
+    
+    if (!thresholds || thresholds.length === 0) {
+        return defaultColors;
+    }
+    
+    const colors = [];
+    // Extract colors from thresholds
+    for (let i = 0; i < Math.min(thresholds.length, 4); i++) {
+        const threshold = thresholds[i];
+        if (threshold && threshold.color) {
+            // Convert named colors to hex
+            const color = colorMap[threshold.color] || threshold.color;
+            colors.push(color);
+        }
+    }
+    
+    // Ensure we have 4 colors (for 0%, 33%, 66%, 100%)
+    while (colors.length < 4) {
+        colors.push(defaultColors[colors.length]);
+    }
+    
+    return colors;
+}
+
+// Function to get color based on value and thresholds
+function getColorForValue(value, min, max, thresholds) {
+    const colors = getThresholdColors(thresholds);
+    const percentage = ((value - min) / (max - min)) * 100;
+    
+    // Determine color based on percentage
+    if (percentage <= 33) {
+        return colors[0];
+    } else if (percentage <= 66) {
+        return colors[1];
+    } else if (percentage <= 90) {
+        return colors[2];
+    } else {
+        return colors[3];
+    }
+}
+
+function toggleSettings(id) {
+    const settings = document.getElementById(`settings-${id}`);
+    settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveSettings(id) {
+    const minInput = document.getElementById(`min-${id}`);
+    const maxInput = document.getElementById(`max-${id}`);
+    
+    const min = parseFloat(minInput.value);
+    const max = parseFloat(maxInput.value);
+    
+    if (isNaN(min) || isNaN(max)) {
+        alert('Please enter valid numbers for min and max values.');
+        return;
+    }
+    
+    if (min >= max) {
+        alert('Min value must be less than max value.');
+        return;
+    }
+    
+    // Get colors from hidden inputs
+    const color1 = document.getElementById(`color1-${id}`).value;
+    const color2 = document.getElementById(`color2-${id}`).value;
+    const color3 = document.getElementById(`color3-${id}`).value;
+    const color4 = document.getElementById(`color4-${id}`).value;
+    
+    // Default threshold percentages (33%, 66%, 90%)
+    const defaultThresholds = [33, 66, 90];
+    
+    // Calculate absolute values for thresholds
+    const range = max - min;
+    const thresholds = [
+        {
+            value: null,
+            color: color1
+        },
+        {
+            value: min + (range * defaultThresholds[0] / 100),
+            color: color2
+        },
+        {
+            value: min + (range * defaultThresholds[1] / 100),
+            color: color3
+        },
+        {
+            value: min + (range * defaultThresholds[2] / 100),
+            color: color4
+        }
+    ];
+    
+    try {
+        // First try to use existing API
+        let response = await fetch('/api/update-panel-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                panelId: id,
+                min: min,
+                max: max,
+                thresholds: thresholds
+            })
+        });
+        
+        // If that fails, try the simpler endpoint
+        if (!response.ok) {
+            response = await fetch('/api/update-panel-range', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    panelId: id,
+                    min: min,
+                    max: max
+                })
+            });
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update settings');
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Settings updated successfully!');
+            toggleSettings(id);
+            
+            // Apply changes to the current visualization without refreshing
+            const cardElement = document.querySelector(`.widget-card[data-id="${id}"]`);
+            const valueElement = cardElement.querySelector('.widget-value');
+            const value = parseFloat(valueElement.textContent);
+            
+            // Update icon color based on new settings
+            const iconElement = cardElement.querySelector('.widget-icon');
+            const newColor = getColorForValue(value, min, max, thresholds);
+            iconElement.style.color = newColor;
+            
+        } else {
+            alert('Failed to update settings: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        
+        // If API fails, still update the local display
+        alert('Could not save to server, but changes applied locally.');
+        const cardElement = document.querySelector(`.widget-card[data-id="${id}"]`);
+        const valueElement = cardElement.querySelector('.widget-value');
+        const value = parseFloat(valueElement.textContent);
+        
+        // Update icon color based on new settings
+        const iconElement = cardElement.querySelector('.widget-icon');
+        const newColor = getColorForValue(value, min, max, thresholds);
+        iconElement.style.color = newColor;
+        
+        toggleSettings(id);
+    }
+}
+
+function formatTitle(key) {
+    return key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase());
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', function() {
+    fetchSolarData();
+});
+</script>
 
 </body>
 </html>
