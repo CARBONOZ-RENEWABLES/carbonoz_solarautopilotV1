@@ -1055,73 +1055,83 @@ body.dark-mode {
               
               <!-- Last 30 Days Table -->
               <div class="card">
-                  <h3>Last 30 Days Data</h3>
-                  <% if (data.selectedZone) { %>
-                      <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
-                  <% } %>
-                  <div class="table-container">
-                      <table id="last30days-table">
-                          <thead>
-                              <tr>
-                                  <th>Date</th>
-                                  <th>Load</th>
-                                  <th>Solar PV</th>
-                                  <th>Battery Charged</th>
-                                  <th>Battery Discharged</th>
-                                  <th>Grid Used</th>
-                                  <th>Grid Exported</th>
-                                  <% if (data.selectedZone) { %>
-                                      <th>CO2 Avoided</th>
-                                      <th>CO2 Emitted</th>
-                                  <% } %>
-                              </tr>
-                          </thead> <tbody>
+                <h3>Last 30 Days Data</h3>
+                <% if (data.selectedZone) { %>
+                    <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
+                <% } %>
+                <div class="table-container">
+                    <table id="last30days-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Load</th>
+                                <th>Solar PV</th>
+                                <th>Battery Charged</th>
+                                <th>Battery Discharged</th>
+                                <th>Grid Used</th>
+                                <th>Grid Exported</th>
+                                <% if (data.selectedZone) { %>
+                                    <th>CO2 Avoided</th>
+                                    <th>CO2 Emitted</th>
+                                <% } %>
+                            </tr>
+                        </thead>
+                        <tbody>
                             <% for (let i = data.loadPowerData.length - 1; i >= 1 && i >= data.loadPowerData.length - 30; i--) { %>
                                 <tr>
                                     <td><%= new Date(data.loadPowerData[i].time).toLocaleDateString('en-GB') %></td>
-
-                            
+            
                                     <% 
-                                        // Function to calculate daily value
-                                        const calculateDailyValue = (currentValue, previousValue) => {
-                                            // Convert to numbers and handle null/undefined
-                                            const current = parseFloat(currentValue) || 0;
-                                            const previous = parseFloat(previousValue) || 0;
-                                            
-                                            // If previous day's data is null or zero, return 0
-                                            if (previous === 0) return 0;
-                                            
-                                            // If current > previous, return the difference
-                                            // Otherwise return current value as is
-                                            return current > previous ? (current - previous) : current;
-                                        };
-                            
                                         // Get current and previous day values
-                                        const currentLoadPower = data.loadPowerData[i]?.value || '0.0';
-                                        const previousLoadPower = data.loadPowerData[i - 1]?.value || '0.0';
+                                        const currentLoadPower = parseFloat(data.loadPowerData[i]?.value || '0.0');
+                                        const previousLoadPower = parseFloat(data.loadPowerData[i - 1]?.value || '0.0');
                                         
-                                        const currentPvPower = data.pvPowerData[i]?.value || '0.0';
-                                        const previousPvPower = data.pvPowerData[i - 1]?.value || '0.0';
+                                        const currentPvPower = parseFloat(data.pvPowerData[i]?.value || '0.0');
+                                        const previousPvPower = parseFloat(data.pvPowerData[i - 1]?.value || '0.0');
                                         
-                                        const currentBatteryCharged = data.batteryStateOfChargeData[i]?.value || '0.0';
-                                        const previousBatteryCharged = data.batteryStateOfChargeData[i - 1]?.value || '0.0';
+                                        const currentBatteryCharged = parseFloat(data.batteryStateOfChargeData[i]?.value || '0.0');
+                                        const previousBatteryCharged = parseFloat(data.batteryStateOfChargeData[i - 1]?.value || '0.0');
                                         
-                                        const currentBatteryDischarged = data.batteryPowerData[i]?.value || '0.0';
-                                        const previousBatteryDischarged = data.batteryPowerData[i - 1]?.value || '0.0';
+                                        const currentBatteryDischarged = parseFloat(data.batteryPowerData[i]?.value || '0.0');
+                                        const previousBatteryDischarged = parseFloat(data.batteryPowerData[i - 1]?.value || '0.0');
                                         
-                                        const currentGridUsed = data.gridPowerData[i]?.value || '0.0';
-                                        const previousGridUsed = data.gridPowerData[i - 1]?.value || '0.0';
+                                        const currentGridUsed = parseFloat(data.gridPowerData[i]?.value || '0.0');
+                                        const previousGridUsed = parseFloat(data.gridPowerData[i - 1]?.value || '0.0');
                                         
-                                        const currentGridExported = data.gridVoltageData[i]?.value || '0.0';
-                                        const previousGridExported = data.gridVoltageData[i - 1]?.value || '0.0';
-                            
-                                        // Calculate daily values
-                                        const dailyLoadPower = calculateDailyValue(currentLoadPower, previousLoadPower);
-                                        const dailyPvPower = calculateDailyValue(currentPvPower, previousPvPower);
-                                        const dailyBatteryCharged = calculateDailyValue(currentBatteryCharged, previousBatteryCharged);
-                                        const dailyBatteryDischarged = calculateDailyValue(currentBatteryDischarged, previousBatteryDischarged);
-                                        const dailyGridUsed = calculateDailyValue(currentGridUsed, previousGridUsed);
-                                        const dailyGridExported = calculateDailyValue(currentGridExported, previousGridExported);
+                                        const currentGridExported = parseFloat(data.gridVoltageData[i]?.value || '0.0');
+                                        const previousGridExported = parseFloat(data.gridVoltageData[i - 1]?.value || '0.0');
+                                        
+                                        // Check if all current values are greater than previous values
+                                        // And also check if all previous values are not zero (to avoid division by zero)
+                                        const allGreaterThanPrevious = 
+                                            previousLoadPower > 0 && currentLoadPower > previousLoadPower &&
+                                            previousPvPower > 0 && currentPvPower > previousPvPower &&
+                                            previousBatteryCharged > 0 && currentBatteryCharged > previousBatteryCharged &&
+                                            previousBatteryDischarged > 0 && currentBatteryDischarged > previousBatteryDischarged &&
+                                            previousGridUsed > 0 && currentGridUsed > previousGridUsed &&
+                                            previousGridExported > 0 && currentGridExported > previousGridExported;
+                                        
+                                        // Calculate values based on the condition
+                                        let dailyLoadPower, dailyPvPower, dailyBatteryCharged, 
+                                            dailyBatteryDischarged, dailyGridUsed, dailyGridExported;
+                                        
+                                        if (allGreaterThanPrevious) {
+                                            // If all metrics increased, calculate differences
+                                            dailyLoadPower = currentLoadPower - previousLoadPower;
+                                            dailyPvPower = currentPvPower - previousPvPower;
+                                            dailyBatteryCharged = currentBatteryCharged - previousBatteryCharged;
+                                            dailyBatteryDischarged = currentBatteryDischarged - previousBatteryDischarged;
+                                            dailyGridUsed = currentGridUsed - previousGridUsed;
+                                            dailyGridExported = currentGridExported - previousGridExported;
+                                        } else {
+                                            // Otherwise, use current values as is
+                                            dailyLoadPower = currentLoadPower;
+                                            dailyPvPower = currentPvPower;
+                                            dailyBatteryCharged = currentBatteryCharged;
+                                            dailyBatteryDischarged = currentBatteryDischarged;
+                                            dailyGridUsed = currentGridUsed;
+                                            dailyGridExported = currentGridExported;
+                                        }
                             
                                         // Handle CO2 data if the selected zone is present
                                         let co2Avoided = 0, co2Emitted = 0;
@@ -1148,10 +1158,10 @@ body.dark-mode {
                                 </tr>
                             <% } %>
                         </tbody>
-                      </table>
-                  </div>
-                  <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
-              </div>
+                    </table>
+                </div>
+                <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
+            </div>
               
 
   <div class="chart-container">
@@ -1161,170 +1171,272 @@ body.dark-mode {
 
   <!-- Last 12 Months Card -->
   <div class="card">
-      <h3>Last 12 Months Data</h3>
-      <% if (data.selectedZone) { %>
-          <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
-      <% } %>
-      <div class="table-container">
-          <table id="last12months-table">
-              <thead>
-                  <tr>
-                      <th>Month</th>
-                      <th>Load</th>
-                      <th>Solar PV</th>
-                      <th>Battery Charged</th>
-                      <th>Battery Discharged</th>
-                      <th>Grid Used</th>
-                      <th>Grid Exported</th>
-                      <% if (data.selectedZone) { %>
-                          <th>CO2 Avoided</th>
-                          <th>CO2 Emitted</th>
-                      <% } %>
-                  </tr>
-              </thead>
-              <tbody>
-                <%
-                // Utility functions
-                function safeNumber(value) {
-                    return typeof value === 'number' && !isNaN(value) ? value : 0;
-                }
+    <h3>Last 12 Months Data</h3>
+    <% if (data.selectedZone) { %>
+        <p>Showing CO2 data for zone: <%= data.selectedZone %></p>
+    <% } %>
+    <div class="table-container">
+        <table id="last12months-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Load</th>
+                    <th>Solar PV</th>
+                    <th>Battery Charged</th>
+                    <th>Battery Discharged</th>
+                    <th>Grid Used</th>
+                    <th>Grid Exported</th>
+                    <% if (data.selectedZone) { %>
+                        <th>CO2 Avoided</th>
+                        <th>CO2 Emitted</th>
+                    <% } %>
+                </tr>
+            </thead>
+            <tbody>
+            <%
+            // Utility functions
+            function safeNumber(value) {
+                return typeof value === 'number' && !isNaN(value) ? value : 0;
+            }
+            
+            // Improved function to calculate daily values based on all metrics
+            function calculateDailyValues(loadData, pvData, batteryChargedData, batteryDischargedData, gridUsedData, gridExportedData) {
+                const dailyResults = {
+                    load: [],
+                    pv: [],
+                    batteryCharged: [],
+                    batteryDischarged: [],
+                    gridUsed: [],
+                    gridExported: []
+                };
                 
-                // Calculate daily values first
-                function calculateDailyValues(data) {
-                    const dailyValues = [];
-                    for (let i = 1; i < data.length; i++) {
-                        const currentValue = parseFloat(data[i]?.value) || 0;
-                        const previousValue = parseFloat(data[i - 1]?.value) || 0;
+                // Ensure all arrays have the same length
+                const dataLength = Math.min(
+                    loadData.length,
+                    pvData.length,
+                    batteryChargedData.length,
+                    batteryDischargedData.length,
+                    gridUsedData.length,
+                    gridExportedData.length
+                );
+                
+                for (let i = 1; i < dataLength; i++) {
+                    const currentLoad = parseFloat(loadData[i]?.value) || 0;
+                    const previousLoad = parseFloat(loadData[i - 1]?.value) || 0;
+                    
+                    const currentPV = parseFloat(pvData[i]?.value) || 0;
+                    const previousPV = parseFloat(pvData[i - 1]?.value) || 0;
+                    
+                    const currentBatteryCharged = parseFloat(batteryChargedData[i]?.value) || 0;
+                    const previousBatteryCharged = parseFloat(batteryChargedData[i - 1]?.value) || 0;
+                    
+                    const currentBatteryDischarged = parseFloat(batteryDischargedData[i]?.value) || 0;
+                    const previousBatteryDischarged = parseFloat(batteryDischargedData[i - 1]?.value) || 0;
+                    
+                    const currentGridUsed = parseFloat(gridUsedData[i]?.value) || 0;
+                    const previousGridUsed = parseFloat(gridUsedData[i - 1]?.value) || 0;
+                    
+                    const currentGridExported = parseFloat(gridExportedData[i]?.value) || 0;
+                    const previousGridExported = parseFloat(gridExportedData[i - 1]?.value) || 0;
+                    
+                    // Check if all values for current day are greater than previous day
+                    const allGreater = 
+                        (previousLoad === 0 || currentLoad > previousLoad) &&
+                        (previousPV === 0 || currentPV > previousPV) &&
+                        (previousBatteryCharged === 0 || currentBatteryCharged > previousBatteryCharged) &&
+                        (previousBatteryDischarged === 0 || currentBatteryDischarged > previousBatteryDischarged) &&
+                        (previousGridUsed === 0 || currentGridUsed > previousGridUsed) &&
+                        (previousGridExported === 0 || currentGridExported > previousGridExported);
                         
-                        let dailyValue = 0;
-                        if (previousValue === 0) {
-                            dailyValue = 0;
-                        } else if (currentValue > previousValue) {
-                            dailyValue = currentValue - previousValue;
-                        } else {
-                            dailyValue = currentValue;
-                        }
-                
-                        dailyValues.push({
-                            time: data[i].time,
-                            value: dailyValue
+                    // Calculate values based on the condition
+                    const time = loadData[i].time;
+                    
+                    if (allGreater) {
+                        // If all values are greater, calculate the differences
+                        dailyResults.load.push({
+                            time,
+                            value: currentLoad - previousLoad
+                        });
+                        dailyResults.pv.push({
+                            time,
+                            value: currentPV - previousPV
+                        });
+                        dailyResults.batteryCharged.push({
+                            time,
+                            value: currentBatteryCharged - previousBatteryCharged
+                        });
+                        dailyResults.batteryDischarged.push({
+                            time,
+                            value: currentBatteryDischarged - previousBatteryDischarged
+                        });
+                        dailyResults.gridUsed.push({
+                            time,
+                            value: currentGridUsed - previousGridUsed
+                        });
+                        dailyResults.gridExported.push({
+                            time,
+                            value: currentGridExported - previousGridExported
+                        });
+                    } else {
+                        // If any value is not greater, use the current values as is
+                        dailyResults.load.push({
+                            time,
+                            value: currentLoad
+                        });
+                        dailyResults.pv.push({
+                            time,
+                            value: currentPV
+                        });
+                        dailyResults.batteryCharged.push({
+                            time,
+                            value: currentBatteryCharged
+                        });
+                        dailyResults.batteryDischarged.push({
+                            time,
+                            value: currentBatteryDischarged
+                        });
+                        dailyResults.gridUsed.push({
+                            time,
+                            value: currentGridUsed
+                        });
+                        dailyResults.gridExported.push({
+                            time,
+                            value: currentGridExported
                         });
                     }
-                    return dailyValues;
                 }
                 
-                // Aggregate daily values into monthly data
-                function aggregateMonthlyData(rawData) {
-                    // First calculate daily values
-                    const dailyValues = calculateDailyValues(rawData);
+                return dailyResults;
+            }
+            
+            // Updated function to aggregate monthly data
+            function aggregateMonthlyData(dailyValues) {
+                const monthlyData = {};
+                
+                dailyValues.forEach(entry => {
+                    const date = new Date(entry.time);
+                    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
                     
-                    const monthlyData = {};
-                    dailyValues.forEach(entry => {
-                        const date = new Date(entry.time);
-                        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                    if (!monthlyData[monthKey]) {
+                        monthlyData[monthKey] = {
+                            time: date,
+                            value: 0
+                        };
+                    }
+                    monthlyData[monthKey].value += safeNumber(entry.value);
+                });
+                
+                return Object.values(monthlyData);
+            }
+            
+            // Updated function to aggregate yearly data
+            function aggregateYearlyData(dailyValues) {
+                const yearlyData = {};
+                
+                dailyValues.forEach(entry => {
+                    const date = new Date(entry.time);
+                    const yearKey = date.getFullYear();
+                    
+                    if (!yearlyData[yearKey]) {
+                        yearlyData[yearKey] = {
+                            time: date,
+                            value: 0
+                        };
+                    }
+                    yearlyData[yearKey].value += safeNumber(entry.value);
+                });
+                
+                return Object.values(yearlyData);
+            }
+            
+            // Process daily values for all metrics
+            const dailyValues = calculateDailyValues(
+                data.loadPowerYear, 
+                data.pvPowerYear, 
+                data.batteryStateOfChargeYear, 
+                data.batteryPowerYear, 
+                data.gridPowerYear, 
+                data.gridVoltageYear
+            );
+            
+            // Monthly Data Processing
+            const monthlyLoadPower = aggregateMonthlyData(dailyValues.load);
+            const monthlyPvPower = aggregateMonthlyData(dailyValues.pv);
+            const monthlyBatteryCharged = aggregateMonthlyData(dailyValues.batteryCharged);
+            const monthlyBatteryDischarged = aggregateMonthlyData(dailyValues.batteryDischarged);
+            const monthlyGridUsed = aggregateMonthlyData(dailyValues.gridUsed);
+            const monthlyGridExported = aggregateMonthlyData(dailyValues.gridExported);
+            
+            // Yearly Data Processing
+            // Process daily values for all decade metrics
+            const dailyDecadeValues = calculateDailyValues(
+                data.loadPowerDecade, 
+                data.pvPowerDecade, 
+                data.batteryStateOfChargeDecade, 
+                data.batteryPowerDecade, 
+                data.gridPowerDecade, 
+                data.gridVoltageDecade
+            );
+            
+            const yearlyLoadPower = aggregateYearlyData(dailyDecadeValues.load);
+            const yearlyPvPower = aggregateYearlyData(dailyDecadeValues.pv);
+            const yearlyBatteryCharged = aggregateYearlyData(dailyDecadeValues.batteryCharged);
+            const yearlyBatteryDischarged = aggregateYearlyData(dailyDecadeValues.batteryDischarged);
+            const yearlyGridUsed = aggregateYearlyData(dailyDecadeValues.gridUsed);
+            const yearlyGridExported = aggregateYearlyData(dailyDecadeValues.gridExported);
+            
+            // Helper function to ensure all arrays have same length and are sorted
+            function normalizeDataArrays(arrays) {
+                const maxLength = Math.max(...arrays.map(arr => arr.length));
+                arrays.forEach(arr => {
+                    while (arr.length < maxLength) {
+                        arr.push({ time: new Date(0), value: 0 });
+                    }
+                    arr.sort((a, b) => b.time - a.time);
+                });
+                return maxLength;
+            }
+            
+            // Monthly table rendering
+            const allMonthlyData = [
+                monthlyLoadPower, monthlyPvPower, monthlyBatteryCharged, 
+                monthlyBatteryDischarged, monthlyGridUsed, monthlyGridExported
+            ];
+            const maxMonthLength = normalizeDataArrays(allMonthlyData);
+            %>
+            
+            <!-- Monthly Data Table -->
+            <% for (let i = 0; i < maxMonthLength; i++) { %>
+                <tr>
+                    <td><%= new Date(monthlyLoadPower[i].time).toLocaleString('default', { month: 'long', year: 'numeric' }) %></td>
+                    <td><%= monthlyLoadPower[i].value.toFixed(1) %> kWh</td>
+                    <td><%= monthlyPvPower[i].value.toFixed(1) %> kWh</td>
+                    <td><%= monthlyBatteryCharged[i].value.toFixed(1) %> kWh</td>
+                    <td><%= monthlyBatteryDischarged[i].value.toFixed(1) %> kWh</td>
+                    <td><%= monthlyGridUsed[i].value.toFixed(1) %> kWh</td>
+                    <td><%= monthlyGridExported[i].value.toFixed(1) %> kWh</td>
+                    <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
+                        const date = new Date(monthlyLoadPower[i].time);
+                        const monthCarbonIntensity = data.carbonIntensityData
+                            .filter(d => new Date(d.date).getMonth() === date.getMonth() && 
+                                        new Date(d.date).getFullYear() === date.getFullYear())
+                            .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
+                            data.carbonIntensityData.filter(d => new Date(d.date).getMonth() === date.getMonth() && 
+                                                                new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
                         
-                        if (!monthlyData[monthKey]) {
-                            monthlyData[monthKey] = {
-                                time: date,
-                                value: 0
-                            };
-                        }
-                        monthlyData[monthKey].value += safeNumber(entry.value);
-                    });
-                    
-                    return Object.values(monthlyData);
-                }
-                
-                // Aggregate daily values into yearly data
-                function aggregateYearlyData(rawData) {
-                    // First calculate daily values
-                    const dailyValues = calculateDailyValues(rawData);
-                    
-                    const yearlyData = {};
-                    dailyValues.forEach(entry => {
-                        const date = new Date(entry.time);
-                        const yearKey = date.getFullYear();
-                        
-                        if (!yearlyData[yearKey]) {
-                            yearlyData[yearKey] = {
-                                time: date,
-                                value: 0
-                            };
-                        }
-                        yearlyData[yearKey].value += safeNumber(entry.value);
-                    });
-                    
-                    return Object.values(yearlyData);
-                }
-                
-                // Monthly Data Processing
-                const monthlyLoadPower = aggregateMonthlyData(data.loadPowerYear);
-                const monthlyPvPower = aggregateMonthlyData(data.pvPowerYear);
-                const monthlyBatteryCharged = aggregateMonthlyData(data.batteryStateOfChargeYear);
-                const monthlyBatteryDischarged = aggregateMonthlyData(data.batteryPowerYear);
-                const monthlyGridUsed = aggregateMonthlyData(data.gridPowerYear);
-                const monthlyGridExported = aggregateMonthlyData(data.gridVoltageYear);
-                
-                // Yearly Data Processing
-                const yearlyLoadPower = aggregateYearlyData(data.loadPowerDecade);
-                const yearlyPvPower = aggregateYearlyData(data.pvPowerDecade);
-                const yearlyBatteryCharged = aggregateYearlyData(data.batteryStateOfChargeDecade);
-                const yearlyBatteryDischarged = aggregateYearlyData(data.batteryPowerDecade);
-                const yearlyGridUsed = aggregateYearlyData(data.gridPowerDecade);
-                const yearlyGridExported = aggregateYearlyData(data.gridVoltageDecade);
-                
-                // Helper function to ensure all arrays have same length and are sorted
-                function normalizeDataArrays(arrays) {
-                    const maxLength = Math.max(...arrays.map(arr => arr.length));
-                    arrays.forEach(arr => {
-                        while (arr.length < maxLength) {
-                            arr.push({ time: new Date(0), value: 0 });
-                        }
-                        arr.sort((a, b) => b.time - a.time);
-                    });
-                    return maxLength;
-                }
-                
-                // Monthly table rendering
-                const allMonthlyData = [
-                    monthlyLoadPower, monthlyPvPower, monthlyBatteryCharged, 
-                    monthlyBatteryDischarged, monthlyGridUsed, monthlyGridExported
-                ];
-                const maxMonthLength = normalizeDataArrays(allMonthlyData);
-                %>
-                
-                <!-- Monthly Data Table -->
-                <% for (let i = 0; i < maxMonthLength; i++) { %>
-                    <tr>
-                        <td><%= new Date(monthlyLoadPower[i].time).toLocaleString('default', { month: 'long', year: 'numeric' }) %></td>
-                        <td><%= monthlyLoadPower[i].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyPvPower[i].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyBatteryCharged[i].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyBatteryDischarged[i].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyGridUsed[i].value.toFixed(1) %> kWh</td>
-                        <td><%= monthlyGridExported[i].value.toFixed(1) %> kWh</td>
-                        <% if (data.selectedZone && data.carbonIntensityData.length > 0) { 
-                            const date = new Date(monthlyLoadPower[i].time);
-                            const monthCarbonIntensity = data.carbonIntensityData
-                                .filter(d => new Date(d.date).getMonth() === date.getMonth() && 
-                                            new Date(d.date).getFullYear() === date.getFullYear())
-                                .reduce((acc, curr) => acc + curr.carbonIntensity, 0) / 
-                                data.carbonIntensityData.filter(d => new Date(d.date).getMonth() === date.getMonth() && 
-                                                                    new Date(d.date).getFullYear() === date.getFullYear()).length || 0;
-                            
-                            const co2Avoided = monthlyPvPower[i].value * monthCarbonIntensity / 1000;
-                            const co2Emitted = monthlyGridUsed[i].value * monthCarbonIntensity / 1000;
-                        %>
-                            <td><%= co2Avoided.toFixed(2) %> kg</td>
-                            <td><%= co2Emitted.toFixed(2) %> kg</td>
-                        <% } %>
-                    </tr>
-                <% } %>
-            </tbody>
-          </table>
-      </div>
-      <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
-  </div>
+                        const co2Avoided = monthlyPvPower[i].value * monthCarbonIntensity / 1000;
+                        const co2Emitted = monthlyGridUsed[i].value * monthCarbonIntensity / 1000;
+                    %>
+                        <td><%= co2Avoided.toFixed(2) %> kg</td>
+                        <td><%= co2Emitted.toFixed(2) %> kg</td>
+                    <% } %>
+                </tr>
+            <% } %>
+        </tbody>
+        </table>
+    </div>
+    <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
+</div>
   <div class="chart-container">
       <h3>Last 10 Years</h3>
       <canvas id="last-10-years-chart"></canvas>
