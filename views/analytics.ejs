@@ -1041,10 +1041,11 @@ body.dark-mode {
         </div>
         
               
-              <div class="chart-container">
-                  <h3>Last 30 Days</h3>
-                  <canvas id="last-30-days-chart"></canvas>
-              </div>
+             <!-- Energy Overview - Last 30 Days -->
+<div class="chart-container">
+    <h3>Energy Overview - Last 30 Days</h3>
+    <canvas id="energy-overview-30-days"></canvas>
+</div>
               
               <br>
               
@@ -1052,6 +1053,11 @@ body.dark-mode {
                   <h3>Battery Charge/Discharge - Last 30 Days</h3>
                   <canvas id="battery-chart"></canvas>
               </div>
+              
+              <div class="chart-container">
+                <h3>Grid Used/Exported - Last 30 Days</h3>
+                <canvas id="grid-chart"></canvas>
+            </div>
               
               <!-- Last 30 Days Table -->
               <div class="card">
@@ -1164,10 +1170,12 @@ body.dark-mode {
             </div>
               
 
-  <div class="chart-container">
-      <h3>Last 12 Months</h3>
-      <canvas id="last-12-months-chart"></canvas>
-  </div>
+ <!-- Energy Overview - Last 12 Months -->
+<div class="chart-container">
+    <h3>Energy Overview - Last 12 Months</h3>
+    <canvas id="energy-overview-12-months"></canvas>
+</div>
+
 
   <!-- Last 12 Months Card -->
   <div class="card">
@@ -1437,10 +1445,11 @@ body.dark-mode {
     </div>
     <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
 </div>
-  <div class="chart-container">
-      <h3>Last 10 Years</h3>
-      <canvas id="last-10-years-chart"></canvas>
-  </div>
+ <!-- Energy Overview - Last 10 Years -->
+<div class="chart-container">
+    <h3>Energy Overview - Last 10 Years</h3>
+    <canvas id="energy-overview-10-years"></canvas>
+</div>
 
      <!-- Last 10 Years Card -->
      <div class="card">
@@ -1559,147 +1568,558 @@ document.addEventListener('DOMContentLoaded', function() {
   setupTableDownload('last10years-table', 'last10years-table-download', 'last_10_years_data.csv');
 });
   </script>
+
+
+
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-      // Function to get data from table
-      function getTableData(tableId) {
-          const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-          let labels = [];
-          let loadData = [];
-          let solarData = [];
-          let gridUsedData = [];
-          let gridExportedData = [];
-    
-          rows.forEach(row => {
-              const cells = row.querySelectorAll('td');
-              labels.push(cells[0].textContent.trim());
-              loadData.push(parseFloat(cells[1].textContent));
-              solarData.push(parseFloat(cells[2].textContent));
-              gridUsedData.push(parseFloat(cells[5].textContent));
-              gridExportedData.push(parseFloat(cells[6].textContent));
-          });
-    
-          return { labels, loadData, solarData, gridUsedData, gridExportedData };
-      }
-    
-      // Function to update chart
-      function updateChart(chartElementId, labels, datasets) {
-          const ctx = document.getElementById(chartElementId).getContext('2d');
-          new Chart(ctx, {
-              type: 'bar',
-              data: {
-                  labels: labels,
-                  datasets: datasets
-              },
-              options: {
-                  responsive: true,
-                  scales: {
-                      x: { stacked: true },
-                      y: {
-                          stacked: true,
-                          title: { display: true, text: 'kWh' }
-                      }
-                  },
-                  plugins: {
-                      legend: { position: 'top' },
-                      title: { display: true, text: chartElementId.replace(/-/g, ' ').replace(/chart/g, '').trim() }
-                  }
-              }
-          });
-      }
-    
-      // Get and update data for last 30 days
-      const last30DaysData = getTableData('last30days-table');
-      updateChart('last-30-days-chart', last30DaysData.labels.reverse(), [
-          { label: 'Load', data: last30DaysData.loadData.reverse(), backgroundColor: '#FF5722' },
-          { label: 'Solar PV', data: last30DaysData.solarData.reverse(), backgroundColor: '#FFA500' },
-          { label: 'Grid Used', data: last30DaysData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-          { label: 'Grid Exported', data: last30DaysData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-      ]);
+ document.addEventListener('DOMContentLoaded', () => {
+    // Function to get data from table
+    function getTableData(tableId) {
+        const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+        let labels = [];
+        let loadData = [];
+        let solarData = [];
+        let batteryChargedData = [];
+        let batteryDischargedData = [];
+        let gridUsedData = [];
+        let gridExportedData = [];
 
-      // Get and update data for last 12 months
-      const last12MonthsData = getTableData('last12months-table');
-      updateChart('last-12-months-chart', last12MonthsData.labels.reverse(), [
-          { label: 'Load', data: last12MonthsData.loadData.reverse(), backgroundColor: '#FF5722' },
-          { label: 'Solar PV', data: last12MonthsData.solarData.reverse(), backgroundColor: '#FFA500' },
-          { label: 'Grid Used', data: last12MonthsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-          { label: 'Grid Exported', data: last12MonthsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-      ]);
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            labels.push(cells[0].textContent.trim());
+            loadData.push(parseFloat(cells[1].textContent));
+            solarData.push(parseFloat(cells[2].textContent));
+            batteryChargedData.push(parseFloat(cells[3].textContent));
+            batteryDischargedData.push(parseFloat(cells[4].textContent));
+            gridUsedData.push(parseFloat(cells[5].textContent));
+            gridExportedData.push(parseFloat(cells[6].textContent));
+        });
 
-      // Get and update data for last 10 years
-      const last10YearsData = getTableData('last10years-table');
-      updateChart('last-10-years-chart', last10YearsData.labels.reverse(), [
-          { label: 'Load', data: last10YearsData.loadData.reverse(), backgroundColor: '#FF5722' },
-          { label: 'Solar PV', data: last10YearsData.solarData.reverse(), backgroundColor: '#FFA500' },
-          { label: 'Grid Used', data: last10YearsData.gridUsedData.reverse(), backgroundColor: '#9C27B0' },
-          { label: 'Grid Exported', data: last10YearsData.gridExportedData.reverse(), backgroundColor: '#607D8B' }
-      ]);
+        return { 
+            labels, 
+            loadData, 
+            solarData, 
+            batteryChargedData, 
+            batteryDischargedData,
+            gridUsedData,
+            gridExportedData
+        };
+    }
+
+    // Function to create a line chart with inline styling
+    function createLineChart(chartElementId, labels, datasets, title) {
+        const ctx = document.getElementById(chartElementId).getContext('2d');
+        
+        // Add styling to the chart container
+        const chartContainer = document.getElementById(chartElementId).parentNode;
+        chartContainer.style.marginBottom = '30px';
+        chartContainer.style.backgroundColor = '#fff';
+        chartContainer.style.borderRadius = '8px';
+        chartContainer.style.padding = '15px';
+        chartContainer.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        
+        // Style the heading
+        const heading = chartContainer.querySelector('h3');
+        if (heading) {
+            heading.style.marginTop = '0';
+            heading.style.color = '#333';
+            heading.style.fontSize = '1.2rem';
+            heading.style.marginBottom = '15px';
+        }
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: {
+                        title: { 
+                            display: true, 
+                            text: 'Date',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y: {
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333',
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
+                            boxWidth: 15
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: title,
+                        font: { 
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        color: '#333',
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: {
+                            weight: 'bold'
+                        },
+                        caretSize: 5,
+                        cornerRadius: 4
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0.2,  // Slight curve to lines
+                        borderWidth: 2
+                    },
+                    point: {
+                        radius: 3,
+                        hoverRadius: 5
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 0,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    }
+
+    // Function to create a battery chart with inline styling
+    function createBatteryChart(chartElementId, labels, chargedData, dischargedData, title) {
+        const ctx = document.getElementById(chartElementId).getContext('2d');
+        
+        // Add styling to the chart container
+        const chartContainer = document.getElementById(chartElementId).parentNode;
+        chartContainer.style.marginBottom = '30px';
+        chartContainer.style.backgroundColor = '#fff';
+        chartContainer.style.borderRadius = '8px';
+        chartContainer.style.padding = '15px';
+        chartContainer.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        
+        // Style the heading
+        const heading = chartContainer.querySelector('h3');
+        if (heading) {
+            heading.style.marginTop = '0';
+            heading.style.color = '#333';
+            heading.style.fontSize = '1.2rem';
+            heading.style.marginBottom = '15px';
+        }
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Battery Charged',
+                        data: chargedData.map(value => -value), // Negative for charging
+                        backgroundColor: '#0C7085',
+                        stack: 'battery'
+                    },
+                    {
+                        label: 'Battery Discharged',
+                        data: dischargedData,
+                        backgroundColor: '#FF8DA1',
+                        stack: 'battery'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: { 
+                        stacked: true,
+                        title: { 
+                            display: true, 
+                            text: 'Date',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333',
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
+                            boxWidth: 15
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: title,
+                        font: { 
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        color: '#333',
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: {
+                            weight: 'bold'
+                        },
+                        caretSize: 5,
+                        cornerRadius: 4
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 0,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    }
+
+    // Function to create a grid chart with inline styling
+    function createGridChart(chartElementId, labels, gridUsedData, gridExportedData, title) {
+        const ctx = document.getElementById(chartElementId).getContext('2d');
+        
+        // Add styling to the chart container
+        const chartContainer = document.getElementById(chartElementId).parentNode;
+        chartContainer.style.marginBottom = '30px';
+        chartContainer.style.backgroundColor = '#fff';
+        chartContainer.style.borderRadius = '8px';
+        chartContainer.style.padding = '15px';
+        chartContainer.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        
+        // Style the heading
+        const heading = chartContainer.querySelector('h3');
+        if (heading) {
+            heading.style.marginTop = '0';
+            heading.style.color = '#333';
+            heading.style.fontSize = '1.2rem';
+            heading.style.marginBottom = '15px';
+        }
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Grid Exported',
+                        data: gridExportedData.map(value => -value), // Negative for exporting
+                        backgroundColor: '#4CAF50', // Green for export (giving back to grid)
+                        stack: 'grid'
+                    },
+                    {
+                        label: 'Grid Used',
+                        data: gridUsedData,
+                        backgroundColor: '#9C27B0', // Purple for grid usage
+                        stack: 'grid'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: { 
+                        stacked: true,
+                        title: { 
+                            display: true, 
+                            text: 'Date',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#333',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#555',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333',
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
+                            boxWidth: 15
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: title,
+                        font: { 
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        color: '#333',
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: {
+                            weight: 'bold'
+                        },
+                        caretSize: 5,
+                        cornerRadius: 4
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 0,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    }
+
+    // Get data for the last 30 days
+    const last30DaysData = getTableData('last30days-table');
     
-      // Function to get battery data from table
-      function getBatteryData(tableId) {
-          const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-          let labels = [];
-          let batteryChargedData = [];
-          let batteryDischargedData = [];
+    // Create line chart for 30 days overview - Fix date order by not using reverse here
+    createLineChart('energy-overview-30-days', last30DaysData.labels, [
+        {
+            label: 'Load',
+            data: last30DaysData.loadData,
+            borderColor: '#FF5722',
+            backgroundColor: 'rgba(255, 87, 34, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Solar PV',
+            data: last30DaysData.solarData,
+            borderColor: '#FFA500',
+            backgroundColor: 'rgba(255, 165, 0, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Charged',
+            data: last30DaysData.batteryChargedData.map(value => -value),
+            borderColor: '#0C7085',
+            backgroundColor: 'rgba(12, 112, 133, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Discharged',
+            data: last30DaysData.batteryDischargedData,
+            borderColor: '#FF8DA1',
+            backgroundColor: 'rgba(255, 141, 161, 0.2)',
+            fill: false
+        }
+    ], 'Energy Overview - Last 30 Days');
+
+    // Get data for the last 12 months
+    const last12MonthsData = getTableData('last12months-table');
     
-          rows.forEach(row => {
-              const cells = row.querySelectorAll('td');
-              labels.push(cells[0].textContent.trim());
-              batteryChargedData.push(parseFloat(cells[3].textContent));
-              batteryDischargedData.push(parseFloat(cells[4].textContent));
-          });
+    // Create line chart for 12 months overview
+    createLineChart('energy-overview-12-months', last12MonthsData.labels, [
+        {
+            label: 'Load',
+            data: last12MonthsData.loadData,
+            borderColor: '#FF5722',
+            backgroundColor: 'rgba(255, 87, 34, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Solar PV',
+            data: last12MonthsData.solarData,
+            borderColor: '#FFA500',
+            backgroundColor: 'rgba(255, 165, 0, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Charged',
+            data: last12MonthsData.batteryChargedData.map(value => -value),
+            borderColor: '#0C7085',
+            backgroundColor: 'rgba(12, 112, 133, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Discharged',
+            data: last12MonthsData.batteryDischargedData,
+            borderColor: '#FF8DA1',
+            backgroundColor: 'rgba(255, 141, 161, 0.2)',
+            fill: false
+        }
+    ], 'Energy Overview - Last 12 Months');
+
+    // Get data for the last 10 years
+    const last10YearsData = getTableData('last10years-table');
     
-          return { labels: labels.reverse(), batteryChargedData: batteryChargedData.reverse(), batteryDischargedData: batteryDischargedData.reverse() };
-      }
+    // Create line chart for 10 years overview
+    createLineChart('energy-overview-10-years', last10YearsData.labels, [
+        {
+            label: 'Load',
+            data: last10YearsData.loadData,
+            borderColor: '#FF5722',
+            backgroundColor: 'rgba(255, 87, 34, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Solar PV',
+            data: last10YearsData.solarData,
+            borderColor: '#FFA500',
+            backgroundColor: 'rgba(255, 165, 0, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Charged',
+            data: last10YearsData.batteryChargedData.map(value => -value),
+            borderColor: '#0C7085',
+            backgroundColor: 'rgba(12, 112, 133, 0.2)',
+            fill: false
+        },
+        {
+            label: 'Battery Discharged',
+            data: last10YearsData.batteryDischargedData,
+            borderColor: '#FF8DA1',
+            backgroundColor: 'rgba(255, 141, 161, 0.2)',
+            fill: false
+        }
+    ], 'Energy Overview - Last 10 Years');
+
+    // Create battery chart for the last 30 days
+    createBatteryChart('battery-chart', 
+        last30DaysData.labels,  // Use the same labels without manipulating them
+        last30DaysData.batteryChargedData, 
+        last30DaysData.batteryDischargedData, 
+        'Battery Charge/Discharge - Last 30 Days'
+    );
     
-      // Function to create battery chart
-      function createBatteryChart(chartElementId, data) {
-          const ctx = document.getElementById(chartElementId).getContext('2d');
-          new Chart(ctx, {
-              type: 'bar',
-              data: {
-                  labels: data.labels,
-                  datasets: [
-                      {
-                          label: 'Battery Charged',
-                          data: data.batteryChargedData.map(value => -value),
-                          backgroundColor: '#FF8DA1',
-                          stack: 'battery'
-                      },
-                      {
-                          label: 'Battery Discharged',
-                          data: data.batteryDischargedData,
-                          backgroundColor: '#0C7085',
-                          stack: 'battery'
-                      }
-                  ]
-              },
-              options: {
-                  responsive: true,
-                  scales: {
-                      x: { stacked: true },
-                      y: {
-                          stacked: true,
-                          title: { display: true, text: 'kWh' }
-                      }
-                  },
-                  plugins: {
-                      legend: { position: 'top' },
-                      title: { 
-                          display: true, 
-                          text: 'Battery Charge/Discharge - Last 30 Days',
-                          font: { size: 16 }
-                      }
-                  }
-              }
-          });
-      }
+    // Create grid chart for the last 30 days
+    createGridChart('grid-chart', 
+        last30DaysData.labels,  // Use the same labels to ensure they match
+        last30DaysData.gridUsedData, 
+        last30DaysData.gridExportedData, 
+        'Grid Used/Exported - Last 30 Days'
+    );
+});
+    </script>
     
-      // Create battery chart
-      const batteryData = getBatteryData('last30days-table');
-      createBatteryChart('battery-chart', batteryData);
-  });
-  </script>
+
+
+
 
  
 
