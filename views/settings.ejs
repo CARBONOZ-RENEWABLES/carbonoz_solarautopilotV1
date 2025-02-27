@@ -1647,6 +1647,7 @@ input, select {
     </main>
 </div>
   
+
 <script>
     const ingressPath = '<%= ingress_path %>';
     
@@ -1713,60 +1714,17 @@ input, select {
         });
     });
     
-    // API key validation
-    let apiKeyTimeout;
-    const apiKeyInput = document.getElementById('apiKey');
-    const apiKeyValidation = document.getElementById('apiKeyValidation');
-    const zoneSelect = document.getElementById('zone');
+    // Toggle API key visibility (keeping just this functionality)
     const toggleApiKeyBtn = document.getElementById('toggleApiKey');
+    const apiKeyInput = document.getElementById('apiKey');
     
     toggleApiKeyBtn.addEventListener('click', () => {
         const type = apiKeyInput.type === 'password' ? 'text' : 'password';
         apiKeyInput.type = type;
         toggleApiKeyBtn.textContent = type === 'password' ? 'Show' : 'Hide';
     });
-    
-    apiKeyInput.addEventListener('input', () => {
-        clearTimeout(apiKeyTimeout);
-        apiKeyValidation.textContent = 'Validating...';
-        apiKeyValidation.style.color = '#666';
-    
-        apiKeyTimeout = setTimeout(async () => {
-            const apiKey = apiKeyInput.value.trim();
-            
-            if (!apiKey) {
-                apiKeyValidation.textContent = 'API key is required';
-                apiKeyValidation.style.color = '#660000';
-                zoneSelect.disabled = true;
-                return;
-            }
-    
-            try {
-                const response = await fetch(`${ingressPath}/validate-api-key`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ apiKey })
-                });
-    
-                const data = await response.json();
-                
-                apiKeyValidation.textContent = data.message;
-                apiKeyValidation.style.color = data.valid ? '#006600' : '#660000';
-                zoneSelect.disabled = !data.valid;
-                
-                if (data.valid) {
-                    location.reload();
-                }
-            } catch (error) {
-                apiKeyValidation.textContent = 'Error validating API key';
-                apiKeyValidation.style.color = '#660000';
-                zoneSelect.disabled = true;
-            }
-        }, 1000);
-    });
-    </script>
+</script>
+
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
