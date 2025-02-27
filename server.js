@@ -1126,31 +1126,6 @@ app.post('/settings', async (req, res) => {
   }
 });
 
-
-app.post('/validate-api-key', async (req, res) => {
-  try {
-    const { apiKey } = req.body;
-    
-    const response = await axios.get('https://api.electricitymap.org/v3/zones', {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      timeout: 5000
-    });
-
-    res.json({ 
-      valid: !response.data.error,
-      message: response.data.error ? 'Invalid API key' : 'API key is valid'
-    });
-  } catch (error) {
-    res.json({ 
-      valid: false, 
-      message: error.response?.status === 401 
-        ? 'Invalid API key'
-        : 'Error validating API key'
-    });
-  }
-});
-
-
 app.post('/save-zone', (req, res) => {
   try {
       const { zone } = req.body;
