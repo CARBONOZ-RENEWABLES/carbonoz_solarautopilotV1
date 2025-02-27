@@ -1302,63 +1302,56 @@ async function fetchCarbonIntensityHistory(selectedZone) {
 }
 
 // More efficient emissions calculation
-function calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage) {
-  // Pre-process input data into maps for faster lookups
-  const gridEnergyMap = new Map();
-  gridEnergyIn.forEach(item => {
-    // Extract the date part from the time
-    const date = moment(item.time).format('YYYY-MM-DD');
-    gridEnergyMap.set(date, item.value || 0);
-  });
-
-  const pvEnergyMap = new Map();
-  pvEnergy.forEach(item => {
-    const date = moment(item.time).format('YYYY-MM-DD');
-    pvEnergyMap.set(date, item.value || 0);
-  });
-
-  const gridVoltageMap = new Map();
-  gridVoltage.forEach(item => {
-    const date = moment(item.time).format('YYYY-MM-DD');
-    gridVoltageMap.set(date, item.value || 0);
-  });
-
-  // Process historical data more efficiently
+function calculateEmissionsForPeriod(
+  historyData,
+  gridEnergyIn,
+  pvEnergy,
+  gridVoltage
+) {
   return historyData.map((dayData, index) => {
-    const date = dayData.date;
-    const prevDate = index > 0 ? historyData[index - 1].date : null;
-    
-    const carbonIntensity = dayData.carbonIntensity;
-    const currentGridVoltage = gridVoltageMap.get(date) || 0;
-    const isGridActive = Math.abs(currentGridVoltage) > 20;
+    const carbonIntensity = dayData.carbonIntensity
+    const currentGridVoltage = gridVoltage[index]?.value || 0
+    const isGridActive = Math.abs(currentGridVoltage) > 20
 
-    let gridEnergy = gridEnergyMap.get(date) || 0;
-    let solarEnergy = pvEnergyMap.get(date) || 0;
+    // Get current day's grid and PV energy
+    let gridEnergy = gridEnergyIn[index]?.value || 0
+    let solarEnergy = pvEnergy[index]?.value || 0
 
-    // Calculate daily differences
-    if (prevDate) {
-      const prevGridEnergy = gridEnergyMap.get(prevDate) || 0;
-      const prevPvEnergy = pvEnergyMap.get(prevDate) || 0;
-      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy);
-      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy);
+    // Compare with the previous day's data
+    if (index > 0) {
+      // Avoid comparison for the first entry
+      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0
+      const prevPvEnergy = pvEnergy[index - 1]?.value || 0
+
+      // Calculate the difference in grid and solar energy from the previous day
+      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy)
+      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy)
     }
 
-    const unavoidableEmissions = isGridActive ? (gridEnergy * carbonIntensity) / 1000 : 0;
-    const avoidedEmissions = isGridActive ? (solarEnergy * carbonIntensity) / 1000 : 0;
-    const totalEnergy = gridEnergy + solarEnergy;
-    const selfSufficiencyScore = totalEnergy > 0 ? (solarEnergy / totalEnergy) * 100 : 0;
+    // Calculate emissions and self-sufficiency
+    let unavoidableEmissions = 0
+    let avoidedEmissions = 0
+
+    if (isGridActive) {
+      unavoidableEmissions = (gridEnergy * carbonIntensity) / 1000
+      avoidedEmissions = (solarEnergy * carbonIntensity) / 1000
+    }
+
+    const totalEnergy = gridEnergy + solarEnergy
+    const selfSufficiencyScore =
+      totalEnergy > 0 ? (solarEnergy / totalEnergy) * 100 : 0
 
     return {
-      date,
-      carbonIntensity,
+      date: dayData.date,
+      carbonIntensity: carbonIntensity,
       gridVoltage: currentGridVoltage,
-      gridEnergy,
-      solarEnergy,
-      unavoidableEmissions,
-      avoidedEmissions,
-      selfSufficiencyScore,
-    };
-  });
+      gridEnergy: gridEnergy,
+      solarEnergy: solarEnergy,
+      unavoidableEmissions: unavoidableEmissions,
+      avoidedEmissions: avoidedEmissions,
+      selfSufficiencyScore: selfSufficiencyScore,
+    }
+  })
 }
 
 
