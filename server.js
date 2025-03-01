@@ -20,7 +20,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { startOfDay } = require('date-fns')
 const { AuthenticateUser } = require('./utils/mongoService')
-const NodeCache = require('node-cache');
+
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
@@ -43,14 +43,8 @@ const mqttTopicPrefix = options.mqtt_topic_prefix || '${mqttTopicPrefix}'
 
 // Constants
 const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json');
-const CACHE_DURATION = 86400000; // 24 hours in milliseconds
+const CACHE_DURATION = 24 * 3600000; // 24 hours in milliseconds
 
-// Advanced cache implementation
-const cache = new NodeCache({ 
-  stdTTL: 86400, // 24 hours in seconds 
-  checkperiod: 120, // Check every 2 minutes for expired items
-  useClones: false // Use references instead of copies for better performance
-});
 
 // Middleware
 app.use(helmet({
@@ -998,18 +992,12 @@ const server = app.listen(port, '0.0.0.0', async () => {
 
 
 // Cache for carbon intensity data
-const carbonIntensityCache = new Map();
+const carbonIntensityCacheByZone = new Map();
 
 // Utility Functions
 async function getZones() {
   try {
     const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    
-    // Check cache first
-    const cachedZones = cache.get('zones');
-    if (cachedZones) {
-      return cachedZones;
-    }
     
     if (!settings.apiKey) {
       return {
@@ -1020,7 +1008,7 @@ async function getZones() {
     }
 
     const response = await axios.get('https://api.electricitymap.org/v3/zones', {
-      headers: { 'Authorization': `Bearer ${settings.apiKey}` },
+      headers: { 'auth-token': settings.apiKey },
       timeout: 10000
     });
 
@@ -1039,15 +1027,10 @@ async function getZones() {
       }))
       .sort((a, b) => a.zoneName.localeCompare(b.zoneName));
 
-    const result = {
+    return {
       success: true,
       zones
     };
-    
-    // Cache zones for 24 hours
-    cache.set('zones', result, 86400);
-    
-    return result;
   } catch (error) {
     const errorMessage = error.response?.status === 401 
       ? 'Invalid API key. Please check your Electricity Map API credentials.'
@@ -1061,6 +1044,7 @@ async function getZones() {
     };
   }
 }
+
 
 
 app.post('/save-zone', (req, res) => {
@@ -1141,36 +1125,46 @@ app.post('/save-zone', (req, res) => {
 });
 
 
-
-
 app.get('/results', async (req, res) => {
   try {
-    const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
-    
-    // Use cache first approach for frequently accessed data
-    const cacheKey = `results_data_${selectedZone}`;
-    let cachedResults = cache.get(cacheKey);
-    
-    if (cachedResults) {
-      return res.render('results', cachedResults);
-    }
-    
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+    const selectedZone = req.query.zone || settings.selectedZone;
     const zones = await getZones();
+
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
     let error = null;
+    let isLoading = false;
 
     if (selectedZone) {
       try {
-        // Fetch data in parallel
-        [historyData, gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
-          fetchCarbonIntensityHistory(selectedZone),
+        // Check if we have cached data
+        const cacheKey = `${selectedZone}`;
+        const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
+                         (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+        
+        if (isCached) {
+          historyData = carbonIntensityCacheByZone.get(cacheKey).data;
+        } else {
+          // Set loading state
+          isLoading = true;
+        }
+        
+        // Fetch InfluxDB data in parallel
+        [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
           queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
         ]);
+        
+        // If not cached, fetch carbon intensity data
+        if (!isCached) {
+          historyData = await fetchCarbonIntensityHistory(selectedZone);
+          isLoading = false;
+        }
       } catch (e) {
         console.error('Error fetching data:', e);
         error = 'Error fetching data. Please try again later.';
+        isLoading = false;
       }
     }
 
@@ -1189,22 +1183,18 @@ app.get('/results', async (req, res) => {
       selfSufficiencyScore: 0
     };
 
-    const resultsData = {
+    res.render('results', {
       selectedZone,
       zones,
       periods,
       todayData,
       error,
+      isLoading,
       unavoidableEmissions: todayData.unavoidableEmissions,
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
       ingress_path: process.env.INGRESS_PATH || '',
-    };
-    
-    // Cache results for 1 hour
-    cache.set(cacheKey, resultsData, 3600);
-    
-    res.render('results', resultsData);
+    });
   } catch (error) {
     res.status(500).render('error', { error: 'Error loading results' });
   }
@@ -1238,67 +1228,84 @@ async function fetchCarbonIntensityHistory(selectedZone) {
     throw new Error('API key not configured');
   }
 
-  // Check for cached data with more granular key
-  const cacheKey = `carbonIntensity_${selectedZone}`;
-  const cachedData = cache.get(cacheKey);
-  if (cachedData) {
-    return cachedData;
+  // Check if we have a cached version for this zone
+  const cacheKey = `${selectedZone}`;
+  if (carbonIntensityCacheByZone.has(cacheKey)) {
+    const cachedData = carbonIntensityCacheByZone.get(cacheKey);
+    if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
+      console.log(`Using cached carbon intensity data for ${selectedZone}`);
+      return cachedData.data;
+    }
   }
 
   const historyData = [];
   const today = moment();
   const oneYearAgo = moment().subtract(1, 'year');
   
-  // Increase batch size for faster processing
-  const batchSize = 14; // Two weeks at a time
-  const allPromises = [];
+  // Increase batch size for fewer API calls
+  const batchSize = 30; // Fetch a month at a time
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Generate all promises at once instead of waiting for each batch
+  console.time('Carbon intensity data fetch');
+  console.log(`Fetching carbon intensity data for ${selectedZone}...`);
+  
   for (let m = moment(oneYearAgo); m.isBefore(today); m.add(batchSize, 'days')) {
+    const batchPromises = [];
     for (let i = 0; i < batchSize && m.clone().add(i, 'days').isBefore(today); i++) {
       const date = m.clone().add(i, 'days').format('YYYY-MM-DD');
-      const requestPromise = axios.get(
-        `https://api.electricitymap.org/v3/carbon-intensity/history?zone=${selectedZone}&datetime=${date}`, 
-        {
-          headers: { 'Authorization': `Bearer ${settings.apiKey}` },
-          timeout: 10000 // Add timeout to prevent hanging requests
+      batchPromises.push(
+        axios.get('https://api.electricitymap.org/v3/carbon-intensity/history', {
+          params: { 
+            zone: selectedZone,
+            datetime: date
+          },
+          headers: { 'auth-token': settings.apiKey },
+          timeout: 10000
+        }).then(response => response.data)
+          .catch(error => {
+            console.error(`Error fetching data for ${date}:`, error.message);
+            return { history: [] }; // Return empty history on error
+          })
+      );
+    }
+
+    try {
+      // Process batches with some delay between them to avoid rate limiting
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach((data, index) => {
+        if (data.history && data.history.length > 0) {
+          historyData.push({
+            date: m.clone().add(index, 'days').format('YYYY-MM-DD'),
+            carbonIntensity: data.history[0].carbonIntensity
+          });
         }
-      )
-      .then(response => {
-        if (response.data.history && response.data.history.length > 0) {
-          return {
-            date: date,
-            carbonIntensity: response.data.history[0].carbonIntensity
-          };
-        }
-        return null;
-      })
-      .catch(error => {
-        console.error(`Error fetching data for ${date}:`, error.message);
-        return null;
       });
       
-      allPromises.push(requestPromise);
+      // Add a small delay between batches to avoid overwhelming the API
+      if (m.clone().add(batchSize, 'days').isBefore(today)) {
+        await delay(500);
+      }
+    } catch (error) {
+      console.error('Error fetching batch data:', error);
     }
   }
 
-  // Execute all requests in parallel with a maximum concurrency
-  const MAX_CONCURRENT = 10;
-  let results = [];
-  for (let i = 0; i < allPromises.length; i += MAX_CONCURRENT) {
-    const batch = allPromises.slice(i, i + MAX_CONCURRENT);
-    const batchResults = await Promise.all(batch);
-    results = results.concat(batchResults);
+  console.timeEnd('Carbon intensity data fetch');
+
+  // Cache the entire year's data for this zone
+  carbonIntensityCacheByZone.set(cacheKey, {
+    data: historyData,
+    timestamp: Date.now()
+  });
+  
+  console.log(`Carbon intensity data for ${selectedZone}:`, historyData.length, 'days retrieved');
+
+  if (historyData.length > 0) {
+    console.log('Sample data (first 5 days):');
+    console.log(JSON.stringify(historyData.slice(0, 5), null, 2));
   }
-
-  // Filter out null results and sort by date
-  const validResults = results.filter(item => item !== null)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  // Cache results for 24 hours
-  cache.set(cacheKey, validResults, 86400);
-
-  return validResults;
+  
+  return historyData;
 }
 
 // More efficient emissions calculation
@@ -1308,74 +1315,152 @@ function calculateEmissionsForPeriod(
   pvEnergy,
   gridVoltage
 ) {
+  if (!historyData || !historyData.length || !gridEnergyIn || !pvEnergy) {
+    console.log("Missing required data arrays for emissions calculation");
+    return [];
+  }
+
+  console.log(`History data length: ${historyData.length}, Grid data length: ${gridEnergyIn.length}, PV data length: ${pvEnergy.length}`);
+  if (gridEnergyIn.length > 0) {
+    console.log(`Grid energy sample: ${JSON.stringify(gridEnergyIn[0])}`);
+  }
+  if (pvEnergy.length > 0) {
+    console.log(`PV energy sample: ${JSON.stringify(pvEnergy[0])}`);
+  }
+
   return historyData.map((dayData, index) => {
-    const carbonIntensity = dayData.carbonIntensity
-    const currentGridVoltage = gridVoltage[index]?.value || 0
-    const isGridActive = Math.abs(currentGridVoltage) > 20
+    const carbonIntensity = dayData.carbonIntensity || 0;
+    const currentGridVoltage = gridVoltage[index]?.value || 0;
 
-    // Get current day's grid and PV energy
-    let gridEnergy = gridEnergyIn[index]?.value || 0
-    let solarEnergy = pvEnergy[index]?.value || 0
+    const historyDate = new Date(dayData.date).toISOString().split('T')[0];
 
-    // Compare with the previous day's data
-    if (index > 0) {
-      // Avoid comparison for the first entry
-      const prevGridEnergy = gridEnergyIn[index - 1]?.value || 0
-      const prevPvEnergy = pvEnergy[index - 1]?.value || 0
+    let gridEnergyForDay = null,
+      pvEnergyForDay = null,
+      previousGridEnergy = null,
+      previousPvEnergy = null;
 
-      // Calculate the difference in grid and solar energy from the previous day
-      gridEnergy = Math.max(0, gridEnergy - prevGridEnergy)
-      solarEnergy = Math.max(0, solarEnergy - prevPvEnergy)
+    gridEnergyIn.forEach((entry, i) => {
+      const entryDate = new Date(entry.time).toISOString().split('T')[0];
+      if (entryDate === historyDate) {
+        gridEnergyForDay = entry.value;
+        if (i > 0) previousGridEnergy = gridEnergyIn[i - 1].value;
+      }
+    });
+
+    pvEnergy.forEach((entry, i) => {
+      const entryDate = new Date(entry.time).toISOString().split('T')[0];
+      if (entryDate === historyDate) {
+        pvEnergyForDay = entry.value;
+        if (i > 0) previousPvEnergy = pvEnergy[i - 1].value;
+      }
+    });
+
+    if (gridEnergyForDay === null && index < gridEnergyIn.length) {
+      gridEnergyForDay = gridEnergyIn[index]?.value || 0;
+      previousGridEnergy = index > 0 ? gridEnergyIn[index - 1]?.value || 0 : null;
     }
 
-    // Calculate emissions and self-sufficiency
-    let unavoidableEmissions = 0
-    let avoidedEmissions = 0
-
-    if (isGridActive) {
-      unavoidableEmissions = (gridEnergy * carbonIntensity) / 1000
-      avoidedEmissions = (solarEnergy * carbonIntensity) / 1000
+    if (pvEnergyForDay === null && index < pvEnergy.length) {
+      pvEnergyForDay = pvEnergy[index]?.value || 0;
+      previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
     }
 
-    const totalEnergy = gridEnergy + solarEnergy
-    const selfSufficiencyScore =
-      totalEnergy > 0 ? (solarEnergy / totalEnergy) * 100 : 0
+    let dailyGridEnergy = gridEnergyForDay;
+    let dailyPvEnergy = pvEnergyForDay;
+
+    // Apply your conditions
+    if (
+      previousGridEnergy !== null &&
+      previousPvEnergy !== null &&
+      gridEnergyForDay > previousGridEnergy &&
+      pvEnergyForDay > previousPvEnergy
+    ) {
+      dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
+      dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
+    }
+
+    const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
+    const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
+    const totalEnergy = dailyGridEnergy + dailyPvEnergy;
+    const selfSufficiencyScore = totalEnergy > 0 ? (dailyPvEnergy / totalEnergy) * 100 : 0;
 
     return {
       date: dayData.date,
       carbonIntensity: carbonIntensity,
       gridVoltage: currentGridVoltage,
-      gridEnergy: gridEnergy,
-      solarEnergy: solarEnergy,
+      gridEnergy: dailyGridEnergy,
+      solarEnergy: dailyPvEnergy,
       unavoidableEmissions: unavoidableEmissions,
       avoidedEmissions: avoidedEmissions,
       selfSufficiencyScore: selfSufficiencyScore,
+    };
+  });
+}
+
+// Function to prefetch data in the background after server start
+
+async function prefetchCarbonIntensityData() {
+  try {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+    if (settings.selectedZone && settings.apiKey) {
+      console.log(`Prefetching carbon intensity data for ${settings.selectedZone}...`);
+      await fetchCarbonIntensityHistory(settings.selectedZone);
+      console.log('Prefetching complete');
     }
-  })
+  } catch (error) {
+    console.error('Error prefetching carbon intensity data:', error);
+  }
 }
 
 
-app.get('/api/grid-voltage', async (req, res) => {
+app.get('/api/carbon-intensity/:zone', async (req, res) => {
   try {
-    // Use cache for grid voltage
-    const cacheKey = 'current_grid_voltage';
-    let voltage = cache.get(cacheKey);
-    
-    if (voltage === undefined) {
-      const result = await influx.query(`
-        SELECT last("value") AS "value"
-        FROM "state"
-        WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
-      `)
-      voltage = result[0]?.value || 0;
-      cache.set(cacheKey, voltage, 300); // Cache for 5 minutes
+    const { zone } = req.params;
+    if (!zone) {
+      return res.status(400).json({ error: 'Zone parameter is required' });
     }
     
-    res.json({ voltage });
+    // Check if data is already cached
+    const cacheKey = zone;
+    if (carbonIntensityCacheByZone.has(cacheKey)) {
+      const cachedData = carbonIntensityCacheByZone.get(cacheKey);
+      if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
+        return res.json({ 
+          data: cachedData.data,
+          cached: true,
+          cacheAge: Math.round((Date.now() - cachedData.timestamp) / 60000) + ' minutes'
+        });
+      }
+    }
+    
+    // Otherwise return a status indicating data is being fetched
+    res.json({ 
+      status: 'fetching',
+      message: 'Data is being fetched. Please try again in a moment.'
+    });
+    
+    // Trigger a background fetch if not already in progress
+    setTimeout(() => fetchCarbonIntensityHistory(zone), 0);
+    
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch grid voltage' });
+    console.error('Error in carbon intensity API:', error);
+    res.status(500).json({ error: 'Failed to fetch carbon intensity data' });
   }
 });
+
+app.get('/api/grid-voltage', async (req, res) => {
+  try {
+    const result = await influx.query(`
+      SELECT last("value") AS "value"
+      FROM "state"
+      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+    `)
+    res.json({ voltage: result[0]?.value || 0 })
+  } catch (error) {
+    console.error('Error fetching grid voltage:', error)
+    res.status(500).json({ error: 'Failed to fetch grid voltage' })
+  }
+})
 
 // Error handling middleware
 app.use((err, req, res, next) => {
