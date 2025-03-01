@@ -74,6 +74,8 @@ a {
            }
    
            .logo-icon {
+            position: absolute;
+            left: 20px;
     width: 50px;
     height: 50px;
     border-radius: 8px;
@@ -86,21 +88,24 @@ a {
    }
    
    .logo-text {
-    margin-left: 10px;
+
+    margin-left: 80px;
     font-weight: bold;
     color: var(--text-color);
     font-size: 18px;
+    top:30px;
    }
    
    .logo-text .highlight {
     color: var(--primary-color);
-    margin-left: 10px;
+    margin-left: 80px;
    }
-
-/* Navigation Styles */
-nav {
+   
+   
+   nav {
     flex-grow: 1;
-   }
+    margin-top: 30px;
+  }
    
    nav ul {
     list-style-type: none;
@@ -520,14 +525,36 @@ input:checked + .slider:before {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.summary-icon{
+/* Color classes for the summary icons */
+.summary-icon.red {
+  background-color: #fee2e2; /* Light red background */
+  color: #dc2626; /* Red icon color */
+}
+
+.summary-icon.green {
+  background-color: #dcfce7; /* Light green background */
+  color: #16a34a; /* Green icon color */
+}
+
+.summary-icon.blue {
+  background-color: #dbeafe; /* Light blue background */
+  color: #3b82f6; /* Blue icon color */
+}
+
+/* Additional styling for the icon containers if needed */
+.summary-icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  margin-bottom: 1rem;
+}
+
+/* Make sure SVGs inherit the color properly */
+.summary-icon svg {
+  width: 24px;
+  height: 24px;
 }
 .summary-label {
   font-size: 0.875rem;
@@ -550,6 +577,11 @@ input:checked + .slider:before {
   padding: 1.5rem;
   margin-bottom: 2rem;
   transition: background-color var(--transition-speed);
+}
+
+.dark-mode .historical-table-container{
+  color: #fff;
+  background-color: rgba(24, 27, 31, 1);
 }
 
 .table-header {
@@ -660,25 +692,25 @@ input:checked + .slider:before {
 
 /* Loading overlay */
 .loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: var(--bg-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: #f8f9fa;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ z-index: 9999;
 }
 
 .loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 5px solid #e0e0e0;
-  border-top: 5px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+ width: 50px;
+ height: 50px;
+ border: 5px solid #e0e0e0;
+ border-top: 5px solid #3498db;
+ border-radius: 50%;
+ animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
@@ -981,6 +1013,10 @@ body.dark-mode {
   .dark-mode .sidebar nav li:active {
     background-color: rgba(255, 255, 255, 0.05);
   }
+}
+.dark-mode .table-responsive{
+  background-color: rgba(24, 27, 31, 0.9);
+  color: #fff;
 }
 
 /* Print styles */
