@@ -6,40 +6,64 @@
     <title>Carbonoz SolarAutopilot</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-   body {
-       font-family: 'Inter', sans-serif;
-   }
-   :root {
-    --primary-color: #DEAF0B;
-    --bg-color: #f5f6fa;
-    --text-color: #2f3640;
-    --icon-color: #636e72;
-   }
-   
-   body, html {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    background-color: var(--bg-color);
-    
-   }
-    /* Sidebar styles */
-    .sidebar {
-    width: 280px;
-    height: 100vh;
-    background-color: white;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    transition: width 0.3s ease;
+    /* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* CSS Variables */
+:root {
+  --primary-color: #DEAF0B;
+  --bg-color: #f5f6fa;
+  --text-color: #2f3640;
+  --icon-color: #636e72;
+  --primary-bg: #ffffff;
+  --secondary-bg: #f3f4f6;
+  --card-bg: #ffffff;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --red-color: #dc2626;
+  --green-color: #16a34a;
+  --blue-color: #DEAF0B;
+  --yellow-color: #f59e0b;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --sidebar-width: 280px;
+  --header-height: 60px;
+  --transition-speed: 0.3s;
 }
+
+/* Base Styles */
+body, html {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Sidebar Styles */
+.sidebar {
+        width: 280px;
+        height: 100vh;
+        background-color: white;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        transition: width 0.3s ease;
+    }
    
            .logo-container {
                padding: 1.5rem;
@@ -72,9 +96,9 @@
     color: var(--primary-color);
     margin-left: 10px;
    }
-   
-   
-   nav {
+
+/* Navigation Styles */
+nav {
     flex-grow: 1;
    }
    
@@ -92,68 +116,81 @@
     transition: background-color 0.3s;
     font-size: 18px;
    }
-   
-   nav li a{
-    text-decoration: none;
-    color: #2f3640;
-    font-weight: bold;
-   }
-   nav li:hover {
-    background-color: var(--bg-color);
-   }
-   
-   nav li i {
-    margin-right: 15px;
-    color: var(--icon-color);
-    font-size: 24px;
-   }
-   
-   .bottom-options {
-    padding: 20px;
-    border-top: 1px solid #dcdde1;
-   }
-   
-   .toggle-sidebar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    font-size: 16px;
-   }
-   
-   .toggle-text {
-    margin-right: 10px;
-   }
-   
-   .toggle-switch {
-    width: 50px;
-    height: 25px;
-    background-color: #dcdde1;
-    border-radius: 12.5px;
-    position: relative;
-    transition: background-color 0.3s;
-   }
-   .toggle-switch::before {
-    content: '';
-    position: absolute;
-    width: 21px;
-    height: 21px;
-    border-radius: 50%;
-    background-color: white;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.3s;
-   }
-   
-   .toggle-switch.active {
-    background-color: var(--primary-color);
-   }
-   
-   .toggle-switch.active::before {
-    transform: translateX(25px);
-   }
-   
-   .sidebar.collapsed .logo-text,
+
+nav li a {
+  text-decoration: none;
+  color: var(--text-color);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+}
+
+nav li:hover {
+  background-color: var(--bg-color);
+}
+
+nav li i {
+  color: var(--icon-color);
+  font-size: 24px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Bottom Options */
+.bottom-options {
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.toggle-sidebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.toggle-text {
+  margin-right: 10px;
+}
+
+.toggle-switch {
+  width: 50px;
+  height: 25px;
+  background-color: #dcdde1;
+  border-radius: 12.5px;
+  position: relative;
+  transition: background-color var(--transition-speed);
+}
+
+.toggle-switch::before {
+  content: '';
+  position: absolute;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background-color: white;
+  top: 2px;
+  left: 2px;
+  transition: transform var(--transition-speed);
+}
+
+.toggle-switch.active {
+  background-color: var(--primary-color);
+}
+
+.toggle-switch.active::before {
+  transform: translateX(25px);
+}
+
+/* Collapsed Sidebar */
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar.collapsed .logo-text,
    .sidebar.collapsed .search,
    .sidebar.collapsed nav li span,
    .sidebar.collapsed .toggle-text {
@@ -171,847 +208,1504 @@
    .sidebar.collapsed nav li i {
     margin-right: 0;
    }
-           /* Main content styles */
-           .main-content {
-               flex: 1;
-               margin-left: 280px;
-               padding: 2rem;
-           }
-   
-           .content-header {
-               margin-bottom: 2rem;
-           }
-   
-           .content-header h2 {
-               font-size: 1.875rem;
-               font-weight: 700;
-               color: #111827;
-           }
-   
-           .metrics-grid {
-               display: grid;
-               grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-               gap: 1.5rem;
-               margin-bottom: 2rem;
-           }
-   
-           .metric-card {
-               background: white;
-               border-radius: 12px;
-               padding: 1.5rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .metric-title {
-               font-size: 0.875rem;
-               font-weight: 600;
-               color: #4b5563;
-               margin-bottom: 0.5rem;
-           }
-   
-           .metric-value {
-               font-size: 1.5rem;
-               font-weight: 700;
-               margin-bottom: 0.25rem;
-           }
-   
-           .metric-subtitle {
-               font-size: 0.875rem;
-               color: #6b7280;
-           }
-   
-           .chart-container {
-               background: white;
-               border-radius: 12px;
-               padding: 1.5rem;
-               margin-bottom: 2rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .chart-wrapper {
-               height: 400px;
-               margin-top: 1rem;
-           }
-   
-           .period-buttons {
-               display: flex;
-               gap: 0.75rem;
-               margin-bottom: 1rem;
-           }
-   
-           .period-btn {
-               padding: 0.5rem 1rem;
-               border: none;
-               background-color: #e5e7eb;
-               color: #4b5563;
-               border-radius: 6px;
-               cursor: pointer;
-               font-weight: 500;
-               transition: all 0.2s;
-           }
-   
-           .period-btn:hover {
-               background-color: #d1d5db;
-           }
-   
-           .period-btn.active {
-               background-color: #DEAF0B;
-               color: white;
-           }
-   
-           /* Toggle styles */
-           .toggle {
-               position: relative;
-               display: inline-block;
-               width: 44px;
-               height: 24px;
-           }
-   
-           .toggle input {
-               opacity: 0;
-               width: 0;
-               height: 0;
-           }
-   
-           .slider {
-               position: absolute;
-               cursor: pointer;
-               top: 0;
-               left: 0;
-               right: 0;
-               bottom: 0;
-               background-color: #e5e7eb;
-               transition: .4s;
-               border-radius: 34px;
-           }
-   
-           .slider:before {
-               position: absolute;
-               content: "";
-               height: 16px;
-               width: 16px;
-               left: 4px;
-               bottom: 4px;
-               background-color: white;
-               transition: .4s;
-               border-radius: 50%;
-           }
-   
-           input:checked + .slider {
-               background-color: #DEAF0B;
-           }
-   
-           input:checked + .slider:before {
-               transform: translateX(20px);
-           }
-   
-           /* Updated and new styles */
-           .bottom-controls {
-               padding: 1.5rem;
-               border-top: 1px solid #e5e7eb;
-           }
-   
-           .control-item {
-               display: flex;
-               justify-content: space-between;
-               align-items: center;
-               margin-bottom: 1rem;
-           }
-   
-           .control-label {
-               font-size: 0.875rem;
-               color: #4b5563;
-           }
-   
-           .toggle {
-               position: relative;
-               display: inline-block;
-               width: 44px;
-               height: 24px;
-           }
-   
-           .toggle input {
-               opacity: 0;
-               width: 0;
-               height: 0;
-           }
-   
-           .sidebar {
-    width: 280px;
-    background-color: white;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s ease;
-    z-index: 10;
-   }
-   
-   .sidebar.collapsed {
-    width: 80px;
-   }
-   
-   .logo {
-    display: flex;
-    align-items: center;
-    padding: 20px;
-   }
-   
-   
-           input:checked + .slider {
-               background-color: #DEAF0B;
-           }
-   
-           input:checked + .slider:before {
-               transform: translateX(20px);
-           }
-   
-           .total-emissions {
-               font-size: 1.25rem;
-               font-weight: 600;
-               margin-bottom: 1rem;
-               color: #374151;
-           }
-   
-           .summary-grid {
-               display: grid;
-               grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-               gap: 1rem;
-               margin-bottom: 2rem;
-           }
-   
-           .summary-item {
-               background-color: white;
-               border-radius: 8px;
-               padding: 1rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .summary-label {
-               font-size: 0.875rem;
-               color: #6b7280;
-               display: block;
-               margin-bottom: 0.5rem;
-           }
-   
-           .summary-value {
-               font-size: 1.25rem;
-               font-weight: 600;
-           }
-   
-       
-   
-           /* Responsive styles */
-           @media (max-width: 768px) {
-               .sidebar {
-                   width: 100%;
-                   height: auto;
-                   position: static;
-                   border-right: none;
-                   border-bottom: 1px solid #e5e7eb;
-               }
-   
-               .main-content {
-                   margin-left: 0;
-               }
-   
-               body.collapsed-sidebar .sidebar {
-                   display: none;
-               }
-   
-               body.collapsed-sidebar .main-content {
-                   margin-left: 0;
-               }
-   
-               .metrics-grid,
-               .summary-grid {
-                   grid-template-columns: 1fr;
-               }
-   
-               .period-buttons {
-                   flex-wrap: wrap;
-               }
-   
-               .period-btn {
-                   flex: 1 0 calc(50% - 0.375rem);
-                   margin-bottom: 0.75rem;
-               }
-           }
-   /* loading css */
-   .loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f8f9fa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-   }
-   
-   .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #e0e0e0;
-    border-top: 5px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-   }
-   
-   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-   } 
-           /* Dark mode styles */
-   body.dark-mode {
-       background-color: rgba(24, 27, 31, 1);
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar {
-       background-color: rgba(24, 27, 31, 1);
-   }
-   
-   .dark-mode .sidebar .logo-icon {
-    color: #2f3640;
-   }
-   
-   .dark-mode .sidebar .logo-text {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li:hover {
-    background-color: #383838;
-   }
-   
-   .dark-mode .sidebar nav li a {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li i {
-    color: #dcdde1;
-   }
-   
-   .dark-mode .toggle-sidebar,
-   .dark-mode .toggle-dark-mode {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .toggle-switch {
-       background-color: var(--primary-color);
-   }
-   
-   .dark-mode .toggle-switch.active {
-    background-color: var(--primary-color);
-   }
-   
-   .dark-mode header {
-       background-color: rgb(17, 18, 23);
-   }
-   
-   .dark-mode .main-content {
-       background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-   }
-   
-   .dark-mode .metric-card {
-     background-color: rgb(32, 36, 41);
-   
-    color: #fff;
-   }
-   .dark-mode .chart-container{
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode  .summary-item {
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode .loading-overlay{
-       background-color: rgba(24, 27, 31, 1);
-   }
-   a{
-     text-decoration: none;
-   }
 
-   .gauge-container {
-    position: relative;
-    width: 100%;
-    height: 30px;
-    margin: 10px 0;
+/* Main Content Styles */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  padding: 2rem;
+  transition: margin-left var(--transition-speed) ease;
+}
+
+.content-header {
+  margin-bottom: 2rem;
+}
+
+.content-header h2, .content-header h3 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 0;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+
+.icon-red {
+  color: var(--red-color);
+}
+.summary-icon .green{
+color: #16a34a;
+}
+
+.summary-icon .blue{
+  color: var(--blue-color);
+}
+.icon-green {
+  color: var(--green-color);
+}
+
+.icon-blue {
+  color: var(--blue-color);
+}
+
+.metric-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.metric-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Chart Container */
+.chart-container {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-wrapper {
+  height: 400px;
+  margin-top: 1rem;
+}
+
+.filters-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.period-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: var(--secondary-bg);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.period-btn:hover {
+  background-color: #d1d5db;
+}
+
+.period-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--secondary-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.toggle-btn svg {
+  stroke: currentColor;
+}
+
+/* Table Styles */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.table-wrapper.hidden {
+  display: none;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.data-table th, 
+.data-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--secondary-bg);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--secondary-bg);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--secondary-bg);
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Gauge */
+.gauge-container {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  margin: 10px 0;
 }
 
 .progress-bar {
-    width: 100%;
-    height: 100%;
-    background-color: #e5e7eb;
-    border-radius: 15px;
-    overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background-color: var(--secondary-bg);
+  border-radius: 15px;
+  overflow: hidden;
 }
 
 .progress-fill {
-    height: 100%;
-    background-color: #16a34a;
-    transition: width 0.5s ease-out;
+  height: 100%;
+  background-color: var(--green-color);
+  transition: width 0.5s ease-out;
 }
 
 .gauge-value {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 1rem;
-    font-weight: bold;
-    color: #ffffff;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
+
+/* Control Items */
+.control-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.control-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Summary Section */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-item {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summary-icon{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+.summary-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Historical Table */
+.historical-table-container {
+  background-color: var(--card-bg);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  transition: background-color var(--transition-speed);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.table-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.table-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--secondary-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background-color: rgba(107, 114, 128, 0.2);
+}
+
+.table-responsive {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+/* Row colors based on self-sufficiency */
+.emissions-history .high-score {
+  border-left: 4px solid var(--green-color);
+}
+
+.emissions-history .medium-score {
+  border-left: 4px solid var(--yellow-color);
+}
+
+.emissions-history .low-score {
+  border-left: 4px solid var(--red-color);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: var(--secondary-bg);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#pageInfo {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Back button */
+.back-button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--blue-color);
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #c9a00a;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e0e0e0;
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+  background-color: rgba(24, 27, 31, 1);
+  color: #f5f6fa;
+}
+
+.dark-mode .sidebar {
+  background-color: rgba(24, 27, 31, 1);
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .sidebar .logo-icon {
+  color: #2f3640;
+}
+
+.dark-mode .sidebar .logo-text {
+  color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li {
+  color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li:hover {
+  background-color: #383838;
+}
+
+.dark-mode .sidebar nav li a {
+  color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li i {
+  color: #dcdde1;
+}
+
+.dark-mode .toggle-sidebar,
+.dark-mode .toggle-dark-mode {
+  color: #f5f6fa;
+}
+
+.dark-mode .toggle-switch {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .toggle-switch.active {
+  background-color: var(--primary-color);
+}
+
+.dark-mode .main-content {
+  background-color: rgba(24, 27, 31, 1);
+  color: #fff;
+}
+
+.dark-mode .metric-card,
+.dark-mode .chart-container,
+.dark-mode .summary-item {
+  background-color: rgb(32, 36, 41);
+  color: #fff;
+}
+
+.dark-mode .content-header h2,
+.dark-mode .content-header h3,
+.dark-mode .table-header h3 {
+  color: #f5f6fa;
+}
+
+.dark-mode .metric-title,
+.dark-mode .metric-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark-mode .summary-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark-mode .summary-value {
+  color: #f5f6fa;
+}
+
+.dark-mode .data-table th {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .data-table td,
+.dark-mode .data-table th {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .data-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .period-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .period-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark-mode .toggle-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .action-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark-mode .page-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .page-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark-mode .loading-overlay {
+  background-color: rgba(24, 27, 31, 0.9);
+}
+
 /* Mobile Sidebar Improvements */
 @media (max-width: 768px) {
-    /* Sidebar base styles */
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 100vh;
-        width: 280px;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-        z-index: 1000;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        box-shadow: none;
-    }
+  /* Sidebar base styles */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: none;
+  }
 
-    .sidebar.active {
-        transform: translateX(0);
-        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
-    }
+  .sidebar.active {
+    transform: translateX(0);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  }
 
-    /* Improved hamburger button */
-    .mobile-toggle {
-        display: block;
-        position: fixed;
-        top: 1rem;
-        left: 1rem;
-        z-index: 1001;
-        background: none;
-        border: none;
-        cursor: pointer;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        padding: 8px;
-    }
+  /* Improved hamburger button */
+  .mobile-toggle {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1001;
+    background: white;
+    border: none;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+  }
 
-    .mobile-toggle span {
-        display: block;
-        width: 24px;
-        height: 2px;
-        background-color: var(--text-color);
-        margin: 5px auto;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-    }
+  .mobile-toggle span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background-color: var(--text-color);
+    margin: 5px auto;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
 
-    .mobile-toggle.active span:nth-child(1) {
-        transform: translateY(7px) rotate(45deg);
-    }
+  .mobile-toggle.active span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
 
-    .mobile-toggle.active span:nth-child(2) {
-        opacity: 0;
-    }
+  .mobile-toggle.active span:nth-child(2) {
+    opacity: 0;
+  }
 
-    .mobile-toggle.active span:nth-child(3) {
-        transform: translateY(-7px) rotate(-45deg);
-    }
+  .mobile-toggle.active span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
 
-    /* Improved nav items */
-    .sidebar nav ul {
-        padding: 1rem 0;
-    }
+  /* Improved nav items */
+  .sidebar nav ul {
+    padding: 1rem 0;
+  }
 
-    .sidebar nav li {
-        padding: 0.875rem 1.5rem;
-        margin: 0.25rem 1rem;
-        border-radius: 8px;
-        transition: background-color 0.2s ease;
-    }
+  .sidebar nav li {
+    padding: 0.875rem 1.5rem;
+    margin: 0.25rem 1rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+  }
 
-    .sidebar nav li a {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        font-size: 1rem;
-        color: var(--text-color);
-    }
+  .sidebar nav li a {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1rem;
+  }
 
-    .sidebar nav li i {
-        font-size: 1.25rem;
-        min-width: 24px;
-        text-align: center;
-    }
+  .sidebar nav li i {
+    font-size: 1.25rem;
+    min-width: 24px;
+    text-align: center;
+  }
 
-    .sidebar nav li:active {
-        background-color: rgba(0, 0, 0, 0.05);
-    }
+  .sidebar nav li:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
 
-    /* Improved overlay */
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(2px);
-        z-index: 999;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
+  /* Improved overlay */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
-    .sidebar-overlay.active {
-        display: block;
-        opacity: 1;
-    }
+  .sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+  }
 
-    /* Dark mode adjustments */
-    .dark-mode .mobile-toggle {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
+  /* Ensure main content adjusts properly */
+  .main-content {
+    margin-left: 0;
+    padding-top: 4.5rem;
+    transition: margin-left 0.3s ease;
+  }
 
-    .dark-mode .mobile-toggle span {
-        background-color: #f5f6fa;
-    }
+  body.sidebar-open .main-content {
+    filter: blur(2px);
+    pointer-events: none;
+  }
 
-    .dark-mode .sidebar nav li:active {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
+  /* Adjust sizing for better mobile experience */
+  .metrics-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .period-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .period-btn {
+    flex: 1 0 calc(33.333% - 0.5rem);
+    text-align: center;
+  }
+
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-toggle {
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Dark mode adjustments */
+  .dark-mode .mobile-toggle {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .dark-mode .mobile-toggle span {
+    background-color: #f5f6fa;
+  }
+
+  .dark-mode .sidebar nav li:active {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
 }
 
-/* Ensure main content adjusts properly */
-@media (max-width: 768px) {
-    .main-content {
-        margin-left: 0;
-        padding-top: 4.5rem;
-        transition: margin-left 0.3s ease;
-    }
+/* Print styles */
+@media print {
+  .sidebar, 
+  .mobile-toggle,
+  .filters-row,
+  .pagination,
+  .back-button,
+  .sidebar-overlay {
+    display: none !important;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
+  
+  .chart-wrapper {
+    height: 300px !important;
+    page-break-inside: avoid;
+  }
+  
+  .metrics-grid,
+  .summary-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    page-break-inside: avoid;
+  }
+  
+  .table-responsive {
+    overflow-x: visible !important;
+  }
 
-    body.sidebar-open .main-content {
-        filter: blur(2px);
-        pointer-events: none;
-    }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .metric-card,
+  .chart-container,
+  .summary-item,
+  .historical-table-container {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  .metric-card:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.metrics-grid, 
+.chart-container, 
+.summary-grid,
+.historical-table-container {
+  animation: slideUp 0.5s ease-out;
+}
+
+/* Utility classes */
+.hidden {
+  display: none !important;
 }
        </style>
 </head>
 <body>
-       <!-- Add hamburger menu button -->
-       <button class="mobile-toggle" id="mobileToggle">
-        <span></span>
-        <span></span>
-        <span></span>
-    </button>
+   <!-- Add hamburger menu button -->
+   <button class="mobile-toggle" id="mobileToggle">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
   <div id="loadingOverlay" class="loading-overlay">
-      <div class="loading-spinner"></div>
-  </div>
-  <div id="pageContent">
-      <!-- Sidebar -->
-      <%- include('partials/sidebar') %>
-
-      <!-- Main Content -->
-      <main class="main-content">
+    <div class="loading-spinner"></div>
+</div>
+<div id="pageContent">
+    <!-- Sidebar -->
+ 
+    <%- include('partials/sidebar') %>
+    <!-- Main Content -->
+    <main class="main-content">
         <div class="content-header">
-            <h3>CO2 Emission Results for <%= selectedZone %></h3>
+          <h3>CO2 Emission Results for <%= selectedZone %></h3>
         </div>
-
+      
         <div class="metrics-grid">
-            <div class="metric-card">
-                <h3 class="metric-title">Grid CO2 Emissions</h3>
-                <p class="metric-value" style="color: #dc2626"><%= unavoidableEmissions.toFixed(2) %> kg</p>
-                <p class="metric-subtitle">From grid usage today</p>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-red">
+                <path d="M23 6l-9.5 9.5-5-5L1 18" />
+                <path d="M17 6h6v6" />
+              </svg>
             </div>
-            
-            <div class="metric-card">
-                <h3 class="metric-title">CO2 Emissions Avoided</h3>
-                <p class="metric-value" style="color: #16a34a"><%= avoidedEmissions.toFixed(2) %> kg</p>
-                <p class="metric-subtitle">By using solar today</p>
+            <h3 class="metric-title">Grid CO2 Emissions</h3>
+            <p class="metric-value" style="color: #dc2626"><%= unavoidableEmissions.toFixed(2) %> kg</p>
+            <p class="metric-subtitle">From grid usage today</p>
+          </div>
+          
+          <div class="metric-card">
+            <div class="metric-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-green">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
             </div>
-            
-            <div class="metric-card">
-                <h3 class="metric-title">Self-Sufficiency Score</h3>
-                <div class="gauge-container">
-                    <div class="progress-bar">
-                        <div id="selfSufficiencyBar" class="progress-fill"></div>
-                    </div>
-                    <div id="selfSufficiencyValue" class="gauge-value"></div>
-                </div>
-                <p class="metric-subtitle">Energy self-produced today</p>
+            <h3 class="metric-title">CO2 Emissions Avoided</h3>
+            <p class="metric-value" style="color: #16a34a"><%= avoidedEmissions.toFixed(2) %> kg</p>
+            <p class="metric-subtitle">By using solar today</p>
+          </div>
+          
+          <div class="metric-card">
+            <div class="metric-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-blue">
+                <path d="M18 20V10" />
+                <path d="M12 20V4" />
+                <path d="M6 20v-6" />
+              </svg>
             </div>
+            <h3 class="metric-title">Self-Sufficiency Score</h3>
+            <div class="gauge-container">
+              <div class="progress-bar">
+                <div id="selfSufficiencyBar" class="progress-fill"></div>
+              </div>
+              <div id="selfSufficiencyValue" class="gauge-value"></div>
+            </div>
+            <p class="metric-subtitle">Energy self-produced today</p>
+          </div>
         </div>
-
+      
         <div class="chart-container">
+          <div class="filters-row">
             <div class="period-buttons">
-                <button class="period-btn active" data-period="week">Week</button>
-                <button class="period-btn" data-period="month">Month</button>
-                <button class="period-btn" data-period="quarter">Quarter</button>
-                <button class="period-btn" data-period="year">Year</button>
+              <button class="period-btn" data-period="today">Today</button>
+              <button class="period-btn active" data-period="week">Week</button>
+              <button class="period-btn" data-period="month">Month</button>
+              <button class="period-btn" data-period="quarter">Quarter</button>
+              <button class="period-btn" data-period="year">Year</button>
             </div>
-            <div class="chart-wrapper">
-                <canvas id="emissionsChart"></canvas>
+            <div class="view-toggle">
+              <button class="toggle-btn active" data-view="chart">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Chart
+              </button>
+              <button class="toggle-btn" data-view="table">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+                Table
+              </button>
             </div>
+          </div>
+          <div class="chart-wrapper" id="chart-view">
+            <canvas id="emissionsChart"></canvas>
+          </div>
+          <div class="table-wrapper hidden" id="table-view">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Grid Emissions (kg)</th>
+                  <th>Emissions Avoided (kg)</th>
+                  <th>Self-Sufficiency (%)</th>
+                </tr>
+              </thead>
+              <tbody id="chartDataTable">
+                <!-- Table rows will be populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Total Emissions since beginning of recordings (see analytics section)</h2>
+      
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem;">Total Emissions since beginning of recordings</h2>
         <div id="summary" class="summary-grid"></div>
-
-        <div style="text-align: center;">
-            <a href="<%= ingress_path %>/settings" class="back-button">Back to zone selection</a>
+      
+        <div class="historical-table-container">
+          <div class="table-header">
+            <h3>Historical Emissions Data</h3>
+            <div class="table-actions">
+              <button id="downloadCSV" class="action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table emissions-history">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>
+                    <div class="th-content">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 6l-9.5 9.5-5-5L1 18"></path><path d="M17 6h6v6"></path></svg>
+                      Grid Emissions (kg)
+                    </div>
+                  </th>
+                  <th>
+                    <div class="th-content">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"></path></svg>
+                      Emissions Avoided (kg)
+                    </div>
+                  </th>
+                  <th>
+                    <div class="th-content">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
+                      Self-Sufficiency (%)
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="historicalDataTable">
+                <!-- Table rows will be populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button id="prevPage" class="page-btn" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="nextPage" class="page-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
         </div>
-    </main>
-  </div>
+      
+        <div style="text-align: center; margin-top: 2rem;">
+          <a href="<%= ingress_path %>/settings" class="back-button">Back to zone selection</a>
+        </div>
+      </main>
+</div>
+  
+
+
+
+
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 
 <script>
-// Declare global variables
-const periodsData = JSON.parse('<%- JSON.stringify(periods) %>');
-let emissionsChart;
-
-// Define chart colors
-const chartColors = {
-    gridEmissions: {
-        fill: 'rgba(220, 38, 38, 0.1)',
-        stroke: 'rgba(220, 38, 38, 0.7)'
-    },
-    avoidedEmissions: {
-        fill: 'rgba(22, 163, 74, 0.1)',
-        stroke: 'rgba(22, 163, 74, 0.7)'
-    }
-};
-
-// Function to create the emissions chart
-function createEmissionsChart(data, label) {
-    if (emissionsChart) {
-        emissionsChart.destroy();
-    }
+    // Declare global variables
+    const periodsData = JSON.parse('<%- JSON.stringify(periods) %>');
+    let emissionsChart;
+    let currentPeriod = 'week';
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let allHistoricalData = [];
     
-    const ctx = document.getElementById('emissionsChart').getContext('2d');
-    
-    Chart.defaults.font.family = "'Inter', sans-serif";
-    
-    // Create gradient fills
-    const gradientGrid = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientGrid.addColorStop(0, 'rgba(220, 38, 38, 0.4)');
-    gradientGrid.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
-
-    const gradientAvoided = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientAvoided.addColorStop(0, 'rgba(22, 163, 74, 0.4)');
-    gradientAvoided.addColorStop(1, 'rgba(22, 163, 74, 0.1)');
-    
-    emissionsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(entry => {
-                const date = new Date(entry.date);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }),
-            datasets: [
-                {
-                    label: 'Grid CO2 Emissions',
-                    data: data.map(entry => entry.unavoidableEmissions),
-                    backgroundColor: gradientGrid,
-                    borderColor: 'rgba(220, 38, 38, 0.7)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0
-                },
-                {
-                    label: 'CO2 Emissions Avoided',
-                    data: data.map(entry => entry.avoidedEmissions),
-                    backgroundColor: gradientAvoided,
-                    borderColor: 'rgba(22, 163, 74, 0.7)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0
-                }
-            ]
+    // Define chart colors
+    const chartColors = {
+        gridEmissions: {
+            fill: 'rgba(220, 38, 38, 0.1)',
+            stroke: 'rgba(220, 38, 38, 0.7)'
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: `CO2 Emissions - ${label}`,
-                    font: { size: 16, weight: '600' },
-                    padding: { bottom: 20 }
-                },
-                legend: {
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 15,
-                        font: { size: 12 }
+        avoidedEmissions: {
+            fill: 'rgba(22, 163, 74, 0.1)',
+            stroke: 'rgba(22, 163, 74, 0.7)'
+        }
+    };
+    
+    // Function to create the emissions chart
+    function createEmissionsChart(data, label) {
+        if (emissionsChart) {
+            emissionsChart.destroy();
+        }
+        
+        const ctx = document.getElementById('emissionsChart').getContext('2d');
+        
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        
+        // Create gradient fills
+        const gradientGrid = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientGrid.addColorStop(0, 'rgba(220, 38, 38, 0.4)');
+        gradientGrid.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
+    
+        const gradientAvoided = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientAvoided.addColorStop(0, 'rgba(22, 163, 74, 0.4)');
+        gradientAvoided.addColorStop(1, 'rgba(22, 163, 74, 0.1)');
+        
+        emissionsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(entry => {
+                    const date = new Date(entry.date);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }),
+                datasets: [
+                    {
+                        label: 'Grid CO2 Emissions',
+                        data: data.map(entry => entry.unavoidableEmissions),
+                        backgroundColor: gradientGrid,
+                        borderColor: 'rgba(220, 38, 38, 0.7)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'CO2 Emissions Avoided',
+                        data: data.map(entry => entry.avoidedEmissions),
+                        backgroundColor: gradientAvoided,
+                        borderColor: 'rgba(22, 163, 74, 0.7)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
                     }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    titleColor: '#1f2937',
-                    bodyColor: '#4b5563',
-                    titleFont: { size: 14, weight: 'bold' },
-                    bodyFont: { size: 13 },
-                    padding: 12,
-                    cornerRadius: 6,
-                    displayColors: true,
-                    borderColor: 'rgba(0, 0, 0, 0.1)',
-                    borderWidth: 1
-                }
+                ]
             },
-            scales: {
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        font: { size: 12, weight: '500' },
-                        color: '#6b7280'
-                    }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(107, 114, 128, 0.1)',
-                        drawBorder: false
-                    },
-                    ticks: {
-                        font: { size: 12, weight: '500' },
-                        color: '#6b7280',
-                        padding: 8,
-                        callback: value => `${value} kg`
-                    },
+                plugins: {
                     title: {
                         display: true,
-                        text: 'CO2 Emissions (kg)',
-                        font: { size: 14, weight: '600', lineHeight: 1.5 },
-                        color: '#374151',
-                        padding: {top: 10, bottom: 10}
+                        text: `CO2 Emissions - ${label}`,
+                        font: { size: 16, weight: '600' },
+                        padding: { bottom: 20 }
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#4b5563',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 13 },
+                        padding: 12,
+                        cornerRadius: 6,
+                        displayColors: true,
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2) + ' kg';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: { size: 12, weight: '500' },
+                            color: '#6b7280'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(107, 114, 128, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: { size: 12, weight: '500' },
+                            color: '#6b7280',
+                            padding: 8,
+                            callback: value => `${value} kg`
+                        },
+                        title: {
+                            display: true,
+                            text: 'CO2 Emissions (kg)',
+                            font: { size: 14, weight: '600', lineHeight: 1.5 },
+                            color: '#374151',
+                            padding: {top: 10, bottom: 10}
+                        }
                     }
                 }
             }
-        }
-    });
-}
-
-// Function to update the self-sufficiency gauge
-function updateSelfSufficiencyGauge(selfSufficiencyScore) {
-    const barElement = document.getElementById('selfSufficiencyBar');
-    const valueElement = document.getElementById('selfSufficiencyValue');
-    
-    // Update the width of the progress bar
-    barElement.style.width = `${selfSufficiencyScore}%`;
-    
-    // Update the text value
-    valueElement.textContent = `${selfSufficiencyScore.toFixed(2)}%`;
-    
-    // Change color based on the score
-    if (selfSufficiencyScore < 33) {
-        barElement.style.backgroundColor = '#dc2626'; // Red for low scores
-    } else if (selfSufficiencyScore < 66) {
-        barElement.style.backgroundColor = '#f59e0b'; // Yellow for medium scores
-    } else {
-        barElement.style.backgroundColor = '#16a34a'; // Green for high scores
-    }
-}
-
-// Function to update the summary section
-function updateSummary(data) {
-    const totalUnavoidable = data.reduce((sum, entry) => sum + entry.unavoidableEmissions, 0);
-    const totalAvoided = data.reduce((sum, entry) => sum + entry.avoidedEmissions, 0);
-
-    document.getElementById('summary').innerHTML = `
-        <div class="summary-item">
-            <span class="summary-label">Total Grid CO2 Emissions</span>
-            <span class="summary-value" style="color: #dc2626">${totalUnavoidable.toFixed(2)} kg</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Total CO2 Emissions Avoided</span>
-            <span class="summary-value" style="color: #16a34a">${totalAvoided.toFixed(2)} kg</span>
-        </div>
-    `;
-}
-
-// Function to update grid status
-function updateGridStatus(voltage) {
-    const voltageElement = document.getElementById('gridVoltage');
-    const statusElement = document.getElementById('gridStatus');
-    const gaugeElement = document.getElementById('voltageGauge');
-    
-    voltageElement.textContent = `${voltage.toFixed(1)} V`;
-    
-    const isActive = voltage > 20;
-    statusElement.textContent = isActive ? 'Active' : 'Inactive';
-    statusElement.style.color = isActive ? '#16a34a' : '#dc2626';
-    
-    const normalizedVoltage = Math.min(Math.max(voltage, 0), 430) / 430;
-    const hue = isActive ? 142 : 0; // Green if active, red if inactive
-    gaugeElement.style.background = `conic-gradient(
-        hsl(${hue}, 70%, 50%) ${normalizedVoltage * 360}deg,
-        #e5e7eb ${normalizedVoltage * 360}deg
-    )`;
-}
-
-// Function to fetch grid voltage
-async function fetchGridVoltage() {
-    try {
-        const response = await fetch('<%= ingress_path %>/api/grid-voltage');
-        const data = await response.json();
-        updateGridStatus(data.voltage);
-    } catch (error) {
-        console.error('Error fetching grid voltage:', error);
-    }
-}
-
-// Event listener for DOM content loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Add event listeners to period buttons
-    document.querySelectorAll('.period-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const period = this.dataset.period;
-            document.querySelectorAll('.period-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            this.classList.add('active');
-            createEmissionsChart(periodsData[period], period.charAt(0).toUpperCase() + period.slice(1));
-            updateSummary(periodsData[period]);
         });
+    
+        // Update the chart data table
+        updateChartDataTable(data);
+    }
+    
+    // Function to update the chart data table
+    function updateChartDataTable(data) {
+        const tableBody = document.getElementById('chartDataTable');
+        tableBody.innerHTML = '';
+        
+        data.forEach(entry => {
+            const date = new Date(entry.date);
+            const formattedDate = date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formattedDate}</td>
+                <td class="text-red-600">${entry.unavoidableEmissions.toFixed(2)}</td>
+                <td class="text-green-600">${entry.avoidedEmissions.toFixed(2)}</td>
+                <td class="text-blue-600">${entry.selfSufficiencyScore.toFixed(2)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+    
+    // Function to update the self-sufficiency gauge
+    function updateSelfSufficiencyGauge(selfSufficiencyScore) {
+        const barElement = document.getElementById('selfSufficiencyBar');
+        const valueElement = document.getElementById('selfSufficiencyValue');
+        
+        // Update the width of the progress bar
+        barElement.style.width = `${selfSufficiencyScore}%`;
+        
+        // Update the text value
+        valueElement.textContent = `${selfSufficiencyScore.toFixed(2)}%`;
+        
+        // Change color based on the score
+        if (selfSufficiencyScore < 33) {
+            barElement.style.backgroundColor = '#dc2626'; // Red for low scores
+        } else if (selfSufficiencyScore < 66) {
+            barElement.style.backgroundColor = '#f59e0b'; // Yellow for medium scores
+        } else {
+            barElement.style.backgroundColor = '#16a34a'; // Green for high scores
+        }
+    }
+    
+    // Function to update the summary section
+    function updateSummary(data) {
+        const totalUnavoidable = data.reduce((sum, entry) => sum + entry.unavoidableEmissions, 0);
+        const totalAvoided = data.reduce((sum, entry) => sum + entry.avoidedEmissions, 0);
+        const avgSelfSufficiency = data.reduce((sum, entry) => sum + entry.selfSufficiencyScore, 0) / data.length;
+    
+        document.getElementById('summary').innerHTML = `
+            <div class="summary-item">
+                <div class="summary-icon red">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 6l-9.5 9.5-5-5L1 18" />
+                        <path d="M17 6h6v6" />
+                    </svg>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Total Grid CO2 Emissions</span>
+                    <span class="summary-value" style="color: #dc2626">${totalUnavoidable.toFixed(2)} kg</span>
+                </div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-icon green">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Total CO2 Emissions Avoided</span>
+                    <span class="summary-value" style="color: #16a34a">${totalAvoided.toFixed(2)} kg</span>
+                </div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-icon blue">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 20V10" />
+                        <path d="M12 20V4" />
+                        <path d="M6 20v-6" />
+                    </svg>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Average Self-Sufficiency</span>
+                    <span class="summary-value" style="color: #3b82f6">${avgSelfSufficiency.toFixed(2)}%</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Function to update grid status
+    function updateGridStatus(voltage) {
+        const voltageElement = document.getElementById('gridVoltage');
+        const statusElement = document.getElementById('gridStatus');
+        const gaugeElement = document.getElementById('voltageGauge');
+        
+        voltageElement.textContent = `${voltage.toFixed(1)} V`;
+        
+        const isActive = voltage > 20;
+        statusElement.textContent = isActive ? 'Active' : 'Inactive';
+        statusElement.style.color = isActive ? '#16a34a' : '#dc2626';
+        
+        const normalizedVoltage = Math.min(Math.max(voltage, 0), 430) / 430;
+        const hue = isActive ? 142 : 0; // Green if active, red if inactive
+        gaugeElement.style.background = `conic-gradient(
+            hsl(${hue}, 70%, 50%) ${normalizedVoltage * 360}deg,
+            #e5e7eb ${normalizedVoltage * 360}deg
+        )`;
+    }
+    
+    // Function to fetch grid voltage
+    async function fetchGridVoltage() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/grid-voltage');
+            const data = await response.json();
+            updateGridStatus(data.voltage);
+        } catch (error) {
+            console.error('Error fetching grid voltage:', error);
+        }
+    }
+    
+    // Function to populate the historical data table
+    function populateHistoricalTable() {
+        const tableBody = document.getElementById('historicalDataTable');
+        tableBody.innerHTML = '';
+        
+        // Combine all period data and sort by date
+        if (allHistoricalData.length === 0) {
+            allHistoricalData = [...periodsData.year].sort((a, b) => {
+                return new Date(b.date) - new Date(a.date);
+            });
+        }
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(allHistoricalData.length / rowsPerPage);
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, allHistoricalData.length);
+        
+        // Update page info
+        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        
+        // Update pagination buttons
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+        
+        // Add rows to the table
+        for (let i = startIndex; i < endIndex; i++) {
+            const entry = allHistoricalData[i];
+            const date = new Date(entry.date);
+            const formattedDate = date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            
+            const row = document.createElement('tr');
+            
+            // Determine row class based on self-sufficiency score
+            let rowClass = '';
+            if (entry.selfSufficiencyScore >= 80) {
+                rowClass = 'high-score';
+            } else if (entry.selfSufficiencyScore >= 50) {
+                rowClass = 'medium-score';
+            } else {
+                rowClass = 'low-score';
+            }
+            
+            row.className = rowClass;
+            row.innerHTML = `
+                <td>${formattedDate}</td>
+                <td class="text-right text-red-600">${entry.unavoidableEmissions.toFixed(2)}</td>
+                <td class="text-right text-green-600">${entry.avoidedEmissions.toFixed(2)}</td>
+                <td class="text-right text-blue-600">${entry.selfSufficiencyScore.toFixed(2)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        }
+    }
+    
+    // Function to export data as CSV
+    function exportCSV() {
+        // Create CSV content
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        // Add headers
+        csvContent += "Date,Grid Emissions (kg),Emissions Avoided (kg),Self-Sufficiency (%)\n";
+        
+        // Add data rows
+        allHistoricalData.forEach(entry => {
+            const date = new Date(entry.date);
+            const formattedDate = date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            
+            csvContent += `${formattedDate},${entry.unavoidableEmissions.toFixed(2)},${entry.avoidedEmissions.toFixed(2)},${entry.selfSufficiencyScore.toFixed(2)}\n`;
+        });
+        
+        // Create download link
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "emissions_data.csv");
+        document.body.appendChild(link);
+        
+        // Trigger download
+        link.click();
+        
+        // Remove link
+        document.body.removeChild(link);
+    }
+    
+    // Event listener for DOM content loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Define today's data
+        const today = new Date().toISOString().split('T')[0];
+        periodsData.today = [];
+        
+        // Find today's data in the year dataset
+        for (const entry of periodsData.year) {
+            if (entry.date.startsWith(today)) {
+                periodsData.today.push(entry);
+                break;
+            }
+        }
+        
+        // If no data found for today, use the latest data point
+        if (periodsData.today.length === 0 && periodsData.year.length > 0) {
+            periodsData.today.push(periodsData.year[periodsData.year.length - 1]);
+        }
+        
+        // Add event listeners to period buttons
+        document.querySelectorAll('.period-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const period = this.dataset.period;
+                currentPeriod = period;
+                
+                document.querySelectorAll('.period-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                const periodLabel = period.charAt(0).toUpperCase() + period.slice(1);
+                createEmissionsChart(periodsData[period], periodLabel);
+                updateSummary(periodsData[period]);
+            });
+        });
+        
+        // Add event listeners to view toggle buttons
+        document.querySelectorAll('.toggle-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const view = this.dataset.view;
+                
+                document.querySelectorAll('.toggle-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                if (view === 'chart') {
+                    document.getElementById('chart-view').classList.remove('hidden');
+                    document.getElementById('table-view').classList.add('hidden');
+                } else {
+                    document.getElementById('chart-view').classList.add('hidden');
+                    document.getElementById('table-view').classList.remove('hidden');
+                }
+            });
+        });
+        
+        // Add event listeners to pagination buttons
+        document.getElementById('prevPage').addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                populateHistoricalTable();
+            }
+        });
+        
+        document.getElementById('nextPage').addEventListener('click', function() {
+            const totalPages = Math.ceil(allHistoricalData.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                populateHistoricalTable();
+            }
+        });
+        
+        // Add event listener to CSV export button
+        document.getElementById('downloadCSV').addEventListener('click', exportCSV);
+        
+        // Initialize with week data
+        createEmissionsChart(periodsData.week, 'Week');
+        updateSummary(periodsData.week);
+        
+        // Initialize self-sufficiency gauge
+        updateSelfSufficiencyGauge(<%= selfSufficiencyScore %>);
+        
+        // Initialize historical data table
+        populateHistoricalTable();
+        
+        // Set up real-time grid voltage updates
+        fetchGridVoltage();
+        setInterval(fetchGridVoltage, 5000);
     });
+    </script>
 
-    // Initialize with week data
-    createEmissionsChart(periodsData.week, 'Week');
-    updateSummary(periodsData.week);
-
-    // Initialize self-sufficiency gauge
-    updateSelfSufficiencyGauge(<%= selfSufficiencyScore %>);
-
-    // Set up real-time grid voltage updates
-    fetchGridVoltage();
-    setInterval(fetchGridVoltage, 5000);
-});
-</script>
-  <script src="<%= ingress_path %>/js/loading.js"></script>
-  <script src="<%= ingress_path %>/js/dark-mode.js"></script>
-  <script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>
