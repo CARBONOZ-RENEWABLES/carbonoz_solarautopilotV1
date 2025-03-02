@@ -93,7 +93,7 @@
           "alias": "",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_voltage_2\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_voltage_1\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -164,13 +164,13 @@
           "alias": "$tag_topic",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/load_power_essential\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "query": "\nSELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/load_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Load power essential",
+      "title": "Load power ",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -2421,7 +2421,7 @@
       },
       "id": 227,
       "panels": [],
-      "title": "Batteries and Inverter Templerature",
+      "title": "Inverter and Batteries Templerature",
       "type": "row"
     },
     {
@@ -2473,7 +2473,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 11,
+        "h": 10,
         "w": 24,
         "x": 0,
         "y": 72
@@ -2506,7 +2506,7 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "alias": "Battery temperature",
+          "alias": "Inverter temperature",
           "datasource": "InfluxDB",
           "hide": false,
           "query": "SELECT last(\"value\") AS \"Battery Temperature\" FROM \"state\" WHERE \"topic\" =~ /.+\\/battery_\\d+\\/temperature\\/state/ ORDER BY time DESC LIMIT 1",
@@ -2515,7 +2515,7 @@
           "resultFormat": "time_series"
         },
         {
-          "alias": "Battery Temperature Env",
+          "alias": "Inverter Temperature Env",
           "datasource": "InfluxDB",
           "hide": false,
           "query": "SELECT last(\"value\") AS \"Battery Temperature Env\" FROM \"state\" WHERE \"topic\" =~ /.+\\/battery_\\d+\\/temperature_env\\/state/ ORDER BY time DESC LIMIT 1",
@@ -2533,7 +2533,7 @@
           "resultFormat": "time_series"
         }
       ],
-      "title": "Battery Temperature Info",
+      "title": "Inverter Temperature Info",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -2550,7 +2550,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2561,7 +2561,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 12,
+            "fillOpacity": 0,
             "gradientMode": "scheme",
             "hideFrom": {
               "legend": false,
@@ -2598,55 +2598,20 @@
                 "value": null
               },
               {
-                "color": "green",
+                "color": "yellow",
                 "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 10
               }
             ]
           },
           "unit": "Amperes"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Netzeinspeisung"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "rgb(212, 212, 212)",
-                  "mode": "shades"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Netzbezug"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "rgb(90, 90, 90)",
-                  "mode": "palette-classic"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 83
+        "y": 82
       },
       "id": 232,
       "options": {
@@ -2722,7 +2687,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"value\") AS \"Total\" \nFROM \"state\" \nWHERE $timeFilter AND \"topic\" =~ /^.+\\/total\\/battery_current\\/state/ \nGROUP BY time($__interval) fill(null)\n",
+          "query": "SELECT last(\"value\") AS \"Total\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /^.+\\/total\\/battery_current\\/state/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -2867,7 +2832,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 91
+        "y": 90
       },
       "id": 188,
       "options": {
@@ -3085,7 +3050,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 91
+        "y": 90
       },
       "id": 242,
       "options": {
@@ -3303,7 +3268,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 99
+        "y": 98
       },
       "id": 241,
       "options": {
@@ -3478,7 +3443,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 99
+        "y": 98
       },
       "id": 139,
       "options": {
@@ -3639,7 +3604,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 106
       },
       "id": 116,
       "options": {
@@ -3821,6 +3786,6 @@
   "timezone": "",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 6,
+  "version": 11,
   "weekStart": ""
 }
