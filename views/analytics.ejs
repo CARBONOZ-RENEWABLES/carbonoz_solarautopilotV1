@@ -1555,40 +1555,74 @@ body.dark-mode {
     }
 
     function createLineChart(chartElementId, labels, datasets, title) {
-    const ctx = document.getElementById(chartElementId).getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets.map(dataset => ({
-                ...dataset,
-                tension: 0.3,  // Makes lines curved
-                borderWidth: 2,
-                pointRadius: 0,  // Hide points
-                pointHoverRadius: 5  // Show points on hover
-            }))
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: {
-                    title: { display: true, text: 'Date' }
-                },
-                y: {
-                    title: { display: true, text: 'kWh' }
-                }
+        const ctx = document.getElementById(chartElementId).getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets.map(dataset => ({
+                    ...dataset,
+                    tension: 0.3,  // Makes lines curved
+                    borderWidth: 2,
+                    pointRadius: 3,  // Small points always visible
+                    pointHoverRadius: 7,  // Larger points on hover
+                    pointHoverBackgroundColor: 'white',
+                    pointHoverBorderWidth: 2
+                }))
             },
-            plugins: {
-                legend: { position: 'top' },
-                title: { 
-                    display: true, 
-                    text: title,
-                    font: { size: 16 }
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Date' }
+                    },
+                    y: {
+                        title: { display: true, text: 'kWh' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { 
+                        display: true, 
+                        text: title,
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 },
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Format the y value with 2 decimal places
+                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                    
+                                    // Add descriptive text for battery values
+                                    if (label.includes('Battery Charged')) {
+                                        label += ' (into battery)';
+                                    } else if (label.includes('Battery Discharged')) {
+                                        label += ' (from battery)';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
                 }
             }
-        }
-    });
-}
+        });
+    }
 
     // Function to create a battery chart
     function createBatteryChart(chartElementId, labels, chargedData, dischargedData, title) {
@@ -1614,6 +1648,10 @@ body.dark-mode {
             },
             options: {
                 responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 scales: {
                     x: { stacked: true },
                     y: {
@@ -1627,6 +1665,30 @@ body.dark-mode {
                         display: true, 
                         text: title,
                         font: { size: 16 }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Format the y value with 2 decimal places and show absolute value
+                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                    
+                                    // Add descriptive text
+                                    if (label.includes('Battery Charged')) {
+                                        label += ' (into battery)';
+                                    } else if (label.includes('Battery Discharged')) {
+                                        label += ' (from battery)';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
                     }
                 }
             }
@@ -1657,6 +1719,10 @@ body.dark-mode {
             },
             options: {
                 responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 scales: {
                     x: { stacked: true },
                     y: {
@@ -1670,6 +1736,30 @@ body.dark-mode {
                         display: true, 
                         text: title,
                         font: { size: 16 }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Format the y value with 2 decimal places and show absolute value
+                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                    
+                                    // Add descriptive text
+                                    if (label.includes('Grid Exported')) {
+                                        label += ' (to grid)';
+                                    } else if (label.includes('Grid Used')) {
+                                        label += ' (from grid)';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
                     }
                 }
             }
