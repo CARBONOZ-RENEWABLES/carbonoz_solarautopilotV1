@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
- 
-
- 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+
 </head>
 <body>
       <!-- Add hamburger menu button -->
@@ -27,15 +26,133 @@
      
 
             <div class="main-content">
-                    <div class="dashboard-column">
-                        <div class="card">
-                            <iframe src="http://<%= mqtt_host %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
-                                    class="iframe-moving"
-                                    scrolling="no"
-                                    frameborder="0">
-                            </iframe>
-                        </div>
+              <div class="container">
+              
+                  <div class="welcome-header">
+                    <h1>Welcome To SolarAutopilot, <%= username %></h1>
+                    <p>Here's your solar energy dashboard for <%= todayData.date %></p>
+                  </div>
+                  
+                  <div class="dashboard-column">
+                    <div class="card">
+                        <iframe src="http://<%= mqtt_host %>:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
+                                class="iframe-moving"
+                                scrolling="no"
+                                frameborder="0">
+                        </iframe>
                     </div>
+                </div>
+
+              <div class="cards-container">
+                <!-- Emissions Avoided Card -->
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-icon green-bg">
+                      <i class="fas fa-leaf"></i>
+                    </div>
+                    <div>
+                      <div class="card-title">Emissions Avoided</div>
+                      <div class="card-subtitle">Today's solar contribution</div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-value"><%= todayData.avoidedEmissions.toFixed(2) %> kg</div>
+                    <div class="card-trend <%= summaryData.week.avoidedEmissions > summaryData.month.avoidedEmissions/4 ? 'up-trend' : 'down-trend' %>">
+                      <i class="fas <%= summaryData.week.avoidedEmissions > summaryData.month.avoidedEmissions/4 ? 'fa-arrow-up' : 'fa-arrow-down' %>"></i>
+                      <%= ((Math.abs(summaryData.week.avoidedEmissions - summaryData.month.avoidedEmissions/4) / (summaryData.month.avoidedEmissions/4 || 1)) * 100).toFixed(1) %>% compared to weekly average
+                    </div>
+                  </div>
+                  <div class="progress-container">
+                    <div class="progress-bar green-bg" style="width: <%= Math.min(100, (todayData.avoidedEmissions / (todayData.avoidedEmissions + todayData.unavoidableEmissions || 1)) * 100) %>%"></div>
+                  </div>
+                  <div class="progress-labels">
+                    <span>0 kg</span>
+                    <span><%= ((todayData.avoidedEmissions + todayData.unavoidableEmissions) * 1.5).toFixed(1) %> kg</span>
+                  </div>
+                </div>
+                
+                <!-- Unavoidable Emissions Card -->
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-icon red-bg">
+                      <i class="fas fa-smog"></i>
+                    </div>
+                    <div>
+                      <div class="card-title">Emitted CO₂</div>
+                      <div class="card-subtitle">Today's grid consumption</div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-value"><%= todayData.unavoidableEmissions.toFixed(2) %> kg</div>
+                    <div class="card-trend <%= summaryData.week.unavoidableEmissions < summaryData.month.unavoidableEmissions/4 ? 'up-trend' : 'down-trend' %>">
+                      <i class="fas <%= summaryData.week.unavoidableEmissions < summaryData.month.unavoidableEmissions/4 ? 'fa-arrow-down' : 'fa-arrow-up' %>"></i>
+                      <%= ((Math.abs(summaryData.week.unavoidableEmissions - summaryData.month.unavoidableEmissions/4) / (summaryData.month.unavoidableEmissions/4 || 1)) * 100).toFixed(1) %>% compared to weekly average
+                    </div>
+                  </div>
+                  <div class="progress-container">
+                    <div class="progress-bar red-bg" style="width: <%= Math.min(100, (todayData.unavoidableEmissions / ((todayData.avoidedEmissions + todayData.unavoidableEmissions) * 1.5 || 1)) * 100) %>%"></div>
+                  </div>
+                  <div class="progress-labels">
+                    <span>0 kg</span>
+                    <span><%= ((todayData.avoidedEmissions + todayData.unavoidableEmissions) * 1.5).toFixed(1) %> kg</span>
+                  </div>
+                </div>
+                
+                <!-- Self-Sufficiency Card -->
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-icon blue-bg">
+                      <i class="fas fa-solar-panel"></i>
+                    </div>
+                    <div>
+                      <div class="card-title">Self-Sufficiency</div>
+                      <div class="card-subtitle">Energy independence score</div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-value"><%= todayData.selfSufficiencyScore.toFixed(1) %>%</div>
+                    <div class="card-trend <%= todayData.selfSufficiencyScore > summaryData.week.selfSufficiencyScore ? 'up-trend' : 'down-trend' %>">
+                      <i class="fas <%= todayData.selfSufficiencyScore > summaryData.week.selfSufficiencyScore ? 'fa-arrow-up' : 'fa-arrow-down' %>"></i>
+                      <%= Math.abs(todayData.selfSufficiencyScore - summaryData.week.selfSufficiencyScore).toFixed(1) %>% compared to weekly average
+                    </div>
+                  </div>
+                  <div class="progress-container">
+                    <div class="progress-bar blue-bg" style="width: <%= todayData.selfSufficiencyScore %>%"></div>
+                  </div>
+                  <div class="progress-labels">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </div>
+
+              
+           
+
+
+  <!-- Summary Section -->
+  <div class="summary-section">
+    <div class="summary-title">Energy Summary</div>
+    <div class="summary-stats">
+      <div class="stat-item">
+        <div class="stat-label">Grid Energy</div>
+        <div class="stat-value"><%= todayData.gridEnergy ? todayData.gridEnergy.toFixed(1) : '0' %> kWh</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Solar Energy</div>
+        <div class="stat-value"><%= todayData.solarEnergy ? todayData.solarEnergy.toFixed(1) : '0' %> kWh</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Grid Carbon Intensity</div>
+        <div class="stat-value"><%= todayData.carbonIntensity ? todayData.carbonIntensity.toFixed(0) : '0' %> g/kWh</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Total Energy</div>
+        <div class="stat-value"><%= ((todayData.gridEnergy || 0) + (todayData.solarEnergy || 0)).toFixed(1) %> kWh</div>
+      </div>
+    </div>
+  </div>             
+                   
                 
                     <div class="dashboard-column">
                         <div class="card">
@@ -87,7 +204,29 @@
     
        
       
-
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      <% if (isLoading) { %>
+        // If we're loading data, poll the API to check when data is ready
+        const checkDataStatus = () => {
+          fetch('<%= ingress_path %>/api/carbon-intensity/<%= selectedZone %>')
+            .then(response => response.json())
+            .then(data => {
+              if (data.cached) {
+                // Data is ready, reload the page
+                window.location.reload();
+              } else {
+                // Check again in a few seconds
+                setTimeout(checkDataStatus, 5000);
+              }
+            });
+        };
+        
+        // Start polling after 2 seconds
+        setTimeout(checkDataStatus, 2000);
+      <% } %>
+    });
+  </script>
 
 
 </body>
