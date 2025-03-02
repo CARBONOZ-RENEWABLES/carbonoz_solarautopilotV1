@@ -1799,7 +1799,7 @@ body.dark-mode {
             backgroundColor: 'rgba(255, 141, 161, 0.2)',
             fill: true
         }
-    ], 'Energy Overview - Last 30 Days');
+    ],);
 
     // Get data for the last 12 months
     const last12MonthsData = getTableData('last12months-table');
@@ -1834,7 +1834,7 @@ body.dark-mode {
             backgroundColor: 'rgba(255, 141, 161, 0.2)',
             fill: true
         }
-    ], 'Energy Overview - Last 12 Months');
+    ],);
 
     // Get data for the last 10 years
     const last10YearsData = getTableData('last10years-table');
@@ -1869,14 +1869,14 @@ body.dark-mode {
             backgroundColor: 'rgba(255, 141, 161, 0.2)',
             fill: true
         }
-    ], 'Energy Overview - Last 10 Years');
+    ], );
 
     // Create battery chart for the last 30 days
     createBatteryChart('battery-chart', 
         last30DaysData.labels.slice(), // Use slice to create a copy of the array
         last30DaysData.batteryChargedData.slice(), 
         last30DaysData.batteryDischargedData.slice(), 
-        'Battery Charge/Discharge - Last 30 Days'
+       
     );
     
     // Create grid chart for the last 30 days
@@ -1884,7 +1884,7 @@ body.dark-mode {
         last30DaysData.labels.slice(), // Use slice to create a copy of the array 
         last30DaysData.gridUsedData.slice(), 
         last30DaysData.gridExportedData.slice(), 
-        'Grid Used/Exported - Last 30 Days'
+       
     );
 });
 </script>
