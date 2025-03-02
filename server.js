@@ -1073,40 +1073,56 @@ app.get('/settings', async (req, res) => {
 
 app.post('/settings', async (req, res) => {
   try {
-      const { timezone, apiKey, selectedZone, username } = req.body;
-      
-      // Validate the settings
-      if (!timezone || !selectedZone || !username) {
-          return res.status(400).json({
-              success: false,
-              error: 'All fields are required'
-          });
-      }
-
-      // Save the settings to the settings file
-      const settings = {
-          apiKey: apiKey || '',
-          selectedZone,
-          username,
-          timezone
+    const { timezone, apiKey, selectedZone } = req.body;
+    
+    // Read current settings
+    let currentSettings = {};
+    try {
+      const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+      currentSettings = JSON.parse(settingsData);
+    } catch (err) {
+      // If settings file doesn't exist yet, use empty defaults
+      currentSettings = {
+        apiKey: '',
+        selectedZone: '',
+        timezone: ''
       };
+    }
+    
+    // Update only the provided fields
+    const settings = {
+      apiKey: apiKey !== undefined ? apiKey : currentSettings.apiKey,
+      selectedZone: selectedZone !== undefined ? selectedZone : currentSettings.selectedZone,
+      timezone: timezone !== undefined ? timezone : currentSettings.timezone
+    };
 
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    // Validate that we have at least one valid field
+    if (!settings.selectedZone && !settings.apiKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one of API key or zone must be provided'
+      });
+    }
 
-      // Update the current timezone
+    // Save the settings to the settings file
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+
+    // Update the current timezone if provided
+    if (timezone) {
       currentTimezone = timezone;
       setCurrentTimezone(timezone);
+    }
 
-      res.json({
-          success: true,
-          message: 'Settings saved successfully'
-      });
+    res.json({
+      success: true,
+      message: 'Settings saved successfully'
+    });
   } catch (error) {
-      console.error('Error saving settings:', error);
-      res.status(500).json({
-          success: false,
-          error: 'Failed to save settings'
-      });
+    console.error('Error saving settings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save settings'
+    });
   }
 });
 
