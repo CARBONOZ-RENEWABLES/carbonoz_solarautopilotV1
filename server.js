@@ -929,7 +929,7 @@ app.get('/', async (req, res) => {
       inverterWarning,
       batteryWarning,
       batteryMessages: debugBatteryMessages(incomingMessages), // Add this for debugging in the view
-      username: options.username || 'User'
+      username: options.mqtt_username || 'User'
     });
   } catch (error) {
     console.error('Error rendering welcome page:', error);
