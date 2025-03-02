@@ -1605,7 +1605,7 @@ input, select {
     
                     <div class="form-group">
                         <label for="zone">Default Carbon Intensity Zone</label>
-                        <select name="selectedZone" id="zone" <%= !settings.apiKey ? 'disabled' : '' %>>
+                        <select name="selectedZone" id="zone">
                             <option value="">-- Select a zone --</option>
                             <% zones.forEach(function(zone) { %>
                                 <option value="<%= zone.code %>"
@@ -1614,11 +1614,6 @@ input, select {
                                 </option>
                             <% }); %>
                         </select>
-                    </div>
-    
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" name="username" value="<%= settings.username %>">
                     </div>
     
                     <button type="submit" class="button button-full">Save Settings</button>
@@ -1650,80 +1645,96 @@ input, select {
 
 <script>
     const ingressPath = '<%= ingress_path %>';
+
+// Form submission handling
+document.getElementById('settingsForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
     
-    // Form submission handling
-    document.getElementById('settingsForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        
-        const formData = {
-            timezone: document.getElementById('timezone').value,
-            apiKey: document.getElementById('apiKey').value,
-            selectedZone: document.getElementById('zone').value,
-            username: document.getElementById('username').value
-        };
+    // Only collect values that have been provided/changed
+    const formData = {};
     
-        try {
-            const response = await fetch(`${ingressPath}/settings`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
+    const apiKey = document.getElementById('apiKey').value;
+    if (apiKey) {
+        formData.apiKey = apiKey;
+    }
     
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-    
-            const result = await response.json();
-            
-            if (result.success) {
-                window.location.href = `${ingressPath}/settings?message=Settings saved successfully`;
-            } else {
-                alert('Failed to save settings: ' + (result.error || 'Unknown error'));
-            }
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            alert('Failed to save settings. Please try again.');
-        }
-    });
-    
-    // Fetch current timezone
-    fetch(`${ingressPath}/api/timezone`)
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('timezone').value = data.timezone;
-        });
-    
-    // Update timezone when changed
-    document.getElementById('timezone').addEventListener('change', (event) => {
-        fetch(`${ingressPath}/api/timezone`, {
+    const selectedZone = document.getElementById('zone').value;
+    if (selectedZone) {
+        formData.selectedZone = selectedZone;
+    }
+
+    // Ensure at least one field is filled
+    if (Object.keys(formData).length === 0) {
+        alert('Please provide at least the API key or select a zone.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${ingressPath}/settings`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ timezone: event.target.value }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Timezone updated successfully');
-            } else {
-                alert('Failed to update timezone');
-            }
+            body: JSON.stringify(formData)
         });
-    });
-    
-    // Toggle API key visibility (keeping just this functionality)
-    const toggleApiKeyBtn = document.getElementById('toggleApiKey');
-    const apiKeyInput = document.getElementById('apiKey');
-    
-    toggleApiKeyBtn.addEventListener('click', () => {
-        const type = apiKeyInput.type === 'password' ? 'text' : 'password';
-        apiKeyInput.type = type;
-        toggleApiKeyBtn.textContent = type === 'password' ? 'Show' : 'Hide';
-    });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            window.location.href = `${ingressPath}/settings?message=Settings saved successfully`;
+        } else {
+            alert('Failed to save settings: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Failed to save settings. Please try again.');
+    }
+});
+
+// Toggle API key visibility
+const toggleApiKeyBtn = document.getElementById('toggleApiKey');
+const apiKeyInput = document.getElementById('apiKey');
+
+toggleApiKeyBtn.addEventListener('click', () => {
+    const type = apiKeyInput.type === 'password' ? 'text' : 'password';
+    apiKeyInput.type = type;
+    toggleApiKeyBtn.textContent = type === 'password' ? 'Show' : 'Hide';
+});
 </script>
+
+<script>
+  
+  // Fetch current timezone
+  fetch(`<%= ingress_path %>/api/timezone`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('timezone').value = data.timezone;
+    });
+  
+  // Update timezone when changed
+  document.getElementById('timezone').addEventListener('change', (event) => {
+    fetch(`<%= ingress_path %>/api/timezone`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ timezone: event.target.value }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Timezone updated successfully');
+      } else {
+        alert('Failed to update timezone');
+      }
+    });
+  });
+  
+  </script>
 
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
