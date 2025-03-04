@@ -833,6 +833,7 @@ function debugBatteryMessages(messages) {
 
 
 
+
 app.get('/', async (req, res) => {
 
   const expectedInverters = parseInt(options.inverter_number) || 1
@@ -870,8 +871,8 @@ app.get('/', async (req, res) => {
       // Fetch energy data from InfluxDB
       [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
         queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
+        queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
       ]);
       
       // If not cached, fetch carbon intensity data
@@ -883,12 +884,13 @@ app.get('/', async (req, res) => {
       console.error('Error fetching data:', e);
       error = 'Error fetching data. Please try again later.';
       isLoading = false;
+      
     }
     
     // Calculate emissions data for the period
     const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
     
-    // Get today's data (last item in the array)
+    // Get today's data (last item in the array) using current date
     const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
       date: moment().format('YYYY-MM-DD'),
       unavoidableEmissions: 0,
@@ -920,7 +922,10 @@ app.get('/', async (req, res) => {
     // Render the welcome page with the data
     res.render('energy-dashboard', {
       selectedZone,
-      todayData,
+      todayData: {
+        ...todayData,
+        date: moment().format('YYYY-MM-DD') // Explicitly set to current date
+      },
       summaryData,
       isLoading,
       error,
@@ -936,6 +941,8 @@ app.get('/', async (req, res) => {
     res.status(500).render('error', { error: 'Error loading welcome page' });
   }
 });
+
+
 
 
 
