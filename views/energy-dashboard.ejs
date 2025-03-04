@@ -124,35 +124,7 @@
                     <span>100%</span>
                   </div>
                 </div>
-              </div>
-
-              
-           
-
-
-  <!-- Summary Section -->
-  <div class="summary-section">
-    <div class="summary-title">Energy Summary</div>
-    <div class="summary-stats">
-      <div class="stat-item">
-        <div class="stat-label">Grid Energy</div>
-        <div class="stat-value"><%= todayData.gridEnergy ? todayData.gridEnergy.toFixed(1) : '0' %> kWh</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label">Solar Energy</div>
-        <div class="stat-value"><%= todayData.solarEnergy ? todayData.solarEnergy.toFixed(1) : '0' %> kWh</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label">Grid Carbon Intensity</div>
-        <div class="stat-value"><%= todayData.carbonIntensity ? todayData.carbonIntensity.toFixed(0) : '0' %> g/kWh</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label">Total Energy</div>
-        <div class="stat-value"><%= ((todayData.gridEnergy || 0) + (todayData.solarEnergy || 0)).toFixed(1) %> kWh</div>
-      </div>
-    </div>
-  </div>             
-                   
+              </div>     
                 
                     <div class="dashboard-column">
                         <div class="card">
