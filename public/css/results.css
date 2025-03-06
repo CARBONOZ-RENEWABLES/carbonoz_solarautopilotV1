@@ -714,44 +714,9 @@ a{
  border: 1px solid rgb(55, 60, 67);
 }
 
-/* Text colors */
-.dark-mode .text-gray-700,
-.dark-mode .text-gray-800,
-.dark-mode .text-gray-600 {
- color: #fff;
-}
-
-.dark-mode .text-gray-500 {
- color: #fff;
-}
-
-/* Table styles */
-.dark-mode thead.bg-gray-50 {
- background-color: rgb(40, 44, 50);
- color: #fff;
-}
-
-.dark-mode tbody.bg-white {
- background-color: rgb(45, 50, 56);
- color: #fff;
-}
-
-.dark-mode .divide-gray-200 {
- border-color: rgb(55, 60, 67);
- color: #fff;
-}
-
-/* Input fields */
-.dark-mode input, 
-.dark-mode select {
- background-color: rgb(50, 55, 61);
- border-color: rgb(60, 65, 72);
- color: #fff;
-}
-
-/* Buttons - maintain their colors but darken slightly */
-.dark-mode .custom-button:not(:hover) {
- filter: brightness(0.9);
+/* Table row hover effect in dark mode */
+.dark-mode tr.hover\:bg-gray-50:hover {
+  background-color: rgb(55, 60, 67) !important;
 }
 
 /* Ensure table data is white in dark mode */
