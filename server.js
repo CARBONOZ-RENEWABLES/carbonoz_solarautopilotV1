@@ -1251,27 +1251,28 @@ app.get('/results', async (req, res) => {
     if (selectedZone) {
       try {
         // Check if we have cached data
-        const cacheKey = `${selectedZone}`;
+        const cacheKey = `${selectedZone}`; // Corrected template literal
         const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
                          (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
-        
+
         if (isCached) {
           historyData = carbonIntensityCacheByZone.get(cacheKey).data;
         } else {
           // Set loading state
           isLoading = true;
         }
-        
+
         // Fetch InfluxDB data in parallel
         [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
           queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
         ]);
-        
+
         // If not cached, fetch carbon intensity data
         if (!isCached) {
           historyData = await fetchCarbonIntensityHistory(selectedZone);
+          carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() }); // Update cache
           isLoading = false;
         }
       } catch (e) {
@@ -1281,21 +1282,39 @@ app.get('/results', async (req, res) => {
       }
     }
 
+    // Today's date in YYYY-MM-DD format
+    const currentDate = moment().format('YYYY-MM-DD');
+
+    // Process the data
     const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
 
+    // Update the last entry with today's date if it exists
+    if (emissionsData.length > 0) {
+      emissionsData[emissionsData.length - 1].date = currentDate;
+    }
+
+    // Find today's data specifically
+    const todayData = emissionsData.find(item => item.date === currentDate) || {
+      date: currentDate,
+      unavoidableEmissions: 0,
+      avoidedEmissions: 0,
+      selfSufficiencyScore: 0,
+      gridEnergy: 0,
+      solarEnergy: 0,
+      carbonIntensity: 0,
+      formattedDate: moment(currentDate).format('MMM D, YYYY')
+    };
+
+    // Create periods including today as its own period
     const periods = {
+      today: [todayData], // Today's data as a single-item array
       week: emissionsData.slice(-7),
       month: emissionsData.slice(-30),
       quarter: emissionsData.slice(-90),
       year: emissionsData
     };
 
-    const todayData = emissionsData[emissionsData.length - 1] || {
-      unavoidableEmissions: 0,
-      avoidedEmissions: 0,
-      selfSufficiencyScore: 0
-    };
-
+    // Pass all needed date formats to the template
     res.render('results', {
       selectedZone,
       zones,
@@ -1306,9 +1325,13 @@ app.get('/results', async (req, res) => {
       unavoidableEmissions: todayData.unavoidableEmissions,
       avoidedEmissions: todayData.avoidedEmissions,
       selfSufficiencyScore: todayData.selfSufficiencyScore,
+      currentDate: currentDate,
+      formattedDate: moment(currentDate).format('MMM D, YYYY'),
+      dateString: moment(currentDate).format('MMM D, YYYY'),
       ingress_path: process.env.INGRESS_PATH || '',
     });
   } catch (error) {
+    console.error('Server error:', error); // Log the error for debugging
     res.status(500).render('error', { error: 'Error loading results' });
   }
 });
