@@ -753,3 +753,27 @@ a{
 .dark-mode .custom-button:not(:hover) {
  filter: brightness(0.9);
 }
+
+/* Ensure table data is white in dark mode */
+.dark-mode td,
+.dark-mode th,
+.dark-mode .text-gray-900 {
+  color: #fff !important;
+}
+
+/* Make button text black in dark mode (except for active/hover states) */
+.dark-mode .custom-button,
+.dark-mode .period-btn:not(.active):not(:hover),
+.dark-mode #paginationNumbers button:not(.bg-blue-600),
+.dark-mode #prevPageBtn:not(:disabled),
+.dark-mode #nextPageBtn:not(:disabled),
+.dark-mode #clearFiltersBtn {
+  color: #000;
+}
+
+/* Keep white text for active/selected buttons in dark mode */
+.dark-mode .period-btn.active,
+.dark-mode .period-btn:hover,
+.dark-mode #paginationNumbers button.bg-blue-600 {
+  color: #fff;
+}
