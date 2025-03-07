@@ -681,37 +681,45 @@ a{
  }
 }
 
-.dark-mode .custom-button{
- color: #000;
-}
-/* Custom styles for #DEAF0B background buttons */
-.custom-button {
-   background-color: #DEAF0B;
-   color: white;
- }
- .custom-button:hover {
-   background-color: #C59E09; /* Slightly darker shade for hover effect */
- }
- .period-btn.active {
-   background-color: #DEAF0B;
-   color: white;
- }
- .period-btn:hover {
-   background-color: #C59E09;
- }
- .dark-mode .container,
-.dark-mode .grid,
+/* Dark mode base styles */
+.dark-mode .container,
 .dark-mode .main-content,
 .dark-mode .bg-white,
 .dark-mode .bg-gray-50 {
- background-color: rgba(24, 27, 31, 1);
- color: #fff;
+  background-color: rgba(24, 27, 31, 1);
+  color: #fff;
 }
 
 /* Card styles */
 .dark-mode .rounded-xl {
- background-color: rgb(32, 36, 41);
- border: 1px solid rgb(55, 60, 67);
+  background-color: rgb(32, 36, 41);
+  border: 1px solid rgb(55, 60, 67);
+}
+
+/* Fix text colors in cards, headers, and paragraphs */
+.dark-mode h3,
+.dark-mode p:not(.text-3xl),
+.dark-mode .text-gray-700:not(#unavoidableEmissions):not(#avoidedEmissions):not(#selfSufficiencyScore),
+.dark-mode .text-gray-800,
+.dark-mode .text-gray-900,
+.dark-mode .text-gray-600,
+.dark-mode .text-sm {
+  color: #fff !important;
+}
+
+/* Preserve original colors for emission metrics */
+.dark-mode #unavoidableEmissions {
+  color: rgba(239, 68, 68, 1) !important; /* Red color for unavoidable emissions */
+}
+
+.dark-mode #avoidedEmissions {
+  color: rgba(16, 185, 129, 1) !important; /* Green color for avoided emissions */
+}
+
+/* Self-sufficiency score should keep its original colors */
+.dark-mode #selfSufficiencyScore {
+  /* This will inherit whatever color is applied by the JS function */
+  color: inherit !important;
 }
 
 /* Table row hover effect in dark mode */
@@ -719,26 +727,71 @@ a{
   background-color: rgb(55, 60, 67) !important;
 }
 
-/* Ensure table data is white in dark mode */
+/* Table text in dark mode */
 .dark-mode td,
-.dark-mode th,
-.dark-mode .text-gray-900 {
+.dark-mode th {
   color: #fff !important;
 }
 
-/* Make button text black in dark mode (except for active/hover states) */
-.dark-mode .custom-button,
-.dark-mode .period-btn:not(.active):not(:hover),
-.dark-mode #paginationNumbers button:not(.bg-blue-600),
-.dark-mode #prevPageBtn:not(:disabled),
-.dark-mode #nextPageBtn:not(:disabled),
-.dark-mode #clearFiltersBtn {
+/* Button text styling */
+.dark-mode .custom-button {
+  background-color: #DEAF0B;
+  color: #000; /* Keep black text on yellow buttons */
+}
+
+.dark-mode .period-btn:not(.active):not(:hover) {
+  background-color: rgba(55, 60, 67, 0.8);
+  color: #fff;
+}
+
+/* Active button state */
+.dark-mode .period-btn.active,
+.dark-mode .period-btn:hover {
+  background-color: #DEAF0B;
   color: #000;
 }
 
-/* Keep white text for active/selected buttons in dark mode */
-.dark-mode .period-btn.active,
-.dark-mode .period-btn:hover,
-.dark-mode #paginationNumbers button.bg-blue-600 {
+/* Pagination styling in dark mode */
+.dark-mode #paginationNumbers button:not(.bg-blue-600) {
+  background-color: rgba(55, 60, 67, 0.8);
   color: #fff;
+}
+
+.dark-mode #paginationNumbers button.bg-blue-600 {
+  background-color: #DEAF0B;
+  color: #000;
+}
+
+/* Fix input and select elements in dark mode */
+.dark-mode input,
+.dark-mode select {
+  background-color: rgb(42, 46, 51);
+  color: #fff;
+  border-color: rgb(55, 60, 67);
+}
+
+.dark-mode input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Fix dropdown options in dark mode */
+.dark-mode option {
+  background-color: rgb(42, 46, 51);
+  color: #fff;
+}
+
+/* Chart label colors need to be set in JavaScript */
+.dark-mode #prevPageBtn:not(:disabled),
+.dark-mode #nextPageBtn:not(:disabled),
+.dark-mode #clearFiltersBtn {
+  background-color: #DEAF0B;
+  color: #000;
+}
+
+/* Preserve table cell content colors for self-sufficiency scores */
+.dark-mode td .text-green-600,
+.dark-mode td .text-yellow-600,
+.dark-mode td .text-orange-600,
+.dark-mode td .text-red-600 {
+  color: inherit !important;
 }
