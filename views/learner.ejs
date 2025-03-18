@@ -4,48 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/css/settings.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-   body {
-       font-family: 'Inter', sans-serif;
-   }
-   :root {
-      --primary-color: #DEAF0B;
-      --secondary-color: #f0f2f5;
-      --text-color: #050505;
-      --text-secondary: #65676b;
-      --accent-color: #e7f3ff;
-      --border-color: #dddfe2;
-      --success-color: #42b72a;
-      --danger-color: #e41e3f;
-    }
+   
+   <style>
+:root {
+  --primary: #DEAF0B;
+  --secondary: #8b5cf6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --light: #f3f4f6;
+  --dark: #1f2937;
+  --gradient-blue: linear-gradient(135deg, #60a5fa 0%, #5e60ce 100%);
+  --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+  --gradient-voltage: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --transition: all 0.3s ease;
+}
+
    
    body, html {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--bg-color);
     
    }
     /* Sidebar styles */
     .sidebar {
-    width: 280px;
-    height: 100vh;
-    background-color: white;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    transition: width 0.3s ease;
-}
+        width: 280px;
+        height: 100vh;
+        background-color: white;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        transition: width 0.3s ease;
+    }
+   
            .logo-container {
                padding: 1.5rem;
                border-bottom: 1px solid #e5e7eb;
@@ -69,12 +69,12 @@
    .logo-text {
     margin-left: 10px;
     font-weight: bold;
-    color: var(--text-color);
+    color: #2f3640;
     font-size: 18px;
    }
    
    .logo-text .highlight {
-    color: var(--primary-color);
+    color: #DEAF0B;
     margin-left: 10px;
    }
    
@@ -441,112 +441,175 @@
                    margin-bottom: 0.75rem;
                }
            }
-   /* loading css */
-   .loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f8f9fa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-   }
-   
-   .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #e0e0e0;
-    border-top: 5px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-   }
-   
-   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-   } 
-           /* Dark mode styles */
-   body.dark-mode {
-       background-color: rgba(24, 27, 31, 1);
+
+/* loading css */
+
+.loading-overlay {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: #f8f9fa;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ z-index: 9999;
+}
+
+.loading-spinner {
+ width: 50px;
+ height: 50px;
+ border: 5px solid #e0e0e0;
+ border-top: 5px solid #3498db;
+ border-radius: 50%;
+ animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+ 0% { transform: rotate(0deg); }
+ 100% { transform: rotate(360deg); }
+}
+
+.dashboard-column {
+flex-basis: calc(33.33333% - 2px);
+margin-right: 2px;
+margin-bottom: 2px;
+}
+
+@media only screen and (max-width: 128em) {
+.dashboard-column {
+ flex-basis: calc(50% - 2px);
+}
+}
+
+@media only screen and (max-width: 62em) {
+.dashboard-column {
+ flex-basis: calc(100% - 2px);
+}
+}
+
+.dashboard-column .card {
+border: 0;
+}
+
+.dashboard-column .card .iframe-moving {
+display: block;
+height: 100%;
+min-height: 33em;
+position: relative;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-moving {
+ min-height: 107em;
+}
+}
+.dashboard-column .card .iframe-overview {
+display: block;
+height: 100%;
+min-height: 22em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-overview {
+ min-height: 18em;
+}
+}
+
+.dashboard-column .card .iframe-battery-power {
+display: block;
+height: 60%;
+min-height: 18em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-battery-power {
+ min-height: 15em;
+}
+}
+
+.dashboard-column .card .iframe-battery-soc {
+display: block;
+height: 40%;
+min-height: 14em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-battery-soc {
+ min-height: 12em;
+}
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: rgba(24, 27, 31, 1);
+ color: #f5f6fa;
+}
+
+.dark-mode .main-content{
+    background-color: rgba(24, 27, 31, 1);
     color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar {
-       background-color: rgba(24, 27, 31, 1);
-   }
-   
-   .dark-mode .sidebar .logo-icon {
-    color: #2f3640;
-   }
-   
-   .dark-mode .sidebar .logo-text {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li:hover {
-    background-color: #383838;
-   }
-   
-   .dark-mode .sidebar nav li a {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li i {
-    color: #dcdde1;
-   }
-   
-   .dark-mode .toggle-sidebar,
-   .dark-mode .toggle-dark-mode {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .toggle-switch {
-       background-color: var(--primary-color);
-   }
-   
-   .dark-mode .toggle-switch.active {
+}
+
+.dark-mode .sidebar {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .sidebar .logo-icon {
+ color: #2f3640;
+}
+
+.dark-mode .sidebar .logo-text {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li:hover {
+ background-color: #383838;
+}
+
+.dark-mode .sidebar nav li a {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li i {
+ color: #dcdde1;
+}
+
+.dark-mode .toggle-sidebar,
+.dark-mode .toggle-dark-mode {
+ color: #f5f6fa;
+}
+
+.dark-mode .toggle-switch {
     background-color: var(--primary-color);
-   }
-   
-   .dark-mode header {
-       background-color: rgb(17, 18, 23);
-   }
-   
-   .dark-mode .main-content {
-       background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-   }
-   
-   .dark-mode .metric-card {
-     background-color: rgb(32, 36, 41);
-   
-    color: #fff;
-   }
-   .dark-mode .chart-container{
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode  .summary-item {
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode .loading-overlay{
-       background-color: rgba(24, 27, 31, 1);
-   }
-   a{
-     text-decoration: none;
-   } 
+}
+
+.dark-mode .toggle-switch.active {
+ background-color: var(--primary-color);
+}
+
+.dark-mode header {
+    background-color: rgb(17, 18, 23);
+}
+
+.dark-mode .content-card {
+    background-color: rgba(24, 27, 31, 1);
+ color: #fff;
+}
 
 
+.dark-mode .loading-overlay{
+    background-color: rgba(24, 27, 31, 1);
+}
 
 /* Mobile Sidebar Improvements */
 @media (max-width: 768px) {
@@ -688,1011 +751,927 @@
 }
 
 
-.containere {
-      max-width: 1200px;
-      padding-left: 15px;
-      padding-right: 15px;
-    }
-    
-    .card {
-      border-radius: 8px;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-      border: none;
-      width: 100%;
-    }
-    
-    .card-header {
-      background-color: white;
-      border-bottom: 1px solid var(--border-color);
-      font-weight: 600;
-      padding: 15px 20px;
-      border-radius: 8px 8px 0 0 !important;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .card-body {
-      padding: 15px 20px;
-      background-color: white;
-    }
-    
-    h1, h5 {
-      font-weight: 700;
-      color: var(--text-color);
-    }
-    
-    h1 {
-      font-size: calc(1.5rem + 1vw);
-      margin-bottom: 1rem;
-    }
-    
-    .btn-primary {
-      background-color: var(--primary-color);
-      border-color: var(--primary-color);
-      font-weight: 600;
-    }
-    
-    .btn-success {
-      background-color: var(--success-color);
-      border-color: var(--success-color);
-      font-weight: 600;
-    }
-    
-    .btn-danger {
-      background-color: var(--danger-color);
-      border-color: var(--danger-color);
-      font-weight: 600;
-    }
-    
-    .btn-outline-primary {
-      color: var(--primary-color);
-      border-color: var(--primary-color);
-    }
-    
-    .btn-outline-primary:hover {
-      background-color: var(--accent-color);
-      color: var(--primary-color);
-      border-color: var(--primary-color);
-    }
-    
-    .status-active {
-      color: var(--success-color);
-      font-weight: bold;
-    }
-    
-    .status-inactive {
-      color: var(--danger-color);
-      font-weight: bold;
-    }
-    
-    .metric-box {
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      background-color: white;
-      transition: all 0.2s ease;
-    }
-    
-    .metric-box:hover {
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    
-    .metric-box h6 {
-      color: var(--text-secondary);
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-    
-    .metric-box .h3 {
-      font-weight: 700;
-      margin-bottom: 0;
-      font-size: calc(1.2rem + 0.6vw);
-      word-break: break-word;
-    }
-    
-    /* Improved Toggle Switch for Learner Mode */
-    .toggle-switch-container {
-      display: flex;
-      align-items: center;
-      margin-top: 15px;
-      flex-wrap: wrap;
-    }
-    
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 30px;
-      margin-right: 15px;
-      flex-shrink: 0;
-    }
-    
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
-    }
-    
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 22px;
-      width: 22px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .toggle-slider {
-      background-color: var(--success-color);
-    }
-    
-    input:focus + .toggle-slider {
-      box-shadow: 0 0 1px var(--success-color);
-    }
-    
-    input:checked + .toggle-slider:before {
-      transform: translateX(30px);
-    }
-    
-    .toggle-label {
-      font-weight: 600;
-      flex-grow: 1;
-    }
-
-    .header-controls {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    
-    .notification-container {
-      position: relative;
-      margin-right: 10px;
-    }
-    
-   /* Dark mode styles for containere and its children */
-.dark-mode .containere {
-  color: #f5f6fa;
+  /* Main content styling */
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  padding: 2rem;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: margin-left 0.3s ease;
+}
+.main-content .container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
-.dark-mode .card {
-  background-color: rgb(32, 36, 41);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.dark-mode .card-header {
-  background-color: rgb(32, 36, 41);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f5f6fa;
-}
-
-.dark-mode .card-body {
-  background-color: rgb(32, 36, 41);
-  color: #f5f6fa;
-}
-
-.dark-mode h1, 
-.dark-mode h5 {
-  color: #f5f6fa;
-}
-
-.dark-mode .metric-box {
-  background-color: rgb(38, 42, 48);
-  border-color: rgba(0, 0, 0, 0);
-}
-
-.dark-mode .metric-box:hover {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
-.dark-mode .metric-box h6 {
-  color: #bec3c9;
-}
-
-.dark-mode .toggle-slider {
-  background-color: #f0f2f5;
-}
-
-.dark-mode .refresh-button {
-  background-color: rgb(38, 42, 48);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f5f6fa;
-}
-
-.dark-mode .refresh-button:hover {
-  background-color: rgb(45, 50, 56);
-}
-
-.dark-mode .change-entry {
-  background-color: rgb(38, 42, 48);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark-mode .change-entry:hover {
-  background-color: rgb(45, 50, 56);
-}
-
-.dark-mode .change-entry.new {
-  background-color: rgba(222, 175, 11, 0.1);
-}
-
-.dark-mode .change-time {
-  color: #f0f2f5;
-}
-
-.dark-mode .change-value-old {
-  color: #f0f2f5;
-}
-
-.dark-mode .change-system-state {
-  background-color: rgba(24, 27, 31, 1);;
-}
-
-.dark-mode .system-state-label {
-  color: #f5f5f5;
-}
-
-.dark-mode .btn-delete-change:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e41e3f;
-}
-
-.dark-mode .no-changes {
-  color: #bec3c9;
-}
-
-/* Dark mode animation override */
-@keyframes darkHighlight {
-  from {background-color: rgba(24, 27, 31, 1);;}
-  to {background-color: rgba(24, 27, 31, 1);;}
-}
-
-.dark-mode .highlight {
-  animation: darkHighlight 2s;
-}
-    
-    .refresh-button {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background-color: white;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-weight: 600;
-      color: var(--text-color);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    
-    .refresh-button:hover {
-      background-color: var(--secondary-color);
-    }
-    
-    .refresh-button i {
-      margin-right: 8px;
-    }
-    
-    .change-feed {
-      margin: 0;
-      padding: 0;
-    }
-    
-    .change-entry {
-      position: relative;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      background-color: white;
-      border: 1px solid var(--border-color);
-      transition: all 0.2s ease;
-    }
-    
-    .change-entry:hover {
-      background-color: var(--secondary-color);
-    }
-    
-    .change-entry.new {
-      border-left: 4px solid var(--primary-color);
-      background-color: var(--accent-color);
-    }
-    
-    .change-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-      gap: 5px;
-    }
-    
-    .change-time {
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-    
-    .change-setting {
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-bottom: 5px;
-      word-break: break-word;
-    }
-    
-    .change-value {
-      margin-bottom: 10px;
-      word-break: break-word;
-    }
-    
-    .change-value-old {
-      text-decoration: line-through;
-      color: var(--text-secondary);
-      margin-right: 10px;
-    }
-    
-    .change-value-new {
-      font-weight: 600;
-      color: var(--primary-color);
-    }
-    
-    .change-system-state {
-      background-color: var(--secondary-color);
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 10px;
-    }
-    
-    .change-system-state h6 {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      margin-bottom: 8px;
-      font-weight: 600;
-    }
-    
-    .system-state-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 10px;
-    }
-    
-    .system-state-item {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .system-state-label {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-bottom: 2px;
-    }
-    
-    .system-state-value {
-      font-weight: 600;
-      word-break: break-word;
-    }
-    
-    .change-actions {
-      margin-top: 10px;
-      display: flex;
-      justify-content: flex-end;
-    }
-    
-    .btn-delete-change {
-      color: var(--text-secondary);
-      background: none;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    
-    .btn-delete-change:hover {
-      background-color: #f5f5f5;
-      color: var(--danger-color);
-    }
-    
-    .no-changes {
-      padding: 20px;
-      text-align: center;
-      color: var(--text-secondary);
-    }
-    
-    @keyframes highlight {
-      from {background-color: var(--accent-color);}
-      to {background-color: white;}
-    }
-    
-    .highlight {
-      animation: highlight 2s;
-    }
-    
-    /* Media queries for better responsiveness */
-    @media (max-width: 767px) {
-      .card-header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      
-      .card-header div {
-        margin-top: 10px;
-        width: 100%;
-        display: flex;
-        justify-content: flex-end;
-      }
-
-      .toggle-switch-container {
-        flex-direction: row;
-        justify-content: space-between;
-      }
-      
-      .system-state-grid {
-        grid-template-columns: repeat(1, 1fr);
-      }
-    }
-    
-    @media (max-width: 576px) {
-      .card-body {
-        padding: 10px;
-      }
-      
-      .metric-box {
-        padding: 10px;
-      }
-      
-      .change-entry {
-        padding: 12px;
-      }
-      
-      .btn-outline-primary {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-      }
-    }
-
-/* Pagination Controls */
-.pagination-controls {
+/* Header */
+header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  margin-top: 20px;
-  padding: 10px;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.page-indicator {
-  margin: 0 15px;
-  font-size: 0.9rem;
-  color: #666;
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--dark);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Improve existing change entry styles for better pagination display */
-.change-feed {
-  position: relative;
-  max-height: 600px;
-  overflow-y: auto;
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.change-entry {
-  margin-bottom: 15px;
-  padding: 15px;
-  border-radius: 6px;
-  background-color: #f9f9f9;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+.toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
 }
 
-.change-entry.new {
-  background-color: #f0f8ff;
-  border-left: 3px solid var(--primary-color);
+.toggle-button:hover {
+  background-color: #DEAF0E;
 }
 
-/* Empty state improvement */
-.no-changes {
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-pill.active {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.status-pill.inactive {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.db-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--secondary);
+}
+
+/* Card layouts */
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: var(--transition);
+  flex: 1 1 calc(50% - 0.75rem);
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dark-mode .card{
+  background-color: rgb(32, 36, 41);
+ 
+}
+
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.grid-card {
+  border-top: 4px solid var(--info);
+}
+
+.energy-card {
+  border-top: 4px solid var(--secondary);
+}
+
+.voltage-card {
+  border-top: 4px solid var(--primary);
+}
+
+.system-state-card {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+
+
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-value {
+  font-size: 2.25rem;
+  font-weight: 700;
   text-align: center;
-  padding: 30px 0;
-  color: #888;
-  font-style: italic;
+  padding: 1.5rem 1rem;
 }
 
-/* Loading state improvement */
-.loading-changes {
+.card-footer {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.timestamp {
+  font-weight: 500;
+}
+
+/* Tables */
+.changes-table-container {
+  overflow-x: auto;
+  flex-grow: 1;
+}
+
+.changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.changes-table th {
+  background-color: #f9fafb;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.dark-mode .changes-table th {
+  background-color: #1a1d22;
+  color: #f9fafb;;
+}
+
+.changes-table td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.changes-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+.dark-mode .changes-table tbody tr:hover {
+  background-color: #1a1d22;
+}
+.view-all {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 30px 0;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 500;
+  background-color: #f9fafb;
+  transition: var(--transition);
+}
+.dark-mode .view-all {
+  background-color: rgba(24, 27, 31, 1);
+}
+
+.view-all:hover {
+  background-color: #f3f4f6;
+}
+.dark-mode .view-all:hover {
+  background-color: rgba(24, 27, 31, 6);
+}
+/* System state card */
+.state-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.state-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.state-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.state-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.state-value.high {
+  color: var(--success);
+}
+
+.state-value.medium {
+  color: var(--warning);
+}
+
+.state-value.low {
+  color: var(--danger);
+}
+
+/* Modern card styling for the image design */
+.energy-pattern-card, .grid-charge-card, .voltage-point-card {
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  flex: 1 1 calc(50% - 0.75rem);
+  min-width: 300px;
+}
+
+.card-heading {
+  padding: 1.5rem;
+  color: white;
+  font-weight: 600;
+  font-size: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.energy-pattern-card .card-heading {
+  background: var(--gradient-blue);
+}
+
+.grid-charge-card .card-heading {
+  background: var(--gradient-purple);
+}
+
+.voltage-point-card .card-heading {
+  background: var(--gradient-voltage);
+}
+
+.card-content {
+  padding: 0;
+  background: white;
+}
+
+.change-item {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.change-date {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.change-title {
+  font-weight: 500;
+}
+
+.change-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.change-direction {
+  color: #6b7280;
+  font-size: 1.25rem;
+}
+
+.change-from, .change-to {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.change-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.change-value {
+  font-weight: 500;
+}
+
+.change-to .change-value {
+  color: var(--primary);
+}
+
+.system-info {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.view-all-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.view-all-link:hover {
+  background-color: #f9fafb;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .flex-row {
+    flex-direction: column;
+  }
+  
+  .card {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  
+  .state-items {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* Font awesome icon replacements */
+.fas {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.fa-bolt:before {
+  content: "⚡";
+}
+
+.fa-plug:before {
+  content: "🔌";
+}
+
+.fa-charging-station:before {
+  content: "🔋";
+}
+
+.fa-power-off:before {
+  content: "⏻";
+}
+
+.fa-brain:before {
+  content: "🧠";
+}
+
+/* Fixed database icon */
+.fa-database:before {
+  content: "🗄️";
+}
+
+/* Fixed dashboard icon */
+.fa-tachometer-alt:before {
+  content: "🔍";
+}
+
+.fa-battery-three-quarters:before {
+  content: "🔋";
+}
+
+.fa-solar-panel:before {
+  content: "☀️";
+}
+
+.fa-exchange-alt:before {
+  content: "⇄";
+}
+
+.fa-cog:before {
+  content: "⚙️";
+}
+
+.fa-arrow-right:before {
+  content: "→";
 }
 
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+   </style>
 
-       </style>
 </head>
 <body>
-   <!-- Add hamburger menu button -->
-   <button class="mobile-toggle" id="mobileToggle">
-    <span></span>
-    <span></span>
-    <span></span>
-</button>
-  <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-</div>
-<div id="pageContent">
-    <!-- Sidebar -->
-    <%- include('partials/sidebar') %>
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="containere">   
-            <div class="row mb-4">
-              <div class="col-md-6">
-                <div class="card">
-                  <div class="card-header">
-                    <h5>Learner Mode Status</h5>
-                  </div>
-                  <div class="card-body">
-                    <p>Status: <span id="status-indicator" class="<%= active ? 'status-active' : 'status-inactive' %>">
-                      <%= active ? 'ACTIVE' : 'INACTIVE' %>
-                    </span></p>
-                    <p style="word-break: break-word;">Monitored Settings: <%= monitored_settings.join(', ') %></p>
-                    <p>Changes Detected: <span id="changes-count"><%= changes_count %></span></p>
-                    
-                    <!-- Toggle switch -->
-                    <div class="toggle-switch-container">
-                      <span class="toggle-label">Learner Mode</span>
-                      <label class="toggle-switch">
-                        <input type="checkbox" id="toggle-learner" <%= active ? 'checked' : '' %>>
-                        <span class="toggle-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="col-md-6">
-                <div class="card">
-                  <div class="card-header">
-                    <h5>Current System State</h5>
-                  </div>
-                  <div class="card-body">
-                    <div id="system-state-container">
-                      <p>Loading system state...</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="card mb-4">
-              <div class="card-header">
-                <h5>Detected Setting Changes</h5>
-                <div>
-                  <span id="notification-badge" class="notification-badge" style="display: none;">0</span>
-                  <button id="mark-all-read" class="btn btn-outline-primary btn-sm me-2" style="display: none;">
-                    <i class="fas fa-check-double"></i> Mark All As Read
-                  </button>
-                  <button id="refresh-changes" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                  </button>
-                </div>
-              </div>
-              <div class="card-body">
-                <div id="changes-container" class="change-feed">
-                  <p class="text-center">Loading changes...</p>
-                </div>
-              </div>
-            </div>
-            
-            <div class="card mb-4">
-              <div class="card-header">
-                <h5>Analytics & Insights</h5>
-              </div>
-              <div class="card-body">
-                <div id="analytics-container">
-                  <p>Insights will be available once enough data is collected.</p>
-                </div>
-              </div>
-            </div>
+      <!-- Add hamburger menu button -->
+      <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
           </div>
-    </main>
-</div>
-  
+          <div id="pageContent"> </div>
+       
+              <%- include('partials/sidebar') %>
+
+     
+
+            <div class="main-content">
+            
+             
+                <div class="container">
+                    <header>
+                        <div class="logo">
+                            <i class="fas fa-bolt"></i>
+                            Energy Monitor
+                        </div>
+                        <div class="controls">
+                            <button id="toggleLearner" class="toggle-button">
+                                <i class="fas fa-power-off"></i>
+                                <span id="learnerButtonText">Turn Off Learning Mode</span>
+                            </button>
+                            <span id="learnerStatus" class="status-pill active">
+                                <i class="fas fa-brain"></i>
+                                Learning Mode Active
+                            </span>
+                            <span id="dbStatus" class="db-status">
+                                <i class="fas fa-database"></i>
+                                Database Connected
+                            </span>
+                        </div>
+                    </header>
+                    
+                    <div class="flex-row">
+                        <div class="card grid-card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <i class="fas fa-plug"></i>
+                                    Grid Charge Changes
+                                </div>
+                            </div>
+                            <div class="card-value" id="gridChangeCount">12</div>
+                            <div class="card-footer">Last change: <span id="lastGridChange" class="timestamp">2025-03-15 14:32:45</span></div>
+                            <div class="changes-table-container">
+                                <table class="changes-table" id="gridChangesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Topic</th>
+                                            <th>Old Value</th>
+                                            <th>New Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>14:32:45</td>
+                                            <td>grid_charge</td>
+                                            <td>Enabled</td>
+                                            <td>Disabled</td>
+                                        </tr>
+                                        <tr>
+                                            <td>09:15:22</td>
+                                            <td>grid_charge</td>
+                                            <td>Disabled</td>
+                                            <td>Enabled</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <a href="/grid-charge" class="view-all">View All Changes <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        
+                        <div class="card energy-card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <i class="fas fa-charging-station"></i>
+                                    Energy Pattern Changes
+                                </div>
+                            </div>
+                            <div class="card-value" id="energyChangeCount">8</div>
+                            <div class="card-footer">Last change: <span id="lastEnergyChange" class="timestamp">2025-03-17 08:45:12</span></div>
+                            <div class="changes-table-container">
+                                <table class="changes-table" id="energyChangesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Topic</th>
+                                            <th>Old Value</th>
+                                            <th>New Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>08:45:12</td>
+                                            <td>energy_pattern</td>
+                                            <td>Grid-Tied</td>
+                                            <td>Time-of-Use</td>
+                                        </tr>
+                                        <tr>
+                                            <td>02:22:15</td>
+                                            <td>energy_pattern</td>
+                                            <td>Time-of-Use</td>
+                                            <td>Off-Grid</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <a href="/energy-pattern" class="view-all">View All Changes <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        
+                        <div class="card voltage-card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <i class="fas fa-bolt"></i>
+                                    Voltage Point Changes
+                                </div>
+                            </div>
+                            <div class="card-value" id="voltageChangeCount">6</div>
+                            <div class="card-footer">Last change: <span id="lastVoltageChange" class="timestamp">2025-03-16 11:28:30</span></div>
+                            <div class="changes-table-container">
+                                <table class="changes-table" id="voltageChangesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Topic</th>
+                                            <th>Old Value</th>
+                                            <th>New Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>11:28:30</td>
+                                            <td>voltage_point</td>
+                                            <td>46.2V</td>
+                                            <td>47.5V</td>
+                                        </tr>
+                                        <tr>
+                                            <td>05:14:10</td>
+                                            <td>voltage_point</td>
+                                            <td>45.8V</td>
+                                            <td>46.2V</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <a href="/voltage-point" class="view-all">View All Changes <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                    
+                    <div class="card system-state-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-tachometer-alt"></i>
+                                Current System State
+                            </div>
+                            <div class="timestamp" id="systemStateTime">Updated: 2025-03-18 09:45:30</div>
+                        </div>
+                        <div class="state-items">
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-battery-three-quarters"></i>
+                                    Battery SOC
+                                </div>
+                                <div class="state-value high" id="batterySOC">85%</div>
+                            </div>
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-solar-panel"></i>
+                                    PV Power
+                                </div>
+                                <div class="state-value medium" id="pvPower">1250 W</div>
+                            </div>
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-plug"></i>
+                                    Load
+                                </div>
+                                <div class="state-value" id="load">850 W</div>
+                            </div>
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-bolt"></i>
+                                    Grid Voltage
+                                </div>
+                                <div class="state-value" id="gridVoltage">120.2 V</div>
+                            </div>
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    Grid Power
+                                </div>
+                                <div class="state-value low" id="gridPower">-320 W</div>
+                            </div>
+                            <div class="state-item">
+                                <div class="state-label">
+                                    <i class="fas fa-cog"></i>
+                                    Inverter State
+                                </div>
+                                <div class="state-value" id="inverterState">Discharging</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        
+        </div>
+    
+    
+
+
+        <script>
+            // Fetch the learner status when the page loads
+            window.addEventListener('DOMContentLoaded', async () => {
+                try {
+                    // Fetch learner status
+                    const statusResponse = await fetch('<%= ingress_path %>/api/learner/status');
+                    const statusData = await statusResponse.json();
+                    
+                    updateLearnerStatus(statusData.active);
+                    updateDbStatus(statusData.db_connected);
+                    
+                    if (statusData.current_system_state) {
+                        updateSystemState(statusData.current_system_state);
+                    }
+                    
+                    // Fetch grid charge changes
+                    const gridResponse = await fetch('<%= ingress_path %>/api/grid-charge-changes');
+                    const gridData = await gridResponse.json();
+                    updateGridChargeChanges(gridData);
+                    
+                    // Fetch energy pattern changes
+                    const energyResponse = await fetch('<%= ingress_path %>/api/energy-pattern-changes');
+                    const energyData = await energyResponse.json();
+                    updateEnergyPatternChanges(energyData);
+                    
+                    // Fetch voltage point changes
+                    const voltageResponse = await fetch('<%= ingress_path %>/api/voltage-point-changes');
+                    const voltageData = await voltageResponse.json();
+                    updateVoltagePointChanges(voltageData);
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                }
+            });
+            
+            // Toggle learner mode
+            document.getElementById('toggleLearner').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('<%= ingress_path %>/api/learner/toggle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    updateLearnerStatus(data.active);
+                } catch (error) {
+                    console.error('Error toggling learner mode:', error);
+                }
+            });
+            
+            // Update learner status UI
+            function updateLearnerStatus(active) {
+                const statusElement = document.getElementById('learnerStatus');
+                const buttonTextElement = document.getElementById('learnerButtonText');
+                
+                if (active) {
+                    statusElement.className = 'status-pill active';
+                    statusElement.innerHTML = '<i class="fas fa-brain"></i> Learning Mode Active';
+                    buttonTextElement.textContent = 'Turn Off Learning Mode';
+                } else {
+                    statusElement.className = 'status-pill inactive';
+                    statusElement.innerHTML = '<i class="fas fa-brain"></i> Learning Mode Inactive';
+                    buttonTextElement.textContent = 'Turn On Learning Mode';
+                }
+            }
+            
+            // Update database status UI
+            function updateDbStatus(connected) {
+                const dbStatusElement = document.getElementById('dbStatus');
+                
+                if (connected) {
+                    dbStatusElement.innerHTML = '<i class="fas fa-database"></i> Database Connected';
+                    dbStatusElement.style.color = 'var(--secondary)';
+                } else {
+                    dbStatusElement.innerHTML = '<i class="fas fa-database"></i> Database Disconnected';
+                    dbStatusElement.style.color = 'var(--danger)';
+                }
+            }
+            
+            // Update system state UI
+            function updateSystemState(state) {
+                document.getElementById('batterySOC').textContent = state.battery_soc ? `${state.battery_soc}%` : 'N/A';
+                document.getElementById('pvPower').textContent = state.pv_power ? `${state.pv_power} W` : 'N/A';
+                document.getElementById('load').textContent = state.load ? `${state.load} W` : 'N/A';
+                document.getElementById('gridVoltage').textContent = state.grid_voltage ? `${state.grid_voltage} V` : 'N/A';
+                document.getElementById('gridPower').textContent = state.grid_power ? `${state.grid_power} W` : 'N/A';
+                document.getElementById('inverterState').textContent = state.inverter_state || 'N/A';
+                document.getElementById('systemStateTime').textContent = `Updated: ${state.timestamp || 'N/A'}`;
+                
+                // Update classes based on values
+                if (state.battery_soc) {
+                    const batteryElement = document.getElementById('batterySOC');
+                    if (state.battery_soc > 80) {
+                        batteryElement.className = 'state-value high';
+                    } else if (state.battery_soc > 30) {
+                        batteryElement.className = 'state-value medium';
+                    } else {
+                        batteryElement.className = 'state-value low';
+                    }
+                }
+                
+                if (state.grid_power) {
+                    const gridPowerElement = document.getElementById('gridPower');
+                    if (state.grid_power < 0) {
+                        gridPowerElement.className = 'state-value high';  // Exporting power
+                    } else if (state.grid_power > 1000) {
+                        gridPowerElement.className = 'state-value low';   // Importing significant power
+                    } else {
+                        gridPowerElement.className = 'state-value medium';
+                    }
+                }
+            }
+            
+            // Update grid charge changes UI
+            function updateGridChargeChanges(changes) {
+                document.getElementById('gridChangeCount').textContent = changes.length;
+                
+                if (changes.length > 0) {
+                    const lastChange = changes[0];
+                    document.getElementById('lastGridChange').textContent = formatTimestamp(lastChange.timestamp);
+                    
+                    const tableBody = document.getElementById('gridChangesTable').getElementsByTagName('tbody')[0];
+                    tableBody.innerHTML = '';
+                    
+                    // Show up to 5 most recent changes
+                    const recentChanges = changes.slice(0, 5);
+                    
+                    recentChanges.forEach(change => {
+                        const row = tableBody.insertRow();
+                        const timeCell = row.insertCell(0);
+                        const topicCell = row.insertCell(1);
+                        const oldValueCell = row.insertCell(2);
+                        const newValueCell = row.insertCell(3);
+                        
+                        timeCell.textContent = formatTime(change.timestamp);
+                        topicCell.textContent = change.topic || 'N/A';
+                        oldValueCell.textContent = change.old_value || 'N/A';
+                        newValueCell.textContent = change.new_value || 'N/A';
+                    });
+                }
+            }
+            
+            // Update energy pattern changes UI
+            function updateEnergyPatternChanges(changes) {
+                document.getElementById('energyChangeCount').textContent = changes.length;
+                
+                if (changes.length > 0) {
+                    const lastChange = changes[0];
+                    document.getElementById('lastEnergyChange').textContent = formatTimestamp(lastChange.timestamp);
+                    
+                    const tableBody = document.getElementById('energyChangesTable').getElementsByTagName('tbody')[0];
+                    tableBody.innerHTML = '';
+                    
+                    // Show up to 5 most recent changes
+                    const recentChanges = changes.slice(0, 5);
+                    
+                    recentChanges.forEach(change => {
+                        const row = tableBody.insertRow();
+                        const timeCell = row.insertCell(0);
+                        const topicCell = row.insertCell(1);
+                        const oldValueCell = row.insertCell(2);
+                        const newValueCell = row.insertCell(3);
+                        
+                        timeCell.textContent = formatTime(change.timestamp);
+                        topicCell.textContent = change.topic || 'N/A';
+                        oldValueCell.textContent = change.old_value || 'N/A';
+                        newValueCell.textContent = change.new_value || 'N/A';
+                    });
+                }
+            }
+            
+            // Update voltage point changes UI
+            function updateVoltagePointChanges(changes) {
+                document.getElementById('voltageChangeCount').textContent = changes.length;
+                
+                if (changes.length > 0) {
+                    const lastChange = changes[0];
+                    document.getElementById('lastVoltageChange').textContent = formatTimestamp(lastChange.timestamp);
+                    
+                    const tableBody = document.getElementById('voltageChangesTable').getElementsByTagName('tbody')[0];
+                    tableBody.innerHTML = '';
+                    
+                    // Show up to 5 most recent changes
+                    const recentChanges = changes.slice(0, 5);
+                    
+                    recentChanges.forEach(change => {
+                        const row = tableBody.insertRow();
+                        const timeCell = row.insertCell(0);
+                        const topicCell = row.insertCell(1);
+                        const oldValueCell = row.insertCell(2);
+                        const newValueCell = row.insertCell(3);
+                        
+                        timeCell.textContent = formatTime(change.timestamp);
+                        topicCell.textContent = change.topic || 'N/A';
+                        oldValueCell.textContent = change.old_value || 'N/A';
+                        newValueCell.textContent = change.new_value || 'N/A';
+                    });
+                }
+            }
+            
+            // Format timestamp to YYYY-MM-DD HH:MM:SS
+            function formatTimestamp(timestamp) {
+                const date = new Date(timestamp);
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+            }
+            
+            // Format timestamp to HH:MM:SS
+            function formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+            }
+            
+            // Pad numbers with leading zero
+            function pad(number) {
+                return number < 10 ? '0' + number : number;
+            }
+            
+            // Polling function to update data regularly
+            function startPolling() {
+                setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch('<%= ingress_path %>/api/learner/status');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.current_system_state) {
+                            updateSystemState(statusData.current_system_state);
+                        }
+                    } catch (error) {
+                        console.error('Error polling status:', error);
+                    }
+                }, 5000); // Poll every 5 seconds
+            }
+            
+            // Start polling
+            startPolling();
+          </script>
+
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-  const toggleLearner = document.getElementById('toggle-learner');
-  const statusIndicator = document.getElementById('status-indicator');
-  const changesCount = document.getElementById('changes-count');
-  const systemStateContainer = document.getElementById('system-state-container');
-  const changesContainer = document.getElementById('changes-container');
-  const refreshChangesButton = document.getElementById('refresh-changes');
-  const notificationBadge = document.getElementById('notification-badge');
-  const markAllReadButton = document.getElementById('mark-all-read');
-  
-  // Pagination settings
-  const PAGE_SIZE = 10; // Number of changes per page
-  let currentPage = 1;
-  let totalPages = 1;
-  
-  // Track viewed changes
-  let viewedChanges = JSON.parse(localStorage.getItem('viewedChanges') || '[]');
-  let lastChangesData = [];
-  
-  // Toggle learner mode using checkbox
-  toggleLearner.addEventListener('change', function() {
-    const isActive = this.checked;
-    
-    fetch('<%= ingress_path %>/api/learner/toggle', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ active: isActive })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        // Update UI
-        statusIndicator.textContent = data.active ? 'ACTIVE' : 'INACTIVE';
-        statusIndicator.className = data.active ? 'status-active' : 'status-inactive';
-        
-        // Make sure toggle matches server state
-        toggleLearner.checked = data.active;
-        
-        // Show success message
-        showToast(data.message);
-      }
-    })
-    .catch(error => {
-      console.error('Error toggling learner mode:', error);
-      showToast('Error toggling learner mode', 'error');
-      
-      // Revert toggle state on error
-      toggleLearner.checked = !isActive;
-    });
-  });
-  
-  // Load system state (unchanged)
-  function loadSystemState() {
-    fetch('<%= ingress_path %>/api/learner/status')
-      .then(response => response.json())
-      .then(data => {
-        if (data.current_system_state) {
-          const state = data.current_system_state;
-          let stateHtml = `
-            <div class="row">
-              <div class="col-sm-6">
-                <div class="metric-box">
-                  <h6>Battery SOC</h6>
-                  <p class="h3">${state.battery_soc !== null ? state.battery_soc + '%' : 'N/A'}</p>
-                </div>
-              </div>
-              <div class="col-sm-6">
-                <div class="metric-box">
-                  <h6>PV Power</h6>
-                  <p class="h3">${state.pv_power !== null ? state.pv_power + ' W' : 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-sm-6">
-                <div class="metric-box">
-                  <h6>Load</h6>
-                  <p class="h3">${state.load !== null ? state.load + ' W' : 'N/A'}</p>
-                </div>
-              </div>
-              <div class="col-sm-6">
-                <div class="metric-box">
-                  <h6>Last Update</h6>
-                  <p>${formatDate(state.timestamp) || 'Never'}</p>
-                </div>
-              </div>
-            </div>
-          `;
-          systemStateContainer.innerHTML = stateHtml;
-        } else {
-          systemStateContainer.innerHTML = '<p class="text-center">No system state available</p>';
-        }
-      })
-      .catch(error => {
-        console.error('Error loading system state:', error);
-        systemStateContainer.innerHTML = '<p class="text-center text-danger">Error loading system state</p>';
-      });
-  }
-  
-  // Format date for better display
-  function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  }
-  
-  // Load changes with pagination
-  function loadChanges(page = 1) {
-    fetch('<%= ingress_path %>/api/learner/changes')
-      .then(response => response.json())
-      .then(changes => {
-        lastChangesData = changes;
-        
-        if (changes && changes.length > 0) {
-          changesCount.textContent = changes.length;
-          
-          // Sort changes by timestamp (newest first)
-          changes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-          
-          // Count new changes
-          const newChanges = changes.filter(change => !viewedChanges.includes(change.id));
-          if (newChanges.length > 0) {
-            notificationBadge.textContent = newChanges.length;
-            notificationBadge.style.display = 'flex';
-            markAllReadButton.style.display = 'inline-block';
-          } else {
-            notificationBadge.style.display = 'none';
-            markAllReadButton.style.display = 'none';
-          }
-          
-          // Calculate pagination
-          totalPages = Math.ceil(changes.length / PAGE_SIZE);
-          currentPage = page > totalPages ? totalPages : page;
-          
-          // Get current page of changes
-          const startIndex = (currentPage - 1) * PAGE_SIZE;
-          const endIndex = Math.min(startIndex + PAGE_SIZE, changes.length);
-          const currentPageChanges = changes.slice(startIndex, endIndex);
-          
-          let changesHtml = '';
-          currentPageChanges.forEach(change => {
-            const isNew = !viewedChanges.includes(change.id);
-            
-            changesHtml += `
-              <div class="change-entry ${isNew ? 'new' : ''}" id="change-${change.id}" data-id="${change.id}">
-                <div class="change-header">
-                  <span class="change-time">${formatDate(change.timestamp)}</span>
-                  ${isNew ? '<span class="badge bg-primary">New</span>' : ''}
-                </div>
-                <p class="change-setting">${change.topic}</p>
-                <div class="change-value">
-                  <span class="change-value-old">${change.old_value || 'N/A'}</span>
-                  <i class="fas fa-arrow-right"></i>
-                  <span class="change-value-new">${change.new_value}</span>
-                </div>
-                <div class="change-system-state">
-                  <h6><i class="fas fa-chart-line"></i> System State at Time of Change</h6>
-                  <div class="system-state-grid">
-                    <div class="system-state-item">
-                      <span class="system-state-label">Battery SOC</span>
-                      <span class="system-state-value">${change.system_state.battery_soc !== null ? change.system_state.battery_soc + '%' : 'N/A'}</span>
-                    </div>
-                    <div class="system-state-item">
-                      <span class="system-state-label">PV Power</span>
-                      <span class="system-state-value">${change.system_state.pv_power !== null ? change.system_state.pv_power + ' W' : 'N/A'}</span>
-                    </div>
-                    <div class="system-state-item">
-                      <span class="system-state-label">Load</span>
-                      <span class="system-state-value">${change.system_state.load !== null ? change.system_state.load + ' W' : 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="change-actions">
-                  <button class="btn-delete-change" data-id="${change.id}">
-                    <i class="fas fa-trash-alt"></i> Delete
-                  </button>
-                </div>
-              </div>
-            `;
-          });
-          
-          // Add pagination controls if needed
-          if (totalPages > 1) {
-            changesHtml += `
-              <div class="pagination-controls">
-                <button id="prev-page" class="btn btn-sm btn-outline-secondary" ${currentPage === 1 ? 'disabled' : ''}>
-                  <i class="fas fa-chevron-left"></i> Previous
-                </button>
-                <span class="page-indicator">Page ${currentPage} of ${totalPages}</span>
-                <button id="next-page" class="btn btn-sm btn-outline-secondary" ${currentPage === totalPages ? 'disabled' : ''}>
-                  Next <i class="fas fa-chevron-right"></i>
-                </button>
-              </div>
-            `;
-          }
-          
-          changesContainer.innerHTML = changesHtml;
-          
-          // Add event listeners to delete buttons
-          document.querySelectorAll('.btn-delete-change').forEach(button => {
-            button.addEventListener('click', function() {
-              const changeId = this.getAttribute('data-id');
-              deleteChange(changeId);
-            });
-          });
-          
-          // Mark as viewed when clicked
-          document.querySelectorAll('.change-entry').forEach(entry => {
-            entry.addEventListener('click', function(e) {
-              if (!e.target.classList.contains('btn-delete-change') && !e.target.closest('.btn-delete-change')) {
-                const changeId = this.getAttribute('data-id');
-                markAsRead(changeId);
-              }
-            });
-          });
-          
-          // Pagination event listeners
-          const prevPageButton = document.getElementById('prev-page');
-          const nextPageButton = document.getElementById('next-page');
-          
-          if (prevPageButton) {
-            prevPageButton.addEventListener('click', function() {
-              if (currentPage > 1) {
-                loadChanges(currentPage - 1);
-              }
-            });
-          }
-          
-          if (nextPageButton) {
-            nextPageButton.addEventListener('click', function() {
-              if (currentPage < totalPages) {
-                loadChanges(currentPage + 1);
-              }
-            });
-          }
-          
-        } else {
-          changesContainer.innerHTML = '<p class="no-changes">No changes detected yet</p>';
-          notificationBadge.style.display = 'none';
-          markAllReadButton.style.display = 'none';
-        }
-      })
-      .catch(error => {
-        console.error('Error loading changes:', error);
-        changesContainer.innerHTML = '<p class="text-center text-danger">Error loading changes</p>';
-      });
-  }
-  
-  // Delete a change
-  function deleteChange(id) {
-    if (confirm('Are you sure you want to delete this change?')) {
-      fetch(`<%= ingress_path %>/api/learner/changes/${id}`, {
-        method: 'DELETE'
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Remove from viewed changes
-          viewedChanges = viewedChanges.filter(viewedId => viewedId !== id);
-          localStorage.setItem('viewedChanges', JSON.stringify(viewedChanges));
-          
-          // Reload current page
-          loadChanges(currentPage);
-          
-          showToast('Change deleted successfully');
-        }
-      })
-      .catch(error => {
-        console.error('Error deleting change:', error);
-        showToast('Error deleting change', 'error');
-      });
-    }
-  }
-  
-  // Mark a change as read
-  function markAsRead(id) {
-    const changeElement = document.getElementById(`change-${id}`);
-    if (changeElement && changeElement.classList.contains('new')) {
-      changeElement.classList.remove('new');
-      changeElement.querySelector('.badge')?.remove();
-      
-      // Add to viewed changes
-      if (!viewedChanges.includes(id)) {
-        viewedChanges.push(id);
-        localStorage.setItem('viewedChanges', JSON.stringify(viewedChanges));
-      }
-      
-      // Update notification badge
-      const newCount = parseInt(notificationBadge.textContent) - 1;
-      if (newCount > 0) {
-        notificationBadge.textContent = newCount;
-      } else {
-        notificationBadge.style.display = 'none';
-        markAllReadButton.style.display = 'none';
-      }
-    }
-  }
-  
-  // Mark all as read
-  markAllReadButton.addEventListener('click', function() {
-    document.querySelectorAll('.change-entry.new').forEach(entry => {
-      const changeId = entry.getAttribute('data-id');
-      markAsRead(changeId);
-    });
-  });
-  
-  // Simple toast notification
-  function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.style.position = 'fixed';
-    toast.style.bottom = '20px';
-    toast.style.right = '20px';
-    toast.style.padding = '10px 20px';
-    toast.style.borderRadius = '4px';
-    toast.style.color = 'white';
-    toast.style.backgroundColor = type === 'success' ? 'var(--success-color)' : 'var(--danger-color)';
-    toast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    toast.style.zIndex = '1000';
-    toast.style.maxWidth = '90%';
-    toast.style.wordBreak = 'break-word';
-    toast.textContent = message;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 500);
-    }, 3000);
-  }
-  
-  // Check for new changes
-  function checkNewChanges() {
-    fetch('<%= ingress_path %>/api/learner/changes')
-      .then(response => response.json())
-      .then(changes => {
-        if (changes && changes.length > lastChangesData.length) {
-          // There are new changes
-          const newChangesCount = changes.length - lastChangesData.length;
-          showToast(`${newChangesCount} new change${newChangesCount > 1 ? 's' : ''} detected`);
-          loadChanges(currentPage); // Reload current page
-        }
-      })
-      .catch(error => {
-        console.error('Error checking for new changes:', error);
-      });
-  }
-  
-  // Initial load
-  loadSystemState();
-  loadChanges(1); // Start on page 1
-  
-  // Refresh buttons
-  refreshChangesButton.addEventListener('click', function() {
-    loadChanges(currentPage); // Refresh current page
-  });
-  
-  // Auto refresh
-  setInterval(loadSystemState, 30000);
-  setInterval(checkNewChanges, 15000);
-});
-  </script>
+
+
 
 </body>
 </html>
