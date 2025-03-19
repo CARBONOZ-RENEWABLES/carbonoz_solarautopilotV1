@@ -1520,7 +1520,7 @@ body.dark-mode {
    
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+   document.addEventListener('DOMContentLoaded', () => {
     // Function to get data from table
     function getTableData(tableId) {
         const rows = document.querySelectorAll(`#${tableId} tbody tr`);
@@ -1578,18 +1578,44 @@ body.dark-mode {
                 },
                 scales: {
                     x: {
-                        title: { display: true, text: 'Date' }
+                        title: { 
+                            display: true, 
+                            text: 'Date',
+                            color: '#00BCD4'  // Changed: x-axis title color
+                        },
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color (lighter version)
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: x-axis labels color
+                        }
                     },
                     y: {
-                        title: { display: true, text: 'kWh' }
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#00BCD4'  // Changed: y-axis title color
+                        },
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color (lighter version)
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: y-axis labels color
+                        }
                     }
                 },
                 plugins: {
-                    legend: { position: 'top' },
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333333'  // Keeping legend text dark for readability
+                        }
+                    },
                     title: { 
                         display: true, 
                         text: title,
-                        font: { size: 16 }
+                        font: { size: 16 },
+                        color: '#333333'  // Keeping title text dark for readability
                     },
                     tooltip: {
                         enabled: true,
@@ -1653,18 +1679,42 @@ body.dark-mode {
                     intersect: false,
                 },
                 scales: {
-                    x: { stacked: true },
+                    x: { 
+                        stacked: true,
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: x-axis labels color
+                        }
+                    },
                     y: {
                         stacked: true,
-                        title: { display: true, text: 'kWh' }
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#00BCD4'  // Changed: y-axis title color
+                        },
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: y-axis labels color
+                        }
                     }
                 },
                 plugins: {
-                    legend: { position: 'top' },
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333333'  // Keeping legend text dark for readability
+                        }
+                    },
                     title: { 
                         display: true, 
                         text: title,
-                        font: { size: 16 }
+                        font: { size: 16 },
+                        color: '#333333'  // Keeping title text dark for readability
                     },
                     tooltip: {
                         enabled: true,
@@ -1724,18 +1774,42 @@ body.dark-mode {
                     intersect: false,
                 },
                 scales: {
-                    x: { stacked: true },
+                    x: { 
+                        stacked: true,
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: x-axis labels color
+                        }
+                    },
                     y: {
                         stacked: true,
-                        title: { display: true, text: 'kWh' }
+                        title: { 
+                            display: true, 
+                            text: 'kWh',
+                            color: '#00BCD4'  // Changed: y-axis title color
+                        },
+                        grid: {
+                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color
+                        },
+                        ticks: {
+                            color: '#00BCD4'  // Changed: y-axis labels color
+                        }
                     }
                 },
                 plugins: {
-                    legend: { position: 'top' },
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            color: '#333333'  // Keeping legend text dark for readability
+                        }
+                    },
                     title: { 
                         display: true, 
                         text: title,
-                        font: { size: 16 }
+                        font: { size: 16 },
+                        color: '#333333'  // Keeping title text dark for readability
                     },
                     tooltip: {
                         enabled: true,
@@ -1771,112 +1845,112 @@ body.dark-mode {
     
     // Create line chart for 30 days overview
     createLineChart('energy-overview-30-days', last30DaysData.labels, [
-        {
-            label: 'Load',
-            data: last30DaysData.loadData,
-            borderColor: '#4361ee',
-            backgroundColor: 'rgba(67, 97, 238, 0.3)',
-            fill: true
-        },
-        {
-            label: 'Solar PV',
-            data: last30DaysData.solarData,
-            borderColor: '#FFA500',
-            backgroundColor: 'rgba(255, 165, 0, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Charged',
-            data: last30DaysData.batteryChargedData.map(value => -value),
-            borderColor: '#0C7085',
-            backgroundColor: 'rgba(12, 112, 133, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Discharged',
-            data: last30DaysData.batteryDischargedData,
-            borderColor: '#FF8DA1',
-            backgroundColor: 'rgba(255, 141, 161, 0.2)',
-            fill: true
-        }
-    ],);
+    {
+        label: 'Load',
+        data: last30DaysData.loadData,
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67, 97, 238, 0.3)',
+        fill: true
+    },
+    {
+        label: 'Solar PV',
+        data: last30DaysData.solarData,
+        borderColor: '#FFA500',
+        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Used',
+        data: last30DaysData.gridUsedData,
+        borderColor: '#9C27B0',
+        backgroundColor: 'rgba(156, 39, 176, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Exported',
+        data: last30DaysData.gridExportedData.map(value => -value),
+        borderColor: '#4CAF50',
+        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+        fill: true
+    }
+],);
+
 
     // Get data for the last 12 months
     const last12MonthsData = getTableData('last12months-table');
     
     // Create line chart for 12 months overview
     createLineChart('energy-overview-12-months', last12MonthsData.labels, [
-        {
-            label: 'Load',
-            data: last12MonthsData.loadData,
-            borderColor: '#4361ee',
-            backgroundColor: 'rgba(67, 97, 238, 0.3)',
-            fill: true
-        },
-        {
-            label: 'Solar PV',
-            data: last12MonthsData.solarData,
-            borderColor: '#FFA500',
-            backgroundColor: 'rgba(255, 165, 0, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Charged',
-            data: last12MonthsData.batteryChargedData.map(value => -value),
-            borderColor: '#0C7085',
-            backgroundColor: 'rgba(12, 112, 133, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Discharged',
-            data: last12MonthsData.batteryDischargedData,
-            borderColor: '#FF8DA1',
-            backgroundColor: 'rgba(255, 141, 161, 0.2)',
-            fill: true
-        }
-    ],);
+    {
+        label: 'Load',
+        data: last12MonthsData.loadData,
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67, 97, 238, 0.3)',
+        fill: true
+    },
+    {
+        label: 'Solar PV',
+        data: last12MonthsData.solarData,
+        borderColor: '#FFA500',
+        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Used',
+        data: last12MonthsData.gridUsedData,
+        borderColor: '#9C27B0',
+        backgroundColor: 'rgba(156, 39, 176, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Exported',
+        data: last12MonthsData.gridExportedData.map(value => -value),
+        borderColor: '#4CAF50',
+        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+        fill: true
+    }
+],);
 
     // Get data for the last 10 years
     const last10YearsData = getTableData('last10years-table');
     
     // Create line chart for 10 years overview
     createLineChart('energy-overview-10-years', last10YearsData.labels, [
-        {
-            label: 'Load',
-            data: last10YearsData.loadData,
-            borderColor: '#4361ee',
-            backgroundColor: 'rgba(67, 97, 238, 0.3)',
-            fill: true
-        },
-        {
-            label: 'Solar PV',
-            data: last10YearsData.solarData,
-            borderColor: '#FFA500',
-            backgroundColor: 'rgba(255, 165, 0, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Charged',
-            data: last10YearsData.batteryChargedData.map(value => -value),
-            borderColor: '#0C7085',
-            backgroundColor: 'rgba(12, 112, 133, 0.2)',
-            fill: true
-        },
-        {
-            label: 'Battery Discharged',
-            data: last10YearsData.batteryDischargedData,
-            borderColor: '#FF8DA1',
-            backgroundColor: 'rgba(255, 141, 161, 0.2)',
-            fill: true
-        }
-    ], );
+    {
+        label: 'Load',
+        data: last10YearsData.loadData,
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67, 97, 238, 0.3)',
+        fill: true
+    },
+    {
+        label: 'Solar PV',
+        data: last10YearsData.solarData,
+        borderColor: '#FFA500',
+        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Used',
+        data: last10YearsData.gridUsedData,
+        borderColor: '#9C27B0',
+        backgroundColor: 'rgba(156, 39, 176, 0.2)',
+        fill: true
+    },
+    {
+        label: 'Grid Exported',
+        data: last10YearsData.gridExportedData.map(value => -value),
+        borderColor: '#4CAF50',
+        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+        fill: true
+    }
+],);
 
     // Create battery chart for the last 30 days
     createBatteryChart('battery-chart', 
         last30DaysData.labels.slice(), // Use slice to create a copy of the array
         last30DaysData.batteryChargedData.slice(), 
         last30DaysData.batteryDischargedData.slice(), 
-       
     );
     
     // Create grid chart for the last 30 days
@@ -1884,7 +1958,6 @@ body.dark-mode {
         last30DaysData.labels.slice(), // Use slice to create a copy of the array 
         last30DaysData.gridUsedData.slice(), 
         last30DaysData.gridExportedData.slice(), 
-       
     );
 });
 </script>
