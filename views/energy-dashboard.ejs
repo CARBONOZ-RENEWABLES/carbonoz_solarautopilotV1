@@ -202,8 +202,6 @@
 
 
 <script>
-  // Create this as a new file: auto-hide-header.js
-
 document.addEventListener('DOMContentLoaded', function() {
   // Get the welcome header element
   const welcomeHeader = document.querySelector('.welcome-header');
@@ -212,25 +210,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add a class for transitions
     welcomeHeader.classList.add('welcome-header-transition');
     
-    // Set a timeout to add the hidden class after 20 seconds
+    // Initially show the welcome header
+    welcomeHeader.classList.remove('welcome-header-hidden');
+    
+    // Add a button to toggle the header
+    const toggleHeaderBtn = document.createElement('button');
+    toggleHeaderBtn.className = 'toggle-header-btn';
+    toggleHeaderBtn.innerHTML = '<i class="fas fa-info-circle"></i>';
+    toggleHeaderBtn.setAttribute('title', 'Toggle Welcome Information');
+    document.querySelector('.main-content .container').prepend(toggleHeaderBtn);
+    
+    // Auto-hide after 20 seconds
     setTimeout(() => {
       welcomeHeader.classList.add('welcome-header-hidden');
-      
-      // Add a button to show the header again when needed
-      const showHeaderBtn = document.createElement('button');
-      showHeaderBtn.className = 'show-header-btn';
-      showHeaderBtn.innerHTML = '<i class="fas fa-info-circle"></i>';
-      showHeaderBtn.setAttribute('title', 'Show Welcome Information');
-      document.querySelector('.main-content .container').prepend(showHeaderBtn);
-      
-      // Add event listener to the button
-      showHeaderBtn.addEventListener('click', function() {
+    }, 20000);
+    
+    // Add event listener to toggle the visibility
+    toggleHeaderBtn.addEventListener('click', function() {
+      if (welcomeHeader.classList.contains('welcome-header-hidden')) {
+        // If hidden, show it
         welcomeHeader.classList.remove('welcome-header-hidden');
-        setTimeout(() => {
-          welcomeHeader.classList.add('welcome-header-hidden');
-        }, 10000); // Hide again after 10 seconds
-      });
-    }, 20000); // 20 seconds
+      } else {
+        // If shown, hide it
+        welcomeHeader.classList.add('welcome-header-hidden');
+      }
+    });
   }
 });
 </script>
