@@ -1127,3 +1127,67 @@ body.dark-mode {
       min-height: 22rem;
   }
 }
+/* Welcome header transition styles */
+.welcome-header-transition {
+  transition: opacity 0.8s ease-out, max-height 0.8s ease-out, margin-bottom 0.8s ease-out, padding-bottom 0.8s ease-out;
+  overflow: hidden;
+}
+
+.welcome-header-hidden {
+  opacity: 0;
+  max-height: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Show header button */
+.show-header-btn {
+  position: fixed;
+  top: 5rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.show-header-btn:hover {
+  opacity: 1;
+}
+
+/* Dark mode adjustments */
+.dark-mode .show-header-btn {
+  background-color: rgba(222, 175, 11, 0.8);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+/* On small screens, make the header more compact */
+@media (max-width: 768px) {
+  .welcome-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .welcome-header h1 {
+    font-size: 1.25rem;
+  }
+  
+  .welcome-header p {
+    font-size: 0.875rem;
+  }
+  
+  .show-header-btn {
+    top: 4.5rem;
+  }
+}
