@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -2730,12 +2730,12 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "Temperature",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 8,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2744,7 +2744,7 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 2,
             "pointSize": 4,
             "scaleDistribution": {
               "type": "linear"
@@ -2756,13 +2756,13 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "line+area"
             }
           },
           "links": [],
           "mappings": [],
-          "max": 100,
-          "min": 0,
+          "max": 60,
+          "min": 20,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2772,45 +2772,17 @@
               },
               {
                 "color": "#EAB839",
-                "value": 60
+                "value": 40
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 50
               }
             ]
           },
           "unit": "celsius"
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Direktverbrauch"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Speicher entladen"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Netzbezug"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Hausverbrauch"
-            },
-            "properties": []
-          },
           {
             "matcher": {
               "id": "byName",
@@ -2837,7 +2809,11 @@
       "id": 188,
       "options": {
         "legend": {
-          "calcs": [],
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -2891,57 +2867,6 @@
         }
       ],
       "title": "Battery Temperature",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "inverter_(\\d+)",
-            "replace": "Inverter $1"
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": "Hausverbrauch",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Netzbezug"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Direktverbrauch",
-            "binary": {
-              "left": "Hausverbrauch - Netzbezug",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Speicher entladen"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Hausverbrauch": false,
-              "Hausverbrauch - Netzbezug": true
-            },
-            "indexByName": {},
-            "renameByName": {}
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -2955,12 +2880,12 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "Temperature",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 8,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2969,7 +2894,7 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -2981,13 +2906,13 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "line+area"
             }
           },
           "links": [],
           "mappings": [],
-          "max": 100,
-          "min": 0,
+          "max": 75,
+          "min": 25,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2997,54 +2922,17 @@
               },
               {
                 "color": "#EAB839",
-                "value": 60
+                "value": 50
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 65
               }
             ]
           },
           "unit": "celsius"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Direktverbrauch"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Speicher entladen"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Netzbezug"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Hausverbrauch"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "rgb(255, 255, 255)",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -3055,14 +2943,19 @@
       "id": 242,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -3108,55 +3001,13 @@
           "tags": []
         }
       ],
-      "title": "Inverter temperature",
+      "title": "Inverter Temperature",
       "transformations": [
         {
           "id": "renameByRegex",
           "options": {
             "regex": "inverter_(\\d+)",
             "replace": "Inverter $1"
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": "Hausverbrauch",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Netzbezug"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Direktverbrauch",
-            "binary": {
-              "left": "Hausverbrauch - Netzbezug",
-              "operator": "-",
-              "reducer": "sum",
-              "right": "Speicher entladen"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Hausverbrauch": false,
-              "Hausverbrauch - Netzbezug": true
-            },
-            "indexByName": {},
-            "renameByName": {}
           }
         }
       ],
@@ -3204,10 +3055,9 @@
           },
           "links": [],
           "mappings": [],
-          "max": 100,
           "min": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "green",
@@ -3537,8 +3387,6 @@
           "decimals": 1,
           "links": [],
           "mappings": [],
-          "max": 6000,
-          "min": -6000,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -3786,6 +3634,6 @@
   "timezone": "",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 11,
+  "version": 4,
   "weekStart": ""
 }
