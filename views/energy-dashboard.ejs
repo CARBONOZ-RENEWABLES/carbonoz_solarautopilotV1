@@ -106,7 +106,7 @@
                     </div>
                     <div>
                       <div class="card-title">Self-Sufficiency</div>
-                      <div class="card-subtitle">Energy independence score</div>
+                      <div class="card-subtitle">Daily Energy independence score</div>
                     </div>
                   </div>
                   <div class="card-body">
@@ -199,6 +199,41 @@
       <% } %>
     });
   </script>
+
+
+<script>
+  // Create this as a new file: auto-hide-header.js
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Get the welcome header element
+  const welcomeHeader = document.querySelector('.welcome-header');
+  
+  if (welcomeHeader) {
+    // Add a class for transitions
+    welcomeHeader.classList.add('welcome-header-transition');
+    
+    // Set a timeout to add the hidden class after 20 seconds
+    setTimeout(() => {
+      welcomeHeader.classList.add('welcome-header-hidden');
+      
+      // Add a button to show the header again when needed
+      const showHeaderBtn = document.createElement('button');
+      showHeaderBtn.className = 'show-header-btn';
+      showHeaderBtn.innerHTML = '<i class="fas fa-info-circle"></i>';
+      showHeaderBtn.setAttribute('title', 'Show Welcome Information');
+      document.querySelector('.main-content .container').prepend(showHeaderBtn);
+      
+      // Add event listener to the button
+      showHeaderBtn.addEventListener('click', function() {
+        welcomeHeader.classList.remove('welcome-header-hidden');
+        setTimeout(() => {
+          welcomeHeader.classList.add('welcome-header-hidden');
+        }, 10000); // Hide again after 10 seconds
+      });
+    }, 20000); // 20 seconds
+  }
+});
+</script>
 
 
 </body>
