@@ -1127,10 +1127,18 @@ body.dark-mode {
       min-height: 22rem;
   }
 }
-/* Welcome header transition styles */
+
 .welcome-header-transition {
-  transition: opacity 0.8s ease-out, max-height 0.8s ease-out, margin-bottom 0.8s ease-out, padding-bottom 0.8s ease-out;
+  transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out;
   overflow: hidden;
+  max-height: 300px; /* Adjust based on your header's height */
+  opacity: 1;
+}
+
+.welcome-header-hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .welcome-header-hidden {
@@ -1141,29 +1149,38 @@ body.dark-mode {
   border-bottom: none;
 }
 
-/* Show header button */
-.show-header-btn {
-  position: fixed;
-  top: 5rem;
-  right: 1rem;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-color);
+.toggle-header-btn {
+  cursor: pointer;
+  background-color: #DEAF0B;
   color: white;
   border: none;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  top: 5rem;
+  right: 1rem;
   z-index: 100;
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
+  transition: all 0.3s ease;
 }
 
-.show-header-btn:hover {
-  opacity: 1;
+
+.toggle-header-btn:hover {
+  background-color: #DEAF0B;
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-header-btn:active {
+  transform: scale(0.95);
+}
+
+.toggle-header-btn i {
+  font-size: 18px;
 }
 
 /* Dark mode adjustments */
