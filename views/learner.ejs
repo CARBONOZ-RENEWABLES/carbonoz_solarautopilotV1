@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
-<style>    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-  body {
-      font-family: 'Inter', sans-serif;
-  }
+<style> 
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
+}
   :root {
       --primary-color: #DEAF0B;
       --bg-color: #f5f6fa;
@@ -27,6 +28,8 @@
       height: 100%;
       
      }
+
+     body.dark-mode { background-color: rgba(24, 27, 31, 1); color: #f5f6fa; }
       /* Sidebar styles */
       .sidebar {
           width: 280px;
@@ -673,7 +676,8 @@
     flex: 1;
     margin-left: 280px;
     padding: 2rem;
-    transition: margin-left 0.3s ease;
+   transition: margin-left 0.3s ease;
+   
   }
   
   .main-content .container {
