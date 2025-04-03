@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
-
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  
 body {
     font-family: 'Inter', sans-serif;
 }
@@ -459,8 +457,8 @@ body {
 }
 
 .loading-spinner {
- width: 60px;
- height: 60px;
+ width: 50px;
+ height: 50px;
  border: 5px solid #e0e0e0;
  border-top: 5px solid #3498db;
  border-radius: 50%;
@@ -768,393 +766,892 @@ body.dark-mode {
   padding: 0;
 }
 
-.card {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            border-radius: 8px;
-            border: none;
-        }
-        .card-header {
-            background-color: #DEAF0B;
-            border-bottom: 1px solid #e3f2fd;
-            border-radius: 8px 8px 0 0 !important;
-            color: #fff;
-        }
-        .card-header button{
-            color: #fff;
-        }
-        .change-item {
-            cursor: pointer;
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.2s;
-        }
-        .change-item:hover {
-            background-color: #f8f9fa;
-        }
-        .change-item:last-child {
-            border-bottom: none;
-        }
-        .change-value {
-            font-weight: 500;
-        }
-        .inverter-heading {
-            background-color: #DEAF0B;
-            padding: 10px 15px;
-            font-weight: 600;
-            margin-top: 15px;
-            border-radius: 5px;
-            color: #fff;
-        }
-        .modal-header {
-            background-color: #f1f8ff;
-        }
-        .timestamp {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        .setting-title {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        .edit-icon {
-            color: #007bff;
-            opacity: 0.7;
-        }
-        .change-item:hover .edit-icon {
-            opacity: 1;
-        }
-        .nav-link.active {
-            font-weight: bold;
-            color: #DEAF0B !important;
-        }
-        .changes-list {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .pattern-card {
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .pattern-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-        .pattern-card.active {
-            border: 2px solid #DEAF0B;
-        }
-        .pattern-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-        .pattern-option {
-            margin-bottom: 15px;
-        }
-        .system-stat {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background-color: #f8f9fa;
-        }
-.badge {
-    background-color: #DEAF0B;
-}
-
-/* Enhanced responsive styles for main content */
-.main-content {
-  padding: 2rem;
-  transition: margin-left 0.3s ease, background-color 0.3s ease, color 0.3s ease;
-}
-
-@media (max-width: 992px) {
-  .main-content {
-    padding: 1.5rem;
-  }
-  
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start !important;
-  }
-  
-  .card-header div {
-    margin-top: 0.75rem;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 1rem;
-    margin-left: 0 !important;
-  }
-  
-  .d-flex.flex-wrap.justify-content-center.gap-3 {
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap !important;
-    padding: 0.5rem;
-    gap: 0.5rem !important;
-  }
-  
-  .d-flex.flex-wrap.justify-content-center.gap-3 .nav-link {
-    white-space: nowrap;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.9rem;
-  }
-  
-  .card-header h5 {
-    font-size: 1.1rem;
-  }
-  
-  .pattern-option {
-    min-width: 100%;
-  }
-}
-
-@media (max-width: 576px) {
-  .main-content {
-    padding: 0.75rem;
-  }
-  
-  .changes-list {
-    max-height: 300px;
-  }
-  
-  .card-header {
-    padding: 0.75rem;
-  }
-  
-  .card-header button {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.85rem;
-  }
-  
-  .card-body {
-    padding: 0.75rem;
-  }
-  
-  .inverter-heading {
-    font-size: 0.95rem;
-  }
-}
-
-/* Dark mode styles for main content */
-.dark-mode .main-content {
-  background-color: rgba(24, 27, 31, 1);
-  color: #f5f6fa;
-}
-
-.dark-mode .d-flex.flex-wrap.justify-content-center.gap-3 {
-  background-color: rgba(18, 21, 25, 0.8) !important;
-}
-
-.dark-mode .nav-link {
-  color: #dcdde1;
-}
-
-.dark-mode .nav-link.active {
-  color: var(--primary-color) !important;
-}
-
-.dark-mode .card {
-  background-color: rgba(32, 35, 41, 1);
-  border-color: rgba(52, 58, 64, 0.5);
-}
-
-.dark-mode .card-header {
-  background-color: rgba(32, 35, 41, 0.9);
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode .change-item {
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode .change-item:hover {
-  background-color: rgba(40, 44, 52, 1);
-}
-
-.dark-mode .alert-info {
-  background-color: rgba(0, 123, 255, 0.2);
-  color: #8ecaff;
-  border-color: rgba(0, 123, 255, 0.3);
-}
-
-.dark-mode .alert-warning {
-  background-color: rgba(255, 193, 7, 0.2);
-  color: #ffe083;
-  border-color: rgba(255, 193, 7, 0.3);
-}
-
-.dark-mode .alert-danger {
-  background-color: rgba(220, 53, 69, 0.2);
-  color: #ff8b96;
-  border-color: rgba(220, 53, 69, 0.3);
-}
-
-.dark-mode .alert-success {
-  background-color: rgba(40, 167, 69, 0.2);
-  color: #8bd8a0;
-  border-color: rgba(40, 167, 69, 0.3);
-}
-
-.dark-mode .inverter-heading {
-  background-color: rgba(222, 175, 11, 0.8);
-}
-
-.dark-mode .system-stat {
-  background-color: rgba(36, 40, 47, 1);
-}
-
-.dark-mode .pattern-card {
-  background-color: rgba(36, 40, 47, 1);
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode .pattern-card:hover {
-  background-color: rgba(44, 49, 58, 1);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
-}
-
-.dark-mode .pattern-card.active {
-  border-color: var(--primary-color);
-  background-color: rgba(48, 52, 63, 1);
-}
-
-.dark-mode .text-muted,
-.dark-mode .small.text-muted {
-  color: #adb5bd !important;
-}
-
-.dark-mode .modal-content {
-  background-color: rgba(32, 35, 41, 1);
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode .modal-header {
-  background-color: rgba(36, 40, 47, 1);
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode .table {
-  color: #f5f6fa;
-}
-
-.dark-mode .table-striped tbody tr:nth-of-type(odd) {
-  background-color: rgba(40, 44, 52, 0.5);
-}
-
-.dark-mode .form-select,
-.dark-mode .input-group-text {
-  background-color: rgba(36, 40, 47, 1);
-  border-color: rgba(52, 58, 64, 0.8);
-  color: #f5f6fa;
-}
-
-/* Loading overlay in dark mode */
-.dark-mode .loading-overlay {
-  background-color: rgba(24, 27, 31, 0.8);
-}
-
-.dark-mode .loading-spinner {
-  border-color: #333;
-  border-top-color: var(--primary-color);
-}
-
-/* Custom styles for better visualization in both modes */
-.pattern-card {
-  height: 100%;
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
   display: flex;
-  flex-direction: column;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.pattern-card .card-body {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar {
+  height: 6px;
 }
 
-.pattern-card .card-text {
-  flex-grow: 1;
-}
-
-.changes-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.changes-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.changes-list::-webkit-scrollbar-thumb {
-  background-color: rgba(150, 150, 150, 0.5);
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #f1f1f1;
   border-radius: 4px;
 }
 
-.dark-mode .changes-list::-webkit-scrollbar-thumb {
-  background-color: rgba(80, 80, 80, 0.5);
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
 }
 
-/* Responsive support for pattern cards */
-@media (min-width: 577px) and (max-width: 992px) {
-  .pattern-option {
-    min-width: 50%;
-  }
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
-/* Better support for tables in dark mode */
-.dark-mode .table-responsive {
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-.dark-mode tbody, 
-.dark-mode td, 
-.dark-mode tfoot, 
-.dark-mode th, 
-.dark-mode thead, 
-.dark-mode tr {
-  border-color: rgba(52, 58, 64, 0.8);
-}
-
-/* Enhance focus states for dark mode */
-.dark-mode .form-select:focus,
-.dark-mode .form-control:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.25rem rgba(222, 175, 11, 0.25);
-  background-color: rgba(40, 44, 52, 1);
-}
-
-/* Close button styles */
-.close-button {
-  position: absolute;
-  top: 60px;
-  right: 50px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: #e74c3c;
-  color: white;
-  display: flex;
+.main-content .nav-link {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.2s;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  color: #4b5563;
+  font-weight: 500;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.close-button:hover {
-  background-color: #c0392b;
+.main-content .nav-link:hover {
+  background-color: #e9ecef;
+  color: #000;
 }
 
-.close-button span {
-  font-size: 24px;
+.main-content .nav-link.active {
   color: #fff;
-  font-weight: bold;
 }
 
+.main-content .nav-link i,
+.main-content .nav-link svg {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+#editSettingModal {
+    display: none; /* Initially hidden until triggered by JavaScript */
+}
+
+/* Hidden by default, shown when needed */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1050;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    outline: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal.show {
+    display: block; /* Will be shown when the modal is triggered */
+}
+
+/* For dynamic content that should be initially hidden */
+#value-input-container:empty {
+    display: none;
+}
+
+/* Fade transitions for smoother UX */
+.fade {
+    transition: opacity 0.15s linear;
+}
+
+.fade:not(.show) {
+    opacity: 0;
+}
+
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+    transform: translate(0, -50px);
+}
+
+.modal.show .modal-dialog {
+    transform: none;
+}
+
+/* Loading state visibility */
+#recent-changes-container .text-center {
+    display: block; /* For loading spinner container */
+}
+
+#recent-changes-container:not(:empty) .text-center {
+    display: none; /* Hide spinner when content is loaded */
+}
+
+
+/* Enhanced Card Styles */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    border: none;
+    margin-bottom: 1.75rem;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+    background: linear-gradient(to right, rgba(222, 175, 11, 0.1), rgba(222, 175, 11, 0.02));
+    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
+    padding: 1.25rem 1.5rem;
+}
+
+.card-header h5 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.card-header h5 i {
+    color: var(--primary-color);
+    margin-right: 0.75rem;
+    font-size: 1.125rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Energy Pattern Styles */
+.inverter-heading {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--text-color);
+    padding: 0.75rem 0;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    animation: fadeInUp 0.4s forwards;
+    animation-delay: 0.2s;
+}
+
+.inverter-heading .badge {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+    background-color: #f1f2f6;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.pattern-option {
+    padding: 0.5rem;
+}
+
+.pattern-card {
+    border-radius: 12px;
+    border: 2px solid transparent;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.pattern-card:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: transparent;
+    transition: all 0.25s ease;
+}
+
+.pattern-card:hover {
+    border-color: rgba(222, 175, 11, 0.3);
+    transform: translateY(-5px);
+}
+
+.pattern-card:hover:before {
+    background-color: var(--primary-color);
+}
+
+.pattern-card.active {
+    border-color: var(--primary-color);
+    background-color: rgba(222, 175, 11, 0.05);
+}
+
+.pattern-card.active:before {
+    background-color: var(--primary-color);
+}
+
+.pattern-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.pattern-card:hover .pattern-icon {
+    transform: scale(1.15);
+}
+
+.pattern-card .card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.pattern-card .card-text {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.pattern-card .badge {
+    padding: 0.5rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* Recent Changes Styles */
+.changes-list {
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(222, 175, 11, 0.5) rgba(0, 0, 0, 0.05);
+}
+
+.changes-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.changes-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.changes-list::-webkit-scrollbar-thumb {
+    background-color: rgba(222, 175, 11, 0.5);
+    border-radius: 10px;
+}
+
+.change-item {
+    padding: 1.25rem;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    position: relative;
+    opacity: 0;
+    animation: fadeInRight 0.4s forwards;
+}
+
+.change-item:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+.change-item:hover {
+    background-color: rgba(222, 175, 11, 0.05);
+    border-left-color: var(--primary-color);
+}
+
+.change-item .fw-bold {
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.change-item .small {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.change-item .badge {
+    padding: 0.35rem 0.7rem;
+    font-weight: 500;
+    border-radius: 12px;
+}
+
+/* Pattern History Modal Styles */
+.modal-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1.75rem auto;
+    max-width: 800px;
+}
+
+/* Pattern History Modal Styles */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    background-color: white;
+    overflow: hidden;
+}
+
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
+    background: linear-gradient(to right, rgba(222, 175, 11, 0.1), rgba(222, 175, 11, 0.02));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h5 {
+    color: var(--text-color);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+.modal-header h5 i {
+    margin-right: 10px;
+    color: var(--primary-color);
+}
+
+.modal-header .btn-close {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.modal-header .btn-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 1.75rem;
+}
+
+.modal-footer {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid rgba(222, 175, 11, 0.1);
+    justify-content: space-between;
+}
+
+.table-responsive {
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    max-height: 500px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(222, 175, 11, 0.5) rgba(0, 0, 0, 0.05);
+}
+
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+}
+
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background-color: rgba(222, 175, 11, 0.5);
+    border-radius: 10px;
+}
+
+
+.table {
+    margin-bottom: 0;
+}
+
+
+.table thead th {
+    background-color: rgba(222, 175, 11, 0.08);
+    color: var(--text-color);
+    font-weight: 600;
+    border-bottom: none;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table tbody td {
+    padding: 0.875rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.table tbody tr:hover {
+    background-color: rgba(222, 175, 11, 0.05);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table .badge {
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.modal-backdrop.show {
+    opacity: 0.6;
+    backdrop-filter: blur(2px);
+}
+
+/* Animation for modal */
+.modal.fade .modal-dialog {
+    transform: scale(0.95) translateY(-30px);
+    opacity: 0;
+    transition: transform 0.3s ease-out, opacity 0.3s ease;
+}
+
+.modal.show .modal-dialog {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* Input group styling */
+.modal-body .input-group {
+    margin-bottom: 1.25rem;
+}
+
+.modal-body .input-group-text {
+    background-color: rgba(222, 175, 11, 0.1);
+    border: 1px solid rgba(222, 175, 11, 0.2);
+    color: var(--text-color);
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    border-radius: 8px 0 0 8px;
+}
+
+.modal-body .form-select {
+    border: 1px solid rgba(222, 175, 11, 0.2);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.modal-body .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.2);
+}
+
+/* Button styling */
+.modal-footer .btn {
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.modal-footer .btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.modal-footer .btn-secondary {
+    background-color: #f1f2f6;
+    color: var(--text-color);
+    border: none;
+}
+
+.modal-footer .btn-secondary:hover {
+    background-color: #e6e8ed;
+}
+
+.modal-footer .btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+    color: white;
+}
+
+.modal-footer .btn-primary:hover {
+    background-color: #c9a00a;
+}
+
+/* Empty state styling */
+.table tbody .text-center {
+    padding: 2rem;
+}
+
+.table tbody .spinner-border {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-width: 0.25rem;
+    color: var(--primary-color);
+}
+
+/* Dark mode adjustments */
+.dark-mode .modal-content {
+    background-color: rgba(32, 35, 41, 1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+}
+
+.dark-mode .modal-header {
+    background: linear-gradient(to right, rgba(222, 175, 11, 0.15), rgba(32, 35, 41, 1));
+    border-bottom: 1px solid rgba(222, 175, 11, 0.25);
+}
+
+.dark-mode .modal-header h5 {
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-header .btn-close {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-body {
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-footer {
+    border-top: 1px solid rgba(222, 175, 11, 0.2);
+}
+
+.dark-mode .table thead th {
+    background-color: rgba(222, 175, 11, 0.15);
+    color: #f5f6fa;
+}
+
+.dark-mode .table tbody td {
+    color: #f5f6fa;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .table tbody tr:hover {
+    background-color: rgba(222, 175, 11, 0.1);
+}
+
+.dark-mode .modal-body .input-group-text {
+    background-color: rgba(222, 175, 11, 0.15);
+    border: 1px solid rgba(222, 175, 11, 0.3);
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-body .form-select {
+    background-color: rgba(48, 52, 63, 1);
+    border: 1px solid rgba(222, 175, 11, 0.3);
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-footer .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+.dark-mode .modal-footer .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-body {
+        padding: 1.25rem;
+    }
+    
+    .table-responsive {
+        max-height: 350px;
+    }
+    
+    .table thead th {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .table tbody td {
+        padding: 0.6rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .modal-body .row {
+        flex-direction: column;
+    }
+    
+    .modal-body .col-md-6 {
+        width: 100%;
+    }
+}
+
+/* Input Group & Form Controls */
+.input-group {
+    margin-bottom: 1rem;
+}
+
+.input-group-text {
+    background-color: rgba(222, 175, 11, 0.1);
+    border: 1px solid rgba(222, 175, 11, 0.2);
+    color: var(--text-color);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 8px 0 0 8px;
+}
+
+.form-select {
+    border: 1px solid rgba(222, 175, 11, 0.2);
+    border-radius: 0 8px 8px 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    background-color: white;
+    transition: all 0.2s ease;
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.2);
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+}
+
+.btn i {
+    margin-right: 0.5rem;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #c9a00a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary {
+    background-color: #f1f2f6;
+    color: var(--text-color);
+}
+
+.btn-secondary:hover {
+    background-color: #e6e8ed;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Alert Styles */
+.alert {
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.alert-info {
+    background-color: rgba(33, 150, 243, 0.1);
+    color: #0c83e2;
+    border-left: 4px solid #0c83e2;
+}
+
+.alert-info i {
+    color: #0c83e2;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInRight {
+    0% {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .card-header div {
+        margin-top: 1rem;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .pattern-card {
+        margin-bottom: 1rem;
+    }
+    
+    .inverter-heading {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .inverter-heading .badge {
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .input-group {
+        margin-bottom: 1rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .table-responsive {
+        max-height: 350px;
+    }
+}
+
+/* Dark Mode Styles */
+.dark-mode .card {
+    background-color: rgba(32, 35, 41, 1);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.dark-mode .card-header {
+    background: linear-gradient(to right, rgba(222, 175, 11, 0.15), rgba(32, 35, 41, 1));
+    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
+}
+
+.dark-mode .inverter-heading {
+    color: #f5f6fa;
+}
+
+.dark-mode .inverter-heading .badge {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+.dark-mode .pattern-card {
+    background-color: rgba(40, 44, 52, 1);
+}
+
+.dark-mode .pattern-card.active {
+    background-color: rgba(222, 175, 11, 0.15);
+}
+
+.dark-mode .pattern-card .card-text {
+    color: #b0b0b0;
+}
+
+.dark-mode .change-item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .change-item:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.dark-mode .change-item:hover {
+    background-color: rgba(222, 175, 11, 0.1);
+}
+
+.dark-mode .modal-content {
+    background-color: rgba(32, 35, 41, 1);
+}
+
+.dark-mode .modal-header {
+    background: linear-gradient(to right, rgba(222, 175, 11, 0.15), rgba(32, 35, 41, 1));
+}
+
+.dark-mode .table thead th {
+    background-color: rgba(222, 175, 11, 0.15);
+    color: #f5f6fa;
+}
+
+.dark-mode .table tbody td {
+    color: #f5f6fa;
+}
+
+.dark-mode .table tbody tr:hover {
+    background-color: rgba(222, 175, 11, 0.1);
+}
+
+.dark-mode .input-group-text {
+    background-color: rgba(222, 175, 11, 0.15);
+    border: 1px solid rgba(222, 175, 11, 0.3);
+    color: #f5f6fa;
+}
+
+.dark-mode .form-select {
+    background-color: rgba(48, 52, 63, 1);
+    border: 1px solid rgba(222, 175, 11, 0.3);
+    color: #f5f6fa;
+}
+
+.dark-mode .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+.dark-mode .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark-mode .alert-info {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: #64b5f6;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: #202429;
+}
+
+.dark-mode .main-content .nav-link {
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content .nav-link:hover {
+  background-color: #32383e;
+  color: #fff;
+}
+
+.dark-mode .main-content .nav-link.active {
+  color: #fff;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #2a2e35;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #4a4d53;
+}
 </style>
 </head>
 <body>
@@ -1171,17 +1668,39 @@ body.dark-mode {
           <div id="pageContent"> </div>
 
           <%- include('partials/sidebar') %>
-          
      
 
           <div class="main-content">
-       
+            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
+                <a class="nav-link text-nowrap" href="/grid-charge">
+                    <a class="nav-link  text-nowrap" href="<%= ingress_path %>/learner">
+                        <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
+                        <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
+                    </a>
+                <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
+                    <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
+                    <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
+                    <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
+                    <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
+                </a>
+            
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
+                    <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
+                </a>
+               
+            </div>
+            <br>
             <div class="container">
                 <!-- Alerts container -->
 
-                <div class="close-button" onclick="window.location.href='<%= ingress_path %>/learner'">
-                    <span>×</span>
-                  </div>
                 <div id="alerts-container"></div>
         
                 <div class="row mb-4">
@@ -1233,8 +1752,9 @@ body.dark-mode {
                 </div>
             </div>
         
-            <!-- Energy Pattern History Modal -->
-            <div class="modal fade" id="patternHistoryModal" tabindex="-1" aria-labelledby="patternHistoryModalLabel" aria-hidden="true">
+         <div class="energyhistory">
+               <!-- Energy Pattern History Modal -->
+               <div class="modal fade" id="patternHistoryModal" tabindex="-1" aria-labelledby="patternHistoryModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -1292,6 +1812,7 @@ body.dark-mode {
                     </div>
                 </div>
             </div>
+         </div>
         </div>
 
     <!-- JavaScript Libraries -->
@@ -1786,10 +2307,10 @@ function displayRecentChanges(changes) {
         }
     </script>
        
+      
+
        <script src="<%= ingress_path %>/js/loading.js"></script>
        <script src="<%= ingress_path %>/js/dark-mode.js"></script>
        <script src="<%= ingress_path %>/js/mobile.js"></script>
-
-
 </body>
 </html>
