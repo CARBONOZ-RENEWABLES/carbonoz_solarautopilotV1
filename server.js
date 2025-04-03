@@ -704,6 +704,13 @@ app.get('/battery-charging', (req, res) => {
     ingress_path: process.env.INGRESS_PATH || '',
   })
 })
+
+app.get('/rule-history', (req, res) => {
+  res.render('rule-history', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
 app.get('/api/messages', (req, res) => {
   const category = req.query.category
   const filteredMessages = filterMessagesByCategory(category)
