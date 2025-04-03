@@ -663,6 +663,47 @@ app.get('/messages', (req, res) => {
   })
 })
 
+app.get('/wizard', (req, res) => {
+  res.render('wizard', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
+app.get('/rules', (req, res) => {
+  res.render('rules', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+app.get('/grid-charge', (req, res) => {
+  res.render('grid-charge', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
+app.get('/energy-pattern', (req, res) => {
+  res.render('energy-pattern', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
+
+app.get('/voltage-point', (req, res) => {
+  res.render('voltage-point', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
+app.get('/work-mode', (req, res) => {
+  res.render('work-mode', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
+
+app.get('/battery-charging', (req, res) => {
+  res.render('battery-charging', {
+    ingress_path: process.env.INGRESS_PATH || '',
+  })
+})
 app.get('/api/messages', (req, res) => {
   const category = req.query.category
   const filteredMessages = filterMessagesByCategory(category)

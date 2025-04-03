@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -29,7 +30,6 @@ body {
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: var(--bg-color);
     
    }
     /* Sidebar styles */
@@ -757,19 +757,12 @@ body.dark-mode {
   flex: 1;
   margin-left: 280px;
   padding: 2rem;
-  background-color: var(--bg-color);
   color: var(--text-color);
   transition: margin-left 0.3s ease;
 }
 
-.main-content .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0;
-}
-
 .card {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
             border-radius: 8px;
             border: none;
@@ -818,7 +811,7 @@ body.dark-mode {
             font-size: 1.1rem;
         }
         .edit-icon {
-            color: #007bff;
+            color: #28A745;
             opacity: 0.7;
         }
         .change-item:hover .edit-icon {
@@ -828,37 +821,25 @@ body.dark-mode {
             font-weight: bold;
             color: #DEAF0B !important;
         }
-        .changes-list {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .pattern-card {
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .pattern-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-        .pattern-card.active {
-            border: 2px solid #DEAF0B;
-        }
-        .pattern-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-        .pattern-option {
-            margin-bottom: 15px;
-        }
-        .system-stat {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background-color: #f8f9fa;
-        }
-.badge {
-    background-color: #DEAF0B;
+.btn-primaryy{
+  background: #DEAF0B;
+  color: #fff;
 }
+.btn-primaryy:hover{
+  background: #c29b0f;
+  color: #fff;
+}
+
+.btn-secondaryy{
+    background: #DC3545;
+    color: #fff;
+}
+
+.btn-secondaryy:hover{
+    background: #c83442;
+    color: #fff;
+}
+
 
 /* Enhanced responsive styles for main content */
 .main-content {
@@ -1170,30 +1151,27 @@ body.dark-mode {
           </div>
           <div id="pageContent"> </div>
 
+        
           <%- include('partials/sidebar') %>
-          
-     
 
           <div class="main-content">
-       
+          
+
             <div class="container">
-                <!-- Alerts container -->
 
                 <div class="close-button" onclick="window.location.href='<%= ingress_path %>/learner'">
                     <span>×</span>
                   </div>
+                <!-- Alerts container -->
                 <div id="alerts-container"></div>
         
                 <div class="row mb-4">
-                    <div class="col-lg-8">
-                        <div class="card mb-4">
+                    <div class="col-12">
+                        <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-battery-three-quarters me-2"></i>Energy Pattern</h5>
+                                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Changes</h5>
                                 <div>
-                                    <button class="btn me-2" id="view-history-btn">
-                                        <i class="fas fa-history me-1"></i> View History
-                                    </button>
-                                    <button class="btn" id="refresh-patterns">
+                                    <button class="btn" id="refresh-settings">
                                         <i class="fas fa-sync-alt me-1"></i> Refresh
                                     </button>
                                 </div>
@@ -1201,31 +1179,16 @@ body.dark-mode {
                             <div class="card-body">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    Energy pattern controls how your system prioritizes different energy sources. Choose the pattern that best fits your current needs.
+                                    Click on any setting to modify its value. All inverters are displayed below.
                                 </div>
                                 
-                                <div id="inverters-container">
-                                    <!-- Inverters will be loaded here -->
-                                    <div class="text-center py-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2">Loading inverters...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-lg-4">                
-                        <div class="card mt-4">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Changes</h5>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="changes-list" id="recent-changes">
-                                    <div class="text-center py-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2">Loading recent changes...</div>
-                                    </div>
+                                <!-- Recent changes will be loaded here -->
+                                <div id="recent-changes-container">
+                                    <p class="text-center py-5">
+                                        <span class="spinner-border text-primary" role="status"></span>
+                                        <br>
+                                        <span class="mt-2 d-inline-block">Loading recent changes...</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -1233,562 +1196,507 @@ body.dark-mode {
                 </div>
             </div>
         
-            <!-- Energy Pattern History Modal -->
-            <div class="modal fade" id="patternHistoryModal" tabindex="-1" aria-labelledby="patternHistoryModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
+            <!-- Edit Setting Modal -->
+            <div class="modal fade" id="editSettingModal" tabindex="-1" aria-labelledby="editSettingModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="patternHistoryModalLabel">Energy Pattern Change History</h5>
+                            <h5 class="modal-title" id="editSettingModalLabel">Edit Setting</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text">Filter by Inverter</span>
-                                        <select class="form-select" id="history-inverter-filter">
-                                            <option value="all">All Inverters</option>
-                                            <!-- Inverter options will be added dynamically -->
-                                        </select>
-                                    </div>
+                            <form id="editSettingForm">
+                                <input type="hidden" id="edit-inverter">
+                                <input type="hidden" id="edit-setting">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold" id="setting-name-display">Setting</label>
+                                    <p class="text-muted small" id="setting-inverter-display">Inverter</p>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text">Time Range</span>
-                                        <select class="form-select" id="history-time-range">
-                                            <option value="24">Last 24 Hours</option>
-                                            <option value="48">Last 48 Hours</option>
-                                            <option value="168" selected>Last 7 Days</option>
-                                            <option value="720">Last 30 Days</option>
-                                        </select>
-                                    </div>
+                                
+                                <div class="mb-3" id="value-input-container">
+                                    <!-- Will be dynamically populated based on setting type -->
                                 </div>
-                            </div>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Date & Time</th>
-                                            <th>Inverter</th>
-                                            <th>Old Pattern</th>
-                                            <th>New Pattern</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pattern-history-list">
-                                        <tr>
-                                            <td colspan="5" class="text-center py-4">
-                                                <div class="spinner-border text-primary" role="status"></div>
-                                                <div class="mt-2">Loading history...</div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Current Value</label>
+                                    <p class="form-control-plaintext" id="current-value-display">-</p>
+                                </div>
+                            </form>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-secondaryy" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primaryy" id="save-setting-btn">Save Changes</button>
                         </div>
                     </div>
                 </div>
             </div>
+            
         </div>
+<!-- JavaScript Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
-    <!-- JavaScript Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script>
+    // Global variables for settings metadata
+    const settingsMetadata = {
+        'work_mode': {
+            display: 'Work Mode',
+            type: 'select',
+            options: [
+                { value: 'Battery first', label: 'Battery First' },
+                { value: 'Grid first', label: 'Grid First' },
+                { value: 'Solar first', label: 'Solar First' },
+                { value: 'Zero export to CT', label: 'Zero Export to CT' }
+            ]
+        },
+        'remote_switch': {
+            display: 'Remote Switch',
+            type: 'select',
+            options: [
+                { value: 'Enabled', label: 'Enabled' },
+                { value: 'Disabled', label: 'Disabled' }
+            ]
+        },
+        'generator_charge': {
+            display: 'Generator Charge',
+            type: 'select',
+            options: [
+                { value: 'Enabled', label: 'Enabled' },
+                { value: 'Disabled', label: 'Disabled' }
+            ]
+        },
+        'force_generator_on': {
+            display: 'Force Generator On',
+            type: 'select',
+            options: [
+                { value: 'Enabled', label: 'Enabled' },
+                { value: 'Disabled', label: 'Disabled' }
+            ]
+        },
+        'solar_export_when_battery_full': {
+            display: 'Solar Export When Battery Full',
+            type: 'select',
+            options: [
+                { value: 'Enabled', label: 'Enabled' },
+                { value: 'Disabled', label: 'Disabled' }
+            ]
+        },
+        'max_sell_power': {
+            display: 'Maximum Sell Power',
+            type: 'number',
+            min: 0,
+            max: 15000,
+            step: 100,
+            unit: 'W'
+        },
+        'max_solar_power': {
+            display: 'Maximum Solar Power',
+            type: 'number',
+            min: 0,
+            max: 15000,
+            step: 100,
+            unit: 'W'
+        },
+        'grid_trickle_feed': {
+            display: 'Grid Trickle Feed',
+            type: 'number',
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: '%'
+        },
+        'output_shutdown_voltage': {
+            display: 'Output Shutdown Voltage',
+            type: 'number',
+            min: 40,
+            max: 60,
+            step: 0.1,
+            unit: 'V'
+        },
+        'stop_battery_discharge_voltage': {
+            display: 'Stop Battery Discharge Voltage',
+            type: 'number',
+            min: 40,
+            max: 60,
+            step: 0.1,
+            unit: 'V'
+        },
+        'start_battery_discharge_voltage': {
+            display: 'Start Battery Discharge Voltage',
+            type: 'number',
+            min: 40,
+            max: 60,
+            step: 0.1,
+            unit: 'V'
+        },
+        'start_grid_charge_voltage': {
+            display: 'Start Grid Charge Voltage',
+            type: 'number',
+            min: 40,
+            max: 60,
+            step: 0.1,
+            unit: 'V'
+        },
+        'max_generator_charge_current': {
+            display: 'Max Generator Charge Current',
+            type: 'number',
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: 'A'
+        }
+    };
     
-    <script>
-        // Global variables
-        let inverters = [];
-        let currentPatterns = {};
-        let systemState = {};
+    // Initialize the page
+    $(document).ready(function() {
+        // Load recent changes
+        loadRecentChanges();
         
-        // Pattern descriptions for tooltips
-        const patternDescriptions = {
-    'Battery first': '',
-    'Load first': ''
-};
-
+        // Set up event listeners
+        setupEventListeners();
         
-        // Pattern icons and colors
-        const patternIcons = {
-            'Battery first': 'fa-battery-full',
-            'Load first': 'fa-plug',
-        };
-        
-        const patternColors = {
-            'Battery first': '#28a745',
-            'Load first': '#dc3545',
-        };
-        
-        // Initialize the page
-        $(document).ready(function() {
-            // Load current patterns and system state
-            loadCurrentPatterns();
-            
-            // Load recent changes
+        // Initialize the edit modal
+        initializeEditModal();
+    });
+    
+    // Setup event listeners
+    function setupEventListeners() {
+        // Refresh button
+        $('#refresh-settings').click(function() {
             loadRecentChanges();
-            
-            // Set up event listeners
-            setupEventListeners();
+            showAlert('info', 'Recent changes refreshed');
         });
         
-        // Setup event listeners
-        function setupEventListeners() {
-            // Refresh button
-            $('#refresh-patterns').click(function() {
-                loadCurrentPatterns();
-                showAlert('info', 'Energy patterns refreshed');
-            });
-            
-            // View history button
-            $('#view-history-btn').click(function() {
-                loadPatternHistory();
-                const historyModal = new bootstrap.Modal(document.getElementById('patternHistoryModal'));
-                historyModal.show();
-            });
-            
-            // History filter change
-            $('#history-inverter-filter, #history-time-range').change(function() {
-                loadPatternHistory();
-            });
-        }
-   
-    // Load current patterns from the API
-    function loadCurrentPatterns() {
-    // First try the current-settings endpoint (preferred)
-    $.ajax({
-        url: '/api/current-settings',
-        method: 'GET',
-        success: function(response) {
-            console.log("Current settings response:", response);
-            
-            if (response && response.currentSettings && response.currentSettings.energy_pattern) {
-                // Process inverters and their patterns
-                const inverterCount = response.inverterCount || 1;
-                inverters = [];
-                currentPatterns = {};
-                
-                // Create inverter list
-                for (let i = 1; i <= inverterCount; i++) {
-                    const inverterId = `inverter_${i}`;
-                    inverters.push(inverterId);
-                    
-                    // Extract current pattern if available
-                    const currentPattern = response.currentSettings.energy_pattern[inverterId] || 'Unknown';
-                    currentPatterns[inverterId] = currentPattern;
-                }
-                
-                // Render the inverters and their patterns
-                renderInverters();
-            } else {
-                // Fallback to the energy-pattern-changes endpoint
-                loadCurrentPatternsFromHistory();
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading current patterns from settings:', status, error);
-            // Fallback to the energy-pattern-changes endpoint
-            loadCurrentPatternsFromHistory();
-        }
-    });
-}
-
-function loadCurrentPatternsFromHistory() {
-    $.ajax({
-        url: '/api/energy-pattern-changes',
-        method: 'GET',
-        success: function(response) {
-            console.log("Energy pattern changes response:", response);
-            
-            if (Array.isArray(response) && response.length > 0) {
-                // Group changes by inverter to find the most recent for each
-                const latestByInverter = {};
-                
-                // Process each change
-                response.forEach(change => {
-                    // Extract inverter ID from the topic
-                    const topicParts = change.topic.split('/');
-                    let inverterId = null;
-                    
-                    for (const part of topicParts) {
-                        if (part.startsWith('inverter_')) {
-                            inverterId = part;
-                            break;
-                        }
-                    }
-                    
-                    if (!inverterId) return; // Skip if no inverter ID found
-                    
-                    // Keep track of the most recent change for each inverter
-                    if (!latestByInverter[inverterId] || 
-                        new Date(change.timestamp) > new Date(latestByInverter[inverterId].timestamp)) {
-                        latestByInverter[inverterId] = change;
-                    }
-                });
-                
-                // Now we have the most recent change for each inverter
-                inverters = Object.keys(latestByInverter);
-                currentPatterns = {};
-                
-                // Extract the current patterns
-                inverters.forEach(inverterId => {
-                    currentPatterns[inverterId] = latestByInverter[inverterId].new_value || 'Unknown';
-                });
-                
-                // If no inverters were found in the history, create at least one
-                if (inverters.length === 0) {
-                    inverters = ['inverter_1'];
-                    currentPatterns['inverter_1'] = 'Unknown';
-                }
-                
-                // Render the inverters and their patterns
-                renderInverters();
-            } else {
-                $('#inverters-container').html('<div class="alert alert-warning">No energy patterns found in history</div>');
-                
-                // Create a default inverter anyway
-                inverters = ['inverter_1'];
-                currentPatterns['inverter_1'] = 'Unknown';
-                renderInverters();
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading current patterns from history:', status, error);
-            showAlert('danger', 'Error connecting to server');
-            $('#inverters-container').html('<div class="alert alert-danger">Server connection error</div>');
-            
-            // Create a default inverter anyway
-            inverters = ['inverter_1'];
-            currentPatterns['inverter_1'] = 'Unknown';
-            renderInverters();
-        }
-    });
-}
-
-        // Render the inverters and their patterns
-        function renderInverters() {
-            let html = '';
-            
-            if (inverters.length === 0) {
-                html = '<div class="alert alert-warning">No inverters detected</div>';
-            } else {
-                // For each inverter
-                inverters.forEach((inverterId, index) => {
-                    const inverterNumber = index + 1;
-                    const currentPattern = currentPatterns[inverterId] || 'Unknown';
-                    
-                    html += `
-                        <div class="mb-4">
-                            <div class="inverter-heading mb-3">
-                                <i class="fas fa-microchip me-2"></i>Inverter ${inverterNumber}
-                                <span class="badge ms-2">
-                                    Current: ${currentPattern}
-                                </span>
-                            </div>
-                            
-                            <div class="row" id="patterns-${inverterId}">
-                                <!-- Pattern options -->
-                                ${renderPatternOptions(inverterId, currentPattern)}
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-            
-            $('#inverters-container').html(html);
-            
-            // Add click handlers to pattern cards
-            $('.pattern-card').click(function() {
-                const inverterId = $(this).data('inverter');
-                const pattern = $(this).data('pattern');
-                
-                // Set the new pattern
-                setEnergyPattern(inverterId, pattern);
-            });
-            
-            // Initialize tooltips
-            $('[data-bs-toggle="tooltip"]').tooltip();
-        }
-        
-        // Render pattern options for an inverter
-        function renderPatternOptions(inverterId, currentPattern) {
-            const patterns = [
-                'Battery first',
-                'Load first'
-            ];
-            
-            let html = '';
-            
-            patterns.forEach(pattern => {
-                const isActive = pattern === currentPattern;
-                const icon = patternIcons[pattern] || 'fa-question';
-                const color = patternColors[pattern] || '#6c757d';
-                const description = patternDescriptions[pattern] || 'No description available';
-                
-                html += `
-                    <div class="col-md-4 col-sm-6 pattern-option">
-                        <div class="card pattern-card ${isActive ? 'active' : ''}" 
-                             data-inverter="${inverterId}" 
-                             data-pattern="${pattern}"
-                             data-bs-toggle="tooltip"
-                             data-bs-placement="top"
-                             title="${description}">
-                            <div class="card-body text-center">
-                                <i class="fas ${icon} pattern-icon" style="color: ${color};"></i>
-                                <h5 class="card-title">${pattern}</h5>
-                                <p class="card-text small">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</p>
-                                ${isActive ? 
-                                    '<div class="mt-2 badge bg-success">Current Setting</div>' : 
-                                    '<div class="mt-2 text-muted small">Click to select</div>'
-                                }
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            return html;
-        }
-        
-        // Set energy pattern
-        function setEnergyPattern(inverterId, pattern) {
-            $.ajax({
-                url: '/api/command',
-                method: 'POST',
-                data: {
-                    topic: `energy/${inverterId}/energy_pattern/set`,
-                    value: pattern
-                },
-                success: function(response) {
-                    if (response.success) {
-                        // Update local data
-                        currentPatterns[inverterId] = pattern;
-                        
-                        // Update UI
-                        $(`#patterns-${inverterId} .pattern-card`).removeClass('active');
-                        $(`#patterns-${inverterId} .pattern-card[data-pattern="${pattern}"]`).addClass('active');
-                        
-                        // Update the badge
-                        $(`.inverter-heading:contains("Inverter ${inverterId.split('_')[1]}") .badge`).text(`Current: ${pattern}`);
-                        
-                        // Show success message
-                        showAlert('success', `Energy pattern for Inverter ${inverterId.split('_')[1]} set to ${pattern}`);
-                        
-                        // Refresh data after a short delay
-                        setTimeout(() => {
-                            loadRecentChanges();
-                        }, 2000);
-                    } else {
-                        showAlert('danger', `Failed to set energy pattern: ${response.message || 'Unknown error'}`);
-                    }
-                },
-                error: function(error) {
-                    console.error('Error setting energy pattern:', error);
-                    showAlert('danger', `Error setting energy pattern: ${error.responseJSON?.error || 'Server error'}`);
-                }
-            });
-        }
-        
-        // Load recent changes
-        function loadRecentChanges() {
-            $.ajax({
-                url: '/api/energy-pattern-changes',
-                method: 'GET',
-                success: function(response) {
-                    displayRecentChanges(response);
-                },
-                error: function() {
-                    $('#recent-changes').html('<div class="alert alert-warning m-3">Failed to load recent changes</div>');
-                }
-            });
-        }
-        
-        // Display recent changes
-function displayRecentChanges(changes) {
-    console.log("Recent changes data:", changes);
-    
-    if (!changes || (Array.isArray(changes) && changes.length === 0)) {
-        $('#recent-changes').html('<div class="text-center p-3">No recent changes found</div>');
-        return;
+        // Save setting button
+        $('#save-setting-btn').click(function() {
+            saveSetting();
+        });
     }
     
-    // Ensure changes is an array
-    const changesArray = Array.isArray(changes) ? changes : [changes];
-    
-    // Sort changes by timestamp (newest first)
-    changesArray.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Take only the 10 most recent changes
-    const recentChanges = changesArray.slice(0, 10);
-    
-    let html = '';
-    
-    recentChanges.forEach(change => {
-        const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
-        const topicParts = change.topic ? change.topic.split('/') : [];
-        
-        // Extract inverter from topic
-        let inverter = 'unknown';
-        for (const part of topicParts) {
-            if (part.includes('inverter_')) {
-                inverter = part;
-                break;
+    // Load recent changes
+    function loadRecentChanges() {
+        $.ajax({
+            url: '/api/work-mode-changes',
+            method: 'GET',
+            success: function(response) {
+                displayRecentChanges(response);
+            },
+            error: function() {
+                $('#recent-changes-container').html('<div class="alert alert-warning">Unable to load recent changes</div>');
             }
+        });
+    }
+    
+    // Display recent changes grouped by inverter
+    function displayRecentChanges(changes) {
+        const container = $('#recent-changes-container');
+        
+        if (!changes || changes.length === 0) {
+            container.html('<div class="alert alert-warning">No recent changes recorded</div>');
+            return;
         }
         
-        const inverterDisplay = inverter !== 'unknown' ? 
-            `Inverter ${inverter.replace('inverter_', '')}` : 
-            'Unknown';
+        // Group changes by inverter
+        const inverterChanges = {};
         
-        const oldValue = change.old_value || '-';
-        const newValue = change.new_value || '-';
-        
-        // Determine color based on pattern
-        const newPatternColor = patternColors[newValue] || '#6c757d';
-        
-        html += `
-            <div class="change-item">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="fw-bold">${inverterDisplay}</div>
-                        <div class="small text-muted">${timestamp}</div>
-                    </div>
-                    <div class="text-end">
-                        <div class="d-flex align-items-center">
-                            <span class="me-2">${oldValue}</span>
-                            <i class="fas fa-arrow-right text-muted mx-1"></i>
-                            <span class="badge" style="background-color: ${newPatternColor}">${newValue}</span>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    $('#recent-changes').html(html);
-}
-        // Load pattern history
-        function loadPatternHistory() {
-            // Get filter values
-            const inverterFilter = $('#history-inverter-filter').val();
-            const timeRange = $('#history-time-range').val();
+        changes.forEach(change => {
+            // Extract inverter from topic (e.g., "inverter_1/work_mode/state")
+            const topicParts = change.topic.split('/');
+            let inverter = "unknown";
             
-            // Show loading spinner
-            $('#pattern-history-list').html(`
-                <tr>
-                    <td colspan="5" class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <div class="mt-2">Loading history...</div>
-                    </td>
-                </tr>
-            `);
+            // Find the inverter_X part in the topic
+            for (const part of topicParts) {
+                if (part.startsWith('inverter_')) {
+                    inverter = part;
+                    break;
+                }
+            }
             
-            // Make API request
-            $.ajax({
-                url: '/api/energy-pattern-changes',
-                method: 'GET',
-                data: {
-                    hours: timeRange,
-                    inverter: inverterFilter === 'all' ? null : inverterFilter
-                },
-                success: function(response) {
-                    displayPatternHistory(response, inverterFilter);
-                },
-                error: function() {
-                    $('#pattern-history-list').html('<tr><td colspan="5" class="text-center">Failed to load history</td></tr>');
+            // Initialize array for this inverter if it doesn't exist
+            if (!inverterChanges[inverter]) {
+                inverterChanges[inverter] = [];
+            }
+            
+            // Add change to appropriate inverter array
+            inverterChanges[inverter].push(change);
+        });
+        
+        // Display changes grouped by inverter
+        let html = '';
+        
+        // Get all inverter keys and sort them naturally
+        const inverters = Object.keys(inverterChanges).sort((a, b) => {
+            const aNum = parseInt(a.replace('inverter_', ''));
+            const bNum = parseInt(b.replace('inverter_', ''));
+            return aNum - bNum;
+        });
+        
+        for (const inverter of inverters) {
+            // Get changes for this inverter and sort by timestamp (newest first)
+            const inverterData = inverterChanges[inverter]
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Create a lookup to eliminate duplicates (keep only most recent per setting)
+            const latestSettings = {};
+            
+            inverterData.forEach(change => {
+                // Extract the setting name from the topic
+                const settingName = extractSettingName(change.topic);
+                
+                // Only keep the most recent change for each setting
+                if (!latestSettings[settingName] || 
+                    new Date(change.timestamp) > new Date(latestSettings[settingName].timestamp)) {
+                    latestSettings[settingName] = change;
                 }
             });
-        }
-        
-        // Display pattern history
-        function displayPatternHistory(changes, inverterFilter) {
-            if (!changes || changes.length === 0) {
-                $('#pattern-history-list').html('<tr><td colspan="5" class="text-center">No history found</td></tr>');
-                return;
-            }
             
-            // Sort changes by timestamp (newest first)
-            changes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // Format inverter name for display
+            const displayName = inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ');
             
-            // Filter by inverter if needed
-            if (inverterFilter && inverterFilter !== 'all') {
-                changes = changes.filter(change => change.topic.includes(inverterFilter));
-            }
+            html += `<div class="inverter-heading">${displayName}</div>`;
             
-            let html = '';
+            // Convert to array and sort by setting name for consistent display
+            const settingsArray = Object.values(latestSettings)
+                .sort((a, b) => {
+                    const aName = extractSettingName(a.topic);
+                    const bName = extractSettingName(b.topic);
+                    return aName.localeCompare(bName);
+                });
             
-            changes.forEach(change => {
-                const timestamp = moment(change.timestamp).format('MM/DD/YYYY HH:mm:ss');
-                const topicParts = change.topic.split('/');
+            settingsArray.forEach(change => {
+                const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
+                const settingName = extractSettingName(change.topic);
+                const friendlyName = getSettingDisplayName(settingName);
                 
-                // Extract inverter from topic
-                let inverter = 'unknown';
-                for (const part of topicParts) {
-                    if (part.includes('inverter_')) {
-                        inverter = part;
-                        break;
-                    }
-                }
-                
-                const inverterDisplay = inverter !== 'unknown' ? 
-                    `Inverter ${inverter.replace('inverter_', '')}` : 
-                    'Unknown';
-                
-                const oldValue = change.old_value || '-';
-                const newValue = change.new_value || '-';
-
+                // Format the current value based on setting type
+                const formattedValue = formatSettingValue(settingName, change.new_value);
                 
                 html += `
-                    <tr>
-                        <td>${timestamp}</td>
-                        <td>${inverterDisplay}</td>
-                        <td><span class="badge bg-secondary">${oldValue}</span></td>
-                        <td><span class="badge" style="background-color: ${patternColors[newValue] || '#6c757d'}">${newValue}</span></td>
-                    </tr>
+                    <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="setting-title">${friendlyName}</div>
+                                <div class="mt-1">
+                                    Current: <span class="change-value text-success">${formattedValue}</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="timestamp me-3">${timestamp}</span>
+                                <i class="fas fa-edit edit-icon"></i>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
-            
-            $('#pattern-history-list').html(html);
-            
-            // Update filter options if needed
-            if ($('#history-inverter-filter option').length <= 1) {
-                // Add inverter options to filter dropdown
-                let inverterOptions = '<option value="all">All Inverters</option>';
-                inverters.forEach((inverterId, index) => {
-                    inverterOptions += `<option value="${inverterId}">Inverter ${index + 1}</option>`;
-                });
-                $('#history-inverter-filter').html(inverterOptions);
+        }
+        
+        container.html(html);
+        
+        // Add click event to change items
+        $('.change-item').click(function() {
+            const inverter = $(this).data('inverter');
+            const setting = $(this).data('setting');
+            const value = $(this).data('value');
+            openEditModal(inverter, setting, value);
+        });
+    }
+    
+    // Extract setting name from topic
+    function extractSettingName(topic) {
+        // Try to extract the setting name from the topic path
+        // Examples: 
+        // - "inverter_1/work_mode/state" -> "work_mode"
+        // - "energy/inverter_1/max_sell_power/state" -> "max_sell_power"
+        
+        const parts = topic.split('/');
+        
+        // Search for known setting names in the parts
+        for (const part of parts) {
+            if (settingsMetadata[part]) {
+                return part;
             }
         }
         
-        function showAlert(type, message, autoHide = true) {
-            const alertId = 'alert-' + Date.now();
-            const alertHtml = `
-                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        // If not found, use the second to last part (before "state" or "set")
+        if (parts.length >= 2) {
+            const secondToLast = parts[parts.length - 2];
+            return secondToLast;
+        }
+        
+        // Fallback
+        return parts[parts.length - 1];
+    }
+    
+    // Get friendly display name for a setting
+    function getSettingDisplayName(settingName) {
+        if (settingsMetadata[settingName]) {
+            return settingsMetadata[settingName].display;
+        }
+        
+        // Fallback: convert snake_case to Title Case
+        return settingName
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+    
+    // Format setting value for display
+    function formatSettingValue(settingName, value) {
+        const metadata = settingsMetadata[settingName];
+        
+        if (!metadata) {
+            return value;
+        }
+        
+        if (metadata.type === 'number' && metadata.unit) {
+            return `${value} ${metadata.unit}`;
+        }
+        
+        return value;
+    }
+    
+    // Initialize the edit modal
+    function initializeEditModal() {
+        // This sets up the modal but doesn't open it yet
+        const editModal = new bootstrap.Modal(document.getElementById('editSettingModal'));
+    }
+    
+    // Open the edit modal for a specific setting
+    function openEditModal(inverter, setting, currentValue) {
+        // Set hidden fields
+        $('#edit-inverter').val(inverter);
+        $('#edit-setting').val(setting);
+        
+        // Set display labels
+        $('#setting-name-display').text(getSettingDisplayName(setting));
+        $('#setting-inverter-display').text(inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' '));
+        $('#current-value-display').text(formatSettingValue(setting, currentValue));
+        
+        // Create the appropriate input element based on setting type
+        createInputElement(setting, currentValue);
+        
+        // Show the modal
+        const editModal = new bootstrap.Modal(document.getElementById('editSettingModal'));
+        editModal.show();
+    }
+    
+    // Create the appropriate input element for a setting
+    function createInputElement(setting, currentValue) {
+        const container = $('#value-input-container');
+        const metadata = settingsMetadata[setting] || { type: 'text' };
+        
+        let html = `<label for="edit-value" class="form-label">New Value</label>`;
+        
+        if (metadata.type === 'select') {
+            html += `<select class="form-select" id="edit-value">`;
+            
+            if (metadata.options) {
+                metadata.options.forEach(option => {
+                    const selected = option.value == currentValue ? 'selected' : '';
+                    html += `<option value="${option.value}" ${selected}>${option.label}</option>`;
+                });
+            } else {
+                // Default options for boolean settings
+                const enabledSelected = currentValue === 'Enabled' ? 'selected' : '';
+                const disabledSelected = currentValue === 'Disabled' ? 'selected' : '';
+                html += `
+                    <option value="Enabled" ${enabledSelected}>Enabled</option>
+                    <option value="Disabled" ${disabledSelected}>Disabled</option>
+                `;
+            }
+            
+            html += `</select>`;
+        } else if (metadata.type === 'number') {
+            const min = metadata.min !== undefined ? `min="${metadata.min}"` : '';
+            const max = metadata.max !== undefined ? `max="${metadata.max}"` : '';
+            const step = metadata.step !== undefined ? `step="${metadata.step}"` : '';
+            const unit = metadata.unit ? metadata.unit : '';
+            
+            html += `
+                <div class="input-group">
+                    <input type="number" class="form-control" id="edit-value" value="${currentValue}" ${min} ${max} ${step}>
+                    ${unit ? `<span class="input-group-text">${unit}</span>` : ''}
                 </div>
             `;
-            
-            // Insert at the top of the alerts container
-            $('#alerts-container').prepend(alertHtml);
-            
-            // Automatically remove alert after 5 seconds if autoHide is true
-            if (autoHide) {
-                setTimeout(() => {
-                    $(`#${alertId}`).alert('close');
-                }, 5000);
-            }
+        } else {
+            // Default to text input
+            html += `<input type="text" class="form-control" id="edit-value" value="${currentValue}">`;
         }
-    </script>
+        
+        container.html(html);
+    }
+    
+    // Save the setting
+    function saveSetting() {
+        const inverter = $('#edit-inverter').val();
+        const setting = $('#edit-setting').val();
+        const value = $('#edit-value').val();
+        
+        // Validate input
+        if (!value) {
+            showAlert('warning', 'Please enter a value', true);
+            return;
+        }
+        
+        // Send to the server
+        $.ajax({
+            url: '/api/work-mode/set',
+            method: 'POST',
+            data: {
+                inverter: inverter,
+                setting: setting,
+                value: value
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Hide the modal
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editSettingModal'));
+                    editModal.hide();
+                    
+                    showAlert('success', `${getSettingDisplayName(setting)} updated successfully`);
+                    
+                    // Refresh the changes after a short delay
+                    setTimeout(loadRecentChanges, 1000);
+                } else {
+                    showAlert('danger', `Failed to update setting: ${response.message || 'Unknown error'}`, true);
+                }
+            },
+            error: function(error) {
+                showAlert('danger', `Error updating setting: ${error.responseJSON?.error || 'Server error'}`, true);
+            }
+        });
+    }
+    
+    // Show alert message
+    function showAlert(type, message, inModal = false) {
+        const alertId = 'alert-' + Date.now();
+        const alertHtml = `
+            <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        if (inModal) {
+            // Insert at the top of the modal body
+            $('.modal-body').prepend(alertHtml);
+        } else {
+            // Insert at the top of the page
+            $('#alerts-container').append(alertHtml);
+        }
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            $(`#${alertId}`).alert('close');
+        }, 3000);
+    }
+</script>
        
-       <script src="<%= ingress_path %>/js/loading.js"></script>
-       <script src="<%= ingress_path %>/js/dark-mode.js"></script>
-       <script src="<%= ingress_path %>/js/mobile.js"></script>
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 
 
 </body>

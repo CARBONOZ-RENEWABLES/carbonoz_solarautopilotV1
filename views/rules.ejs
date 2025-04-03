@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+body {
+    font-family: 'Inter', sans-serif;
+}
+:root {
+    --primary-color: #DEAF0B;
+    --bg-color: #f5f6fa;
+    --text-color: #2f3640;
+    --icon-color: #636e72;
+    --green: #4CAF50;
+    --red: #F44336;
+    --blue: #2196F3;
+    --amber: #FFC107;
+    --gray: #757575;
+
+      /* Color system */
+      --primary: #DEAF0B;          /* Main accent color */
+    --primary-dark: #DEAF0C;     /* Darker shade of primary */
+    --secondary: #38b000;        /* Success/active color */
+    --warning: #ffbe0b;          /* Warning color */
+    --danger: #ef476f;           /* Danger/error color */
+    --info: #4361ee;             /* Info color */
+    --dark: #212529;             /* Dark text/backgrounds */
+    --light: #f8f9fa;            /* Light backgrounds */
+    --grey-100: #f8f9fa;
+    --grey-200: #e9ecef;
+    --grey-300: #dee2e6;
+    --grey-400: #ced4da;
+    --grey-500: #adb5bd;
+    --grey-600: #6c757d;
+    --grey-700: #495057;
+    --grey-800: #343a40;
+    --grey-900: #212529;
+    
+    /* Special colors for energy monitoring */
+    --battery-color: #38b000;    /* Green for battery */
+    --solar-color: #ffbe0b;      /* Yellow for solar/PV */
+    --grid-color: #ff006e;       /* Magenta for grid */
+    --load-color: #3a86ff;       /* Blue for load */
+    
+    /* Typography */
+    --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-size-base: 1rem;
+    --font-weight-normal: 400;
+    --font-weight-bold: 600;
+    --font-weight-header: 700;
+    
+    /* Spacing */
+    --spacer: 1rem;
+    
+    /* Borders & shadows */
+    --border-radius: 0.5rem;
+    --border-radius-sm: 0.25rem;
+    --border-radius-lg: 0.75rem;
+    --border-radius-pill: 50rem;
+    --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+    --box-shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
+    --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.12);
+    --box-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.075);
+    
+    /* Transitions */
+    --transition-base: all 0.2s ease-in-out;
+    --transition-fast: all 0.1s ease-in-out;
+    --transition-slow: all 0.3s ease-in-out;
+   }
+   
+   body, html {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    
+   }
+    /* Sidebar styles */
+    .sidebar {
+        width: 280px;
+        height: 100vh;
+        background-color: white;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        transition: width 0.3s ease;
+    }
+   
+           .logo-container {
+               padding: 1.5rem;
+               border-bottom: 1px solid #e5e7eb;
+               display: flex;
+               align-items: center;
+               gap: 0.75rem;
+           }
+   
+           .logo-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+   }
+   
+   .logo-text {
+    margin-left: 10px;
+    font-weight: bold;
+    color: var(--text-color);
+    font-size: 18px;
+   }
+   
+   .logo-text .highlight {
+    color: var(--primary-color);
+    margin-left: 10px;
+   }
+   
+   
+   nav {
+    flex-grow: 1;
+   }
+   
+   nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+   }
+   nav li {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 18px;
+   }
+   
+   nav li a{
+    text-decoration: none;
+    color: #2f3640;
+    font-weight: bold;
+   }
+   nav li:hover {
+    background-color: var(--bg-color);
+   }
+   
+   nav li i {
+    margin-right: 15px;
+    color: var(--icon-color);
+    font-size: 24px;
+   }
+   
+   .bottom-options {
+    padding: 20px;
+    border-top: 1px solid #dcdde1;
+   }
+   
+   .toggle-sidebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 16px;
+   }
+   
+   .toggle-text {
+    margin-right: 10px;
+   }
+   
+   .toggle-switch {
+    width: 50px;
+    height: 25px;
+    background-color: #dcdde1;
+    border-radius: 12.5px;
+    position: relative;
+    transition: background-color 0.3s;
+   }
+   .toggle-switch::before {
+    content: '';
+    position: absolute;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+   }
+   
+   .toggle-switch.active {
+    background-color: var(--primary-color);
+   }
+   
+   .toggle-switch.active::before {
+    transform: translateX(25px);
+   }
+   
+   .sidebar.collapsed .logo-text,
+   .sidebar.collapsed .search,
+   .sidebar.collapsed nav li span,
+   .sidebar.collapsed .toggle-text {
+    display: none;
+   }
+   
+   .sidebar.collapsed .logo {
+    justify-content: center;
+   }
+   
+   .sidebar.collapsed nav li {
+    justify-content: center;
+   }
+   
+   .sidebar.collapsed nav li i {
+    margin-right: 0;
+   }
+           /* Main content styles */
+           .main-content {
+               flex: 1;
+               margin-left: 280px;
+               padding: 2rem;
+           }
+   
+           .content-header {
+               margin-bottom: 2rem;
+           }
+   
+           .content-header h2 {
+               font-size: 1.875rem;
+               font-weight: 700;
+               color: #111827;
+           }
+   
+           .metrics-grid {
+               display: grid;
+               grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+               gap: 1.5rem;
+               margin-bottom: 2rem;
+           }
+   
+           .metric-card {
+               background: white;
+               border-radius: 12px;
+               padding: 1.5rem;
+               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+           }
+   
+           .metric-title {
+               font-size: 0.875rem;
+               font-weight: 600;
+               color: #4b5563;
+               margin-bottom: 0.5rem;
+           }
+   
+           .metric-value {
+               font-size: 1.5rem;
+               font-weight: 700;
+               margin-bottom: 0.25rem;
+           }
+   
+           .metric-subtitle {
+               font-size: 0.875rem;
+               color: #6b7280;
+           }
+   
+           .chart-container {
+               background: white;
+               border-radius: 12px;
+               padding: 1.5rem;
+               margin-bottom: 2rem;
+               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+           }
+   
+           .chart-wrapper {
+               height: 400px;
+               margin-top: 1rem;
+           }
+   
+           .period-buttons {
+               display: flex;
+               gap: 0.75rem;
+               margin-bottom: 1rem;
+           }
+   
+           .period-btn {
+               padding: 0.5rem 1rem;
+               border: none;
+               background-color: #e5e7eb;
+               color: #4b5563;
+               border-radius: 6px;
+               cursor: pointer;
+               font-weight: 500;
+               transition: all 0.2s;
+           }
+   
+           .period-btn:hover {
+               background-color: #d1d5db;
+           }
+   
+           .period-btn.active {
+               background-color: #DEAF0B;
+               color: white;
+           }
+   
+           /* Toggle styles */
+           .toggle {
+               position: relative;
+               display: inline-block;
+               width: 44px;
+               height: 24px;
+           }
+   
+           .toggle input {
+               opacity: 0;
+               width: 0;
+               height: 0;
+           }
+   
+           .slider {
+               position: absolute;
+               cursor: pointer;
+               top: 0;
+               left: 0;
+               right: 0;
+               bottom: 0;
+               background-color: #e5e7eb;
+               transition: .4s;
+               border-radius: 34px;
+           }
+   
+           .slider:before {
+               position: absolute;
+               content: "";
+               height: 16px;
+               width: 16px;
+               left: 4px;
+               bottom: 4px;
+               background-color: white;
+               transition: .4s;
+               border-radius: 50%;
+           }
+   
+           input:checked + .slider {
+               background-color: #DEAF0B;
+           }
+   
+           input:checked + .slider:before {
+               transform: translateX(20px);
+           }
+   
+           /* Updated and new styles */
+           .bottom-controls {
+               padding: 1.5rem;
+               border-top: 1px solid #e5e7eb;
+           }
+   
+           .control-item {
+               display: flex;
+               justify-content: space-between;
+               align-items: center;
+               margin-bottom: 1rem;
+           }
+   
+           .control-label {
+               font-size: 0.875rem;
+               color: #4b5563;
+           }
+   
+           .toggle {
+               position: relative;
+               display: inline-block;
+               width: 44px;
+               height: 24px;
+           }
+   
+           .toggle input {
+               opacity: 0;
+               width: 0;
+               height: 0;
+           }
+   
+           .sidebar {
+    width: 280px;
+    background-color: white;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    z-index: 10;
+   }
+   
+   .sidebar.collapsed {
+    width: 80px;
+   }
+   
+   .logo {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+   }
+   
+   
+           input:checked + .slider {
+               background-color: #DEAF0B;
+           }
+   
+           input:checked + .slider:before {
+               transform: translateX(20px);
+           }
+   
+           .total-emissions {
+               font-size: 1.25rem;
+               font-weight: 600;
+               margin-bottom: 1rem;
+               color: #374151;
+           }
+   
+           .summary-grid {
+               display: grid;
+               grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+               gap: 1rem;
+               margin-bottom: 2rem;
+           }
+   
+           .summary-item {
+               background-color: white;
+               border-radius: 8px;
+               padding: 1rem;
+               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+           }
+   
+           .summary-label {
+               font-size: 0.875rem;
+               color: #6b7280;
+               display: block;
+               margin-bottom: 0.5rem;
+           }
+   
+           .summary-value {
+               font-size: 1.25rem;
+               font-weight: 600;
+           }
+   
+       
+   
+           /* Responsive styles */
+           @media (max-width: 768px) {
+               .sidebar {
+                   width: 100%;
+                   height: auto;
+                   position: static;
+                   border-right: none;
+                   border-bottom: 1px solid #e5e7eb;
+               }
+   
+               .main-content {
+                   margin-left: 0;
+               }
+   
+               body.collapsed-sidebar .sidebar {
+                   display: none;
+               }
+   
+               body.collapsed-sidebar .main-content {
+                   margin-left: 0;
+               }
+   
+               .metrics-grid,
+               .summary-grid {
+                   grid-template-columns: 1fr;
+               }
+   
+               .period-buttons {
+                   flex-wrap: wrap;
+               }
+   
+               .period-btn {
+                   flex: 1 0 calc(50% - 0.375rem);
+                   margin-bottom: 0.75rem;
+               }
+           }
+
+/* loading css */
+
+.loading-overlay {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: #f8f9fa;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ z-index: 9999;
+}
+
+.loading-spinner {
+ width: 50px;
+ height: 50px;
+ border: 5px solid #e0e0e0;
+ border-top: 5px solid #3498db;
+ border-radius: 50%;
+ animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+ 0% { transform: rotate(0deg); }
+ 100% { transform: rotate(360deg); }
+}
+
+.dashboard-column {
+flex-basis: calc(33.33333% - 2px);
+margin-right: 2px;
+margin-bottom: 2px;
+}
+
+@media only screen and (max-width: 128em) {
+.dashboard-column {
+ flex-basis: calc(50% - 2px);
+}
+}
+
+@media only screen and (max-width: 62em) {
+.dashboard-column {
+ flex-basis: calc(100% - 2px);
+}
+}
+
+.dashboard-column .card {
+border: 0;
+}
+
+.dashboard-column .card .iframe-moving {
+display: block;
+height: 100%;
+min-height: 33em;
+position: relative;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-moving {
+ min-height: 107em;
+}
+}
+.dashboard-column .card .iframe-overview {
+display: block;
+height: 100%;
+min-height: 22em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-overview {
+ min-height: 18em;
+}
+}
+
+.dashboard-column .card .iframe-battery-power {
+display: block;
+height: 60%;
+min-height: 18em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-battery-power {
+ min-height: 15em;
+}
+}
+
+.dashboard-column .card .iframe-battery-soc {
+display: block;
+height: 40%;
+min-height: 14em;
+width: 100%;
+}
+
+@media only screen and (max-width: 46em) {
+.dashboard-column .card .iframe-battery-soc {
+ min-height: 12em;
+}
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: rgba(24, 27, 31, 1);
+ color: #f5f6fa;
+}
+
+.dark-mode .main-content{
+    background-color: rgba(24, 27, 31, 1);
+    color: #f5f6fa;
+}
+
+.dark-mode .sidebar {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .sidebar .logo-icon {
+ color: #2f3640;
+}
+
+.dark-mode .sidebar .logo-text {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li:hover {
+ background-color: #383838;
+}
+
+.dark-mode .sidebar nav li a {
+ color: #f5f6fa;
+}
+
+.dark-mode .sidebar nav li i {
+ color: #dcdde1;
+}
+
+.dark-mode .toggle-sidebar,
+.dark-mode .toggle-dark-mode {
+ color: #f5f6fa;
+}
+
+.dark-mode .toggle-switch {
+    background-color: var(--primary-color);
+}
+
+.dark-mode .toggle-switch.active {
+ background-color: var(--primary-color);
+}
+
+.dark-mode header {
+    background-color: rgb(17, 18, 23);
+}
+
+.dark-mode .content-card {
+    background-color: rgba(24, 27, 31, 1);
+ color: #fff;
+}
+
+
+.dark-mode .loading-overlay{
+    background-color: rgba(24, 27, 31, 1);
+}
+
+/* Mobile Sidebar Improvements */
+@media (max-width: 768px) {
+    /* Sidebar base styles */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        z-index: 1000;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: none;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Improved hamburger button */
+    .mobile-toggle {
+        display: block;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1001;
+        background: none;
+        border: none;
+        cursor: pointer;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        padding: 8px;
+    }
+
+    .mobile-toggle span {
+        display: block;
+        width: 24px;
+        height: 2px;
+        background-color: var(--text-color);
+        margin: 5px auto;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .mobile-toggle.active span:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+    }
+
+    .mobile-toggle.active span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .mobile-toggle.active span:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* Improved nav items */
+    .sidebar nav ul {
+        padding: 1rem 0;
+    }
+
+    .sidebar nav li {
+        padding: 0.875rem 1.5rem;
+        margin: 0.25rem 1rem;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+    }
+
+    .sidebar nav li a {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 1rem;
+        color: var(--text-color);
+    }
+
+    .sidebar nav li i {
+        font-size: 1.25rem;
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .sidebar nav li:active {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    /* Improved overlay */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(2px);
+        z-index: 999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Dark mode adjustments */
+    .dark-mode .mobile-toggle {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .dark-mode .mobile-toggle span {
+        background-color: #f5f6fa;
+    }
+
+    .dark-mode .sidebar nav li:active {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* Ensure main content adjusts properly */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+        padding-top: 4.5rem;
+        transition: margin-left 0.3s ease;
+    }
+
+    body.sidebar-open .main-content {
+        filter: blur(2px);
+        pointer-events: none;
+    }
+}
+
+
+  /* Main content styling */
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  padding: 2rem;
+  color: var(--text-color);
+  transition: margin-left 0.3s ease;
+}
+.main-content .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  display: flex;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar {
+  height: 6px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.main-content .nav-link {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  color: #4b5563;
+  font-weight: 500;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.dark-mode.main-content .nav-link {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  color: #4b5563;
+  font-weight: 500;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.main-content .nav-link:hover {
+  background-color: #e9ecef;
+  color: #000;
+}
+
+.main-content .nav-link.active {
+  background-color: #DEAF0B;
+  color: #fff;
+}
+
+.main-content .nav-link i,
+.main-content .nav-link svg {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Compact tables for mobile */
+@media (max-width: 768px) {
+  .main-content table th,
+  .main-content table td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+  
+  .main-content table th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+  }
+  
+  .main-content .table-responsive {
+    max-width: 100vw;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    border-radius: 0;
+  }
+  
+  .main-content .nav-link {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+  }
+  
+  .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    gap: 0.5rem !important;
+  }
+}
+
+
+.dark-mode .main-content .nav-link {
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content .nav-link:hover {
+  background-color: #32383e;
+  color: #fff;
+}
+
+.dark-mode .main-content .nav-link.active {
+  background-color: #DEAF0B;
+  color: #fff;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #2a2e35;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #4a4d53;
+}
+/* Enhanced Card Styles */
+.card {
+  border-radius: var(--border-radius);
+  border: 1px solid var(--grey-200);
+  box-shadow: var(--box-shadow-sm);
+  transition: var(--transition-base);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.card:hover {
+  box-shadow: var(--box-shadow);
+}
+
+.card-header {
+  background-color: white;
+  border-bottom: 1px solid var(--grey-200);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.card-footer {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--grey-200);
+  padding: 0.75rem 1.25rem;
+}
+
+/* Button Styles - Using the project's color scheme */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition-base);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: var(--border-radius-sm);
+}
+
+.btn-primaryy {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.btn-primaryy:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.btn-outline-primaryy {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background-color: transparent;
+}
+
+.btn-outline-primaryy:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-outline-secondaryy {
+  color: var(--grey-700);
+  border-color: var(--grey-300);
+  background-color: transparent;
+}
+
+.btn-outline-secondaryy:hover {
+  background-color: var(--grey-100);
+  color: var(--grey-800);
+}
+
+.btn-outline-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  background-color: transparent;
+}
+
+.btn-outline-danger:hover {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-outline-success {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background-color: transparent;
+}
+
+.btn-outline-success:hover {
+  background-color: var(--secondary);
+  color: white;
+}
+
+/* Rule Card Specific Styles */
+.rule-card {
+  transition: all 0.2s ease;
+}
+
+.rule-card.inactive {
+  opacity: 0.7;
+}
+
+.rule-card .rule-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rule-card h6 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+
+.rule-card .condition-text,
+.rule-card .action-text {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background-color: var(--grey-100);
+  border-radius: var(--border-radius-sm);
+  font-size: 1rem;
+}
+
+.rule-card .time-restrictions {
+  padding: 0.75rem;
+  background-color: var(--grey-100);
+  border-radius: var(--border-radius-sm);
+  font-size: 1rem;
+}
+
+.rule-card .time-restrictions h6 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+
+/* Form styling */
+.form-check {
+  display: block;
+  min-height: 1.5rem;
+  padding-left: 1.5em;
+  margin-bottom: 0.125rem;
+}
+
+.form-check-input {
+  width: 1em;
+  height: 1em;
+  margin-top: 0.25em;
+  vertical-align: top;
+  background-color: #fff;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  appearance: none;
+}
+
+.form-check-input[type="checkbox"] {
+  border-radius: 0.25em;
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.form-check-input:focus {
+  border-color: var(--primary-color);
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(222, 175, 11, 0.25);
+}
+
+.form-check-label {
+  cursor: pointer;
+}
+
+/* Form Switch (Toggle) */
+.form-switch {
+  padding-left: 2.5em;
+}
+
+.form-switch .form-check-input {
+  width: 2em;
+  margin-left: -2.5em;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+  background-position: left center;
+  border-radius: 2em;
+  transition: background-position 0.15s ease-in-out;
+}
+
+.form-switch .form-check-input:checked {
+  background-position: right center;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* Alert styling */
+.alert {
+  position: relative;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+}
+
+.alert-info {
+  color: #055160;
+  background-color: #cff4fc;
+  border-color: #b6effb;
+}
+
+.alert-danger {
+  color: #842029;
+  background-color: #f8d7da;
+  border-color: #f5c2c7;
+}
+
+.alert-link {
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Modal styling */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1055;
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  outline: 0;
+}
+
+.modal-dialog {
+  position: relative;
+  width: auto;
+  margin: 0.5rem;
+  pointer-events: none;
+  max-width: 500px;
+  margin: 1.75rem auto;
+}
+
+.modal-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  pointer-events: auto;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius);
+  outline: 0;
+}
+
+.modal-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  border-top-left-radius: calc(0.3rem - 1px);
+  border-top-right-radius: calc(0.3rem - 1px);
+}
+
+.modal-body {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.75rem;
+  border-top: 1px solid #dee2e6;
+  border-bottom-right-radius: calc(0.3rem - 1px);
+  border-bottom-left-radius: calc(0.3rem - 1px);
+}
+
+.modal-footer > * {
+  margin: 0.25rem;
+}
+
+.btn-close {
+  box-sizing: content-box;
+  width: 1em;
+  height: 1em;
+  padding: 0.25em 0.25em;
+  color: #000;
+  background: transparent url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e") center/1em auto no-repeat;
+  border: 0;
+  border-radius: 0.25rem;
+  opacity: 0.5;
+}
+
+/* Badge styling */
+.badge {
+  display: inline-block;
+  padding: 0.35em 0.65em;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: var(--border-radius-pill);
+}
+
+.bg-success {
+  background-color: var(--secondary);
+}
+
+.bg-warning {
+  background-color: var(--warning);
+}
+
+.bg-secondary {
+  background-color: var(--grey-600);
+}
+
+.bg-danger {
+  background-color: var(--danger);
+}
+
+/* Utility classes */
+.text-center {
+  text-align: center;
+}
+
+.text-end {
+  text-align: right;
+}
+
+.text-muted {
+  color: var(--grey-600);
+}
+
+.py-5 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.mb-4 {
+  margin-bottom: 1.5rem;
+}
+
+.me-2 {
+  margin-right: 0.5rem;
+}
+
+.ms-2 {
+  margin-left: 0.5rem;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.spinner-border {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  vertical-align: -0.125em;
+  border: 0.25em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border .75s linear infinite;
+}
+
+@keyframes spinner-border {
+  to { transform: rotate(360deg); }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Dark mode adjustments */
+.dark-mode .card {
+  background-color: rgba(30, 33, 38, 1);
+  border-color: rgba(50, 53, 58, 1);
+}
+
+.dark-mode .card-header {
+  background-color: rgba(35, 38, 43, 1);
+  border-color: rgba(50, 53, 58, 1);
+}
+
+.dark-mode .card-footer {
+  background-color: rgba(35, 38, 43, 1);
+  border-color: rgba(50, 53, 58, 1);
+}
+
+/* Main content section headers */
+.main-content h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  color: var(--dark);
+}
+
+.dark-mode .main-content h4 {
+  color: var(--grey-200);
+}
+
+/* Page section headers */
+.d-flex.justify-content-between.align-items-center.mb-4 h4 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--dark);
+  border-left: 4px solid var(--primary-color);
+  padding-left: 0.75rem;
+}
+
+.dark-mode .d-flex.justify-content-between.align-items-center.mb-4 h4 {
+  color: var(--grey-200);
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: rgba(35, 38, 43, 1);
+}
+
+.dark-mode .rule-card h6,
+.dark-mode .rule-card .time-restrictions h6 {
+  color: #fff;
+}
+
+.dark-mode .condition-text,
+.dark-mode .action-text,
+.dark-mode .time-restrictions {
+  background-color: rgba(40, 43, 48, 1);
+  color: #fff;
+}
+
+.dark-mode .alert-info {
+  color: #86cfda;
+  background-color: rgba(11, 50, 60, 0.5);
+  border-color: rgba(27, 95, 112, 0.5);
+}
+
+.dark-mode .alert-danger {
+  color: #ea868f;
+  background-color: rgba(65, 16, 21, 0.5);
+  border-color: rgba(103, 28, 35, 0.5);
+}
+
+.dark-mode .text-muted {
+  color: var(--grey-400);
+}
+
+.dark-mode .btn-outline-secondaryy {
+  color: var(--grey-300);
+  border-color: var(--grey-600);
+}
+
+.dark-mode .btn-outline-secondaryy:hover {
+  background-color: var(--grey-700);
+  color: var(--grey-200);
+}
+
+.dark-mode .modal-content {
+  background-color: rgba(30, 33, 38, 1);
+  border-color: rgba(50, 53, 58, 1);
+}
+
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+  border-color: rgba(50, 53, 58, 1);
+}
+
+.dark-mode .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Rule wizard specific styles */
+.wizard-step {
+  display: none;
+}
+
+.wizard-step.active {
+  display: block;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--grey-200);
+}
+
+.dark-mode .wizard-nav {
+  border-color: rgba(50, 53, 58, 1);
+}
+
+.condition-row,
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: var(--grey-100);
+  border-radius: var(--border-radius-sm);
+}
+
+.dark-mode .condition-row,
+.dark-mode .action-row {
+  background-color: rgba(40, 43, 48, 1);
+}
+
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.add-button:hover {
+  text-decoration: underline;
+}
+
+/* Custom form controls */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-color);
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid var(--grey-300);
+  appearance: none;
+  border-radius: var(--border-radius-sm);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  color: var(--text-color);
+  background-color: #fff;
+  border-color: var(--primary-color);
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(222, 175, 11, 0.25);
+}
+
+.dark-mode .form-control {
+  color: var(--grey-200);
+  background-color: rgba(40, 43, 48, 1);
+  border-color: rgba(60, 63, 68, 1);
+}
+
+.dark-mode .form-control:focus {
+  background-color: rgba(45, 48, 53, 1);
+}
+
+select.form-control {
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+}
+
+.dark-mode select.form-control {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23adb5bd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .rule-card .rule-actions {
+    flex-wrap: wrap;
+  }
+  
+  .condition-row,
+  .action-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+  
+  .wizard-nav {
+    padding: 1rem 0;
+  }
+}
+
+/* Wizard mobile improvements */
+@media (max-width: 576px) {
+  .wizard-step h4 {
+    font-size: 1.25rem;
+  }
+  
+  .wizard-nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .wizard-nav .btn {
+    width: 100%;
+  }
+}
+
+/* Close button styles */
+.close-button {
+  position: absolute;
+  top: 38px;
+  right: 50px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #e74c3c;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: #c0392b;
+}
+
+.close-button span {
+  font-size: 24px;
+  color: #fff;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+      <!-- Add hamburger menu button -->
+      <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+          </div>
+          <div id="pageContent"> </div>
+          <%- include('partials/sidebar') %>
+     
+
+          <div class="main-content">
+            <div class="close-button" onclick="window.location.href='<%= ingress_path %>/learner'">
+              <span>×</span>
+            </div>
+            <div class="container">
+    
+            
+                <div class="container mt-4">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Energy Management Rules</h4>
+                        <div>
+                            <a href="<%= ingress_path %>/rule-history" class="btn btn-outline-secondaryy me-2">View History</a>
+                            <a href="<%= ingress_path %>/wizard" class="btn btn-primaryy">Create New Rule</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>All Rules</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="showActiveOnly" checked>
+                                <label class="form-check-label" for="showActiveOnly">Show active only</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="rulesContainer">
+                                <!-- Rules will be loaded here -->
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Loading rules...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rule Template (hidden, used for rendering) -->
+                    <template id="ruleTemplate">
+                        <div class="card rule-card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="rule-name fw-bold"></span>
+                                    <span class="badge bg-secondary rule-active-badge ms-2"></span>
+                                </div>
+                                <div class="rule-actions">
+                                    <button class="btn btn-sm btn-outline-success run-rule-btn" title="Run Rule Now">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary duplicate-rule-btn" title="Duplicate Rule">
+                                        <i class="bi bi-files"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary edit-rule-btn" title="Edit Rule">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-rule-btn" title="Delete Rule">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="rule-description mb-3"></div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Conditions:</h6>
+                                        <div class="rule-conditions"></div>
+                                        
+                                        <div class="rule-time-restrictions mt-3"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Actions:</h6>
+                                        <div class="rule-actions-list"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3 text-end">
+                                    <small class="text-muted rule-last-triggered"></small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input rule-active-toggle" type="checkbox">
+                                    <label class="form-check-label">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- Delete Confirmation Modal -->
+                <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to delete the rule "<span id="deleteRuleName"></span>"?
+                                <p class="text-danger mt-2">This action cannot be undone.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+         
+        </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let allRules = [];
+    let deleteRuleId = null;
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load all rules
+        loadRules();
+        
+        // Setup event listeners
+        document.getElementById('showActiveOnly').addEventListener('change', filterRules);
+        
+        // Setup delete modal events
+        document.getElementById('confirmDelete').addEventListener('click', function() {
+            if (deleteRuleId) {
+                deleteRule(deleteRuleId);
+            }
+        });
+    });
+    
+    // Load all rules from the server
+    function loadRules() {
+        fetch('/api/rules')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                allRules = data;
+                renderRules();
+            })
+            .catch(error => {
+                console.error('Error loading rules:', error);
+                document.getElementById('rulesContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading rules: ${error.message}
+                    </div>
+                `;
+            });
+    }
+    
+    // Render all rules to the page
+    function renderRules() {
+        const rulesContainer = document.getElementById('rulesContainer');
+        const showActiveOnly = document.getElementById('showActiveOnly').checked;
+        const template = document.getElementById('ruleTemplate');
+        
+        // Clear container
+        rulesContainer.innerHTML = '';
+        
+        // Filter rules if needed
+        const rulesToShow = showActiveOnly ? allRules.filter(rule => rule.active) : allRules;
+        
+        if (rulesToShow.length === 0) {
+            rulesContainer.innerHTML = `
+                <div class="alert alert-info">
+                    No ${showActiveOnly ? 'active ' : ''}rules found. 
+                    <a href="/wizard" class="alert-link">Create a new rule</a>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort rules by name
+        rulesToShow.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Render each rule
+        rulesToShow.forEach(rule => {
+            const ruleElement = template.content.cloneNode(true);
+            
+            // Set rule properties
+            const ruleCard = ruleElement.querySelector('.rule-card');
+            ruleCard.id = `rule-${rule._id}`;
+            ruleCard.dataset.ruleId = rule._id;
+            
+            if (!rule.active) {
+                ruleCard.classList.add('inactive');
+            }
+            
+            // Set rule name and status
+            ruleElement.querySelector('.rule-name').textContent = rule.name;
+            ruleElement.querySelector('.rule-active-badge').textContent = rule.active ? 'Active' : 'Inactive';
+            ruleElement.querySelector('.rule-active-badge').classList.remove('bg-secondary');
+            ruleElement.querySelector('.rule-active-badge').classList.add(rule.active ? 'bg-success' : 'bg-warning');
+            
+            // Set rule description
+            ruleElement.querySelector('.rule-description').textContent = rule.description || 'No description';
+            
+            // Set conditions
+            const conditionsContainer = ruleElement.querySelector('.rule-conditions');
+            if (rule.conditions && rule.conditions.length > 0) {
+                rule.conditions.forEach((condition, index) => {
+                    const condElement = document.createElement('div');
+                    condElement.className = 'condition-text';
+                    
+                    // Format condition
+                    let paramName = getParameterName(condition.parameter);
+                    let operatorSymbol = getOperatorSymbol(condition.operator);
+                    let unit = getParameterUnit(condition.parameter);
+                    
+                    condElement.textContent = `${index === 0 ? 'If' : 'AND'} ${paramName} ${operatorSymbol} ${condition.value}${unit}`;
+                    conditionsContainer.appendChild(condElement);
+                });
+            } else {
+                const condElement = document.createElement('div');
+                condElement.className = 'condition-text text-muted';
+                condElement.textContent = 'No conditions (always executes)';
+                conditionsContainer.appendChild(condElement);
+            }
+            
+            // Set time restrictions
+            const timeRestrictionsContainer = ruleElement.querySelector('.rule-time-restrictions');
+            if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+                const timeElement = document.createElement('div');
+                timeElement.className = 'time-restrictions mt-2';
+                
+                let timeText = '<h6>Time Restrictions:</h6>';
+                
+                // Days
+                if (rule.timeRestrictions.days && rule.timeRestrictions.days.length > 0) {
+                    const days = rule.timeRestrictions.days.map(day => 
+                        day.charAt(0).toUpperCase() + day.slice(1)
+                    ).join(', ');
+                    
+                    timeText += `<div>Days: ${days}</div>`;
+                }
+                
+                // Time range
+                if (rule.timeRestrictions.startTime && rule.timeRestrictions.endTime) {
+                    timeText += `<div>Time: ${rule.timeRestrictions.startTime} to ${rule.timeRestrictions.endTime}</div>`;
+                }
+                
+                // Specific dates
+                if (rule.timeRestrictions.specificDates && rule.timeRestrictions.specificDates.length > 0) {
+                    timeText += `<div>Specific dates: ${rule.timeRestrictions.specificDates.join(', ')}</div>`;
+                }
+                
+                timeElement.innerHTML = timeText;
+                timeRestrictionsContainer.appendChild(timeElement);
+            }
+            
+            // Set actions
+            const actionsContainer = ruleElement.querySelector('.rule-actions-list');
+            if (rule.actions && rule.actions.length > 0) {
+                rule.actions.forEach(action => {
+                    const actionElement = document.createElement('div');
+                    actionElement.className = 'action-text';
+                    
+                    // Format action
+                    let settingName = getSettingName(action.setting);
+                    let value = action.value;
+                    let inverter = action.inverter === 'all' ? 'All Inverters' : action.inverter.replace('_', ' ');
+                    
+                    // Add units if needed
+                    if (['max_discharge_current', 'max_charge_current', 'max_grid_charge_current'].includes(action.setting)) {
+                        value += ' A';
+                    } else if (action.setting === 'max_sell_power') {
+                        value += ' W';
+                    }
+                    
+                    actionElement.textContent = `Set ${settingName} to ${value} on ${inverter}`;
+                    actionsContainer.appendChild(actionElement);
+                });
+            } else {
+                const actionElement = document.createElement('div');
+                actionElement.className = 'action-text text-muted';
+                actionElement.textContent = 'No actions defined';
+                actionsContainer.appendChild(actionElement);
+            }
+            
+            // Set last triggered
+            const lastTriggeredElement = ruleElement.querySelector('.rule-last-triggered');
+            if (rule.lastTriggered) {
+                lastTriggeredElement.textContent = `Last triggered: ${new Date(rule.lastTriggered).toLocaleString()} (${rule.triggerCount || 0} times)`;
+            } else {
+                lastTriggeredElement.textContent = 'Never triggered';
+            }
+            
+            // Set active toggle
+            const activeToggle = ruleElement.querySelector('.rule-active-toggle');
+            activeToggle.checked = rule.active;
+            activeToggle.addEventListener('change', function() {
+                toggleRuleActive(rule._id, this.checked);
+            });
+            
+            // Set button actions
+            ruleElement.querySelector('.run-rule-btn').addEventListener('click', function() {
+                executeRule(rule._id);
+            });
+            
+            ruleElement.querySelector('.duplicate-rule-btn').addEventListener('click', function() {
+                duplicateRule(rule._id);
+            });
+            
+            ruleElement.querySelector('.edit-rule-btn').addEventListener('click', function() {
+                window.location.href = `/wizard?edit=${rule._id}`;
+            });
+            
+            ruleElement.querySelector('.delete-rule-btn').addEventListener('click', function() {
+                showDeleteModal(rule._id, rule.name);
+            });
+            
+            rulesContainer.appendChild(ruleElement);
+        });
+    }
+    
+    // Filter rules based on active state
+    function filterRules() {
+        renderRules();
+    }
+    
+    // Toggle rule active state
+    function toggleRuleActive(ruleId, isActive) {
+        fetch(`/api/rules/${ruleId}/toggle`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update the rule in our local array
+            const rule = allRules.find(r => r._id === ruleId);
+            if (rule) {
+                rule.active = data.active;
+                
+                // Update the card
+                const card = document.getElementById(`rule-${ruleId}`);
+                if (card) {
+                    if (data.active) {
+                        card.classList.remove('inactive');
+                    } else {
+                        card.classList.add('inactive');
+                    }
+                    
+                    // Update the badge
+                    const badge = card.querySelector('.rule-active-badge');
+                    badge.textContent = data.active ? 'Active' : 'Inactive';
+                    badge.className = 'badge ms-2';
+                    badge.classList.add(data.active ? 'bg-success' : 'bg-warning');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling rule:', error);
+            alert('Error toggling rule: ' + error.message);
+            
+            // Revert the toggle
+            const toggle = document.querySelector(`#rule-${ruleId} .rule-active-toggle`);
+            if (toggle) {
+                toggle.checked = !isActive;
+            }
+        });
+    }
+    
+    // Execute a rule manually
+    function executeRule(ruleId) {
+        if (!confirm('Are you sure you want to execute this rule now?')) {
+            return;
+        }
+        
+        fetch(`/api/rules/${ruleId}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(`Rule executed successfully!`);
+            
+            // Reload rules to get updated trigger count
+            loadRules();
+        })
+        .catch(error => {
+            console.error('Error executing rule:', error);
+            alert('Error executing rule: ' + error.message);
+        });
+    }
+    
+    // Duplicate a rule
+    function duplicateRule(ruleId) {
+        fetch(`/api/rules/${ruleId}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(`Rule duplicated successfully!`);
+            
+            // Reload rules
+            loadRules();
+        })
+        .catch(error => {
+            console.error('Error duplicating rule:', error);
+            alert('Error duplicating rule: ' + error.message);
+        });
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteModal(ruleId, ruleName) {
+        deleteRuleId = ruleId;
+        document.getElementById('deleteRuleName').textContent = ruleName;
+        deleteModal.show();
+    }
+    
+    // Delete a rule
+    function deleteRule(ruleId) {
+        fetch(`/api/rules/${ruleId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide the modal
+            deleteModal.hide();
+            
+            // Remove the rule from our local array
+            allRules = allRules.filter(rule => rule._id !== ruleId);
+            
+            // Re-render the rules
+            renderRules();
+            
+            // Show a success message
+            alert('Rule deleted successfully!');
+        })
+        .catch(error => {
+            console.error('Error deleting rule:', error);
+            alert('Error deleting rule: ' + error.message);
+            deleteModal.hide();
+        });
+    }
+    
+    // Helper functions to format display values
+    function getParameterName(parameter) {
+        const names = {
+            'battery_soc': 'Battery SOC',
+            'pv_power': 'PV Power',
+            'load': 'Load Power',
+            'grid_voltage': 'Grid Voltage',
+            'grid_power': 'Grid Power',
+            'battery_voltage': 'Battery Voltage',
+            'battery_current': 'Battery Current'
+        };
+        return names[parameter] || parameter;
+    }
+    
+    function getOperatorSymbol(operator) {
+        const symbols = {
+            'gt': '>',
+            'lt': '<',
+            'eq': '=',
+            'gte': '≥',
+            'lte': '≤'
+        };
+        return symbols[operator] || operator;
+    }
+    
+    function getParameterUnit(parameter) {
+        const units = {
+            'battery_soc': '%',
+            'pv_power': 'W',
+            'load': 'W',
+            'grid_voltage': 'V',
+            'grid_power': 'W',
+            'battery_voltage': 'V',
+            'battery_current': 'A'
+        };
+        return units[parameter] || '';
+    }
+    
+    function getSettingName(setting) {
+        const names = {
+            'grid_charge': 'Grid Charge',
+            'energy_pattern': 'Energy Pattern',
+            'work_mode': 'Work Mode',
+            'max_discharge_current': 'Max Discharge Current',
+            'max_charge_current': 'Max Charge Current',
+            'max_grid_charge_current': 'Max Grid Charge Current',
+            'solar_export_when_battery_full': 'Solar Export When Battery Full',
+            'max_sell_power': 'Max Sell Power',
+            'remote_switch': 'Remote Switch',
+            'generator_charge': 'Generator Charge'
+        };
+        return names[setting] || setting;
+    }
+</script>
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
+</body>
+</html>
