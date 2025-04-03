@@ -7,7 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 body {
-    font-family: 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
 }
 :root {
     --primary-color: #DEAF0B;
@@ -455,8 +456,8 @@ body {
 }
 
 .loading-spinner {
- width: 60px;
- height: 60px;
+ width: 50px;
+ height: 50px;
  border: 5px solid #e0e0e0;
  border-top: 5px solid #3498db;
  border-radius: 50%;
@@ -2232,6 +2233,30 @@ body.dark-mode {
     font-weight: 500;
     border-radius: 8px;
 }
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: #202429;
+}
+
+.dark-mode .main-content .nav-link {
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content .nav-link:hover {
+  background-color: #32383e;
+  color: #fff;
+}
+
+.dark-mode .main-content .nav-link.active {
+  color: #fff;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #2a2e35;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #4a4d53;
+}
 
 </style>
 </head>
@@ -2247,68 +2272,39 @@ body.dark-mode {
             <div class="loading-spinner"></div>
           </div>
           <div id="pageContent"> </div>
-          <div class="sidebar" id="sidebar">
-            <div class="logo">
-              <div class="logo-icon">
-                <img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt="">
-              </div>
-              <a href="https://carbonoz.com/" target="_blank" style="text-decoration: none;">
-                <span class="logo-text">CARBONOZ <span class="highlight">SolarAutopilot</span></span>
-              </a>
-            </div>
-          
-            <nav>
-              <ul>
-                <li><a href="/"><i>🏠</i><span>Dashboard</span></a></li>
-                <li><a href="/chart"><i>📊</i><span>Charts</span></a></li>
-                <li><a href="/messages"><i>💬</i><span>Messages</span></a></li>
-                <li><a href="/settings"><i>⚙️</i><span>Settings</span></a></li>
-                <li><a href="/analytics"><i>📈</i><span>Analytics</span></a></li>
-                <li><a href="/learner"><i>🧠</i><span>Learner Mode</span></a></li>
-                <li><a href="/results"><i>🌱</i><span>Carbon Intensity</span></a></li>
-              </ul>
-            </nav>
-            
-            <div class="bottom-options">
-              <div class="toggle-dark-mode" id="toggleDarkMode">
-                <span class="toggle-text">Dark Mode</span>
-                <div class="toggle-switch" id="darkModeSwitch"></div>
-              </div>
-            </div>
-          </div>
-          
+          <%- include('partials/sidebar') %>
 
           <div class="main-content">
-      
+            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
+                <a class="nav-link text-nowrap" href="/grid-charge">
+                    <a class="nav-link active text-nowrap" href="<%= ingress_path %>/learner">
+                        <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
+                        <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
+                    </a>
+                <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
+                    <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
+                    <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
+                    <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
+                    <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
+                </a>
+            
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
+                    <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
+                </a>
+               
+            </div>
+            <br>
 
             <div class="container">
-                <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
-                    <a class="nav-link text-nowrap" href="/grid-charge">
-                        <a class="nav-link active text-nowrap" href="/learner">
-                            <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
-                        </a>
-                        <a class="nav-link text-nowrap" href="/grid-charge">
-                            <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
-                        </a>
-                    <a class="nav-link  text-nowrap" href="/energy-pattern">
-                        <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
-                    </a>
-                    <a class="nav-link text-nowrap" href="/voltage-point">
-                        <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
-                    </a>
-                    <a class="nav-link text-nowrap" href="/work-mode">
-                        <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
-                    </a>
-                    <a class="nav-link text-nowrap" href="/battery-charging">
-                        <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
-                    </a>
-                
-                    <a class="nav-link text-nowrap" href="/rules">
-                        <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
-                    </a>
-                   
-                </div>
-                <br>
+             
                 <!-- Alerts container -->
                 <div id="alerts-container"></div>
                 <div class="row mb-4">
@@ -3562,93 +3558,8 @@ function showAlert(type, message, inModal = false) {
     }, 5000);
 }
 </script>
-<script>
-       // loading js
-        
-   document.addEventListener('DOMContentLoaded', function() {
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const pageContent = document.getElementById('pageContent');
-  
-    // Simulate loading time (you can adjust this as needed)
-    setTimeout(() => {
-      loadingOverlay.style.display = 'none';
-      pageContent.style.display = 'block';
-      // Trigger a custom event to signal that the page is ready
-      document.dispatchEvent(new Event('pageReady'));
-    }, 1500); // 1.5 seconds loading time
-  });
-</script>
-
-<script>
-
-// Toggle dark mode
-const toggleDarkMode = document.getElementById('toggleDarkMode');
-const darkModeSwitch = document.getElementById('darkModeSwitch');
-
-// Function to update Grafana iframes based on dark mode
-function updateGrafanaIframes(isDarkMode) {
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
-        let src = iframe.src;
-
-        // Remove any existing theme parameter to avoid multiple occurrences
-        src = src.replace(/([?&]theme=)(light|dark)/, '');
-
-        // Add the new theme parameter based on dark mode setting
-        const separator = src.includes('?') ? '&' : '?';
-        src = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}`;
-
-        // Only reload iframe if theme has changed
-        if (iframe.src !== src) {
-            iframe.src = src;
-        }
-    });
-}
-
-// Function to apply the mode (either from localStorage or default)
-function applyModeFromLocalStorage() {
-    const isDarkMode = localStorage.getItem('dark-mode') === 'enabled';
-
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        darkModeSwitch.classList.add('active');
-    } else {
-        document.body.classList.remove('dark-mode');
-        darkModeSwitch.classList.remove('active');
-    }
-
-    // Update Grafana dashboards to match the saved mode
-    updateGrafanaIframes(isDarkMode);
-}
-
-// Add click event listener for dark mode toggle
-toggleDarkMode.addEventListener('click', () => {
-    const isDarkMode = document.body.classList.toggle('dark-mode');
-    darkModeSwitch.classList.toggle('active');
-
-    // Update Grafana dashboards to match the dark mode setting
-    updateGrafanaIframes(isDarkMode);
-
-    // Save the dark mode state in localStorage
-    if (isDarkMode) {
-        localStorage.setItem('dark-mode', 'enabled');
-    } else {
-        localStorage.setItem('dark-mode', 'disabled');
-    }
-});
-
-// Check and apply the user's dark mode preference on page load and when navigating back
-document.addEventListener('DOMContentLoaded', () => {
-    applyModeFromLocalStorage();
-});
-
-// Apply mode on `pageshow` event (works when navigating back in browser history)
-window.addEventListener('pageshow', () => {
-    applyModeFromLocalStorage();
-});
-
-
-
-</script>
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>
