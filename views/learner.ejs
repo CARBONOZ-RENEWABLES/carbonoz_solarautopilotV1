@@ -2394,7 +2394,7 @@ body {
                                 <div class="gauge-fill" id="pvPowerGauge"></div>
                                 <div class="gauge-value" id="pvPowerValue">--</div>
                               </div>
-                              <div class="gauge-label">PV Power (kW)</div>
+                              <div class="gauge-label">PV Power (W)</div>
                             </div>
                             
                             <div class="gauge-container">
@@ -2402,7 +2402,7 @@ body {
                                 <div class="gauge-fill" id="loadGauge"></div>
                                 <div class="gauge-value" id="loadValue2">--</div>
                               </div>
-                              <div class="gauge-label">Load (kW)</div>
+                              <div class="gauge-label">Load (W)</div>
                             </div>
                           </div>
                           
@@ -2490,421 +2490,483 @@ body {
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script>
           document.addEventListener('DOMContentLoaded', function() {
-            // References to DOM elements
-            const learnerToggle = document.getElementById('learnerToggle');
-            const learnerStatus = document.getElementById('learnerStatus');
-            const recentChanges = document.getElementById('recentChanges');
-            const refreshBtn = document.getElementById('refreshBtn');
-            const lastUpdated = document.getElementById('lastUpdated');
+      // References to DOM elements
+      const learnerToggle = document.getElementById('learnerToggle');
+      const learnerStatus = document.getElementById('learnerStatus');
+      const recentChanges = document.getElementById('recentChanges');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const lastUpdated = document.getElementById('lastUpdated');
+      
+      // Initialize gauges
+      updateGauge('batterySocGauge', 0, '#2ecc71');
+      updateGauge('pvPowerGauge', 0, '#f39c12');
+      updateGauge('loadGauge', 0, '#e74c3c');
+      
+      // Toggle learner mode
+      learnerToggle.addEventListener('change', function() {
+        toggleLearnerMode(this.checked);
+      });
+      
+      // Refresh data
+      refreshBtn.addEventListener('click', function() {
+        fetchSystemState();
+        fetchRecentChanges();
+      });
+      
+      // Initial data fetch
+      fetchSystemState();
+      fetchRecentChanges();
+      
+      // Set up periodic refresh
+      setInterval(fetchSystemState, 30000); // Every 30 seconds
+      setInterval(fetchRecentChanges, 60000); // Every minute
+      
+      // Update timestamp
+      updateTimestamp();
+      setInterval(updateTimestamp, 10000); // Every 10 seconds
+      
+      // Functions
+      function toggleLearnerMode(active) {
+        fetch('/api/learner/toggle', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const status = data.active ? 
+              '<span class="text-success">Active</span> - Recording system changes' : 
+              '<span class="text-danger">Inactive</span> - Not recording system changes';
+            learnerStatus.innerHTML = status;
             
-            // Initialize gauges
-            updateGauge('batterySocGauge', 0, '#2ecc71');
-            updateGauge('pvPowerGauge', 0, '#f39c12');
-            updateGauge('loadGauge', 0, '#e74c3c');
-            
-            // Toggle learner mode
-            learnerToggle.addEventListener('change', function() {
-              toggleLearnerMode(this.checked);
-            });
-            
-            // Refresh data
-            refreshBtn.addEventListener('click', function() {
-              fetchSystemState();
-              fetchRecentChanges();
-            });
-            
-            // Initial data fetch
-            fetchSystemState();
-            fetchRecentChanges();
-            
-            // Set up periodic refresh
-            setInterval(fetchSystemState, 30000); // Every 30 seconds
-            setInterval(fetchRecentChanges, 60000); // Every minute
-            
-            // Update timestamp
-            updateTimestamp();
-            setInterval(updateTimestamp, 10000); // Every 10 seconds
-            
-            // Functions
-            function toggleLearnerMode(active) {
-              fetch('/api/learner/toggle', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              })
-              .then(response => response.json())
-              .then(data => {
-                if (data.success) {
-                  const status = data.active ? 
-                    '<span class="text-success">Active</span> - Recording system changes' : 
-                    '<span class="text-danger">Inactive</span> - Not recording system changes';
-                  learnerStatus.innerHTML = status;
-                  
-                  // Show toast notification
-                  showToast(data.active ? 'Learner mode activated' : 'Learner mode deactivated');
-                } else {
-                  showToast('Failed to toggle learner mode', 'error');
-                  learnerToggle.checked = !active; // Revert toggle
-                }
-              })
-              .catch(error => {
-                console.error('Error toggling learner mode:', error);
-                showToast('Error toggling learner mode', 'error');
-                learnerToggle.checked = !active; // Revert toggle
-              });
+            // Show toast notification
+            showToast(data.active ? 'Learner mode activated' : 'Learner mode deactivated');
+          } else {
+            showToast('Failed to toggle learner mode', 'error');
+            learnerToggle.checked = !active; // Revert toggle
+          }
+        })
+        .catch(error => {
+          console.error('Error toggling learner mode:', error);
+          showToast('Error toggling learner mode', 'error');
+          learnerToggle.checked = !active; // Revert toggle
+        });
+      }
+      
+      function fetchSystemState() {
+        fetch('/api/system-state')
+        .then(response => response.json())
+        .then(data => {
+          updateSystemState(data.current_state);
+          updateTimestamp();
+        })
+        .catch(error => {
+          console.error('Error fetching system state:', error);
+        });
+      }
+      
+      function fetchRecentChanges() {
+        fetch('/api/learner/changes?limit=10')
+        .then(response => response.json())
+        .then(data => {
+          updateRecentChanges(data);
+        })
+        .catch(error => {
+          console.error('Error fetching recent changes:', error);
+          recentChanges.innerHTML = `
+            <div class="alert alert-danger m-3">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              Error loading recent changes. Please try again later.
+            </div>
+          `;
+        });
+      }
+      
+      function updateSystemState(state) {
+        // Make sure we have data before proceeding
+        if (!state) {
+          console.warn('No system state data received');
+          return;
+        }
+        
+        // Update dashboard stats
+        updateValue('batteryValue', state.battery_soc !== null && state.battery_soc !== undefined ? state.battery_soc.toFixed(1) : '--');
+        updateValue('pvValue', state.pv_power !== null && state.pv_power !== undefined ? state.pv_power.toFixed(1) : '--');
+        updateValue('loadValue', state.load !== null && state.load !== undefined ? state.load.toFixed(1) : '--');
+        updateValue('gridVoltageValue', state.grid_voltage !== null && state.grid_voltage !== undefined ? state.grid_voltage.toFixed(1) : '--');
+        
+        // Update detailed table
+        updateTableCell('battery_soc', state.battery_soc, '%', state.battery_soc < 20 ? 'danger' : state.battery_soc < 50 ? 'warning' : 'success');
+        updateTableCell('pv_power', state.pv_power, 'W', state.pv_power < 1000 ? 'warning' : 'success');
+        updateTableCell('load', state.load, 'W', state.load > 10000 ? 'danger' : state.load > 5000 ? 'warning' : 'success');
+        updateTableCell('grid_voltage', state.grid_voltage, 'V', state.grid_voltage < 220 ? 'danger' : 'success');
+        updateTableCell('grid_power', state.grid_power, 'W', state.grid_power > 0 ? 'warning' : 'success');
+        updateTableCell('inverter_state', state.inverter_state, '', '');
+        
+        // Update gauges
+        if (state.battery_soc !== null && state.battery_soc !== undefined) {
+          updateGauge('batterySocGauge', state.battery_soc / 100, getBatteryColor(state.battery_soc));
+          document.getElementById('batterySocValue').textContent = state.battery_soc.toFixed(1);
+        }
+        
+        if (state.pv_power !== null && state.pv_power !== undefined) {
+          // Assuming max PV power is 10000W for gauge scaling
+          const pvPowerPercentage = Math.min(state.pv_power / 10000, 1);
+          updateGauge('pvPowerGauge', pvPowerPercentage, '#f39c12');
+          document.getElementById('pvPowerValue').textContent = state.pv_power.toFixed(1);
+        }
+        
+        if (state.load !== null && state.load !== undefined) {
+          // Assuming max load is 15000W for gauge scaling
+          const loadPercentage = Math.min(state.load / 15000, 1);
+          updateGauge('loadGauge', loadPercentage, '#e74c3c');
+          document.getElementById('loadValue2').textContent = state.load.toFixed(1);
+        }
+      }
+      
+      function updateRecentChanges(changes) {
+        if (!changes || changes.length === 0) {
+          recentChanges.innerHTML = `
+            <div class="alert alert-info m-3">
+              <i class="bi bi-info-circle-fill me-2"></i>
+              No setting changes have been recorded yet.
+            </div>
+          `;
+          return;
+        }
+        
+        let html = `
+          <table class="table table-hover table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Time</th>
+                <th>Setting</th>
+                <th>Change</th>
+                <th>System State</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        changes.forEach(change => {
+          // Safely format timestamp - handle both string and date object formats
+          let formattedDate = 'N/A';
+          try {
+            // Check if timestamp is already a string
+            if (typeof change.time === 'string') {
+              formattedDate = new Date(change.time).toLocaleString();
+            } else if (change.timestamp) {
+              formattedDate = new Date(change.timestamp).toLocaleString();
+            } else if (change.time) {
+              // Handle InfluxDB format which could be a Date object or timestamp
+              formattedDate = new Date(change.time).toLocaleString();
             }
             
-            function fetchSystemState() {
-              fetch('/api/system-state')
-              .then(response => response.json())
-              .then(data => {
-                updateSystemState(data.current_state);
-                updateTimestamp();
-              })
-              .catch(error => {
-                console.error('Error fetching system state:', error);
-              });
-            }
-            
-            function fetchRecentChanges() {
-              fetch('/api/learner/changes?limit=10')
-              .then(response => response.json())
-              .then(data => {
-                updateRecentChanges(data);
-              })
-              .catch(error => {
-                console.error('Error fetching recent changes:', error);
-                recentChanges.innerHTML = `
-                  <div class="alert alert-danger m-3">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Error loading recent changes. Please try again later.
-                  </div>
-                `;
-              });
-            }
-            
-            // Dashboard stats to kW conversion
-            function updateSystemState(state) {
-              // Update dashboard stats
-              updateValue('batteryValue', state.battery_soc ? state.battery_soc.toFixed(1) : '--');
-              
-              // Convert W to kW for power values
-              const pvPowerKw = state.pv_power ? (state.pv_power / 1000).toFixed(1) : '--';
-              const loadKw = state.load ? (state.load / 1000).toFixed(1) : '--';
-              const gridPowerKw = state.grid_power ? (state.grid_power / 1000).toFixed(1) : '--';
-              
-              updateValue('pvValue', pvPowerKw);
-              updateValue('loadValue', loadKw);
-              updateValue('gridVoltageValue', state.grid_voltage ? state.grid_voltage.toFixed(1) : '--');
-              
-              // Update detailed table
-              updateTableCell('battery_soc', state.battery_soc, '%', state.battery_soc < 20 ? 'danger' : state.battery_soc < 50 ? 'warning' : 'success');
-              updateTableCell('pv_power', state.pv_power ? state.pv_power / 1000 : null, 'kW', state.pv_power < 1000 ? 'warning' : 'success');
-              updateTableCell('load', state.load ? state.load / 1000 : null, 'kW', state.load > 10000 ? 'danger' : state.load > 5000 ? 'warning' : 'success');
-              updateTableCell('grid_voltage', state.grid_voltage, 'V', state.grid_voltage < 220 ? 'danger' : 'success');
-              updateTableCell('grid_power', state.grid_power ? state.grid_power / 1000 : null, 'kW', state.grid_power > 0 ? 'warning' : 'success');
-              updateTableCell('inverter_state', state.inverter_state, '', '');
-              
-              // Update gauges
-              if (state.battery_soc !== null) {
-                updateGauge('batterySocGauge', state.battery_soc / 100, getBatteryColor(state.battery_soc));
-                document.getElementById('batterySocValue').textContent = state.battery_soc ? state.battery_soc.toFixed(1) : '--';
-              }
-              
-              if (state.pv_power !== null) {
-                // Assuming max PV power is 10kW for gauge scaling
-                const pvPowerKw = state.pv_power / 1000;
-                const pvPowerPercentage = Math.min(pvPowerKw / 10, 1);
-                updateGauge('pvPowerGauge', pvPowerPercentage, '#f39c12');
-                document.getElementById('pvPowerValue').textContent = pvPowerKw.toFixed(1);
-              }
-              
-              if (state.load !== null) {
-                // Assuming max load is 15kW for gauge scaling
-                const loadKw = state.load / 1000;
-                const loadPercentage = Math.min(loadKw / 15, 1);
-                updateGauge('loadGauge', loadPercentage, '#e74c3c');
-                document.getElementById('loadValue2').textContent = loadKw.toFixed(1);
-              }
-            }
-            
-            function updateRecentChanges(changes) {
-              if (!changes || changes.length === 0) {
-                recentChanges.innerHTML = `
-                  <div class="alert alert-info m-3">
-                    <i class="bi bi-info-circle-fill me-2"></i>
-                    No setting changes have been recorded yet.
-                  </div>
-                `;
-                return;
-              }
-              
-              let html = `
-                <table class="table table-hover table-striped mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Time</th>
-                      <th>Setting</th>
-                      <th>Change</th>
-                      <th>System State</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-              `;
-              
-              changes.forEach(change => {
-                const date = new Date(change.timestamp);
-                const formattedDate = date.toLocaleString();
-                
-                const settingName = change.topic.split('/').pop().replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                
-                // Format the old and new values
-                let oldValue = change.old_value;
-                let newValue = change.new_value;
-                
-                // If old or new value is undefined, display appropriate text
-                if (oldValue === undefined || oldValue === null) {
-                  oldValue = '<em>Not set</em>';
-                }
-                
-                if (newValue === undefined || newValue === null) {
-                  newValue = '<em>Not set</em>';
-                }
-                
-                // Create badge based on change type
-                let typeBadge = '';
-                switch (change.change_type) {
-                  case 'grid_charge':
-                    typeBadge = '<span class="badge bg-danger">Grid Charge</span>';
-                    break;
-                  case 'energy_pattern':
-                    typeBadge = '<span class="badge bg-success">Energy Pattern</span>';
-                    break;
-                  case 'voltage_point':
-                    typeBadge = '<span class="badge bg-warning text-dark">Voltage Point</span>';
-                    break;
-                  case 'max_discharge_current':
-                  case 'max_charge_current':
-                  case 'max_grid_charge_current':
-                  case 'max_generator_charge_current':
-                  case 'battery_float_charge_voltage':
-                  case 'battery_absorption_charge_voltage':
-                  case 'battery_equalization_charge_voltage':
-                    typeBadge = '<span class="badge bg-info">Battery Charging</span>';
-                    break;
-                  default:
-                    typeBadge = '<span class="badge bg-secondary">Setting</span>';
-                }
-                
-            // Format system state compact display
-                let systemState = '';
-                if (change.system_state) {
-                  systemState = `
-                    <small>
-                      ${change.system_state.battery_soc ? `<span class="badge ${getBatteryBadgeClass(change.system_state.battery_soc)}">SOC: ${change.system_state.battery_soc}%</span>` : ''}
-                      ${change.system_state.pv_power ? `<span class="badge badge-power">PV: ${(change.system_state.pv_power/1000).toFixed(1)}kW</span>` : ''}
-                      ${change.system_state.load ? `<span class="badge badge-load">Load: ${(change.system_state.load/1000).toFixed(1)}kW</span>` : ''}
-                    </small>
-                  `;
-                }
-                
-                html += `
-                  <tr>
-                    <td><small>${formattedDate}</small></td>
-                    <td>
-                      ${typeBadge}
-                      <div class="mt-1"><strong>${settingName}</strong></div>
-                    </td>
-                    <td>
-                      <div class="text-decoration-line-through text-muted">${oldValue}</div>
-                      <div class="text-success"><i class="bi bi-arrow-right-short"></i> ${newValue}</div>
-                    </td>
-                    <td>${systemState}</td>
-                  </tr>
-                `;
-              });
-              
-              html += `
-                  </tbody>
-                </table>
-              `;
-              
-              recentChanges.innerHTML = html;
-            }
-            
-            function updateTimestamp() {
-              const now = new Date();
-              lastUpdated.textContent = `Updated: ${now.toLocaleTimeString()}`;
-            }
-            
-            function updateValue(elementId, value) {
-              const element = document.getElementById(elementId);
-              if (element) {
-                // Add animation class if value has changed
-                if (element.textContent !== value) {
-                  element.classList.add('updated-value');
-                  setTimeout(() => {
-                    element.classList.remove('updated-value');
-                  }, 1500);
-                }
-                element.textContent = value;
+            // Validate the date - if invalid, use a fallback
+            if (formattedDate.includes('Invalid Date')) {
+              // Try parsing ISO formats that might come from InfluxDB
+              if (typeof change.time === 'string' && change.time.includes('T')) {
+                formattedDate = new Date(change.time).toLocaleString();
+              } else {
+                formattedDate = 'Unknown Time';
               }
             }
+          } catch (error) {
+            console.error('Error formatting date:', error);
+            formattedDate = 'Unknown Time';
+          }
+          
+          // Extract setting name from topic
+          let settingName = 'Unknown Setting';
+          if (change.topic && typeof change.topic === 'string') {
+            const parts = change.topic.split('/');
+            settingName = parts[parts.length - 1].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          } else if (change.setting) {
+            settingName = change.setting.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          }
+          
+          // Format the old and new values safely
+          let oldValue = change.old_value !== undefined ? change.old_value : 'Not recorded';
+          let newValue = change.new_value !== undefined ? change.new_value : 'Not recorded';
+          
+          // If old or new value is undefined or null, display appropriate text
+          if (oldValue === null || oldValue === '') {
+            oldValue = '<em>Not set</em>';
+          }
+          
+          if (newValue === null || newValue === '') {
+            newValue = '<em>Not set</em>';
+          }
+          
+          // Create badge based on change type
+          let typeBadge = '';
+          const changeType = change.change_type || 'setting';
+          
+          switch (changeType.toLowerCase()) {
+            case 'grid_charge':
+              typeBadge = '<span class="badge bg-danger">Grid Charge</span>';
+              break;
+            case 'energy_pattern':
+              typeBadge = '<span class="badge bg-success">Energy Pattern</span>';
+              break;
+            case 'voltage_point':
+              typeBadge = '<span class="badge bg-warning text-dark">Voltage Point</span>';
+              break;
+            case 'max_discharge_current':
+            case 'max_charge_current':
+            case 'max_grid_charge_current':
+            case 'max_generator_charge_current':
+            case 'battery_float_charge_voltage':
+            case 'battery_absorption_charge_voltage':
+            case 'battery_equalization_charge_voltage':
+              typeBadge = '<span class="badge bg-info">Battery Charging</span>';
+              break;
+            default:
+              typeBadge = '<span class="badge bg-secondary">Setting</span>';
+          }
+          
+          // Format system state compact display - handle missing or null data
+          let systemState = '';
+          let systemStateData = change.system_state || change;
+          
+          if (systemStateData) {
+            // Check for battery SOC
+            const batterySoc = systemStateData.battery_soc;
+            const pvPower = systemStateData.pv_power;
+            const load = systemStateData.load;
             
-            function updateTableCell(parameter, value, unit, statusClass) {
-              const valueCell = document.getElementById(`${parameter}_cell`);
-              const statusCell = document.getElementById(`${parameter}_status`);
-              const timeCell = document.getElementById(`${parameter}_time`);
-              
-              if (valueCell && value !== null && value !== undefined) {
-                let displayValue = parameter === 'inverter_state' ? value : `${value.toFixed(typeof value === 'number' ? 1 : 0)} ${unit}`;
-                
-                // Add animation if value has changed
-                if (valueCell.textContent !== displayValue) {
-                  valueCell.classList.add('updated-value');
-                  setTimeout(() => {
-                    valueCell.classList.remove('updated-value');
-                  }, 1500);
-                }
-                
-                valueCell.textContent = displayValue;
-              } else if (valueCell) {
-                valueCell.textContent = '--';
+            systemState = `<small>`;
+            
+            if (batterySoc !== undefined && batterySoc !== null) {
+              systemState += `<span class="badge ${getBatteryBadgeClass(batterySoc)}">SOC: ${parseFloat(batterySoc).toFixed(1)}%</span> `;
+            }
+            
+            if (pvPower !== undefined && pvPower !== null) {
+              systemState += `<span class="badge badge-power">PV: ${parseFloat(pvPower).toFixed(1)}W</span> `;
+            }
+            
+            if (load !== undefined && load !== null) {
+              systemState += `<span class="badge badge-load">Load: ${parseFloat(load).toFixed(1)}W</span>`;
+            }
+            
+            systemState += `</small>`;
+          }
+          
+          html += `
+            <tr>
+              <td><small>${formattedDate}</small></td>
+              <td>
+                ${typeBadge}
+                <div class="mt-1"><strong>${settingName}</strong></div>
+              </td>
+              <td>
+                <div class="text-decoration-line-through text-muted">${oldValue}</div>
+                <div class="text-success"><i class="bi bi-arrow-right-short"></i> ${newValue}</div>
+              </td>
+              <td>${systemState}</td>
+            </tr>
+          `;
+        });
+        
+        html += `
+            </tbody>
+          </table>
+        `;
+        
+        recentChanges.innerHTML = html;
+      }
+      
+      function updateTimestamp() {
+        const now = new Date();
+        lastUpdated.textContent = `Updated: ${now.toLocaleTimeString()}`;
+      }
+      
+      function updateValue(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+          // Only add animation if value is different and both are valid
+          const currentValue = element.textContent;
+          if (currentValue !== value && currentValue !== '--' && value !== '--') {
+            element.classList.add('updated-value');
+            setTimeout(() => {
+              element.classList.remove('updated-value');
+            }, 1500);
+          }
+          element.textContent = value;
+        }
+      }
+      
+      function updateTableCell(parameter, value, unit, statusClass) {
+        const valueCell = document.getElementById(`${parameter}_cell`);
+        const statusCell = document.getElementById(`${parameter}_status`);
+        const timeCell = document.getElementById(`${parameter}_time`);
+        
+        if (valueCell) {
+          if (value !== null && value !== undefined) {
+            let displayValue;
+            
+            if (parameter === 'inverter_state') {
+              displayValue = value;
+            } else {
+              // Check if value is a number and can be fixed
+              displayValue = typeof value === 'number' ? 
+                `${value.toFixed(1)} ${unit}` : `${value} ${unit}`;
+            }
+            
+            // Add animation if value has changed
+            if (valueCell.textContent !== displayValue && valueCell.textContent !== '--') {
+              valueCell.classList.add('updated-value');
+              setTimeout(() => {
+                valueCell.classList.remove('updated-value');
+              }, 1500);
+            }
+            
+            valueCell.textContent = displayValue;
+          } else {
+            valueCell.textContent = '--';
+          }
+        }
+        
+        if (statusCell) {
+          if (value !== null && value !== undefined) {
+            let statusHtml = '';
+            
+            if (parameter === 'inverter_state') {
+              statusHtml = `<span class="badge bg-info">${value}</span>`;
+            } else if (parameter === 'grid_power') {
+              // Special handling for grid power
+              if (value > 1000) {
+                statusHtml = '<span class="badge bg-danger">High Grid Draw</span>';
+              } else if (value > 0) {
+                statusHtml = '<span class="badge bg-warning text-dark">Grid Drawing</span>';
+              } else if (value < -1000) {
+                statusHtml = '<span class="badge bg-success">High Grid Export</span>';
+              } else if (value < 0) {
+                statusHtml = '<span class="badge bg-info">Grid Export</span>';
+              } else {
+                statusHtml = '<span class="badge bg-secondary">Neutral</span>';
               }
-              
-              if (statusCell) {
-                if (value !== null && value !== undefined) {
-                  let statusHtml = '';
-                  
-                  if (parameter === 'inverter_state') {
-                    statusHtml = `<span class="badge bg-info">${value}</span>`;
-                  } else if (parameter === 'grid_power') {
-                    // Special handling for grid power
-                    if (value > 1000) {
-                      statusHtml = '<span class="badge bg-danger">High Grid Draw</span>';
-                    } else if (value > 0) {
-                      statusHtml = '<span class="badge bg-warning text-dark">Grid Drawing</span>';
-                    } else if (value < -1000) {
-                      statusHtml = '<span class="badge bg-success">High Grid Export</span>';
-                    } else if (value < 0) {
-                      statusHtml = '<span class="badge bg-info">Grid Export</span>';
-                    } else {
-                      statusHtml = '<span class="badge bg-secondary">Neutral</span>';
-                    }
-                  } else if (statusClass === 'danger') {
-                    statusHtml = '<span class="badge bg-danger">Critical</span>';
-                  } else if (statusClass === 'warning') {
-                    statusHtml = '<span class="badge bg-warning text-dark">Warning</span>';
-                  } else if (statusClass === 'success') {
-                    statusHtml = '<span class="badge bg-success">Good</span>';
-                  } else {
-                    statusHtml = '<span class="badge bg-secondary">Unknown</span>';
-                  }
-                  
-                  statusCell.innerHTML = statusHtml;
-                } else {
-                  statusCell.innerHTML = '<span class="badge bg-secondary">Unknown</span>';
-                }
-              }
-              
-              if (timeCell) {
-                timeCell.textContent = new Date().toLocaleTimeString();
-              }
+            } else if (statusClass === 'danger') {
+              statusHtml = '<span class="badge bg-danger">Critical</span>';
+            } else if (statusClass === 'warning') {
+              statusHtml = '<span class="badge bg-warning text-dark">Warning</span>';
+            } else if (statusClass === 'success') {
+              statusHtml = '<span class="badge bg-success">Good</span>';
+            } else {
+              statusHtml = '<span class="badge bg-secondary">Unknown</span>';
             }
             
-            function updateGauge(gaugeId, percentage, color) {
-              const gauge = document.getElementById(gaugeId);
-              if (gauge) {
-                gauge.style.setProperty('--fill-color', color);
-                gauge.style.setProperty('--fill-percent', `${percentage * 100}%`);
-              }
-            }
+            statusCell.innerHTML = statusHtml;
+          } else {
+            statusCell.innerHTML = '<span class="badge bg-secondary">Unknown</span>';
+          }
+        }
+        
+        if (timeCell) {
+          timeCell.textContent = new Date().toLocaleTimeString();
+        }
+      }
+      
+      function updateGauge(gaugeId, percentage, color) {
+        const gauge = document.getElementById(gaugeId);
+        if (gauge) {
+          // Ensure percentage is a valid number
+          if (isNaN(percentage)) percentage = 0;
+          
+          // Clamp percentage between 0 and 1
+          percentage = Math.max(0, Math.min(1, percentage));
+          
+          gauge.style.setProperty('--fill-color', color);
+          gauge.style.setProperty('--fill-percent', `${percentage * 100}%`);
+        }
+      }
+      
+      function getBatteryColor(percentage) {
+        if (percentage < 20) return '#e74c3c'; // Red
+        if (percentage < 50) return '#f39c12'; // Orange
+        return '#2ecc71'; // Green
+      }
+      
+      function getBatteryBadgeClass(percentage) {
+        if (percentage < 20) return 'bg-danger';
+        if (percentage < 50) return 'bg-warning text-dark';
+        return 'bg-success';
+      }
+      
+      function showToast(message, type = 'success') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        
+        if (!toastContainer) {
+          toastContainer = document.createElement('div');
+          toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+          document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toastId = `toast-${Date.now()}`;
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast ${type === 'error' ? 'bg-danger text-white' : 'bg-success text-white'}`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastEl.setAttribute('id', toastId);
+        
+        toastEl.innerHTML = `
+          <div class="toast-header ${type === 'error' ? 'bg-danger text-white' : 'bg-success text-white'}">
+            <strong class="me-auto">
+              <i class="bi ${type === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2"></i>
+              Energy System
+            </strong>
+            <small>just now</small>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            ${message}
+          </div>
+        `;
+        
+        toastContainer.appendChild(toastEl);
+        
+        // Initialize and show the toast
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+        toast.show();
+        
+        // Remove toast after it's hidden
+        toastEl.addEventListener('hidden.bs.toast', function() {
+          toastEl.remove();
+        });
+      }
+      
+      function exportData() {
+        fetch('/api/learner/changes')
+          .then(response => response.json())
+          .then(data => {
+            // Convert data to CSV or JSON
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             
-            function getBatteryColor(percentage) {
-              if (percentage < 20) return '#e74c3c'; // Red
-              if (percentage < 50) return '#f39c12'; // Orange
-              return '#2ecc71'; // Green
-            }
+            // Create and trigger download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `energy_system_learner_data_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
             
-            function getBatteryBadgeClass(percentage) {
-              if (percentage < 20) return 'badge-battery badge-battery-low';
-              if (percentage < 50) return 'badge-battery badge-battery-medium';
-              return 'badge-battery badge-battery-high';
-            }
-            
-            function showToast(message, type = 'success') {
-              // Create toast container if it doesn't exist
-              let toastContainer = document.querySelector('.toast-container');
-              
-              if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                document.body.appendChild(toastContainer);
-              }
-              
-              // Create toast element
-              const toastId = `toast-${Date.now()}`;
-              const toastEl = document.createElement('div');
-              toastEl.className = `toast ${type === 'error' ? 'bg-danger text-white' : 'bg-success text-white'}`;
-              toastEl.setAttribute('role', 'alert');
-              toastEl.setAttribute('aria-live', 'assertive');
-              toastEl.setAttribute('aria-atomic', 'true');
-              toastEl.setAttribute('id', toastId);
-              
-              toastEl.innerHTML = `
-                <div class="toast-header ${type === 'error' ? 'bg-danger text-white' : 'bg-success text-white'}">
-                  <strong class="me-auto">
-                    <i class="bi ${type === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2"></i>
-                    Energy System
-                  </strong>
-                  <small>just now</small>
-                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-                <div class="toast-body">
-                  ${message}
-                </div>
-              `;
-              
-              toastContainer.appendChild(toastEl);
-              
-              // Initialize and show the toast
-              const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
-              toast.show();
-              
-              // Remove toast after it's hidden
-              toastEl.addEventListener('hidden.bs.toast', function() {
-                toastEl.remove();
-              });
-            }
-            
-            function exportData() {
-              fetch('/api/learner/changes')
-                .then(response => response.json())
-                .then(data => {
-                  // Convert data to CSV or JSON
-                  const json = JSON.stringify(data, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  
-                  // Create and trigger download
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `energy_system_learner_data_${new Date().toISOString().slice(0, 10)}.json`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  
-                  showToast('Data exported successfully');
-                })
-                .catch(error => {
-                  console.error('Error exporting data:', error);
-                  showToast('Error exporting data', 'error');
-                });
-            }
+            showToast('Data exported successfully');
+          })
+          .catch(error => {
+            console.error('Error exporting data:', error);
+            showToast('Error exporting data', 'error');
           });
-        </script>
+      }
+    });
+         </script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
