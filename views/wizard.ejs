@@ -3094,6 +3094,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Save the rule to the server
 function saveRule() {
+    // Show loading indicator
+    document.getElementById('loadingOverlay').style.display = 'block';
+    
     // Update from UI
     updateConditionsFromUI();
     updateActionsFromUI();
@@ -3104,11 +3107,13 @@ function saveRule() {
     const ruleActive = document.getElementById('ruleActive').checked;
     
     if (!ruleName) {
+        document.getElementById('loadingOverlay').style.display = 'none';
         alert('Please enter a rule name');
         return;
     }
     
     if (actions.length === 0) {
+        document.getElementById('loadingOverlay').style.display = 'none';
         alert('Please add at least one action');
         return;
     }
@@ -3148,6 +3153,8 @@ function saveRule() {
         actions: actions
     };
     
+    console.log('Sending rule data:', JSON.stringify(rule));
+    
     // Send to server
     fetch('/api/rules', {
         method: 'POST',
@@ -3157,8 +3164,13 @@ function saveRule() {
         body: JSON.stringify(rule)
     })
     .then(response => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            // Try to get the error message from the response
+            return response.json().then(data => {
+                throw new Error(data.error || 'Network response was not ok');
+            });
         }
         return response.json();
     })
@@ -3176,7 +3188,21 @@ function saveRule() {
     })
     .catch(error => {
         console.error('Error creating rule:', error);
-        alert('Error creating rule: ' + error.message);
+        
+        // Show error message
+        const errorHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Error!</strong> ${error.message || 'Failed to create rule. Please try again.'}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Insert the error message at the top of the form
+        const form = document.getElementById('ruleWizardForm');
+        form.insertAdjacentHTML('afterbegin', errorHTML);
+        
+        // Scroll to top to show the error
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
 </script>
