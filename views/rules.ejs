@@ -1888,11 +1888,14 @@ select.form-control {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  let allRules = [];
+let allRules = [];
 let deleteRuleId = null;
-const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+let deleteModal;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap modal
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    
     // Load all rules
     loadRules();
     
@@ -1905,6 +1908,10 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteRule(deleteRuleId);
         }
     });
+
+    // Setup system state refreshing
+    refreshSystemState();
+    setInterval(refreshSystemState, 30000); // Update every 30 seconds
 });
 
 // Load all rules from the server
@@ -1930,6 +1937,52 @@ function loadRules() {
         });
 }
 
+// Refresh system state
+function refreshSystemState() {
+    fetch('/api/system-state')
+        .then(response => response.json())
+        .then(data => {
+            updateSystemStateDisplay(data.current_state);
+        })
+        .catch(error => {
+            console.error('Error fetching system state:', error);
+        });
+}
+
+// Update system state display
+function updateSystemStateDisplay(state) {
+    if (!state) return;
+    
+    const stateContainer = document.getElementById('currentSystemState');
+    if (!stateContainer) return;
+    
+    // Format the state values with proper units
+    let stateHTML = '<ul class="list-group">';
+    
+    if (state.battery_soc !== null) {
+        stateHTML += `<li class="list-group-item">Battery SOC: <strong>${state.battery_soc}%</strong></li>`;
+    }
+    
+    if (state.pv_power !== null) {
+        stateHTML += `<li class="list-group-item">PV Power: <strong>${state.pv_power}W</strong></li>`;
+    }
+    
+    if (state.load !== null) {
+        stateHTML += `<li class="list-group-item">Load: <strong>${state.load}W</strong></li>`;
+    }
+    
+    if (state.grid_voltage !== null) {
+        stateHTML += `<li class="list-group-item">Grid Voltage: <strong>${state.grid_voltage}V</strong></li>`;
+    }
+    
+    if (state.grid_power !== null) {
+        stateHTML += `<li class="list-group-item">Grid Power: <strong>${state.grid_power}W</strong></li>`;
+    }
+    
+    stateHTML += '</ul>';
+    stateContainer.innerHTML = stateHTML;
+}
+
 // Render all rules to the page
 function renderRules() {
     const rulesContainer = document.getElementById('rulesContainer');
@@ -1952,8 +2005,19 @@ function renderRules() {
         return;
     }
     
-    // Sort rules by name
-    rulesToShow.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort rules by name, but put extended rules at the bottom
+    rulesToShow.sort((a, b) => {
+        // Check if either rule is an extended rule
+        const aIsExtended = a.name.includes('Extended');
+        const bIsExtended = b.name.includes('Extended');
+        
+        // If one is extended and the other isn't, sort accordingly
+        if (aIsExtended && !bIsExtended) return 1;
+        if (!aIsExtended && bIsExtended) return -1;
+        
+        // Otherwise sort alphabetically
+        return a.name.localeCompare(b.name);
+    });
     
     // Render each rule
     rulesToShow.forEach(rule => {
@@ -1964,6 +2028,12 @@ function renderRules() {
         ruleCard.id = `rule-${rule._id}`;
         ruleCard.dataset.ruleId = rule._id;
         
+        // Add special styling for extended rules
+        if (rule.name.includes('Extended')) {
+            ruleCard.classList.add('extended-rule');
+            ruleCard.classList.add('border-primary');
+        }
+        
         if (!rule.active) {
             ruleCard.classList.add('text-muted');
         }
@@ -1973,6 +2043,14 @@ function renderRules() {
         ruleElement.querySelector('.rule-active-badge').textContent = rule.active ? 'Active' : 'Inactive';
         ruleElement.querySelector('.rule-active-badge').classList.remove('bg-secondary');
         ruleElement.querySelector('.rule-active-badge').classList.add(rule.active ? 'bg-success' : 'bg-warning');
+        
+        // Add extended rule badge if applicable
+        if (rule.name.includes('Extended')) {
+            const extensionBadge = document.createElement('span');
+            extensionBadge.className = 'badge bg-primary ms-2';
+            extensionBadge.textContent = 'Extended';
+            ruleElement.querySelector('.rule-name').appendChild(extensionBadge);
+        }
         
         // Set rule description
         ruleElement.querySelector('.rule-description').textContent = rule.description || 'No description';
@@ -2043,10 +2121,12 @@ function renderRules() {
                 let inverter = action.inverter === 'all' ? 'All Inverters' : action.inverter.replace('_', ' ');
                 
                 // Add units if needed
-                if (['max_discharge_current', 'max_charge_current', 'max_grid_charge_current'].includes(action.setting)) {
+                if (['max_discharge_current', 'max_charge_current', 'max_grid_charge_current', 'max_generator_charge_current'].includes(action.setting)) {
                     value += ' A';
-                } else if (action.setting === 'max_sell_power') {
+                } else if (['max_sell_power', 'max_solar_power', 'voltage_point_1', 'voltage_point_2', 'voltage_point_3', 'voltage_point_4', 'voltage_point_5', 'voltage_point_6'].includes(action.setting)) {
                     value += ' W';
+                } else if (action.setting.includes('voltage') && !action.setting.includes('point')) {
+                    value += ' V';
                 }
                 
                 actionElement.textContent = `Set ${settingName} to ${value} on ${inverter}`;
@@ -2102,11 +2182,17 @@ function filterRules() {
 
 // Toggle rule active state
 function toggleRuleActive(ruleId, isActive) {
-    fetch(`/api/rules/${ruleId}/toggle`, {
-        method: 'PATCH',
+    // Create a patch request to update the rule
+    fetch(`/api/rules/${ruleId}`, {
+        method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+            active: isActive,
+            // Need to send the entire rule object with updated active state
+            ...allRules.find(r => r._id === ruleId)
+        })
     })
     .then(response => {
         if (!response.ok) {
@@ -2116,9 +2202,9 @@ function toggleRuleActive(ruleId, isActive) {
     })
     .then(data => {
         // Update the rule in our local array
-        const rule = allRules.find(r => r._id === ruleId);
-        if (rule) {
-            rule.active = data.active;
+        const ruleIndex = allRules.findIndex(r => r._id === ruleId);
+        if (ruleIndex !== -1) {
+            allRules[ruleIndex] = data;
             
             // Update the card
             const card = document.getElementById(`rule-${ruleId}`);
@@ -2151,32 +2237,47 @@ function toggleRuleActive(ruleId, isActive) {
 
 // Execute a rule manually
 function executeRule(ruleId) {
-    if (!confirm('Are you sure you want to execute this rule now?')) {
-        return;
-    }
-    
-    fetch(`/api/rules/${ruleId}/execute`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        alert(`Rule executed successfully!`);
-        
-        // Reload rules to get updated trigger count
-        loadRules();
-    })
-    .catch(error => {
-        console.error('Error executing rule:', error);
-        alert('Error executing rule: ' + error.message);
-    });
+    // Check learner mode status first
+    fetch('/api/learner/status')
+        .then(response => response.json())
+        .then(learnerStatus => {
+            if (!learnerStatus.active) {
+                alert('Learner mode is not active. Please activate it before executing rules.');
+                return;
+            }
+            
+            // Proceed with execution if learner mode is active
+            if (!confirm('Are you sure you want to execute this rule now?')) {
+                return;
+            }
+            
+            fetch(`/api/rules/${ruleId}/execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(`Rule executed successfully!`);
+                
+                // Reload rules to get updated trigger count
+                loadRules();
+            })
+            .catch(error => {
+                console.error('Error executing rule:', error);
+                alert('Error executing rule: ' + error.message);
+            });
+        })
+        .catch(error => {
+            console.error('Error checking learner mode status:', error);
+            alert('Error checking learner mode status: ' + error.message);
+        });
 }
 
 // Duplicate a rule
@@ -2289,16 +2390,48 @@ function getSettingName(setting) {
         'grid_charge': 'Grid Charge',
         'energy_pattern': 'Energy Pattern',
         'work_mode': 'Work Mode',
+        'work_mode_timer': 'Use Timer',
         'max_discharge_current': 'Max Discharge Current',
         'max_charge_current': 'Max Charge Current',
         'max_grid_charge_current': 'Max Grid Charge Current',
+        'max_generator_charge_current': 'Max Generator Charge Current',
+        'battery_float_charge_voltage': 'Float Charge Voltage',
+        'battery_absorption_charge_voltage': 'Absorption Charge Voltage',
+        'battery_equalization_charge_voltage': 'Equalization Charge Voltage',
         'solar_export_when_battery_full': 'Solar Export When Battery Full',
         'max_sell_power': 'Max Sell Power',
+        'max_solar_power': 'Max Solar Power',
+        'grid_trickle_feed': 'Grid Trickle Feed',
         'remote_switch': 'Remote Switch',
-        'generator_charge': 'Generator Charge'
+        'generator_charge': 'Generator Charge',
+        'force_generator_on': 'Force Generator On',
+        'output_shutdown_voltage': 'Output Shutdown Voltage',
+        'stop_battery_discharge_voltage': 'Stop Battery Discharge Voltage',
+        'start_battery_discharge_voltage': 'Start Battery Discharge Voltage',
+        'start_grid_charge_voltage': 'Start Grid Charge Voltage',
+        'voltage_point_1': 'Voltage Point 1',
+        'voltage_point_2': 'Voltage Point 2',
+        'voltage_point_3': 'Voltage Point 3',
+        'voltage_point_4': 'Voltage Point 4',
+        'voltage_point_5': 'Voltage Point 5',
+        'voltage_point_6': 'Voltage Point 6'
     };
     return names[setting] || setting;
 }
+
+// Add some CSS for extended rules styling
+document.addEventListener('DOMContentLoaded', function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .extended-rule {
+            background-color: #f0f8ff;
+        }
+        .extended-rule .card-header {
+            background-color: #e7f1ff;
+        }
+    `;
+    document.head.appendChild(style);
+});
 </script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
