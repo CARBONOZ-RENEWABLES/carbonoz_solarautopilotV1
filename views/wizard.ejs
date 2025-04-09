@@ -2492,9 +2492,19 @@ let conditions = [];
 let actions = [];
 let selectedDates = [];
 let currentStep = 1;
+let numInverters = 1; // Will be set dynamically from server data
 
 // Initialize when the document is ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Get the number of inverters from server-provided data
+    if (typeof serverNumInverters !== 'undefined') {
+        numInverters = serverNumInverters;
+    }
+    
+    // Check if we're in edit mode and pre-populate the form
+    const isEditMode = document.getElementById('editMode') && 
+                      document.getElementById('editMode').value === 'true';
+    
     // Insert step indicators before the progress bar
     insertStepIndicators();
     
@@ -2533,16 +2543,109 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Add initial condition and action
-    addCondition();
-    addAction();
+    // If we're in edit mode, load the existing rule
+    if (isEditMode) {
+        loadExistingRule();
+    } else {
+        // Add initial condition and action
+        addCondition();
+        addAction();
+    }
     
     // Update the rule preview
     updateRulePreview();
     
     // Update step indicators for initial state
     updateStepIndicators(currentStep);
+    
+    // Enhance the days of week selector
+    setTimeout(enhanceDaysOfWeekSelector, 100);
 });
+
+/**
+ * Load an existing rule for editing
+ */
+function loadExistingRule() {
+    try {
+        // Get rule data from server-provided JSON
+        const ruleDataElement = document.getElementById('ruleData');
+        if (!ruleDataElement) return;
+        
+        const ruleData = JSON.parse(ruleDataElement.value);
+        if (!ruleData) return;
+        
+        // Basic information
+        document.getElementById('ruleName').value = ruleData.name || '';
+        document.getElementById('ruleDescription').value = ruleData.description || '';
+        document.getElementById('ruleActive').checked = ruleData.active !== false;
+        
+        // Conditions
+        if (ruleData.conditions && ruleData.conditions.length > 0) {
+            // Clear existing conditions
+            document.getElementById('conditionsContainer').innerHTML = '';
+            
+            // Add each condition
+            ruleData.conditions.forEach(condition => {
+                addCondition(condition);
+            });
+        } else {
+            // Add empty condition
+            addCondition();
+        }
+        
+        // Time restrictions
+        if (ruleData.timeRestrictions && ruleData.timeRestrictions.enabled) {
+            document.getElementById('enableTimeRestrictions').checked = true;
+            document.getElementById('timeRestrictionsContainer').style.display = 'block';
+            
+            // Time range
+            if (ruleData.timeRestrictions.startTime) {
+                document.getElementById('startTime').value = ruleData.timeRestrictions.startTime;
+            }
+            if (ruleData.timeRestrictions.endTime) {
+                document.getElementById('endTime').value = ruleData.timeRestrictions.endTime;
+            }
+            
+            // Days
+            if (ruleData.timeRestrictions.days && ruleData.timeRestrictions.days.length > 0) {
+                ruleData.timeRestrictions.days.forEach(day => {
+                    const checkbox = document.querySelector(`input[name="days"][value="${day}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+            // Specific dates
+            if (ruleData.timeRestrictions.specificDates && ruleData.timeRestrictions.specificDates.length > 0) {
+                document.getElementById('enableSpecificDates').checked = true;
+                document.getElementById('specificDatesContainer').classList.add('show');
+                
+                selectedDates = [...ruleData.timeRestrictions.specificDates];
+                updateSelectedDates();
+            }
+        }
+        
+        // Actions
+        if (ruleData.actions && ruleData.actions.length > 0) {
+            // Clear existing actions
+            document.getElementById('actionsContainer').innerHTML = '';
+            
+            // Add each action
+            ruleData.actions.forEach(action => {
+                addAction(action);
+            });
+        } else {
+            // Add empty action
+            addAction();
+        }
+        
+        console.log('Loaded existing rule data:', ruleData);
+    } catch (error) {
+        console.error('Error loading existing rule:', error);
+        // Add default condition and action if loading fails
+        addCondition();
+        addAction();
+    }
+}
 
 /**
  * Create and insert step indicators
@@ -2666,8 +2769,10 @@ function prevStep(step) {
     updateStepIndicators(currentStep);
 }
 
+
+
 // Add a new condition
-function addCondition() {
+function addCondition(existingCondition = null) {
     const conditionId = `condition-${Date.now()}`;
     const conditionsContainer = document.getElementById('conditionsContainer');
     
@@ -2712,6 +2817,29 @@ function addCondition() {
     `;
     
     conditionsContainer.insertAdjacentHTML('beforeend', conditionHTML);
+    
+    // If we have an existing condition, set the values
+    if (existingCondition) {
+        const newConditionElement = document.getElementById(conditionId);
+        
+        // Set parameter
+        const parameterSelect = newConditionElement.querySelector('.condition-parameter');
+        if (parameterSelect && existingCondition.parameter) {
+            parameterSelect.value = existingCondition.parameter;
+        }
+        
+        // Set operator
+        const operatorSelect = newConditionElement.querySelector('.condition-operator');
+        if (operatorSelect && existingCondition.operator) {
+            operatorSelect.value = existingCondition.operator;
+        }
+        
+        // Set value
+        const valueInput = newConditionElement.querySelector('.condition-value');
+        if (valueInput && existingCondition.value !== undefined) {
+            valueInput.value = existingCondition.value;
+        }
+    }
 }
 
 // Remove a condition
@@ -2734,9 +2862,15 @@ function updateConditionOperatorOptions(parameterSelect) {
 }
 
 // Add a new action
-function addAction() {
+function addAction(existingAction = null) {
     const actionId = `action-${Date.now()}`;
     const actionsContainer = document.getElementById('actionsContainer');
+    
+    // Generate inverter options based on the number of inverters
+    let inverterOptions = '<option value="all">All Inverters</option>';
+    for (let i = 1; i <= numInverters; i++) {
+        inverterOptions += `<option value="inverter_${i}">Inverter ${i}</option>`;
+    }
     
     const actionHTML = `
         <div class="action-card" id="${actionId}">
@@ -2755,6 +2889,14 @@ function addAction() {
                             <option value="max_sell_power">Max Sell Power</option>
                             <option value="remote_switch">Remote Switch</option>
                             <option value="generator_charge">Generator Charge</option>
+                            <option value="voltage_point_1">Voltage Point 1</option>
+                            <option value="voltage_point_2">Voltage Point 2</option>
+                            <option value="voltage_point_3">Voltage Point 3</option>
+                            <option value="voltage_point_4">Voltage Point 4</option>
+                            <option value="work_mode_timer">Work Mode Timer</option>
+                            <option value="start_battery_discharge_voltage">Start Battery Discharge Voltage</option>
+                            <option value="stop_battery_discharge_voltage">Stop Battery Discharge Voltage</option>
+                            <option value="start_grid_charge_voltage">Start Grid Charge Voltage</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -2767,13 +2909,7 @@ function addAction() {
                     <div class="col-md-3">
                         <label class="form-label">Inverter</label>
                         <select class="form-select action-inverter">
-                            <option value="all">All Inverters</option>
-                            <option value="inverter_1">Inverter 1</option>
-                            <option value="inverter_2">Inverter 2</option>
-                             <option value="inverter_3">Inverter 1</option>
-                            <option value="inverter_4">Inverter 2</option>
-                             <option value="inverter_5">Inverter 1</option>
-                            <option value="inverter_6">Inverter 2</option>
+                            ${inverterOptions}
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
@@ -2787,8 +2923,69 @@ function addAction() {
     `;
     
     actionsContainer.insertAdjacentHTML('beforeend', actionHTML);
+    
+    // Get the newly created action card
+    const newActionElement = document.getElementById(actionId);
+    
+    // Set setting and update value options immediately for default option
+    const settingSelect = newActionElement.querySelector('.action-setting');
+    
+    // If we have an existing action, set the values
+    if (existingAction) {
+        // Set setting
+        if (settingSelect && existingAction.setting) {
+            settingSelect.value = existingAction.setting;
+            // This will update the value options based on the setting
+            updateActionValueOptions(settingSelect);
+        }
+        
+        // Set inverter
+        const inverterSelect = newActionElement.querySelector('.action-inverter');
+        if (inverterSelect && existingAction.inverter) {
+            // Ensure the option exists
+            if (Array.from(inverterSelect.options).some(opt => opt.value === existingAction.inverter)) {
+                inverterSelect.value = existingAction.inverter;
+            } else {
+                // Add the option if it doesn't exist
+                const option = document.createElement('option');
+                option.value = existingAction.inverter;
+                option.text = existingAction.inverter.replace('_', ' ');
+                inverterSelect.add(option);
+                inverterSelect.value = existingAction.inverter;
+            }
+        }
+        
+        // Set value after a slight delay to ensure the value options have been updated
+        setTimeout(() => {
+            const valueElement = newActionElement.querySelector('.action-value');
+            if (valueElement && existingAction.value !== undefined) {
+                // If it's a select element
+                if (valueElement.tagName === 'SELECT') {
+                    // Check if the option exists in the select
+                    const optionExists = Array.from(valueElement.options)
+                        .some(opt => opt.value === existingAction.value);
+                    
+                    if (optionExists) {
+                        valueElement.value = existingAction.value;
+                    } else {
+                        // Add the option if it doesn't exist
+                        const option = document.createElement('option');
+                        option.value = existingAction.value;
+                        option.text = existingAction.value;
+                        valueElement.add(option);
+                        valueElement.value = existingAction.value;
+                    }
+                } else {
+                    // If it's an input element
+                    valueElement.value = existingAction.value;
+                }
+            }
+        }, 100);
+    } else {
+        // For new actions, initialize the value options
+        updateActionValueOptions(settingSelect);
+    }
 }
-
 // Remove an action
 function removeAction(actionId) {
     document.getElementById(actionId).remove();
@@ -2796,44 +2993,103 @@ function removeAction(actionId) {
 
 // Update value options based on setting
 function updateActionValueOptions(settingSelect) {
-    const valueSelect = settingSelect.closest('.row').querySelector('.action-value');
+    // Ensure we have a valid select element
+    if (!settingSelect || !settingSelect.value) {
+        console.error('Invalid setting select element');
+        return;
+    }
+
     const setting = settingSelect.value;
+    const row = settingSelect.closest('.row');
     
-    // Clear existing options
-    valueSelect.innerHTML = '';
+    if (!row) {
+        console.error('Cannot find parent row');
+        return;
+    }
     
-    // Add appropriate options based on setting
-    if (setting === 'grid_charge' || setting === 'generator_charge' || 
-        setting === 'remote_switch' || setting === 'solar_export_when_battery_full') {
-        valueSelect.innerHTML = `
-            <option value="Enabled">Enabled</option>
-            <option value="Disabled">Disabled</option>
+    const colDiv = row.querySelector('.col-md-4:nth-child(2)');
+    
+    if (!colDiv) {
+        console.error('Cannot find value column div');
+        return;
+    }
+    
+    console.log(`Updating options for setting: ${setting}`);
+    
+    // Clear the column div and recreate appropriate input
+    if (setting === 'grid_charge' || 
+        setting === 'generator_charge' || 
+        setting === 'solar_export_when_battery_full' ||
+        setting === 'work_mode_timer') {
+        
+        colDiv.innerHTML = `
+            <label class="form-label">Value</label>
+            <select class="form-select action-value">
+                <option value="Enabled">Enabled</option>
+                <option value="Disabled">Disabled</option>
+            </select>
         `;
-    } else if (setting === 'energy_pattern' || setting === 'work_mode') {
-        valueSelect.innerHTML = `
-            <option value="Battery first">Battery first</option>
-            <option value="Grid first">Load first</option>
-         
+        
+    } else if (setting === 'remote_switch') {
+        colDiv.innerHTML = `
+            <label class="form-label">Value</label>
+            <select class="form-select action-value">
+                <option value="On">On</option>
+                <option value="Off">Off</option>
+            </select>
         `;
-    } else if (setting === 'max_discharge_current' || setting === 'max_charge_current' || 
-              setting === 'max_grid_charge_current') {
-        // Convert to input field for numeric values
-        const rowElement = valueSelect.closest('.row');
-        const colDiv = valueSelect.closest('.col-md-4');
+        
+    } else if (setting === 'energy_pattern') {
+        colDiv.innerHTML = `
+            <label class="form-label">Value</label>
+            <select class="form-select action-value">
+                <option value="Battery first">Battery first</option>
+                <option value="Load first">Load first</option>
+            </select>
+        `;
+        
+    } else if (setting === 'work_mode') {
+        colDiv.innerHTML = `
+            <label class="form-label">Value</label>
+            <select class="form-select action-value">
+                <option value="Selling first">Selling first</option>
+                <option value="Zero export to load">Zero export to load</option>
+                <option value="Zero export to CT">Zero export to CT</option>
+            </select>
+        `;
+        
+    } else if (setting === 'max_discharge_current' || 
+               setting === 'max_charge_current' || 
+               setting === 'max_grid_charge_current') {
         
         colDiv.innerHTML = `
             <label class="form-label">Value (A)</label>
             <input type="number" class="form-control action-value" min="0" max="100" step="0.1">
         `;
-    } else if (setting === 'max_sell_power') {
-        const rowElement = valueSelect.closest('.row');
-        const colDiv = valueSelect.closest('.col-md-4');
         
+    } else if (setting === 'max_sell_power') {
         colDiv.innerHTML = `
             <label class="form-label">Value (W)</label>
             <input type="number" class="form-control action-value" min="0" max="10000" step="100">
         `;
+        
+    } else if (setting.startsWith('voltage_point_')) {
+        colDiv.innerHTML = `
+            <label class="form-label">Value (V)</label>
+            <input type="number" class="form-control action-value" min="0" max="60" step="0.1">
+        `;
+        
+    } else if (setting === 'start_battery_discharge_voltage' || 
+               setting === 'stop_battery_discharge_voltage' || 
+               setting === 'start_grid_charge_voltage') {
+        
+        colDiv.innerHTML = `
+            <label class="form-label">Value (V)</label>
+            <input type="number" class="form-control action-value" min="40" max="60" step="0.1">
+        `;
     }
+    
+    console.log(`Updated value options for ${setting}`);
 }
 
 // Update the conditions array from UI
@@ -2980,6 +3236,14 @@ function updateRulePreview() {
                 case 'max_sell_power': settingName = 'Max Sell Power'; break;
                 case 'remote_switch': settingName = 'Remote Switch'; break;
                 case 'generator_charge': settingName = 'Generator Charge'; break;
+                case 'voltage_point_1': settingName = 'Voltage Point 1'; break;
+                case 'voltage_point_2': settingName = 'Voltage Point 2'; break;
+                case 'voltage_point_3': settingName = 'Voltage Point 3'; break;
+                case 'voltage_point_4': settingName = 'Voltage Point 4'; break;
+                case 'work_mode_timer': settingName = 'Work Mode Timer'; break;
+                case 'start_battery_discharge_voltage': settingName = 'Start Battery Discharge Voltage'; break;
+                case 'stop_battery_discharge_voltage': settingName = 'Stop Battery Discharge Voltage'; break;
+                case 'start_grid_charge_voltage': settingName = 'Start Grid Charge Voltage'; break;
             }
             
             // Add units based on setting
@@ -2988,6 +3252,10 @@ function updateRulePreview() {
                 valueDisplay = `${action.value} A`;
             } else if (action.setting === 'max_sell_power') {
                 valueDisplay = `${action.value} W`;
+            } else if (action.setting === 'start_battery_discharge_voltage' || 
+                      action.setting === 'stop_battery_discharge_voltage' || 
+                      action.setting === 'start_grid_charge_voltage') {
+                valueDisplay = `${action.value} V`;
             }
             
             previewHTML += `<div class="preview-line ms-3">Set ${settingName} to ${valueDisplay} on ${action.inverter === 'all' ? 'All Inverters' : action.inverter.replace('_', ' ')}</div>`;
@@ -3029,6 +3297,7 @@ function removeDate(date) {
     selectedDates = selectedDates.filter(d => d !== date);
     updateSelectedDates();
 }
+
 function enhanceDaysOfWeekSelector() {
     // Find the days of week container
     const daysContainer = document.querySelector('.wizard-step#step3 .row:first-child .col-md-6 .d-flex.flex-wrap');
@@ -3086,17 +3355,8 @@ function enhanceDaysOfWeekSelector() {
     daysContainer.parentNode.replaceChild(newContainer, daysContainer);
 }
 
-// Make sure to call this function after the document is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Call this after other initialization
-    setTimeout(enhanceDaysOfWeekSelector, 100);
-});
-
 // Save the rule to the server
 function saveRule() {
-    // Show loading indicator
-    document.getElementById('loadingOverlay').style.display = 'block';
-    
     // Update from UI
     updateConditionsFromUI();
     updateActionsFromUI();
@@ -3107,13 +3367,11 @@ function saveRule() {
     const ruleActive = document.getElementById('ruleActive').checked;
     
     if (!ruleName) {
-        document.getElementById('loadingOverlay').style.display = 'none';
         alert('Please enter a rule name');
         return;
     }
     
     if (actions.length === 0) {
-        document.getElementById('loadingOverlay').style.display = 'none';
         alert('Please add at least one action');
         return;
     }
@@ -3153,29 +3411,37 @@ function saveRule() {
         actions: actions
     };
     
-    console.log('Sending rule data:', JSON.stringify(rule));
+    // Check if we're in edit mode
+    const isEditMode = document.getElementById('editMode') && 
+                      document.getElementById('editMode').value === 'true';
+    const ruleId = document.getElementById('ruleId') ? 
+                 document.getElementById('ruleId').value : null;
+    
+    // Determine API endpoint and method based on edit mode
+    let apiUrl = '/api/rules';
+    let method = 'POST';
+    
+    if (isEditMode && ruleId) {
+        apiUrl = `/api/rules/${ruleId}`;
+        method = 'PUT';
+    }
     
     // Send to server
-    fetch('/api/rules', {
-        method: 'POST',
+    fetch(apiUrl, {
+        method: method,
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(rule)
     })
     .then(response => {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        
         if (!response.ok) {
-            // Try to get the error message from the response
-            return response.json().then(data => {
-                throw new Error(data.error || 'Network response was not ok');
-            });
+            throw new Error('Network response was not ok');
         }
         return response.json();
     })
     .then(data => {
-        console.log('Rule created successfully:', data);
+        console.log(`Rule ${isEditMode ? 'updated' : 'created'} successfully:`, data);
         
         // Show success message
         const successMessage = document.querySelector('.success-message');
@@ -3187,22 +3453,79 @@ function saveRule() {
         }, 2000);
     })
     .catch(error => {
-        console.error('Error creating rule:', error);
-        
-        // Show error message
-        const errorHTML = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Error!</strong> ${error.message || 'Failed to create rule. Please try again.'}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        
-        // Insert the error message at the top of the form
-        const form = document.getElementById('ruleWizardForm');
-        form.insertAdjacentHTML('afterbegin', errorHTML);
-        
-        // Scroll to top to show the error
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.error(`Error ${isEditMode ? 'updating' : 'creating'} rule:`, error);
+        alert(`Error ${isEditMode ? 'updating' : 'creating'} rule: ${error.message}`);
+    });
+}
+
+// Function to duplicate a rule
+function duplicateRule(ruleId) {
+    if (!ruleId) {
+        console.error('No rule ID provided for duplication');
+        return;
+    }
+    
+    // Confirm before duplicating
+    if (!confirm('Are you sure you want to duplicate this rule?')) {
+        return;
+    }
+    
+    // Send duplication request to server
+    fetch(`/api/rules/${ruleId}/duplicate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Rule duplicated successfully:', data);
+        // Redirect to rules page or the new rule edit page
+        window.location.href = '/rules';
+    })
+    .catch(error => {
+        console.error('Error duplicating rule:', error);
+        alert('Error duplicating rule: ' + error.message);
+    });
+}
+
+// Function to execute a rule immediately
+function executeRule(ruleId) {
+    if (!ruleId) {
+        console.error('No rule ID provided for execution');
+        return;
+    }
+    
+    // Confirm before executing
+    if (!confirm('Are you sure you want to execute this rule now? This will apply all actions regardless of conditions.')) {
+        return;
+    }
+    
+    // Send execution request to server
+    fetch(`/api/rules/${ruleId}/execute`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Rule executed successfully:', data);
+        alert('Rule executed successfully: ' + data.message);
+    })
+    .catch(error => {
+        console.error('Error executing rule:', error);
+        alert('Error executing rule: ' + error.message);
     });
 }
 </script>
