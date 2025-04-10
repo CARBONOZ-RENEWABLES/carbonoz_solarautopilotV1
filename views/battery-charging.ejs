@@ -2160,7 +2160,7 @@ body.dark-mode {
     // Load battery charging settings
     function loadBatteryChargingSettings() {
         $.ajax({
-            url: '/api/battery-charging-changes',
+            url: '<%= ingress_path %>/api/battery-charging-changes',
             method: 'GET',
             success: function(response) {
                 displayBatteryChargingSettings(response);
@@ -2430,7 +2430,7 @@ body.dark-mode {
         
         // Send to the server
         $.ajax({
-            url: '/api/battery-charging/set',
+            url: '<%= ingress_path %>/api/battery-charging/set',
             method: 'POST',
             data: {
                 inverter: inverter,

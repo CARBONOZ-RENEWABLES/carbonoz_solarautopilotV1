@@ -2180,7 +2180,7 @@ body.dark-mode {
     // Load recent changes
     function loadRecentChanges() {
         $.ajax({
-            url: '/api/work-mode-changes',
+            url: '<%= ingress_path %>/api/work-mode-changes',
             method: 'GET',
             success: function(response) {
                 displayRecentChanges(response);
@@ -2444,7 +2444,7 @@ body.dark-mode {
         
         // Send to the server
         $.ajax({
-            url: '/api/work-mode/set',
+            url: '<%= ingress_path %>/api/work-mode/set',
             method: 'POST',
             data: {
                 inverter: inverter,

@@ -1880,7 +1880,7 @@ body.dark-mode {
     function loadCurrentPatterns() {
     // First try the current-settings endpoint (preferred)
     $.ajax({
-        url: '/api/current-settings',
+        url: '<%= ingress_path %>/api/current-settings',
         method: 'GET',
         success: function(response) {
             console.log("Current settings response:", response);
@@ -1918,7 +1918,7 @@ body.dark-mode {
 
 function loadCurrentPatternsFromHistory() {
     $.ajax({
-        url: '/api/energy-pattern-changes',
+        url: '<%= ingress_path %>/api/energy-pattern-changes',
         method: 'GET',
         success: function(response) {
             console.log("Energy pattern changes response:", response);
@@ -2076,7 +2076,7 @@ function loadCurrentPatternsFromHistory() {
         // Set energy pattern
         function setEnergyPattern(inverterId, pattern) {
             $.ajax({
-                url: '/api/command',
+                url: '<%= ingress_path %>/api/command',
                 method: 'POST',
                 data: {
                     topic: `energy/${inverterId}/energy_pattern/set`,
@@ -2115,7 +2115,7 @@ function loadCurrentPatternsFromHistory() {
         // Load recent changes
         function loadRecentChanges() {
             $.ajax({
-                url: '/api/energy-pattern-changes',
+                url: '<%= ingress_path %>/api/energy-pattern-changes',
                 method: 'GET',
                 success: function(response) {
                     displayRecentChanges(response);
@@ -2209,7 +2209,7 @@ function displayRecentChanges(changes) {
             
             // Make API request
             $.ajax({
-                url: '/api/energy-pattern-changes',
+                url: '<%= ingress_path %>/api/energy-pattern-changes',
                 method: 'GET',
                 data: {
                     hours: timeRange,

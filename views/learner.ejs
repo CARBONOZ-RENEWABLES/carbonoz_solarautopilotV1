@@ -2527,7 +2527,7 @@ body {
       
       // Functions
       function toggleLearnerMode(active) {
-        fetch('/api/learner/toggle', {
+        fetch('<%= ingress_path %>/api/learner/toggle', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -2556,7 +2556,7 @@ body {
       }
       
       function fetchSystemState() {
-        fetch('/api/system-state')
+        fetch('<%= ingress_path %>/api/system-state')
         .then(response => response.json())
         .then(data => {
           updateSystemState(data.current_state);
@@ -2568,7 +2568,7 @@ body {
       }
       
       function fetchRecentChanges() {
-        fetch('/api/learner/changes?limit=10')
+        fetch('<%= ingress_path %>/api/learner/changes?limit=10')
         .then(response => response.json())
         .then(data => {
           updateRecentChanges(data);
@@ -2941,7 +2941,7 @@ body {
       }
       
       function exportData() {
-        fetch('/api/learner/changes')
+        fetch('<%= ingress_path %>/api/learner/changes')
           .then(response => response.json())
           .then(data => {
             // Convert data to CSV or JSON

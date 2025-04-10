@@ -1916,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load all rules from the server
 function loadRules() {
-    fetch('/api/rules')
+    fetch('<%= ingress_path %>/api/rules')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -1939,7 +1939,7 @@ function loadRules() {
 
 // Refresh system state
 function refreshSystemState() {
-    fetch('/api/system-state')
+    fetch('<%= ingress_path %>/api/system-state')
         .then(response => response.json())
         .then(data => {
             updateSystemStateDisplay(data.current_state);
@@ -2183,7 +2183,7 @@ function filterRules() {
 // Toggle rule active state
 function toggleRuleActive(ruleId, isActive) {
     // Create a patch request to update the rule
-    fetch(`/api/rules/${ruleId}`, {
+    fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -2238,7 +2238,7 @@ function toggleRuleActive(ruleId, isActive) {
 // Execute a rule manually
 function executeRule(ruleId) {
     // Check learner mode status first
-    fetch('/api/learner/status')
+    fetch('<%= ingress_path %>/api/learner/status')
         .then(response => response.json())
         .then(learnerStatus => {
             if (!learnerStatus.active) {
@@ -2251,7 +2251,7 @@ function executeRule(ruleId) {
                 return;
             }
             
-            fetch(`/api/rules/${ruleId}/execute`, {
+            fetch(`<%= ingress_path %>/api/rules/${ruleId}/execute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2282,7 +2282,7 @@ function executeRule(ruleId) {
 
 // Duplicate a rule
 function duplicateRule(ruleId) {
-    fetch(`/api/rules/${ruleId}/duplicate`, {
+    fetch(`<%= ingress_path %>/api/rules/${ruleId}/duplicate`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -2315,7 +2315,7 @@ function showDeleteModal(ruleId, ruleName) {
 
 // Delete a rule
 function deleteRule(ruleId) {
-    fetch(`/api/rules/${ruleId}`, {
+    fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',

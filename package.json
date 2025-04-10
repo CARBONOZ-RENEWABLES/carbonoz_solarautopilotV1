@@ -15,14 +15,16 @@
     "ejs": "^3.1.6",
     "exponential-backoff": "^3.1.1",
     "express": "^4.17.1",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
     "follow-redirects": "^1.15.6",
+    "helmet": "^8.0.0",
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
+    "mongoose": "^8.13.2",
     "mqtt": "^4.2.8",
-    "ws": "^8.2.3",
-    "express-rate-limit": "^7.5.0",
     "node-cache": "^5.1.2",
-    "helmet": "^8.0.0",
-    "express-session": "^1.18.1"
+    "node-cron": "^3.0.3",
+    "ws": "^8.2.3"
   }
 }

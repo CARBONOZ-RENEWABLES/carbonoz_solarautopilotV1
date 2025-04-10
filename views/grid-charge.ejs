@@ -2640,7 +2640,7 @@ function setupEventListeners() {
 // Load grid charge settings from the API
 function loadGridChargeSettings() {
     $.ajax({
-        url: '/api/grid-charge-changes',
+        url: '<%= ingress_path %>/api/grid-charge-changes',
         method: 'GET',
         success: function(response) {
             if (!Array.isArray(response) || response.length === 0) {
@@ -2720,7 +2720,7 @@ function loadGridChargeSettings() {
 // Load grid charge points from the API
 function loadGridChargePoints() {
     $.ajax({
-        url: '/api/grid-charge-changes',
+        url: '<%= ingress_path %>/api/grid-charge-changes',
         method: 'GET',
         success: function(response) {
             if (!Array.isArray(response) || response.length === 0) {
@@ -3000,7 +3000,7 @@ function renderChargePointsList() {
 // Load recent changes
 function loadRecentChanges() {
     $.ajax({
-        url: '/api/grid-charge-changes',
+        url: '<%= ingress_path %>/api/grid-charge-changes',
         method: 'GET',
         success: function(response) {
             displayRecentChanges(response);
@@ -3104,7 +3104,7 @@ function displayRecentChanges(changes) {
 // Load grid charge history
 function loadGridChargeHistory() {
     $.ajax({
-        url: '/api/grid-charge-changes',
+        url: '<%= ingress_path %>/api/grid-charge-changes',
         method: 'GET',
         success: function(response) {
             displayGridChargeHistory(response);
@@ -3312,7 +3312,7 @@ function saveGridChargeSetting() {
     
     // Send to server
     $.ajax({
-        url: '/api/command',
+        url: '<%= ingress_path %>/api/command',
         method: 'POST',
         data: {
             topic: topic,
@@ -3483,7 +3483,7 @@ function saveNewChargePoint() {
     
     // Send to server
     $.ajax({
-        url: '/api/command',
+        url: '<%= ingress_path %>/api/command',
         method: 'POST',
         data: {
             topic: topic,

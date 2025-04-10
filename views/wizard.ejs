@@ -3418,11 +3418,11 @@ function saveRule() {
                  document.getElementById('ruleId').value : null;
     
     // Determine API endpoint and method based on edit mode
-    let apiUrl = '/api/rules';
+    let apiUrl = '<%= ingress_path %>/api/rules';
     let method = 'POST';
     
     if (isEditMode && ruleId) {
-        apiUrl = `/api/rules/${ruleId}`;
+        apiUrl = `<%= ingress_path %>/api/rules/${ruleId}`;
         method = 'PUT';
     }
     
@@ -3471,7 +3471,7 @@ function duplicateRule(ruleId) {
     }
     
     // Send duplication request to server
-    fetch(`/api/rules/${ruleId}/duplicate`, {
+    fetch(`<%= ingress_path %>/api/rules/${ruleId}/duplicate`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -3507,7 +3507,7 @@ function executeRule(ruleId) {
     }
     
     // Send execution request to server
-    fetch(`/api/rules/${ruleId}/execute`, {
+    fetch(`<%= ingress_path %>/api/rules/${ruleId}/execute`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

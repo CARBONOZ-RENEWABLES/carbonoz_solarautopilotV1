@@ -1745,7 +1745,7 @@ body.dark-mode .alert-warning {
         function showRuleDetails(ruleId) {
             currentRuleId = ruleId;
             
-            fetch(`/api/rules/${ruleId}`)
+            fetch(`<%= ingress_path %>/api/rules/${ruleId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -1869,7 +1869,7 @@ body.dark-mode .alert-warning {
         
         // Function to execute a rule
         function executeRule(ruleId) {
-            fetch(`/api/rules/${ruleId}/execute`, {
+            fetch(`<%= ingress_path %>/api/rules/${ruleId}/execute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1900,7 +1900,7 @@ body.dark-mode .alert-warning {
         
         // Function to fetch summary data
         function fetchSummaryData() {
-            fetch('/api/rules/history?limit=100')
+            fetch('<%= ingress_path %>/api/rules/history?limit=100')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -1944,7 +1944,7 @@ body.dark-mode .alert-warning {
         
         // Function to fetch all rules
         function fetchAllRules() {
-            fetch('/api/rules')
+            fetch('<%= ingress_path %>/api/rules')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -2140,7 +2140,7 @@ body.dark-mode .alert-warning {
     
     // Function to delete a rule
     function deleteRule(ruleId) {
-        fetch(`/api/rules/${ruleId}`, {
+        fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

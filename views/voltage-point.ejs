@@ -2371,7 +2371,7 @@ body.dark-mode {
        // Load voltage points from the API
        function loadVoltagePoints() {
            $.ajax({
-               url: '/api/voltage-point-changes',
+               url: '<%= ingress_path %>/api/voltage-point-changes',
                method: 'GET',
                success: function(response) {
                    // Try to parse the response flexibly
@@ -2565,7 +2565,7 @@ body.dark-mode {
        // Load recent changes
        function loadRecentChanges() {
            $.ajax({
-               url: '/api/voltage-point-changes',
+               url: '<%= ingress_path %>/api/voltage-point-changes',
                method: 'GET',
                success: function(response) {
                    displayRecentChanges(response);
@@ -2639,7 +2639,7 @@ body.dark-mode {
        // Load voltage point history
        function loadVoltagePointHistory() {
            $.ajax({
-               url: '/api/voltage-point-changes',
+               url: '<%= ingress_path %>/api/voltage-point-changes',
                method: 'GET',
                success: function(response) {
                    displayVoltagePointHistory(response);
@@ -2731,7 +2731,7 @@ if (voltagePoints[inverter] && voltagePoints[inverter][pointNumber]) {
            
            // Send to server
            $.ajax({
-               url: '/api/command',
+               url: '<%= ingress_path %>/api/command',
                method: 'POST',
                data: {
                    topic: topic,
