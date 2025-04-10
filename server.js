@@ -90,19 +90,14 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 
-// Load configuration
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
-}
+// Read configuration from Home Assistant add-on options
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number || 1
 const batteryNumber = options.battery_number || 1
 const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy'
-const mongoDbUri = options.mongodb_uri || process.env.MONGODB_URI || 'mongodb://localhost:27017/energy_monitor'
+const mongoDbUri = options.mongodb_uri || process.env.MONGODB_URI || 'mongodb://localadmin:05e1LbNatrSacABiSYQy4vJE1Ol1EZorMwiaEpgpW7U9YBboHl@100.79.49.117:27017/energy_monitor?authSource=carbonoz_dev&directConnection=true'
 
 
 // Constants
@@ -144,7 +139,7 @@ app.use('/api/', limiter)
 
 // InfluxDB configuration
 const influxConfig = {
-  host: options.influxdb_host || '192.168.138.27',
+  host: options.influxdb_host || 'localhost',
   port: options.influxdb_port || 8086,
   database: options.influxdb_database || 'home_assistant',
   username: options.influxdb_username || 'admin',
@@ -171,7 +166,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'core-mosquitto',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
