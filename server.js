@@ -1270,9 +1270,9 @@ app.get('/api/messages', (req, res) => {
   })
   
   
-// Route handlers
 app.get('/messages', (req, res) => {
   res.render('messages', {
+    ingress_path: process.env.INGRESS_PATH || '',
     categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
   })
 })
