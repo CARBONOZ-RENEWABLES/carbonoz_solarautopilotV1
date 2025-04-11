@@ -1682,21 +1682,30 @@ function calculateEmissionsForPeriod(
 
 // Function to check if current time is within the specified time range
 function isWithinTimeRange(startTime, endTime) {
-  if (!startTime || !endTime) return true
+  if (!startTime || !endTime) return true;
   
-  const currentTime = moment()
-  const start = moment(startTime, 'HH:mm')
-  const end = moment(endTime, 'HH:mm')
+  // Use the current timezone for time calculations
+  const currentTime = moment().tz(currentTimezone);
+  const start = moment.tz(startTime, 'HH:mm', currentTimezone);
+  const end = moment.tz(endTime, 'HH:mm', currentTimezone);
   
-  return currentTime.isBetween(start, end)
+  // Handle cases where the time range spans midnight
+  if (end.isBefore(start)) {
+    // Return true if current time is after start OR before end
+    return currentTime.isAfter(start) || currentTime.isBefore(end);
+  }
+  
+  // Normal case: check if current time is between start and end
+  return currentTime.isBetween(start, end);
 }
 
 // Function to check if current day is in the allowed days
 function isAllowedDay(allowedDays) {
-  if (!allowedDays || allowedDays.length === 0) return true
+  if (!allowedDays || allowedDays.length === 0) return true;
   
-  const currentDay = moment().format('dddd').toLowerCase()
-  return allowedDays.includes(currentDay)
+  // Use the current timezone for day calculation
+  const currentDay = moment().tz(currentTimezone).format('dddd').toLowerCase();
+  return allowedDays.includes(currentDay);
 }
 
 // Function to evaluate a condition
@@ -2633,6 +2642,209 @@ async function createExtendedAutomationRules() {
   }
 }
 
+
+// ================ NIGHT CHARGING RULES ================
+
+// Create a rule for night charging to 95% SOC
+async function createNightChargingRule() {
+  if (!dbConnected) return;
+  
+  try {
+    // Check if the rule already exists
+    const existingRule = await Rule.findOne({
+      name: 'Night Battery Charging to 95%',
+      user_id: USER_ID
+    });
+    
+    if (existingRule) {
+      console.log('Night charging rule already exists, updating it...');
+      
+      // Update the existing rule
+      existingRule.description = 'Charges the battery at night (11PM to 6AM) to 95% SOC using Berlin timezone';
+      existingRule.active = true;
+      existingRule.conditions = [
+        {
+          parameter: 'battery_soc',
+          operator: 'lt',
+          value: 95
+        }
+      ];
+      existingRule.timeRestrictions = {
+        startTime: '23:00',
+        endTime: '06:00',
+        enabled: true,
+        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] // Every day
+      };
+      existingRule.actions = [
+        {
+          setting: 'grid_charge',
+          value: 'Enabled',
+          inverter: 'all'
+        }
+      ];
+      
+      await existingRule.save();
+      console.log('Night charging rule updated successfully');
+    } else {
+      // Create a new rule
+      const nightChargingRule = new Rule({
+        name: 'Night Battery Charging to 95%',
+        description: 'Charges the battery at night (11PM to 6AM) to 95% SOC using Berlin timezone',
+        active: true,
+        conditions: [
+          {
+            parameter: 'battery_soc',
+            operator: 'lt',
+            value: 95
+          }
+        ],
+        timeRestrictions: {
+          startTime: '23:00',
+          endTime: '06:00',
+          enabled: true,
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] // Every day
+        },
+        actions: [
+          {
+            setting: 'grid_charge',
+            value: 'Enabled',
+            inverter: 'all'
+          }
+        ],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      await nightChargingRule.save();
+      console.log('Night charging rule created successfully');
+    }
+    
+    // Create a complementary rule to turn OFF grid charging after 6AM
+    const existingComplementaryRule = await Rule.findOne({
+      name: 'Disable Grid Charging After 6AM',
+      user_id: USER_ID
+    });
+    
+    if (existingComplementaryRule) {
+      console.log('Complementary rule already exists, updating it...');
+      
+      // Update the existing rule
+      existingComplementaryRule.description = 'Disables grid charging after 6AM until 11PM (daytime)';
+      existingComplementaryRule.active = true;
+      existingComplementaryRule.conditions = []; // No condition on battery SOC for this rule
+      existingComplementaryRule.timeRestrictions = {
+        startTime: '06:01',
+        endTime: '22:59',
+        enabled: true,
+        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] // Every day
+      };
+      existingComplementaryRule.actions = [
+        {
+          setting: 'grid_charge',
+          value: 'Disabled',
+          inverter: 'all'
+        }
+      ];
+      
+      await existingComplementaryRule.save();
+      console.log('Complementary rule updated successfully');
+    } else {
+      // Create the complementary rule
+      const complementaryRule = new Rule({
+        name: 'Disable Grid Charging After 6AM',
+        description: 'Disables grid charging after 6AM until 11PM (daytime)',
+        active: true,
+        conditions: [], // No condition on battery SOC for this rule
+        timeRestrictions: {
+          startTime: '06:01',
+          endTime: '22:59',
+          enabled: true,
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] // Every day
+        },
+        actions: [
+          {
+            setting: 'grid_charge',
+            value: 'Disabled',
+            inverter: 'all'
+          }
+        ],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      await complementaryRule.save();
+      console.log('Complementary rule created successfully');
+    }
+    
+    // Create an emergency SOC 95%+ rule to ensure grid charging is disabled when battery is full
+    const existingEmergencyRule = await Rule.findOne({
+      name: 'Disable Grid Charging When Battery Full',
+      user_id: USER_ID
+    });
+    
+    if (existingEmergencyRule) {
+      console.log('Emergency rule already exists, updating it...');
+      
+      // Update the existing rule
+      existingEmergencyRule.description = 'Disables grid charging when battery SOC reaches 95% or higher';
+      existingEmergencyRule.active = true;
+      existingEmergencyRule.conditions = [
+        {
+          parameter: 'battery_soc',
+          operator: 'gte',
+          value: 95
+        }
+      ];
+      existingEmergencyRule.timeRestrictions = {
+        enabled: false // This rule applies at all times
+      };
+      existingEmergencyRule.actions = [
+        {
+          setting: 'grid_charge',
+          value: 'Disabled',
+          inverter: 'all'
+        }
+      ];
+      
+      await existingEmergencyRule.save();
+      console.log('Emergency rule updated successfully');
+    } else {
+      // Create the emergency rule
+      const emergencyRule = new Rule({
+        name: 'Disable Grid Charging When Battery Full',
+        description: 'Disables grid charging when battery SOC reaches 95% or higher',
+        active: true,
+        conditions: [
+          {
+            parameter: 'battery_soc',
+            operator: 'gte',
+            value: 95
+          }
+        ],
+        timeRestrictions: {
+          enabled: false // This rule applies at all times
+        },
+        actions: [
+          {
+            setting: 'grid_charge',
+            value: 'Disabled',
+            inverter: 'all'
+          }
+        ],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      await emergencyRule.save();
+      console.log('Emergency rule created successfully');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating night charging rules:', error.message);
+    return false;
+  }
+}
 
 // ================ API ROUTES ================
 
@@ -4170,6 +4382,9 @@ async function initializeAutomationRules() {
     
     // Then create the extended advanced rules
     await createExtendedAutomationRules();
+
+     // Finally, create the night charging rules
+     await createNightChargingRule();
     
     console.log('All automation rules initialized successfully');
   } catch (error) {
