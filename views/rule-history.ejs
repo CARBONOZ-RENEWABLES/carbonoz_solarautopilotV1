@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
-   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
+   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 body {
     font-family: 'Inter', sans-serif;
@@ -468,8 +465,8 @@ body {
 }
 
 .loading-spinner {
- width: 60px;
- height: 60px;
+ width: 50px;
+ height: 50px;
  border: 5px solid #e0e0e0;
  border-top: 5px solid #3498db;
  border-radius: 50%;
@@ -1382,6 +1379,515 @@ body.dark-mode .alert-warning {
         white-space: nowrap;
     }
 }
+
+/* Modal Styles - Hide by default */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1050;
+    overflow: hidden;
+    outline: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    display: block;
+    opacity: 1;
+}
+
+.modal-dialog {
+    position: relative;
+    width: auto;
+    margin: 1.75rem auto;
+    max-width: 500px;
+    transform: translateY(-50px);
+    transition: transform 0.3s ease;
+}
+
+.modal-dialog.modal-lg {
+    max-width: 800px;
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0);
+}
+
+.modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    background-color: #fff;
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    outline: 0;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-title {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.2s;
+}
+
+.btn-close:hover {
+    color: #fff;
+}
+
+.modal-body {
+    position: relative;
+    flex: 1 1 auto;
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    gap: 0.5rem;
+}
+
+/* Dark mode adjustments for modals */
+body.dark-mode .modal-content {
+    background-color: #1e2227;
+    color: #f5f6fa;
+}
+
+body.dark-mode .modal-header {
+    border-bottom-color: #2d3748;
+}
+
+body.dark-mode .modal-footer {
+    border-top-color: #2d3748;
+}
+
+body.dark-mode .bg-light {
+    background-color: #2d3748 !important;
+    color: #e2e8f0;
+}
+
+/* Enhanced Button Styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    text-align: center;
+    vertical-align: middle;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn:focus, .btn:hover {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.25);
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: calc(var(--border-radius) - 2px);
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: calc(var(--border-radius) + 2px);
+}
+
+/* Remove underlines from buttons that are links */
+a.btn {
+    text-decoration: none;
+}
+
+a.btn:hover, a.btn:focus, a.btn:active {
+    text-decoration: none;
+}
+
+/* Button Variants */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #c69c09;
+    border-color: #c69c09;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: #5a6268;
+    border-color: #5a6268;
+}
+
+.btn-success {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: #fff;
+}
+
+.btn-success:hover, .btn-success:focus {
+    background-color: #27ae60;
+    border-color: #27ae60;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: #fff;
+}
+
+.btn-danger:hover, .btn-danger:focus {
+    background-color: #c0392b;
+    border-color: #c0392b;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #fff;
+}
+
+.btn-warning:hover, .btn-warning:focus {
+    background-color: #d35400;
+    border-color: #d35400;
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.btn-outline-secondary {
+    color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover, .btn-outline-secondary:focus {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.btn-outline-success {
+    color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.btn-outline-success:hover, .btn-outline-success:focus {
+    background-color: var(--secondary-color);
+    color: #fff;
+}
+
+.btn-outline-danger {
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-outline-danger:hover, .btn-outline-danger:focus {
+    background-color: var(--danger-color);
+    color: #fff;
+}
+
+.btn-outline-warning {
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-outline-warning:hover, .btn-outline-warning:focus {
+    background-color: var(--warning-color);
+    color: #fff;
+}
+
+/* Button with icons */
+.btn i {
+    font-size: 1.1em;
+}
+
+/* Action buttons group styling */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+@media (max-width: 576px) {
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Search and Filtering Controls Styles */
+.filtering-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.input-group {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 100%;
+    max-width: 400px;
+}
+
+.input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #495057;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    border-right: none;
+}
+
+.input-group .form-control {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #495057;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.input-group .btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
+
+.btn-group {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+.btn-group > .btn {
+    position: relative;
+    flex: 1 1 auto;
+}
+
+.btn-group > .btn:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-left: -1px;
+}
+
+.btn-group > .btn:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.btn-group > .btn.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    z-index: 1;
+}
+
+#searchInput {
+    border-right: none;
+    padding-right: 35px;
+}
+
+#clearSearchBtn {
+    position: absolute;
+    right: 1px;
+    top: 1px;
+    bottom: 1px;
+    z-index: 5;
+    background: transparent;
+    border: none;
+    width: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+#clearSearchBtn:hover {
+    opacity: 1;
+    background-color: #f0f0f0;
+}
+
+/* Search results styling */
+#historyTable tbody tr {
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+#historyTable tbody tr:hover {
+    background-color: rgba(222, 175, 11, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode adjustments for search */
+body.dark-mode .filtering-controls {
+    background-color: #1e2227;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .input-group-text {
+    color: #e2e8f0;
+    background-color: #2d3748;
+    border-color: #4a5568;
+}
+
+body.dark-mode .form-control {
+    color: #e2e8f0;
+    background-color: #2d3748;
+    border-color: #4a5568;
+}
+
+body.dark-mode .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.25);
+}
+
+body.dark-mode #clearSearchBtn:hover {
+    background-color: #2d3748;
+}
+
+body.dark-mode #historyTable tbody tr:hover {
+    background-color: rgba(222, 175, 11, 0.1);
+}
+
+@media (max-width: 768px) {
+    .filtering-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .input-group {
+        max-width: 100%;
+    }
+    
+    .btn-group {
+        width: 100%;
+    }
+    
+    .btn-group > .btn {
+        flex: 1;
+    }
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+}
+
+/* Fade effect for modals */
+.fade {
+    transition: opacity 0.15s linear;
+}
+
+.fade:not(.show) {
+    opacity: 0;
+}
+
+/* Animation for modals */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal.show .modal-content {
+    animation: modalFadeIn 0.3s ease forwards;
+}
 </style>
 </head>
 <body>
@@ -1653,23 +2159,6 @@ body.dark-mode .alert-warning {
 
     
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script> 
-      
-<script>
-       // loading js
-        
-   document.addEventListener('DOMContentLoaded', function() {
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const pageContent = document.getElementById('pageContent');
-  
-    // Simulate loading time (you can adjust this as needed)
-    setTimeout(() => {
-      loadingOverlay.style.display = 'none';
-      pageContent.style.display = 'block';
-      // Trigger a custom event to signal that the page is ready
-      document.dispatchEvent(new Event('pageReady'));
-    }, 1500); // 1.5 seconds loading time
-  });
-</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize modals
