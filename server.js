@@ -130,12 +130,15 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }))
 
-// Rate limiting
+// Add this line BEFORE initializing the rate limiter
+app.set('trust proxy', 1); // Trust first proxy
+
+// Then initialize your rate limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
-})
-app.use('/api/', limiter)
+});
+app.use('/api/', limiter);
 
 // InfluxDB configuration
 const influxConfig = {

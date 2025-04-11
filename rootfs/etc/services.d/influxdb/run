@@ -1,14 +1,42 @@
 #!/usr/bin/with-contenv bashio
+
 # ==============================================================================
-# Start the InfluxDB service
+# Start the InfluxDB service with proper data persistence
 # ==============================================================================
 
-bashio::log.info "Starting InfluxDB..."
+bashio::log.info "Starting InfluxDB with data persistence..."
 
 # Ensure directories exist with correct permissions
-mkdir -p /var/lib/influxdb
-mkdir -p /var/log/influxdb
-chown -R nobody:nobody /var/lib/influxdb /var/log/influxdb
+mkdir -p /data/influxdb/meta
+mkdir -p /data/influxdb/data
+mkdir -p /data/influxdb/wal
+chown -R nobody:nobody /data/influxdb
 
-# Start InfluxDB with config
+# Check if this is the first run
+if [ ! -f "/data/influxdb/.configured" ]; then
+  bashio::log.info "First run detected, configuring InfluxDB..."
+  
+  # Start InfluxDB
+  s6-setuidgid nobody influxd -config /etc/influxdb/influxdb.conf &
+  INFLUXDB_PID=$!
+  
+  # Wait for InfluxDB to start
+  bashio::log.info "Waiting for InfluxDB to start..."
+  sleep 10
+  
+  # Create the database and users if they do not exist
+  influx -execute "CREATE DATABASE home_assistant" || true
+  influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'" || true
+  influx -execute "GRANT ALL ON home_assistant TO admin" || true
+  
+  # Mark as configured
+  touch /data/influxdb/.configured
+  
+  # Stop the temporary instance
+  kill $INFLUXDB_PID
+  wait $INFLUXDB_PID || true
+  sleep 2
+fi
+
+# Start InfluxDB with proper configuration
 exec s6-setuidgid nobody influxd -config /etc/influxdb/influxdb.conf
