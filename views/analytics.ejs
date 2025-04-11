@@ -1555,291 +1555,338 @@ body.dark-mode {
     }
 
     function createLineChart(chartElementId, labels, datasets, title) {
-        const ctx = document.getElementById(chartElementId).getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets.map(dataset => ({
-                    ...dataset,
-                    tension: 0.3,  // Makes lines curved
-                    borderWidth: 2,
-                    pointRadius: 3,  // Small points always visible
-                    pointHoverRadius: 7,  // Larger points on hover
-                    pointHoverBackgroundColor: 'white',
-                    pointHoverBorderWidth: 2
-                }))
+    const ctx = document.getElementById(chartElementId).getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets.map(dataset => ({
+                ...dataset,
+                tension: 0.3,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 7,
+                pointHoverBackgroundColor: 'white',
+                pointHoverBorderWidth: 2
+            }))
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
             },
-            options: {
-                responsive: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: {
-                        title: { 
-                            display: true, 
-                            text: 'Date',
-                            color: '#00BCD4'  // Changed: x-axis title color
-                        },
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color (lighter version)
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: x-axis labels color
+            scales: {
+                x: {
+                    title: { 
+                        display: true, 
+                        text: 'Date',
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
                         }
                     },
-                    y: {
-                        title: { 
-                            display: true, 
-                            text: 'kWh',
-                            color: '#00BCD4'  // Changed: y-axis title color
-                        },
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color (lighter version)
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: y-axis labels color
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
                         }
                     }
                 },
-                plugins: {
-                    legend: { 
-                        position: 'top',
-                        labels: {
-                            color: '#333333'  // Keeping legend text dark for readability
-                        }
-                    },
+                y: {
                     title: { 
                         display: true, 
-                        text: title,
-                        font: { size: 16 },
-                        color: '#333333'  // Keeping title text dark for readability
+                        text: 'kWh',
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
                     },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        titleFont: { size: 14 },
-                        bodyFont: { size: 13 },
-                        padding: 10,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    // Format the y value with 2 decimal places
-                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
-                                    
-                                    // Add descriptive text for battery values
-                                    if (label.includes('Battery Charged')) {
-                                        label += ' (into battery)';
-                                    } else if (label.includes('Battery Discharged')) {
-                                        label += ' (from battery)';
-                                    }
-                                }
-                                return label;
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { 
+                    position: 'top',
+                    labels: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: { 
+                    display: true, 
+                    text: title,
+                    font: { 
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    color: '#00BCD4'
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    padding: 10,
+                    displayColors: true,
+                    titleColor: '#00BCD4',
+                    bodyColor: '#00BCD4',
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
                             }
+                            if (context.parsed.y !== null) {
+                                label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                
+                                if (label.includes('Battery Charged')) {
+                                    label += ' (into battery)';
+                                } else if (label.includes('Battery Discharged')) {
+                                    label += ' (from battery)';
+                                }
+                            }
+                            return label;
                         }
                     }
                 }
             }
-        });
-    }
+        }
+    });
+}
 
     // Function to create a battery chart
     function createBatteryChart(chartElementId, labels, chargedData, dischargedData, title) {
-        const ctx = document.getElementById(chartElementId).getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Battery Charged',
-                        data: chargedData.map(value => -value), // Negative for charging
-                        backgroundColor: '#0C7085',
-                        stack: 'battery'
-                    },
-                    {
-                        label: 'Battery Discharged',
-                        data: dischargedData,
-                        backgroundColor: '#FF8DA1',
-                        stack: 'battery'
-                    }
-                ]
+    const ctx = document.getElementById(chartElementId).getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Battery Charged',
+                    data: chargedData.map(value => -value), // Negative for charging
+                    backgroundColor: '#0C7085',
+                    stack: 'battery'
+                },
+                {
+                    label: 'Battery Discharged',
+                    data: dischargedData,
+                    backgroundColor: '#FF8DA1',
+                    stack: 'battery'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
             },
-            options: {
-                responsive: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: { 
-                        stacked: true,
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: x-axis labels color
-                        }
+            scales: {
+                x: { 
+                    stacked: true,
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
                     },
-                    y: {
-                        stacked: true,
-                        title: { 
-                            display: true, 
-                            text: 'kWh',
-                            color: '#00BCD4'  // Changed: y-axis title color
-                        },
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: y-axis labels color
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
                         }
                     }
                 },
-                plugins: {
-                    legend: { 
-                        position: 'top',
-                        labels: {
-                            color: '#333333'  // Keeping legend text dark for readability
-                        }
-                    },
+                y: {
+                    stacked: true,
                     title: { 
                         display: true, 
-                        text: title,
-                        font: { size: 16 },
-                        color: '#333333'  // Keeping title text dark for readability
+                        text: 'kWh',
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
                     },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    // Format the y value with 2 decimal places and show absolute value
-                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
-                                    
-                                    // Add descriptive text
-                                    if (label.includes('Battery Charged')) {
-                                        label += ' (into battery)';
-                                    } else if (label.includes('Battery Discharged')) {
-                                        label += ' (from battery)';
-                                    }
-                                }
-                                return label;
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { 
+                    position: 'top',
+                    labels: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: { 
+                    display: true, 
+                    text: title,
+                    font: { 
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    color: '#00BCD4'
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    titleColor: '#00BCD4',
+                    bodyColor: '#00BCD4',
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
                             }
+                            if (context.parsed.y !== null) {
+                                label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                
+                                if (label.includes('Battery Charged')) {
+                                    label += ' (into battery)';
+                                } else if (label.includes('Battery Discharged')) {
+                                    label += ' (from battery)';
+                                }
+                            }
+                            return label;
                         }
                     }
                 }
             }
-        });
-    }
+        }
+    });
+}
 
     // Function to create a grid chart
     function createGridChart(chartElementId, labels, gridUsedData, gridExportedData, title) {
-        const ctx = document.getElementById(chartElementId).getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Grid Exported',
-                        data: gridExportedData.map(value => -value), // Negative for exporting
-                        backgroundColor: '#4CAF50', // Green for export (giving back to grid)
-                        stack: 'grid'
-                    },
-                    {
-                        label: 'Grid Used',
-                        data: gridUsedData,
-                        backgroundColor: '#9C27B0', // Purple for grid usage
-                        stack: 'grid'
-                    }
-                ]
+    const ctx = document.getElementById(chartElementId).getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Grid Exported',
+                    data: gridExportedData.map(value => -value), // Negative for exporting
+                    backgroundColor: '#4CAF50', // Green for export
+                    stack: 'grid'
+                },
+                {
+                    label: 'Grid Used',
+                    data: gridUsedData,
+                    backgroundColor: '#9C27B0', // Purple for grid usage
+                    stack: 'grid'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
             },
-            options: {
-                responsive: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: { 
-                        stacked: true,
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: x-axis grid line color
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: x-axis labels color
-                        }
+            scales: {
+                x: { 
+                    stacked: true,
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
                     },
-                    y: {
-                        stacked: true,
-                        title: { 
-                            display: true, 
-                            text: 'kWh',
-                            color: '#00BCD4'  // Changed: y-axis title color
-                        },
-                        grid: {
-                            color: 'rgba(0, 188, 212, 0.1)'  // Changed: y-axis grid line color
-                        },
-                        ticks: {
-                            color: '#00BCD4'  // Changed: y-axis labels color
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
                         }
                     }
                 },
-                plugins: {
-                    legend: { 
-                        position: 'top',
-                        labels: {
-                            color: '#333333'  // Keeping legend text dark for readability
-                        }
-                    },
+                y: {
+                    stacked: true,
                     title: { 
                         display: true, 
-                        text: title,
-                        font: { size: 16 },
-                        color: '#333333'  // Keeping title text dark for readability
+                        text: 'kWh',
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
                     },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    // Format the y value with 2 decimal places and show absolute value
-                                    label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
-                                    
-                                    // Add descriptive text
-                                    if (label.includes('Grid Exported')) {
-                                        label += ' (to grid)';
-                                    } else if (label.includes('Grid Used')) {
-                                        label += ' (from grid)';
-                                    }
-                                }
-                                return label;
+                    grid: {
+                        color: 'rgba(0, 188, 212, 0.1)'
+                    },
+                    ticks: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { 
+                    position: 'top',
+                    labels: {
+                        color: '#00BCD4',
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: { 
+                    display: true, 
+                    text: title,
+                    font: { 
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    color: '#00BCD4'
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    titleColor: '#00BCD4',
+                    bodyColor: '#00BCD4',
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
                             }
+                            if (context.parsed.y !== null) {
+                                label += Math.abs(context.parsed.y).toFixed(2) + ' kWh';
+                                
+                                if (label.includes('Grid Exported')) {
+                                    label += ' (to grid)';
+                                } else if (label.includes('Grid Used')) {
+                                    label += ' (from grid)';
+                                }
+                            }
+                            return label;
                         }
                     }
                 }
             }
-        });
-    }
-
+        }
+    });
+}
     // Get data for the last 30 days
     const last30DaysData = getTableData('last30days-table');
     
