@@ -4174,16 +4174,19 @@ function connectToMqtt() {
     })
   })
 
-  mqttClient.on('message', (topic, message) => {
-    const formattedMessage = `${topic}: ${message.toString()}`
-    incomingMessages.push(formattedMessage)
-    if (incomingMessages.length > MAX_MESSAGES) {
-      incomingMessages.shift()
-    }
-    
-    // Always save messages to InfluxDB regardless of learner mode
-    saveMessageToInfluxDB(topic, message)
-  })
+mqttClient.on('message', (topic, message) => {
+  const formattedMessage = `${topic}: ${message.toString()}`
+  incomingMessages.push(formattedMessage)
+  if (incomingMessages.length > MAX_MESSAGES) {
+    incomingMessages.shift()
+  }
+  
+  // Call the handleMqttMessage function to process and save to MongoDB
+  handleMqttMessage(topic, message)
+  
+  // Always save messages to InfluxDB regardless of learner mode
+  saveMessageToInfluxDB(topic, message)
+})
 
   mqttClient.on('error', (err) => {
     console.error('MQTT error:', err.message)
