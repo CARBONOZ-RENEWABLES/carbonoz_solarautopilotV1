@@ -7,76 +7,53 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 body {
     font-family: 'Inter', sans-serif;
-    background: var(--bg-color);
 }
 :root {
-    --primary-color: #DEAF0B;
-    --bg-color: #f5f6fa;
-    --text-color: #2f3640;
-    --icon-color: #636e72;
-    --green: #4CAF50;
-    --red: #F44336;
-    --blue: #2196F3;
-    --amber: #FFC107;
-    --gray: #757575;
+  /* Light Theme Variables */
+  --primary-color: #DEAF0B;
+  --primary-color-light: #fff;
+  --secondary-color: #3f37c9;
+  --success-color: #2ecc71;
+  --success-color-light: rgba(46, 204, 113, 0.15);
+  --info-color: #3498db;
+  --info-color-light: rgba(52, 152, 219, 0.15);
+  --warning-color: #f39c12;
+  --warning-color-light: rgba(243, 156, 18, 0.15);
+  --danger-color: #e74c3c;
+  --danger-color-light: rgba(231, 76, 60, 0.15);
+  
+  --bg-color: #f8f9fa;
+  --text-color: #2d3748;
+  --text-muted: #718096;
+  --border-color: #e2e8f0;
+  
+  --sidebar-bg: #1a202c;
+  --sidebar-text: #e2e8f0;
+  --sidebar-active: #4361ee;
+  
+  --card-bg: #ffffff;
+  --card-bg-accent: #f7fafc;
+  --card-header-bg: #f8f9fa;
+  --card-footer-bg: #f8f9fa;
+  
+  --btn-hover-bg: #edf2f7;
+  --input-bg: #ffffff;
+  --dropdown-bg: #ffffff;
+  --modal-bg: #ffffff;
+  --switch-bg: #cbd5e0;
+  --item-bg: #f7fafc;
+}
 
-      /* Color system */
-      --primary: #DEAF0B;          /* Main accent color */
-    --primary-dark: #DEAF0C;     /* Darker shade of primary */
-    --secondary: #38b000;        /* Success/active color */
-    --warning: #ffbe0b;          /* Warning color */
-    --danger: #ef476f;           /* Danger/error color */
-    --info: #4361ee;             /* Info color */
-    --light: #f8f9fa;            /* Light backgrounds */
-    --grey-100: #f8f9fa;
-    --grey-200: #e9ecef;
-    --grey-300: #dee2e6;
-    --grey-400: #ced4da;
-    --grey-500: #adb5bd;
-    --grey-600: #6c757d;
-    --grey-700: #495057;
-    --grey-800: #343a40;
-    --grey-900: #212529;
-    
-    /* Special colors for energy monitoring */
-    --battery-color: #38b000;    /* Green for battery */
-    --solar-color: #ffbe0b;      /* Yellow for solar/PV */
-    --grid-color: #ff006e;       /* Magenta for grid */
-    --load-color: #3a86ff;       /* Blue for load */
-    
-    /* Typography */
-    --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-size-base: 1rem;
-    --font-weight-normal: 400;
-    --font-weight-bold: 600;
-    --font-weight-header: 700;
-    
-    /* Spacing */
-    --spacer: 1rem;
-    
-    /* Borders & shadows */
-    --border-radius: 0.5rem;
-    --border-radius-sm: 0.25rem;
-    --border-radius-lg: 0.75rem;
-    --border-radius-pill: 50rem;
-    --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
-    --box-shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
-    --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.12);
-    --box-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.075);
-    
-    /* Transitions */
-    --transition-base: all 0.2s ease-in-out;
-    --transition-fast: all 0.1s ease-in-out;
-    --transition-slow: all 0.3s ease-in-out;
-   }
    
    body, html {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
     height: 100%;
+    background-color: var(--bg-color);
     
    }
     /* Sidebar styles */
@@ -519,47 +496,8 @@ body {
  100% { transform: rotate(360deg); }
 }
 
-.dashboard-column {
-flex-basis: calc(33.33333% - 2px);
-margin-right: 2px;
-margin-bottom: 2px;
-}
 
-@media only screen and (max-width: 128em) {
-.dashboard-column {
- flex-basis: calc(50% - 2px);
-}
-}
 
-@media only screen and (max-width: 62em) {
-.dashboard-column {
- flex-basis: calc(100% - 2px);
-}
-}
-
-.dashboard-column .card {
-border: 0;
-}
-
-.dashboard-column .card .iframe-moving {
-display: block;
-height: 100%;
-min-height: 33em;
-position: relative;
-width: 100%;
-}
-
-@media only screen and (max-width: 46em) {
-.dashboard-column .card .iframe-moving {
- min-height: 107em;
-}
-}
-.dashboard-column .card .iframe-overview {
-display: block;
-height: 100%;
-min-height: 22em;
-width: 100%;
-}
 
 @media only screen and (max-width: 46em) {
 .dashboard-column .card .iframe-overview {
@@ -567,25 +505,7 @@ width: 100%;
 }
 }
 
-.dashboard-column .card .iframe-battery-power {
-display: block;
-height: 60%;
-min-height: 18em;
-width: 100%;
-}
 
-@media only screen and (max-width: 46em) {
-.dashboard-column .card .iframe-battery-power {
- min-height: 15em;
-}
-}
-
-.dashboard-column .card .iframe-battery-soc {
-display: block;
-height: 40%;
-min-height: 14em;
-width: 100%;
-}
 
 @media only screen and (max-width: 46em) {
 .dashboard-column .card .iframe-battery-soc {
@@ -786,16 +706,92 @@ body.dark-mode {
 
 /* Ensure main content adjusts properly */
 @media (max-width: 768px) {
-    .main-content {
-        margin-left: 0;
-        padding-top: 4.5rem;
-        transition: margin-left 0.3s ease;
-    }
-
-    body.sidebar-open .main-content {
-        filter: blur(2px);
-        pointer-events: none;
-    }
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+    transition: margin-left 0.3s ease;
+  }
+  
+  .main-content .container {
+    padding: 0;
+  }
+  
+  .dashboard-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-container {
+    width: 100%;
+    margin-top: 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .search-input, 
+  .select-input {
+    width: 100%;
+  }
+  
+  .rules-list {
+    padding: 1rem;
+  }
+  
+  .rule-card {
+    padding: 0.75rem;
+  }
+  
+  .rule-header {
+    flex-wrap: wrap;
+    padding: 0.75rem;
+  }
+  
+  .rule-name {
+    font-size: 1rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .rule-menu {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+  
+  .rule-details {
+    padding: 0.75rem;
+  }
+  
+  .main-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+  }
+  
+  .main-header h1 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+  
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .db-status {
+    margin-left: 0;
+  }
+  
+  .btn-primary {
+    width: 100%;
+  }
 }
 
 
@@ -804,6 +800,7 @@ body.dark-mode {
   flex: 1;
   margin-left: 280px;
   padding: 2rem;
+  background-color: var(--bg-color);
   color: var(--text-color);
   transition: margin-left 0.3s ease;
 }
@@ -812,6 +809,28 @@ body.dark-mode {
   margin: 0 auto;
   padding: 0;
 }
+
+
+.d-flex.flex-wrap.justify-content-center.gap-3 {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    justify-content: flex-start !important;
+    padding-bottom: 10px; /* Add some padding to make scrollbar not overlap content */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scrollbar-width: thin; /* For Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar {
+    display: none;
+}
+
+/* Ensure nav links don't wrap */
+.nav-link {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 
 .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
   display: flex;
@@ -858,18 +877,6 @@ body.dark-mode {
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
-.dark-mode.main-content .nav-link {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-  padding: 0.5rem 1rem;
-  color: #4b5563;
-  font-weight: 500;
-  border-radius: 6px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
 
 .main-content .nav-link:hover {
   background-color: #e9ecef;
@@ -877,7 +884,6 @@ body.dark-mode {
 }
 
 .main-content .nav-link.active {
-  background-color: #DEAF0B;
   color: #fff;
 }
 
@@ -887,848 +893,1264 @@ body.dark-mode {
   font-size: 1rem;
 }
 
-/* Compact tables for mobile */
-@media (max-width: 768px) {
-  .main-content table th,
-  .main-content table td {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.9rem;
-  }
-  
-  .main-content table th {
-    position: sticky;
-    top: 0;
-    background-color: #f8f9fa;
-    z-index: 10;
-  }
-  
-  .main-content .table-responsive {
-    max-width: 100vw;
-    margin-left: -0.5rem;
-    margin-right: -0.5rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    border-radius: 0;
-  }
-  
-  .main-content .nav-link {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.9rem;
-  }
-  
-  .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
-    margin-left: -0.5rem;
-    margin-right: -0.5rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    gap: 0.5rem !important;
-  }
-}
-
-
-.dark-mode .main-content .nav-link {
-  color: #e5e7eb;
-}
-
-.dark-mode .main-content .nav-link:hover {
-  background-color: #32383e;
-  color: #fff;
-}
-
-.dark-mode .main-content .nav-link.active {
-  background-color: #DEAF0B;
-  color: #fff;
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
-  background: #2a2e35;
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
-  background: #4a4d53;
-}
-/* Enhanced Card Styles */
-.card {
-  border-radius: var(--border-radius);
-  border: 1px solid var(--grey-200);
-  box-shadow: var(--box-shadow-sm);
-  transition: var(--transition-base);
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-}
-
-.card:hover {
-  box-shadow: var(--box-shadow);
-}
-
-.card-header {
-  background-color: white;
-  border-bottom: 1px solid var(--grey-200);
-  padding: 1rem 1.25rem;
+.main-header .title-section {
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
-.card-body {
-  padding: 1.25rem;
+.main-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  display: flex;
+  align-items: center;
 }
 
-.card-footer {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-top: 1px solid var(--grey-200);
-  padding: 0.75rem 1.25rem;
+.main-header h1 i {
+  margin-right: 0.75rem;
+  color: var(--primary-color);
+  font-size: 1.8rem;
 }
 
-/* Button Styles - Using the project's color scheme */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-create-rule {
+  display: flex;
+  align-items: center;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-create-rule:hover {
+  background-color: #c79d0a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-create-rule i {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+.db-status {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: rgba(46, 204, 113, 0.15);
+}
+
+.db-status i {
+  margin-right: 0.5rem;
+  color: #2ecc71;
+}
+
+.db-status.disconnected {
+  background-color: rgba(231, 76, 60, 0.15);
+}
+
+.db-status.disconnected i {
+  color: #e74c3c;
+}
+
+/* Card Icons Styling */
+.stats-card .card-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  margin-right: 1rem;
+  font-size: 1.75rem;
+}
+
+.stats-card:nth-child(1) .card-icon {
+  background-color: rgba(222, 175, 11, 0.15);
+  color: #DEAF0B;
+}
+
+.stats-card:nth-child(2) .card-icon {
+  background-color: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.stats-card:nth-child(3) .card-icon {
+  background-color: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+}
+
+.stats-card:nth-child(4) .card-icon {
+  background-color: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+}
+
+/* Dark mode adjustments */
+.dark-mode .main-header {
+  border-bottom-color: rgb(48, 51, 58);
+}
+
+.dark-mode .main-header h1 {
+  color: #f5f6fa;
+}
+
+.dark-mode .main-header h1 i {
+  color: var(--primary-color);
+}
+
+.dark-mode .db-status {
+  color: #f5f6fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .main-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-actions {
+    margin-top: 1rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .btn-create-rule {
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Card Component */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+/* Button Styles */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.95rem;
   font-weight: 500;
   text-align: center;
   white-space: nowrap;
-  vertical-align: middle;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
-  border: 1px solid transparent;
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  border-radius: var(--border-radius-sm);
-  transition: var(--transition-base);
-  cursor: pointer;
-  text-decoration: none;
 }
 
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  border-radius: var(--border-radius-sm);
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.btn-primaryy {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.btn-primaryy:hover {
-  background-color: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-
-.btn-outline-primaryy {
-  color: var(--primary-color);
-  border-color: var(--primary-color);
-  background-color: transparent;
-}
-
-.btn-outline-primaryy:hover {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.btn-outline-secondaryy {
-  color: var(--grey-700);
-  border-color: var(--grey-300);
-  background-color: transparent;
-}
-
-.btn-outline-secondaryy:hover {
-  background-color: var(--grey-100);
-  color: var(--grey-800);
-}
-
-.btn-outline-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-  background-color: transparent;
-}
-
-.btn-outline-danger:hover {
-  background-color: var(--danger);
-  color: white;
-}
-
-.btn-outline-success {
-  color: var(--secondary);
-  border-color: var(--secondary);
-  background-color: transparent;
-}
-
-.btn-outline-success:hover {
-  background-color: var(--secondary);
-  color: white;
-}
-
-/* Rule Card Specific Styles */
-.rule-card {
-  transition: all 0.2s ease;
-}
-
-.rule-card.inactive {
-  opacity: 0.7;
-}
-
-.rule-card .rule-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.rule-card h6 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--dark);
-}
-
-.rule-card .condition-text,
-.rule-card .action-text {
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  background-color: var(--grey-100);
-  border-radius: var(--border-radius-sm);
-  font-size: 1rem;
-}
-
-.rule-card .time-restrictions {
-  padding: 0.75rem;
-  background-color: var(--grey-100);
-  border-radius: var(--border-radius-sm);
-  font-size: 1rem;
-}
-
-.rule-card .time-restrictions h6 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--dark);
-}
-
-/* Form styling */
-.form-check {
-  display: block;
-  min-height: 1.5rem;
-  padding-left: 1.5em;
-  margin-bottom: 0.125rem;
-}
-
-.form-check-input {
-  width: 1em;
-  height: 1em;
-  margin-top: 0.25em;
-  vertical-align: top;
-  background-color: #fff;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  appearance: none;
-}
-
-.form-check-input[type="checkbox"] {
-  border-radius: 0.25em;
-}
-
-.form-check-input:checked {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.form-check-input:focus {
-  border-color: var(--primary-color);
-  outline: 0;
-  box-shadow: 0 0 0 0.25rem rgba(222, 175, 11, 0.25);
-}
-
-.form-check-label {
-  cursor: pointer;
-}
-
-/* Form Switch (Toggle) */
-.form-switch {
-  padding-left: 2.5em;
-}
-
-.form-switch .form-check-input {
-  width: 2em;
-  margin-left: -2.5em;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
-  background-position: left center;
-  border-radius: 2em;
-  transition: background-position 0.15s ease-in-out;
-}
-
-.form-switch .form-check-input:checked {
-  background-position: right center;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
-}
-
-/* Alert styling */
-.alert {
-  position: relative;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border: 1px solid transparent;
-  border-radius: var(--border-radius);
-}
-
-.alert-info {
-  color: #055160;
-  background-color: #cff4fc;
-  border-color: #b6effb;
-}
-
-.alert-danger {
-  color: #842029;
-  background-color: #f8d7da;
-  border-color: #f5c2c7;
-}
-
-.alert-link {
-  font-weight: 700;
-  color: inherit;
-  text-decoration: underline;
-}
-
-/* Modal styling */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1055;
-  display: none;
-  width: 100%;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  outline: 0;
-}
-
-.modal-dialog {
-  position: relative;
-  width: auto;
-  margin: 0.5rem;
-  pointer-events: none;
-  max-width: 500px;
-  margin: 1.75rem auto;
-}
-
-.modal-content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  pointer-events: auto;
-  background-color: #fff;
-  background-clip: padding-box;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: var(--border-radius);
-  outline: 0;
-}
-
-.modal-header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid #dee2e6;
-  border-top-left-radius: calc(0.3rem - 1px);
-  border-top-right-radius: calc(0.3rem - 1px);
-}
-
-.modal-body {
-  position: relative;
-  flex: 1 1 auto;
-  padding: 1rem;
-}
-
-.modal-footer {
-  display: flex;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0.75rem;
-  border-top: 1px solid #dee2e6;
-  border-bottom-right-radius: calc(0.3rem - 1px);
-  border-bottom-left-radius: calc(0.3rem - 1px);
-}
-
-.modal-footer > * {
-  margin: 0.25rem;
-}
-
-.btn-close {
-  box-sizing: content-box;
-  width: 1em;
-  height: 1em;
-  padding: 0.25em 0.25em;
-  color: #000;
-  background: transparent url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e") center/1em auto no-repeat;
-  border: 0;
-  border-radius: 0.25rem;
-  opacity: 0.5;
-}
-
-/* Badge styling */
-.badge {
-  display: inline-block;
-  padding: 0.35em 0.65em;
-  font-size: 0.75em;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: baseline;
-  border-radius: var(--border-radius-pill);
-}
-
-.bg-success {
-  background-color: var(--secondary);
-}
-
-.bg-warning {
-  background-color: var(--warning);
-}
-
-.bg-secondary {
-  background-color: var(--grey-600);
-}
-
-.bg-danger {
-  background-color: var(--danger);
-}
-
-/* Utility classes */
-.text-center {
-  text-align: center;
-}
-
-.text-end {
-  text-align: right;
-}
-
-.text-muted {
-  color: var(--grey-600);
-}
-
-.py-5 {
-  padding-top: 3rem;
-  padding-bottom: 3rem;
-}
-
-.mt-2 {
-  margin-top: 0.5rem;
-}
-
-.mb-3 {
-  margin-bottom: 1rem;
-}
-
-.mb-4 {
-  margin-bottom: 1.5rem;
-}
-
-.me-2 {
+.btn i {
   margin-right: 0.5rem;
 }
 
-.ms-2 {
-  margin-left: 0.5rem;
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
 }
 
-.d-flex {
-  display: flex;
+.btn-primary:hover {
+  background-color: var(--secondary-color);
 }
 
-.justify-content-between {
-  justify-content: space-between;
+.btn-secondary {
+  background-color: var(--btn-hover-bg);
+  color: var(--text-color);
 }
 
-.align-items-center {
-  align-items: center;
+.btn-secondary:hover {
+  background-color: var(--border-color);
 }
 
-.spinner-border {
-  display: inline-block;
-  width: 2rem;
-  height: 2rem;
-  vertical-align: -0.125em;
-  border: 0.25em solid currentColor;
-  border-right-color: transparent;
+.btn-success {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #27ae60;
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+.btn-info {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #2980b9;
+}
+
+.btn-icon-only {
+  padding: 0.5rem;
   border-radius: 50%;
-  animation: spinner-border .75s linear infinite;
 }
 
-@keyframes spinner-border {
-  to { transform: rotate(360deg); }
+.btn-icon-only i {
+  margin: 0;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* Dark mode adjustments */
-.dark-mode .card {
-  background-color: rgba(30, 33, 38, 1);
-  border-color: rgba(50, 53, 58, 1);
-}
-
-.dark-mode .card-header {
-  background-color: rgba(35, 38, 43, 1);
-  border-color: rgba(50, 53, 58, 1);
-}
-
-.dark-mode .card-footer {
-  background-color: rgba(35, 38, 43, 1);
-  border-color: rgba(50, 53, 58, 1);
-}
-
-/* Main content section headers */
-.main-content h4 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1.25rem;
-  color: var(--dark);
-}
-
-.dark-mode .main-content h4 {
-  color: var(--grey-200);
-}
-
-/* Page section headers */
-.d-flex.justify-content-between.align-items-center.mb-4 h4 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--dark);
-  border-left: 4px solid var(--primary-color);
-  padding-left: 0.75rem;
-}
-
-.dark-mode .d-flex.justify-content-between.align-items-center.mb-4 h4 {
-  color: var(--grey-200);
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
-  background-color: rgba(35, 38, 43, 1);
-}
-
-.dark-mode .rule-card h6,
-.dark-mode .rule-card .time-restrictions h6 {
-  color: #fff;
-}
-
-.dark-mode .condition-text,
-.dark-mode .action-text,
-.dark-mode .time-restrictions {
-  background-color: rgba(40, 43, 48, 1);
-  color: #fff;
-}
-
-.dark-mode .alert-info {
-  color: #86cfda;
-  background-color: rgba(11, 50, 60, 0.5);
-  border-color: rgba(27, 95, 112, 0.5);
-}
-
-.dark-mode .alert-danger {
-  color: #ea868f;
-  background-color: rgba(65, 16, 21, 0.5);
-  border-color: rgba(103, 28, 35, 0.5);
-}
-
-.dark-mode .text-muted {
-  color: var(--grey-400);
-}
-
-.dark-mode .btn-outline-secondaryy {
-  color: var(--grey-300);
-  border-color: var(--grey-600);
-}
-
-.dark-mode .btn-outline-secondaryy:hover {
-  background-color: var(--grey-700);
-  color: var(--grey-200);
-}
-
-.dark-mode .modal-content {
-  background-color: rgba(30, 33, 38, 1);
-  border-color: rgba(50, 53, 58, 1);
-}
-
-.dark-mode .modal-header,
-.dark-mode .modal-footer {
-  border-color: rgba(50, 53, 58, 1);
-}
-
-.dark-mode .btn-close {
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-/* Rule wizard specific styles */
-.wizard-step {
-  display: none;
-}
-
-.wizard-step.active {
-  display: block;
-}
-
-.wizard-nav {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--grey-200);
-}
-
-.dark-mode .wizard-nav {
-  border-color: rgba(50, 53, 58, 1);
-}
-
-.condition-row,
-.action-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background-color: var(--grey-100);
-  border-radius: var(--border-radius-sm);
-}
-
-.dark-mode .condition-row,
-.dark-mode .action-row {
-  background-color: rgba(40, 43, 48, 1);
-}
-
-.add-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.add-button:hover {
-  text-decoration: underline;
-}
-
-/* Custom form controls */
+/* Forms */
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+  color: var(--text-color);
 }
 
 .form-control {
-  display: block;
   width: 100%;
-  padding: 0.375rem 0.75rem;
+  padding: 0.75rem 1rem;
   font-size: 1rem;
-  font-weight: 400;
   line-height: 1.5;
   color: var(--text-color);
-  background-color: #fff;
-  background-clip: padding-box;
-  border: 1px solid var(--grey-300);
-  appearance: none;
-  border-radius: var(--border-radius-sm);
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .form-control:focus {
-  color: var(--text-color);
-  background-color: #fff;
   border-color: var(--primary-color);
   outline: 0;
-  box-shadow: 0 0 0 0.25rem rgba(222, 175, 11, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--primary-color-light);
 }
 
-.dark-mode .form-control {
-  color: var(--grey-200);
-  background-color: rgba(40, 43, 48, 1);
-  border-color: rgba(60, 63, 68, 1);
+.form-text {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
 }
 
-.dark-mode .form-control:focus {
-  background-color: rgba(45, 48, 53, 1);
+.form-check {
+  position: relative;
+  display: block;
+  padding-left: 1.5rem;
 }
 
-select.form-control {
-  padding-right: 2rem;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 16px 12px;
+.form-check-input {
+  position: absolute;
+  margin-top: 0.25rem;
+  margin-left: -1.5rem;
 }
 
-.dark-mode select.form-control {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23adb5bd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+.form-check-label {
+  margin-bottom: 0;
 }
 
-/* Responsive improvements */
-@media (max-width: 768px) {
-  .rule-card .rule-actions {
-    flex-wrap: wrap;
+/* Utilities */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-primary {
+  color: var(--primary-color);
+}
+
+.text-success {
+  color: var(--success-color);
+}
+
+.text-danger {
+  color: var(--danger-color);
+}
+
+.text-warning {
+  color: var(--warning-color);
+}
+
+.text-info {
+  color: var(--info-color);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.d-flex {
+  display: flex;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-5 { margin-top: 3rem; }
+
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+.mb-5 { margin-bottom: 3rem; }
+
+.ml-1 { margin-left: 0.25rem; }
+.ml-2 { margin-left: 0.5rem; }
+.ml-3 { margin-left: 1rem; }
+.ml-4 { margin-left: 1.5rem; }
+.ml-5 { margin-left: 3rem; }
+
+.mr-1 { margin-right: 0.25rem; }
+.mr-2 { margin-right: 0.5rem; }
+.mr-3 { margin-right: 1rem; }
+.mr-4 { margin-right: 1.5rem; }
+.mr-5 { margin-right: 3rem; }
+
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 1rem; }
+.p-4 { padding: 1.5rem; }
+.p-5 { padding: 3rem; }
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .sidebar {
+    transform: translateX(-100%);
   }
   
-  .condition-row,
-  .action-row {
-    flex-direction: column;
-    align-items: flex-start;
+  .sidebar.show {
+    transform: translateX(0);
   }
   
-  .modal-dialog {
-    margin: 0.5rem;
+  .main-content {
+    margin-left: 0;
+    width: 100%;
   }
   
-  .wizard-nav {
-    padding: 1rem 0;
+  /* Add a toggle button for the sidebar on mobile */
+  .sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 30;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   }
 }
 
-/* Wizard mobile improvements */
-@media (max-width: 576px) {
-  .wizard-step h4 {
+@media (min-width: 993px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
+/* Dashboard Cards */
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stats-card {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--card-bg-accent) 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.12);
+  }
+  
+  .card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background-color: var(--primary-color-light);
+    color: var(--primary-color);
+    border-radius: 50%;
+    margin-right: 1rem;
+    font-size: 1.5rem;
+  }
+  
+  .card-content h3 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
+    color: var(--text-muted);
+  }
+  
+  .stats-number {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0.2rem 0 0;
+  }
+  
+  /* Rules Container */
+  .rules-container {
+    margin-bottom: 2rem;
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .card-header h2 {
     font-size: 1.25rem;
+    margin: 0;
+    color: var(--text-color);
   }
   
-  .wizard-nav {
+  .search-container {
+    display: flex;
+    gap: 0.75rem;
+  }
+  
+  .search-input, .select-input {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .search-input:focus, .select-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-color-light);
+    outline: none;
+  }
+  
+  .search-input {
+    width: 250px;
+  }
+  
+  .select-input {
+    width: 150px;
+  }
+  
+  /* Rules List */
+  .rules-list {
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 1200px) {
+    .rules-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  .rule-card {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
+  }
+  
+  .rule-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+  
+  .rule-header {
+    display: flex;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--card-header-bg);
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .rule-status {
+    margin-right: 1rem;
+  }
+  
+  .rule-name {
+    flex: 1;
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--text-color);
+    font-weight: 600;
+  }
+  
+  .rule-menu {
+    position: relative;
+  }
+  
+  .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  .btn-icon:hover {
+    background-color: var(--btn-hover-bg);
+    color: var(--text-color);
+  }
+  
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--dropdown-bg);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    z-index: 100;
+    display: none;
+    border: 1px solid var(--border-color);
+  }
+  
+  .dropdown-menu.show {
+    display: block;
+  }
+  
+  .dropdown-menu a {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+  }
+  
+  .dropdown-menu a:hover {
+    background-color: var(--btn-hover-bg);
+  }
+  
+  .dropdown-menu a i {
+    margin-right: 0.5rem;
+    width: 16px;
+    text-align: center;
+  }
+  
+  .dropdown-menu a.delete-rule {
+    color: var(--danger-color);
+  }
+  
+  .dropdown-menu a.delete-rule:hover {
+    background-color: var(--danger-color-light);
+  }
+  
+  .rule-description {
+    padding: 0.75rem 1.5rem;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .rule-details {
+    padding: 1rem 1.5rem;
+  }
+  
+  .rule-section {
+    margin-bottom: 1.25rem;
+  }
+  
+  .rule-section:last-child {
+    margin-bottom: 0;
+  }
+  
+  .rule-section h4 {
+    font-size: 0.9rem;
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+  }
+  
+  .rule-section h4 i {
+    margin-right: 0.5rem;
+  }
+  
+  .conditions-list, .time-restrictions, .actions-list {
+    font-size: 0.9rem;
+    color: var(--text-color);
+  }
+  
+  .condition-item, .time-item, .action-item {
+    background-color: var(--item-bg);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+  }
+  
+  .condition-item:last-child, .time-item:last-child, .action-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .empty-message {
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+  }
+  
+  .rule-footer {
+    padding: 1rem 1.5rem;
+    background-color: var(--card-footer-bg);
+    border-top: 1px solid var(--border-color);
+  }
+  
+  .rule-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  
+  .rule-stats i {
+    margin-right: 0.25rem;
+  }
+  
+  /* Switch for rule active toggle */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+  
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--switch-bg);
+    transition: .4s;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+  }
+  
+  input:checked + .slider {
+    background-color: var(--primary-color);
+  }
+  
+  input:focus + .slider {
+    box-shadow: 0 0 1px var(--primary-color);
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+  
+  .slider.round {
+    border-radius: 34px;
+  }
+  
+  .slider.round:before {
+    border-radius: 50%;
+  }
+  
+  /* Recent Triggers Table */
+  .recent-triggers {
+    padding: 1rem 1.5rem;
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .data-table th, .data-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .data-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  
+  .data-table td {
+    color: var(--text-color);
+    font-size: 0.9rem;
+  }
+  
+  .data-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* Empty and Error States */
+  .empty-state, .error-state {
+    display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state i, .error-state i {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  
+  .empty-state h3, .error-state h3 {
+    font-size: 1.25rem;
+    margin: 0 0 0.5rem;
+    color: var(--text-color);
+  }
+  
+  .empty-state p, .error-state p {
+    color: var(--text-muted);
+    margin: 0 0 1.5rem;
+  }
+  
+  .error-state i {
+    color: var(--danger-color);
+  }
+  
+  
+  /* Modals */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    animation: fadeIn 0.3s;
+  }
+  
+  .modal-content {
+    position: relative;
+    background-color: var(--modal-bg);
+    margin: 10vh auto;
+    padding: 0;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.3s;
+  }
+  
+  .modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-color);
+  }
+  
+  .close-modal {
+    color: var(--text-muted);
+    font-size: 1.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+  
+  .close-modal:hover {
+    color: var(--text-color);
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
     gap: 1rem;
   }
   
-  .wizard-nav .btn {
-    width: 100%;
+  /* Execute Modal */
+  .execute-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
   }
-}
-
-
-/* Enhanced Mobile Responsiveness for main-content */
-@media (max-width: 768px) {
-    /* Main content adjustments */
-    .main-content {
-        margin-left: 0;
-        padding: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    /* Improve padding for mobile header spacing */
-    .main-content {
-        padding-top: 4rem;
-    }
-    
-    /* Fix grid layouts to stack properly */
-    .metrics-grid,
-    .summary-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    /* Ensure modal dialogs fit properly */
-    .modal-dialog {
-        max-width: 95%;
-        margin: 0.5rem auto;
-    }
-    
-    /* Improve button spacing in mobile views */
-    .d-flex.justify-content-between.align-items-center {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 1rem;
-    }
-    
-    .d-flex.justify-content-between.align-items-center div {
-        width: 100%;
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .d-flex.justify-content-between.align-items-center div a {
-        flex: 1;
-        text-align: center;
-    }
-    
-    /* Fix horizontal scrolling for tabs */
-    .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
-        padding: 0.5rem;
-        margin: 0 -1rem 1rem -1rem;
-        width: calc(100% + 2rem);
-    }
-    
-    /* Adjust rule cards for better mobile display */
-    .rule-card .card-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .rule-card .rule-actions {
-        margin-top: 0.75rem;
-        width: 100%;
-        justify-content: flex-start;
-    }
-    
-    /* Make table content scrollable */
-    .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Optimize rule editing interface */
-    .condition-row,
-    .action-row {
-        padding: 0.75rem 0.5rem;
-    }
-    
-    /* Fix close button position */
-    .close-button {
-        top: 10px;
-        right: 10px;
-    }
-}
-
-/* Additional fixes for very small screens */
-@media (max-width: 480px) {
-    .main-content h4 {
-        font-size: 1.25rem;
-    }
-    
+  
+  .spinner-container {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+  
+  .execute-status.pending {
+    background-color: var(--info-color-light);
+    border-radius: 8px;
+  }
+  
+  .execute-status.success {
+    background-color: var(--success-color-light);
+    border-radius: 8px;
+  }
+  
+  .execute-status.error {
+    background-color: var(--danger-color-light);
+    border-radius: 8px;
+  }
+  
+  .execute-status.success .spinner-container,
+  .execute-status.error .spinner-container {
+    display: none;
+  }
+  
+  .execute-status.success::before {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 2.5rem;
+    color: var(--success-color);
+    margin-bottom: 1rem;
+    display: block;
+  }
+  
+  .execute-status.error::before {
+    content: "\f00d";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 2.5rem;
+    color: var(--danger-color);
+    margin-bottom: 1rem;
+    display: block;
+  }
+  
+  .execute-details {
+    margin-top: 1.5rem;
+  }
+  
+  .execute-details h3 {
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+    color: var(--text-color);
+  }
+  
+  .execute-details ul {
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+  
+  .execute-details li {
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+  }
+  
+  /* Notifications */
+  .notification {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s;
+    z-index: 1001;
+  }
+  
+  .notification.success {
+    background-color: var(--success-color-light);
+    border-left: 4px solid var(--success-color);
+  }
+  
+  .notification.error {
+    background-color: var(--danger-color-light);
+    border-left: 4px solid var(--danger-color);
+  }
+  
+  .notification i {
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+  }
+  
+  .notification.success i {
+    color: var(--success-color);
+  }
+  
+  .notification.error i {
+    color: var(--danger-color);
+  }
+  
+  .notification span {
+    flex: 1;
+    color: var(--text-color);
+  }
+  
+  .close-notification {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0;
+    margin-left: 0.75rem;
+    transition: color 0.3s ease;
+  }
+  
+  .close-notification:hover {
+    color: var(--text-color);
+  }
+  
+  /* Database Status */
+  .db-status {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    margin-left: 1rem;
+  }
+  
+  .db-status.connected {
+    background-color: var(--success-color-light);
+  }
+  
+  .db-status.disconnected {
+    background-color: var(--danger-color-light);
+  }
+  
+  .db-status i {
+    margin-right: 0.5rem;
+  }
+  
+  .db-status.connected i {
+    color: var(--success-color);
+  }
+  
+  .db-status.disconnected i {
+    color: var(--danger-color);
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes slideInRight {
+    from { transform: translateX(100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
     .card-header {
-        padding: 0.75rem;
+      flex-direction: column;
+      align-items: flex-start;
     }
     
-    .card-body {
-        padding: 0.75rem;
+    .search-container {
+      width: 100%;
+      margin-top: 1rem;
     }
     
-    .rule-card .condition-text, 
-    .rule-card .action-text, 
-    .rule-card .time-restrictions {
-        padding: 0.5rem;
-        font-size: 0.9rem;
+    .search-input, .select-input {
+      width: 100%;
     }
     
-    .btn {
-        padding: 0.375rem 0.5rem;
-        font-size: 0.875rem;
+    .main-header {
+      flex-direction: column;
+      align-items: flex-start;
     }
+    
+    .header-actions {
+      margin-top: 1rem;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .db-status {
+      margin-left: 0;
+    }
+    
+    .rule-stats {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .modal-content {
+      width: 95%;
+      margin: 5vh auto;
+    }
+  }
+/* Dark Mode CSS for main-content and its components */
+.dark-mode .main-content {
+  background-color: rgba(24, 27, 31, 1);
+  color: #f5f6fa;
+}
+
+.dark-mode .card,
+.dark-mode .stats-card,
+.dark-mode .rule-card,
+.dark-mode .modal-content {
+  background-color: rgb(36, 39, 46);
+  border-color: rgb(48, 51, 58);
+  color: #f5f6fa;
+}
+
+.dark-mode .card-header,
+.dark-mode .rule-header,
+.dark-mode .rule-footer,
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+  background-color: rgb(30, 33, 40);
+  border-color: rgb(48, 51, 58);
+}
+
+.dark-mode .search-input,
+.dark-mode .select-input,
+.dark-mode .form-control {
+  background-color: rgb(36, 39, 46);
+  border-color: rgb(48, 51, 58);
+  color: #f5f6fa;
+}
+
+.dark-mode .btn-secondary {
+  background-color: rgb(48, 51, 58);
+  color: #f5f6fa;
+}
+
+.dark-mode .condition-item,
+.dark-mode .time-item,
+.dark-mode .action-item {
+  background-color: rgb(30, 33, 40);
+  border-color: rgb(48, 51, 58);
+}
+
+.dark-mode .text-muted,
+.dark-mode .rule-description,
+.dark-mode .rule-section h4,
+.dark-mode .rule-stats,
+.dark-mode .empty-message {
+  color: #a0a0a0;
+}
+
+.dark-mode .dropdown-menu {
+  background-color: rgb(36, 39, 46);
+  border-color: rgb(48, 51, 58);
+}
+
+.dark-mode .dropdown-menu a {
+  color: #f5f6fa;
+}
+
+.dark-mode .dropdown-menu a:hover {
+  background-color: rgb(48, 51, 58);
+}
+
+.dark-mode .btn-icon {
+  color: #a0a0a0;
+}
+
+.dark-mode .btn-icon:hover {
+  background-color: rgb(48, 51, 58);
+  color: #f5f6fa;
+}
+
+.dark-mode .data-table th,
+.dark-mode .data-table td {
+  border-color: rgb(48, 51, 58);
+}
+
+.dark-mode .data-table th {
+  color: #a0a0a0;
+}
+
+.dark-mode .data-table td {
+  color: #f5f6fa;
+}
+
+.dark-mode .slider {
+  background-color: rgb(48, 51, 58);
+}
+
+.dark-mode .card-icon {
+  background-color: rgba(222, 175, 11, 0.2);
+  color: var(--primary-color);
+}
+
+.dark-mode .execute-status.pending {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.dark-mode .execute-status.success {
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.dark-mode .execute-status.error {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.dark-mode .notification.success {
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.dark-mode .notification.error {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+/* Improve dark mode for modal overlays */
+.dark-mode .modal {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Improved specificity for main-content in dark mode at small screens */
+@media (max-width: 768px) {
+  .dark-mode .main-content {
+    background-color: rgba(24, 27, 31, 1);
+  }
+  
+  .dark-mode .dashboard-cards .stats-card {
+    background: linear-gradient(135deg, rgb(36, 39, 46) 0%, rgb(30, 33, 40) 100%);
+  }
+  
+  .dark-mode .main-header h1 {
+    color: #f5f6fa;
+  }
+  
+  .dark-mode .btn-primary {
+    background-color: var(--primary-color);
+    color: #1a1a1a;
+  }
 }
 </style>
 </head>
@@ -1744,697 +2166,823 @@ select.form-control {
             <div class="loading-spinner"></div>
           </div>
           <div id="pageContent"> </div>
-
           <%- include('partials/sidebar') %>
      
 
           <div class="main-content">
-            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
-                  <a class="nav-link text-nowrap" href="<%= ingress_path %>/learner">
-                      <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
-                  </a>
-                  <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
-                      <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
-                  </a>
-              <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
-                  <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
-              </a>
-              <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
-                  <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
-              </a>
-              <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
-                  <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
-              </a>
-              <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
-                  <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
-              </a>
-          
-              <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
-                  <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
-              </a>
-             
-          </div>
-          <br>
+
             <div class="container">
-    
-            
-                <div class="container mt-4">
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4>Energy Management Rules</h4>
-                        <div>
-                            <a href="<%= ingress_path %>/rule-history" class="btn btn-outline-secondaryy me-2">View History</a>
-                            <a href="<%= ingress_path %>/wizard" class="btn btn-primaryy">Create New Rule</a>
-                        </div>
-                    </div>
-                    
-                    <div class="card mb-4">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span>All Rules</span>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="showActiveOnly" checked>
-                                <label class="form-check-label" for="showActiveOnly">Show active only</label>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="rulesContainer">
-                                <!-- Rules will be loaded here -->
-                                <div class="text-center py-5">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2">Loading rules...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Rule Template (hidden, used for rendering) -->
-                    <template id="ruleTemplate">
-                        <div class="card rule-card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <div>
-                                    <span class="rule-name fw-bold"></span>
-                                    <span class="badge bg-secondary rule-active-badge ms-2"></span>
-                                </div>
-                                <div class="rule-actions">
-                                    <button class="btn btn-sm btn-outline-success run-rule-btn" title="Run Rule Now">
-                                        <i class="bi bi-play-fill"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary duplicate-rule-btn" title="Duplicate Rule">
-                                        <i class="bi bi-files"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary edit-rule-btn" title="Edit Rule">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger delete-rule-btn" title="Delete Rule">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="rule-description mb-3"></div>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6>Conditions:</h6>
-                                        <div class="rule-conditions"></div>
-                                        
-                                        <div class="rule-time-restrictions mt-3"></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6>Actions:</h6>
-                                        <div class="rule-actions-list"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-3 text-end">
-                                    <small class="text-muted rule-last-triggered"></small>
-                                </div>
-                            </div>
-                            <div class="card-footer">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input rule-active-toggle" type="checkbox">
-                                    <label class="form-check-label">Active</label>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-                
-                <!-- Delete Confirmation Modal -->
-                <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                Are you sure you want to delete the rule "<span id="deleteRuleName"></span>"?
-                                <p class="text-danger mt-2">This action cannot be undone.</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-         
+              <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/learner">
+                    <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
+                    <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
+                </a>
+            <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
+                <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
+                <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
+                <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
+                <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
+            </a>
+        
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
+                <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
+            </a>
+           
         </div>
+                
+                <br>
+    
+                <header class="main-header">
+                  <div class="title-section">
+                    <h1><i class="fas fa-robot"></i> Automation Rules</h1>
+                  </div>
+                </header>
+                <br>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-let allRules = [];
-let deleteRuleId = null;
-let deleteModal;
+            
+                 <!-- Dashboard Cards -->
+<div class="dashboard-cards">
+  <div class="card stats-card">
+    <div class="card-icon"><i class="fas fa-list-alt"></i></div>
+    <div class="card-content">
+      <h3>Total Rules</h3>
+      <p class="stats-number"><%= rules_count %></p>
+    </div>
+  </div>
+  <div class="card stats-card">
+    <div class="card-icon"><i class="fas fa-toggle-on"></i></div>
+    <div class="card-content">
+      <h3>Active Rules</h3>
+      <p class="stats-number"><%= active_rules_count %></p>
+    </div>
+  </div>
+  <div class="card stats-card">
+    <div class="card-icon"><i class="fas fa-battery-three-quarters"></i></div>
+    <div class="card-content">
+      <h3>Battery SOC</h3>
+      <p class="stats-number"><%= system_state.battery_soc ? Math.round(system_state.battery_soc) + '%' : 'N/A' %></p>
+    </div>
+  </div>
+  <div class="card stats-card">
+    <div class="card-icon"><i class="fas fa-solar-panel"></i></div>
+    <div class="card-content">
+      <h3>PV Power</h3>
+      <p class="stats-number"><%= system_state.pv_power ? Math.round(system_state.pv_power) + 'W' : 'N/A' %></p>
+    </div>
+  </div>
+</div>
+            
+                  <!-- Rules List Section -->
+                  <section class="card rules-container">
+                    <div class="card-header">
+                      <h2>Your Automation Rules</h2>
+                      <div class="search-container">
+                        <input type="text" id="searchRules" placeholder="Search rules..." class="search-input">
+                        <select id="filterRules" class="select-input">
+                          <option value="all">All Rules</option>
+                          <option value="active">Active Only</option>
+                          <option value="inactive">Inactive Only</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div class="rules-list" id="rulesList">
+                      <!-- Rules will be loaded here dynamically -->
+                      <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading rules...</p>
+                      </div>
+                    </div>
+                  </section>
+            
+                  <!-- Recent Triggers Section -->
+                  <section class="card">
+                    <div class="card-header">
+                      <h2>Recently Triggered Rules</h2>
+                    </div>
+                    <div class="recent-triggers">
+                      <% if (recently_triggered && recently_triggered.length > 0) { %>
+                        <table class="data-table">
+                          <thead>
+                            <tr>
+                              <th>Rule Name</th>
+                              <th>Last Triggered</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% recently_triggered.forEach(rule => { %>
+                              <tr>
+                                <td><%= rule.name %></td>
+                                <td>
+                                  <% if (rule.lastTriggered) { %>
+                                    <script>
+                                      document.write(new Date('<%= rule.lastTriggered %>').toLocaleString())
+                                    </script>
+                                  <% } else { %>
+                                    Never
+                                  <% } %>
+                                </td>
+                              </tr>
+                            <% }); %>
+                          </tbody>
+                        </table>
+                      <% } else { %>
+                        <div class="empty-state">
+                          <i class="fas fa-clock"></i>
+                          <p>No rules have been triggered yet</p>
+                        </div>
+                      <% } %>
+                    </div>
+                  </section>
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap modal
-    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    <!-- Rule Template (for JavaScript) -->
+  <template id="ruleTemplate">
+    <div class="rule-card">
+      <div class="rule-header">
+        <div class="rule-status">
+          <label class="switch">
+            <input type="checkbox" class="rule-active-toggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <h3 class="rule-name"></h3>
+        <div class="rule-menu">
+          <button class="btn-icon dropdown-toggle">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a href="#" class="edit-rule"><i class="fas fa-edit"></i> Edit</a>
+            <a href="#" class="duplicate-rule"><i class="fas fa-copy"></i> Duplicate</a>
+            <a href="#" class="execute-rule"><i class="fas fa-play"></i> Execute Now</a>
+            <a href="#" class="delete-rule"><i class="fas fa-trash-alt"></i> Delete</a>
+          </div>
+        </div>
+      </div>
+      <p class="rule-description"></p>
+      <div class="rule-details">
+        <div class="rule-section">
+          <h4><i class="fas fa-filter"></i> Conditions</h4>
+          <div class="conditions-list"></div>
+        </div>
+        <div class="rule-section">
+          <h4><i class="fas fa-calendar-alt"></i> Time Restrictions</h4>
+          <div class="time-restrictions"></div>
+        </div>
+        <div class="rule-section">
+          <h4><i class="fas fa-bolt"></i> Actions</h4>
+          <div class="actions-list"></div>
+        </div>
+      </div>
+      <div class="rule-footer">
+        <div class="rule-stats">
+          <span class="rule-created"><i class="fas fa-calendar"></i> Created: <span class="created-date"></span></span>
+          <span class="rule-triggered"><i class="fas fa-bolt"></i> Last triggered: <span class="triggered-date"></span></span>
+          <span class="rule-count"><i class="fas fa-repeat"></i> Triggered <span class="trigger-count"></span> times</span>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Modals -->
+  <div id="confirmationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Confirm Action</h2>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p id="confirmationMessage">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelAction" class="btn btn-secondary">Cancel</button>
+        <button id="confirmAction" class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="executeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Rule Execution</h2>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="executeStatus" class="execute-status">
+          <div class="spinner-container">
+            <i class="fas fa-spinner fa-spin"></i>
+          </div>
+          <p id="executeMessage">Executing rule...</p>
+        </div>
+        <div id="executeDetails" class="execute-details">
+          <h3>Actions being executed:</h3>
+          <ul id="executeActions"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeExecute" class="btn btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+ </div>
+
+  
+  <!-- JavaScript Files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  <script>
+    // Global variables
+    let allRules = [];
+    const dbConnected = <%= db_connected %>;
     
-    // Load all rules
-    loadRules();
+    // DOM Elements
+    const rulesList = document.getElementById('rulesList');
+    const searchInput = document.getElementById('searchRules');
+    const filterSelect = document.getElementById('filterRules');
+    const btnCreateRule = document.getElementById('btnCreateRule');
+    const confirmationModal = document.getElementById('confirmationModal');
+    const executeModal = document.getElementById('executeModal');
     
-    // Setup event listeners
-    document.getElementById('showActiveOnly').addEventListener('change', filterRules);
-    
-    // Setup delete modal events
-    document.getElementById('confirmDelete').addEventListener('click', function() {
-        if (deleteRuleId) {
-            deleteRule(deleteRuleId);
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRules();
+      
+      // Search and filter
+      searchInput.addEventListener('input', filterRules);
+      filterSelect.addEventListener('change', filterRules);
+      
+      // Create rule button
+      btnCreateRule.addEventListener('click', () => {
+        window.location.href = '<%= ingress_path %>/wizard';
+      });
+      
+      // Close modals when clicking on X or outside
+      document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', closeAllModals);
+      });
+      
+      document.getElementById('closeExecute').addEventListener('click', closeAllModals);
+      
+      window.addEventListener('click', (e) => {
+        if (e.target === confirmationModal || e.target === executeModal) {
+          closeAllModals();
         }
+      });
     });
-
-    // Setup system state refreshing
-    refreshSystemState();
-    setInterval(refreshSystemState, 30000); // Update every 30 seconds
-});
-
-// Load all rules from the server
-function loadRules() {
-    fetch('<%= ingress_path %>/api/rules')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            allRules = data;
-            renderRules();
-        })
-        .catch(error => {
-            console.error('Error loading rules:', error);
-            document.getElementById('rulesContainer').innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading rules: ${error.message}
-                </div>
-            `;
-        });
-}
-
-// Refresh system state
-function refreshSystemState() {
-    fetch('<%= ingress_path %>/api/system-state')
-        .then(response => response.json())
-        .then(data => {
-            updateSystemStateDisplay(data.current_state);
-        })
-        .catch(error => {
-            console.error('Error fetching system state:', error);
-        });
-}
-
-// Update system state display
-function updateSystemStateDisplay(state) {
-    if (!state) return;
     
-    const stateContainer = document.getElementById('currentSystemState');
-    if (!stateContainer) return;
-    
-    // Format the state values with proper units
-    let stateHTML = '<ul class="list-group">';
-    
-    if (state.battery_soc !== null) {
-        stateHTML += `<li class="list-group-item">Battery SOC: <strong>${state.battery_soc}%</strong></li>`;
-    }
-    
-    if (state.pv_power !== null) {
-        stateHTML += `<li class="list-group-item">PV Power: <strong>${state.pv_power}W</strong></li>`;
-    }
-    
-    if (state.load !== null) {
-        stateHTML += `<li class="list-group-item">Load: <strong>${state.load}W</strong></li>`;
-    }
-    
-    if (state.grid_voltage !== null) {
-        stateHTML += `<li class="list-group-item">Grid Voltage: <strong>${state.grid_voltage}V</strong></li>`;
-    }
-    
-    if (state.grid_power !== null) {
-        stateHTML += `<li class="list-group-item">Grid Power: <strong>${state.grid_power}W</strong></li>`;
-    }
-    
-    stateHTML += '</ul>';
-    stateContainer.innerHTML = stateHTML;
-}
-
-// Render all rules to the page
-function renderRules() {
-    const rulesContainer = document.getElementById('rulesContainer');
-    const showActiveOnly = document.getElementById('showActiveOnly').checked;
-    const template = document.getElementById('ruleTemplate');
-    
-    // Clear container
-    rulesContainer.innerHTML = '';
-    
-    // Filter rules if needed
-    const rulesToShow = showActiveOnly ? allRules.filter(rule => rule.active) : allRules;
-    
-    if (rulesToShow.length === 0) {
-        rulesContainer.innerHTML = `
-            <div class="alert alert-info">
-                No ${showActiveOnly ? 'active ' : ''}rules found. 
-                <a href="/wizard" class="alert-link">Create a new rule</a>
-            </div>
-        `;
+    // Function to load rules from API
+    async function loadRules() {
+      if (!dbConnected) {
+        showDatabaseError();
         return;
+      }
+      
+      try {
+        const response = await fetch('/api/rules');
+        if (!response.ok) throw new Error('Failed to fetch rules');
+        
+        allRules = await response.json();
+        renderRules(allRules);
+      } catch (error) {
+        console.error('Error loading rules:', error);
+        showError('Failed to load rules. Please try again later.');
+      }
     }
     
-    // Sort rules by name, but put extended rules at the bottom
-    rulesToShow.sort((a, b) => {
-        // Check if either rule is an extended rule
-        const aIsExtended = a.name.includes('Extended');
-        const bIsExtended = b.name.includes('Extended');
-        
-        // If one is extended and the other isn't, sort accordingly
-        if (aIsExtended && !bIsExtended) return 1;
-        if (!aIsExtended && bIsExtended) return -1;
-        
-        // Otherwise sort alphabetically
-        return a.name.localeCompare(b.name);
-    });
+    // Function to render rules
+    function renderRules(rules) {
+      rulesList.innerHTML = '';
+      
+      if (!rules || rules.length === 0) {
+        showEmptyState();
+        return;
+      }
+      
+      // Sort rules by name
+      rules.sort((a, b) => a.name.localeCompare(b.name));
+      
+      rules.forEach(rule => {
+        const ruleCard = createRuleCard(rule);
+        rulesList.appendChild(ruleCard);
+      });
+      
+      // Add event listeners to rule cards
+      addRuleCardEventListeners();
+    }
     
-    // Render each rule
-    rulesToShow.forEach(rule => {
-        const ruleElement = template.content.cloneNode(true);
-        
-        // Set rule properties
-        const ruleCard = ruleElement.querySelector('.rule-card');
-        ruleCard.id = `rule-${rule._id}`;
-        ruleCard.dataset.ruleId = rule._id;
-        
-        // Add special styling for extended rules
-        if (rule.name.includes('Extended')) {
-            ruleCard.classList.add('extended-rule');
-            ruleCard.classList.add('border-primary');
-        }
-        
-        if (!rule.active) {
-            ruleCard.classList.add('text-muted');
-        }
-        
-        // Set rule name and status
-        ruleElement.querySelector('.rule-name').textContent = rule.name;
-        ruleElement.querySelector('.rule-active-badge').textContent = rule.active ? 'Active' : 'Inactive';
-        ruleElement.querySelector('.rule-active-badge').classList.remove('bg-secondary');
-        ruleElement.querySelector('.rule-active-badge').classList.add(rule.active ? 'bg-success' : 'bg-warning');
-        
-        // Add extended rule badge if applicable
-        if (rule.name.includes('Extended')) {
-            const extensionBadge = document.createElement('span');
-            extensionBadge.className = 'badge bg-primary ms-2';
-            extensionBadge.textContent = 'Extended';
-            ruleElement.querySelector('.rule-name').appendChild(extensionBadge);
-        }
-        
-        // Set rule description
-        ruleElement.querySelector('.rule-description').textContent = rule.description || 'No description';
-        
-        // Set conditions
-        const conditionsContainer = ruleElement.querySelector('.rule-conditions');
-        if (rule.conditions && rule.conditions.length > 0) {
-            rule.conditions.forEach((condition, index) => {
-                const condElement = document.createElement('div');
-                condElement.className = 'condition-text';
-                
-                // Format condition
-                let paramName = getParameterName(condition.parameter);
-                let operatorSymbol = getOperatorSymbol(condition.operator);
-                let unit = getParameterUnit(condition.parameter);
-                
-                condElement.textContent = `${index === 0 ? 'If' : 'AND'} ${paramName} ${operatorSymbol} ${condition.value}${unit}`;
-                conditionsContainer.appendChild(condElement);
+    // Function to create a rule card from template
+    function createRuleCard(rule) {
+      const template = document.getElementById('ruleTemplate');
+      const ruleCard = document.importNode(template.content, true).children[0];
+      
+      // Set rule data attributes
+      ruleCard.setAttribute('data-rule-id', rule.id);
+      
+      // Set rule status
+      const statusToggle = ruleCard.querySelector('.rule-active-toggle');
+      statusToggle.checked = rule.active;
+      
+      // Set rule name and description
+      ruleCard.querySelector('.rule-name').textContent = rule.name;
+      ruleCard.querySelector('.rule-description').textContent = rule.description || 'No description provided';
+      
+      // Render conditions
+      const conditionsList = ruleCard.querySelector('.conditions-list');
+      if (rule.conditions && rule.conditions.length > 0) {
+        rule.conditions.forEach(condition => {
+          const conditionEl = document.createElement('div');
+          conditionEl.className = 'condition-item';
+          conditionEl.innerHTML = formatCondition(condition);
+          conditionsList.appendChild(conditionEl);
+        });
+      } else {
+        conditionsList.innerHTML = '<p class="empty-message">No conditions (runs unconditionally)</p>';
+      }
+      
+      // Render time restrictions
+      const timeRestrictions = ruleCard.querySelector('.time-restrictions');
+      if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+        const timeEl = document.createElement('div');
+        timeEl.className = 'time-item';
+        timeEl.innerHTML = formatTimeRestrictions(rule.timeRestrictions);
+        timeRestrictions.appendChild(timeEl);
+      } else {
+        timeRestrictions.innerHTML = '<p class="empty-message">No time restrictions (runs anytime)</p>';
+      }
+      
+      // Render actions
+      const actionsList = ruleCard.querySelector('.actions-list');
+      if (rule.actions && rule.actions.length > 0) {
+        rule.actions.forEach(action => {
+          const actionEl = document.createElement('div');
+          actionEl.className = 'action-item';
+          actionEl.innerHTML = formatAction(action);
+          actionsList.appendChild(actionEl);
+        });
+      } else {
+        actionsList.innerHTML = '<p class="empty-message">No actions defined</p>';
+      }
+      
+      // Set dates and counts
+      const createdDate = ruleCard.querySelector('.created-date');
+      createdDate.textContent = rule.createdAt ? new Date(rule.createdAt).toLocaleDateString() : 'Unknown';
+      
+      const triggeredDate = ruleCard.querySelector('.triggered-date');
+      triggeredDate.textContent = rule.lastTriggered ? new Date(rule.lastTriggered).toLocaleString() : 'Never';
+      
+      const triggerCount = ruleCard.querySelector('.trigger-count');
+      triggerCount.textContent = rule.triggerCount || 0;
+      
+      return ruleCard;
+    }
+    
+    // Add event listeners to rule cards
+    function addRuleCardEventListeners() {
+      // Toggle rule active status
+      document.querySelectorAll('.rule-active-toggle').forEach(toggle => {
+        toggle.addEventListener('change', async (e) => {
+          const ruleCard = e.target.closest('.rule-card');
+          const ruleId = ruleCard.getAttribute('data-rule-id');
+          const rule = allRules.find(r => r.id === ruleId);
+          
+          if (rule) {
+            try {
+              rule.active = e.target.checked;
+              await updateRule(rule);
+              
+              // Show temporary notification
+              showNotification(`Rule "${rule.name}" ${e.target.checked ? 'activated' : 'deactivated'}`);
+            } catch (error) {
+              console.error('Error updating rule status:', error);
+              e.target.checked = !e.target.checked; // Revert toggle
+              showError('Failed to update rule status');
+            }
+          }
+        });
+      });
+      
+      // Dropdown menus
+      document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const menu = e.target.closest('.rule-menu').querySelector('.dropdown-menu');
+          
+          // Close all other open menus
+          document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+            if (m !== menu) m.classList.remove('show');
+          });
+          
+          // Toggle this menu
+          menu.classList.toggle('show');
+        });
+      });
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+          menu.classList.remove('show');
+        });
+      });
+      
+      // Edit rule
+      document.querySelectorAll('.edit-rule').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ruleId = e.target.closest('.rule-card').getAttribute('data-rule-id');
+          window.location.href = `<%= ingress_path %>/wizard?edit=${ruleId}`;
+        });
+      });
+      
+      // Duplicate rule
+      document.querySelectorAll('.duplicate-rule').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ruleCard = e.target.closest('.rule-card');
+          const ruleId = ruleCard.getAttribute('data-rule-id');
+          
+          try {
+            const response = await fetch(`<%= ingress_path %>/api/rules/${ruleId}/duplicate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
             });
-        } else {
-            const condElement = document.createElement('div');
-            condElement.className = 'condition-text text-muted';
-            condElement.textContent = 'No conditions (always executes)';
-            conditionsContainer.appendChild(condElement);
-        }
-        
-        // Set time restrictions
-        const timeRestrictionsContainer = ruleElement.querySelector('.rule-time-restrictions');
-        if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
-            const timeElement = document.createElement('div');
-            timeElement.className = 'time-restrictions mt-2';
             
-            let timeText = '<h6>Time Restrictions:</h6>';
+            if (!response.ok) throw new Error('Failed to duplicate rule');
             
-            // Days
-            if (rule.timeRestrictions.days && rule.timeRestrictions.days.length > 0) {
-                const days = rule.timeRestrictions.days.map(day => 
-                    day.charAt(0).toUpperCase() + day.slice(1)
-                ).join(', ');
-                
-                timeText += `<div>Days: ${days}</div>`;
-            }
+            const result = await response.json();
+            showNotification(`Rule duplicated successfully`);
             
-            // Time range
-            if (rule.timeRestrictions.startTime && rule.timeRestrictions.endTime) {
-                timeText += `<div>Time: ${rule.timeRestrictions.startTime} to ${rule.timeRestrictions.endTime}</div>`;
-            }
-            
-            // Specific dates
-            if (rule.timeRestrictions.specificDates && rule.timeRestrictions.specificDates.length > 0) {
-                timeText += `<div>Specific dates: ${rule.timeRestrictions.specificDates.join(', ')}</div>`;
-            }
-            
-            timeElement.innerHTML = timeText;
-            timeRestrictionsContainer.appendChild(timeElement);
-        }
-        
-        // Set actions
-        const actionsContainer = ruleElement.querySelector('.rule-actions-list');
-        if (rule.actions && rule.actions.length > 0) {
-            rule.actions.forEach(action => {
-                const actionElement = document.createElement('div');
-                actionElement.className = 'action-text';
-                
-                // Format action
-                let settingName = getSettingName(action.setting);
-                let value = action.value;
-                let inverter = action.inverter === 'all' ? 'All Inverters' : action.inverter.replace('_', ' ');
-                
-                // Add units if needed
-                if (['max_discharge_current', 'max_charge_current', 'max_grid_charge_current', 'max_generator_charge_current'].includes(action.setting)) {
-                    value += ' A';
-                } else if (['max_sell_power', 'max_solar_power', 'voltage_point_1', 'voltage_point_2', 'voltage_point_3', 'voltage_point_4', 'voltage_point_5', 'voltage_point_6'].includes(action.setting)) {
-                    value += ' W';
-                } else if (action.setting.includes('voltage') && !action.setting.includes('point')) {
-                    value += ' V';
+            // Reload rules
+            loadRules();
+          } catch (error) {
+            console.error('Error duplicating rule:', error);
+            showError('Failed to duplicate rule');
+          }
+        });
+      });
+      
+      // Execute rule
+      document.querySelectorAll('.execute-rule').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ruleCard = e.target.closest('.rule-card');
+          const ruleId = ruleCard.getAttribute('data-rule-id');
+          const rule = allRules.find(r => r.id === ruleId);
+          
+          if (rule) {
+            openExecuteModal(rule);
+          }
+        });
+      });
+      
+      // Delete rule
+      document.querySelectorAll('.delete-rule').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ruleCard = e.target.closest('.rule-card');
+          const ruleId = ruleCard.getAttribute('data-rule-id');
+          const rule = allRules.find(r => r.id === ruleId);
+          
+          if (rule) {
+            openConfirmationModal(
+              `Are you sure you want to delete the rule "${rule.name}"?`,
+              async () => {
+                try {
+                  const response = await fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
+                    method: 'DELETE'
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to delete rule');
+                  
+                  showNotification(`Rule "${rule.name}" deleted successfully`);
+                  
+                  // Remove rule from list and DOM
+                  allRules = allRules.filter(r => r.id !== ruleId);
+                  ruleCard.remove();
+                  
+                  if (allRules.length === 0) {
+                    showEmptyState();
+                  }
+                } catch (error) {
+                  console.error('Error deleting rule:', error);
+                  showError('Failed to delete rule');
                 }
-                
-                actionElement.textContent = `Set ${settingName} to ${value} on ${inverter}`;
-                actionsContainer.appendChild(actionElement);
-            });
-        } else {
-            const actionElement = document.createElement('div');
-            actionElement.className = 'action-text text-muted';
-            actionElement.textContent = 'No actions defined';
-            actionsContainer.appendChild(actionElement);
+              }
+            );
+          }
+        });
+      });
+    }
+    
+    // Function to execute a rule
+    async function executeRule(rule) {
+      try {
+        document.getElementById('executeStatus').classList.add('pending');
+        document.getElementById('executeMessage').textContent = `Executing rule "${rule.name}"...`;
+        
+        // Display actions being executed
+        const actionsList = document.getElementById('executeActions');
+        actionsList.innerHTML = '';
+        
+        rule.actions.forEach(action => {
+          const li = document.createElement('li');
+          li.innerHTML = formatAction(action);
+          actionsList.appendChild(li);
+        });
+        
+        // Execute the rule
+        const response = await fetch(`<%= ingress_path %>/api/rules/${rule.id}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Rule execution failed');
         }
         
-        // Set last triggered
-        const lastTriggeredElement = ruleElement.querySelector('.rule-last-triggered');
-        if (rule.lastTriggered) {
-            lastTriggeredElement.textContent = `Last triggered: ${new Date(rule.lastTriggered).toLocaleString()} (${rule.triggerCount || 0} times)`;
-        } else {
-            lastTriggeredElement.textContent = 'Never triggered';
+        const result = await response.json();
+        
+        // Show success
+        document.getElementById('executeStatus').classList.remove('pending');
+        document.getElementById('executeStatus').classList.add('success');
+        document.getElementById('executeMessage').textContent = result.message;
+        
+        // Update rule in our array
+        const index = allRules.findIndex(r => r.id === rule.id);
+        if (index !== -1) {
+          allRules[index].lastTriggered = new Date().toISOString();
+          allRules[index].triggerCount = (allRules[index].triggerCount || 0) + 1;
         }
         
-        // Set active toggle
-        const activeToggle = ruleElement.querySelector('.rule-active-toggle');
-        activeToggle.checked = rule.active;
-        activeToggle.addEventListener('change', function() {
-            toggleRuleActive(rule._id, this.checked);
-        });
+        // Reload rules to reflect the updated trigger count
+        setTimeout(loadRules, 2000);
         
-        // Set button actions
-        ruleElement.querySelector('.run-rule-btn').addEventListener('click', function() {
-            executeRule(rule._id);
-        });
+        return true;
+      } catch (error) {
+        console.error('Error executing rule:', error);
         
-        ruleElement.querySelector('.duplicate-rule-btn').addEventListener('click', function() {
-            duplicateRule(rule._id);
-        });
+        // Show error
+        document.getElementById('executeStatus').classList.remove('pending');
+        document.getElementById('executeStatus').classList.add('error');
+        document.getElementById('executeMessage').textContent = error.message;
         
-        ruleElement.querySelector('.edit-rule-btn').addEventListener('click', function() {
-            window.location.href = `/wizard?edit=${rule._id}`;
-        });
-        
-        ruleElement.querySelector('.delete-rule-btn').addEventListener('click', function() {
-            showDeleteModal(rule._id, rule.name);
-        });
-        
-        rulesContainer.appendChild(ruleElement);
-    });
-}
-
-// Filter rules based on active state
-function filterRules() {
-    renderRules();
-}
-
-// Toggle rule active state
-function toggleRuleActive(ruleId, isActive) {
-    // Create a patch request to update the rule
-    fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
+        return false;
+      }
+    }
+    
+    // Function to update rule
+    async function updateRule(rule) {
+      const response = await fetch(`<%= ingress_path %>/api/rules/${rule.id}`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            active: isActive,
-            // Need to send the entire rule object with updated active state
-            ...allRules.find(r => r._id === ruleId)
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Update the rule in our local array
-        const ruleIndex = allRules.findIndex(r => r._id === ruleId);
-        if (ruleIndex !== -1) {
-            allRules[ruleIndex] = data;
-            
-            // Update the card
-            const card = document.getElementById(`rule-${ruleId}`);
-            if (card) {
-                if (data.active) {
-                    card.classList.remove('text-muted');
-                } else {
-                    card.classList.add('text-muted');
-                }
-                
-                // Update the badge
-                const badge = card.querySelector('.rule-active-badge');
-                badge.textContent = data.active ? 'Active' : 'Inactive';
-                badge.className = 'badge ms-2';
-                badge.classList.add(data.active ? 'bg-success' : 'bg-warning');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error toggling rule:', error);
-        alert('Error toggling rule: ' + error.message);
-        
-        // Revert the toggle
-        const toggle = document.querySelector(`#rule-${ruleId} .rule-active-toggle`);
-        if (toggle) {
-            toggle.checked = !isActive;
-        }
-    });
-}
-
-// Execute a rule manually
-function executeRule(ruleId) {
-    // Check learner mode status first
-    fetch('<%= ingress_path %>/api/learner/status')
-        .then(response => response.json())
-        .then(learnerStatus => {
-            if (!learnerStatus.active) {
-                alert('Learner mode is not active. Please activate it before executing rules.');
-                return;
-            }
-            
-            // Proceed with execution if learner mode is active
-            if (!confirm('Are you sure you want to execute this rule now?')) {
-                return;
-            }
-            
-            fetch(`<%= ingress_path %>/api/rules/${ruleId}/execute`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(response.statusText);
-                }
-                return response.json();
-            })
-            .then(data => {
-                alert(`Rule executed successfully!`);
-                
-                // Reload rules to get updated trigger count
-                loadRules();
-            })
-            .catch(error => {
-                console.error('Error executing rule:', error);
-                alert('Error executing rule: ' + error.message);
-            });
-        })
-        .catch(error => {
-            console.error('Error checking learner mode status:', error);
-            alert('Error checking learner mode status: ' + error.message);
-        });
-}
-
-// Duplicate a rule
-function duplicateRule(ruleId) {
-    fetch(`<%= ingress_path %>/api/rules/${ruleId}/duplicate`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        alert(`Rule duplicated successfully!`);
-        
-        // Reload rules
-        loadRules();
-    })
-    .catch(error => {
-        console.error('Error duplicating rule:', error);
-        alert('Error duplicating rule: ' + error.message);
-    });
-}
-
-// Show delete confirmation modal
-function showDeleteModal(ruleId, ruleName) {
-    deleteRuleId = ruleId;
-    document.getElementById('deleteRuleName').textContent = ruleName;
-    deleteModal.show();
-}
-
-// Delete a rule
-function deleteRule(ruleId) {
-    fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Hide the modal
-        deleteModal.hide();
-        
-        // Remove the rule from our local array
-        allRules = allRules.filter(rule => rule._id !== ruleId);
-        
-        // Re-render the rules
-        renderRules();
-        
-        // Show a success message
-        alert('Rule deleted successfully!');
-    })
-    .catch(error => {
-        console.error('Error deleting rule:', error);
-        alert('Error deleting rule: ' + error.message);
-        deleteModal.hide();
-    });
-}
-
-// Helper functions to format display values
-function getParameterName(parameter) {
-    const names = {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rule)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update rule');
+      }
+      
+      return await response.json();
+    }
+    
+    // Function to filter rules
+    function filterRules() {
+      const searchText = searchInput.value.toLowerCase();
+      const filterValue = filterSelect.value;
+      
+      let filteredRules = allRules;
+      
+      // Filter by status
+      if (filterValue === 'active') {
+        filteredRules = filteredRules.filter(rule => rule.active);
+      } else if (filterValue === 'inactive') {
+        filteredRules = filteredRules.filter(rule => !rule.active);
+      }
+      
+      // Filter by search text
+      if (searchText) {
+        filteredRules = filteredRules.filter(rule => 
+          rule.name.toLowerCase().includes(searchText) || 
+          (rule.description && rule.description.toLowerCase().includes(searchText))
+        );
+      }
+      
+      renderRules(filteredRules);
+    }
+    
+    // Helper function to format conditions
+    function formatCondition(condition) {
+      const parameterLabels = {
         'battery_soc': 'Battery SOC',
         'pv_power': 'PV Power',
-        'load': 'Load Power',
+        'load': 'Load',
         'grid_voltage': 'Grid Voltage',
-        'grid_power': 'Grid Power',
-        'battery_voltage': 'Battery Voltage',
-        'battery_current': 'Battery Current'
-    };
-    return names[parameter] || parameter;
-}
-
-function getOperatorSymbol(operator) {
-    const symbols = {
-        'gt': '>',
-        'lt': '<',
-        'eq': '=',
-        'gte': '≥',
-        'lte': '≤'
-    };
-    return symbols[operator] || operator;
-}
-
-function getParameterUnit(parameter) {
-    const units = {
+        'grid_power': 'Grid Power'
+      };
+      
+      const operatorLabels = {
+        'gt': 'greater than',
+        'lt': 'less than',
+        'eq': 'equal to',
+        'gte': 'greater than or equal to',
+        'lte': 'less than or equal to'
+      };
+      
+      const units = {
         'battery_soc': '%',
         'pv_power': 'W',
         'load': 'W',
         'grid_voltage': 'V',
-        'grid_power': 'W',
-        'battery_voltage': 'V',
-        'battery_current': 'A'
-    };
-    return units[parameter] || '';
-}
-
-function getSettingName(setting) {
-    const names = {
+        'grid_power': 'W'
+      };
+      
+      const paramLabel = parameterLabels[condition.parameter] || condition.parameter;
+      const opLabel = operatorLabels[condition.operator] || condition.operator;
+      const unit = units[condition.parameter] || '';
+      
+      return `<strong>${paramLabel}</strong> is <strong>${opLabel}</strong> <strong>${condition.value}${unit}</strong>`;
+    }
+    
+    // Helper function to format time restrictions
+    function formatTimeRestrictions(restrictions) {
+      let result = '';
+      
+      if (restrictions.startTime && restrictions.endTime) {
+        result += `<div><i class="fas fa-clock"></i> From <strong>${restrictions.startTime}</strong> to <strong>${restrictions.endTime}</strong></div>`;
+      }
+      
+      if (restrictions.days && restrictions.days.length > 0) {
+        const daysFormatted = restrictions.days.map(day => 
+          day.charAt(0).toUpperCase() + day.slice(1)
+        ).join(', ');
+        result += `<div><i class="fas fa-calendar-day"></i> Only on: <strong>${daysFormatted}</strong></div>`;
+      }
+      
+      if (restrictions.specificDates && restrictions.specificDates.length > 0) {
+        const datesFormatted = restrictions.specificDates.join(', ');
+        result += `<div><i class="fas fa-calendar-check"></i> Only on dates: <strong>${datesFormatted}</strong></div>`;
+      }
+      
+      return result || 'Active at all times';
+    }
+    
+    // Helper function to format actions
+    function formatAction(action) {
+      const settingLabels = {
         'grid_charge': 'Grid Charge',
         'energy_pattern': 'Energy Pattern',
-        'work_mode': 'Work Mode',
-        'work_mode_timer': 'Use Timer',
-        'max_discharge_current': 'Max Discharge Current',
-        'max_charge_current': 'Max Charge Current',
-        'max_grid_charge_current': 'Max Grid Charge Current',
-        'max_generator_charge_current': 'Max Generator Charge Current',
-        'battery_float_charge_voltage': 'Float Charge Voltage',
-        'battery_absorption_charge_voltage': 'Absorption Charge Voltage',
-        'battery_equalization_charge_voltage': 'Equalization Charge Voltage',
-        'solar_export_when_battery_full': 'Solar Export When Battery Full',
-        'max_sell_power': 'Max Sell Power',
-        'max_solar_power': 'Max Solar Power',
-        'grid_trickle_feed': 'Grid Trickle Feed',
-        'remote_switch': 'Remote Switch',
-        'generator_charge': 'Generator Charge',
-        'force_generator_on': 'Force Generator On',
-        'output_shutdown_voltage': 'Output Shutdown Voltage',
-        'stop_battery_discharge_voltage': 'Stop Battery Discharge Voltage',
-        'start_battery_discharge_voltage': 'Start Battery Discharge Voltage',
-        'start_grid_charge_voltage': 'Start Grid Charge Voltage',
+        'voltage_point': 'Voltage Point',
         'voltage_point_1': 'Voltage Point 1',
         'voltage_point_2': 'Voltage Point 2',
         'voltage_point_3': 'Voltage Point 3',
         'voltage_point_4': 'Voltage Point 4',
         'voltage_point_5': 'Voltage Point 5',
-        'voltage_point_6': 'Voltage Point 6'
-    };
-    return names[setting] || setting;
-}
+        'voltage_point_6': 'Voltage Point 6',
+        'max_discharge_current': 'Max Discharge Current',
+        'max_charge_current': 'Max Charge Current',
+        'max_grid_charge_current': 'Max Grid Charge Current',
+        'battery_float_charge_voltage': 'Float Charge Voltage',
+        'work_mode': 'Work Mode',
+        'work_mode_timer': 'Timer Mode',
+        'remote_switch': 'Remote Switch'
+      };
+      
+      const inverterLabel = action.inverter === 'all' ? 'All Inverters' : `${action.inverter}`;
+      const settingLabel = settingLabels[action.setting] || action.setting;
+      
+      return `Set <strong>${settingLabel}</strong> to <strong>${action.value}</strong> on <strong>${inverterLabel}</strong>`;
+    }
+    
+    // Function to show empty state
+    function showEmptyState() {
+      rulesList.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-list-alt"></i>
+          <h3>No rules found</h3>
+          <p>Create your first automation rule to get started</p>
+          <button class="btn btn-primary" onclick="window.location.href='/wizard'">Create Rule</button>
+        </div>
+      `;
+    }
+    
+    // Function to show database error
+    function showDatabaseError() {
+      rulesList.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-database"></i>
+          <h3>Database Disconnected</h3>
+          <p>Cannot retrieve rules without database connection</p>
+          <button class="btn btn-secondary" onclick="window.location.reload()">Try Again</button>
+        </div>
+      `;
+    }
+    
+    // Function to show error
+    function showError(message) {
+      const notification = document.createElement('div');
+      notification.className = 'notification error';
+      notification.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        <span>${message}</span>
+        <button class="close-notification">&times;</button>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Add event listener to close button
+      notification.querySelector('.close-notification').addEventListener('click', () => {
+        notification.remove();
+      });
+      
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.remove();
+        }
+      }, 5000);
+    }
+    
+    // Function to show notification
+    function showNotification(message) {
+      const notification = document.createElement('div');
+      notification.className = 'notification success';
+      notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>${message}</span>
+        <button class="close-notification">&times;</button>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Add event listener to close button
+      notification.querySelector('.close-notification').addEventListener('click', () => {
+        notification.remove();
+      });
+      
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.remove();
+        }
+      }, 5000);
+    }
+    
+    // Function to open confirmation modal
+    function openConfirmationModal(message, confirmCallback) {
+      document.getElementById('confirmationMessage').textContent = message;
+      confirmationModal.style.display = 'block';
+      
+      // Set up confirm and cancel buttons
+      const confirmBtn = document.getElementById('confirmAction');
+      const cancelBtn = document.getElementById('cancelAction');
+      
+      // Remove any existing event listeners
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      
+      // Add new event listeners
+      newConfirmBtn.addEventListener('click', () => {
+        confirmCallback();
+        closeAllModals();
+      });
+      
+      newCancelBtn.addEventListener('click', closeAllModals);
+    }
+    
+    // Function to open execute modal
+    function openExecuteModal(rule) {
+      // Reset modal state
+      document.getElementById('executeStatus').className = 'execute-status';
+      document.getElementById('executeMessage').textContent = 'Preparing to execute rule...';
+      document.getElementById('executeActions').innerHTML = '';
+      
+      // Show modal
+      executeModal.style.display = 'block';
+      
+      // Execute the rule
+      setTimeout(() => executeRule(rule), 500);
+    }
+    
+    // Function to close all modals
+    function closeAllModals() {
+      confirmationModal.style.display = 'none';
+      executeModal.style.display = 'none';
+    }
+  </script>
 
-// Add some CSS for extended rules styling
-document.addEventListener('DOMContentLoaded', function() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .extended-rule {
-            background-color: #f0f8ff;
-        }
-        .extended-rule .card-header {
-            background-color: #e7f1ff;
-        }
-    `;
-    document.head.appendChild(style);
-});
-</script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>
+
 </body>
 </html>
