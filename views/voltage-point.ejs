@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carbonoz SolarAutopilot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
+ <style>
 
 body {
   font-family: 'Inter', sans-serif;
@@ -758,12 +758,12 @@ body.dark-mode {
   color: var(--text-color);
   transition: margin-left 0.3s ease;
 }
+
 .main-content .container {
-  max-width: 1700px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0;
 }
-
 
 .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
   display: flex;
@@ -826,6 +826,429 @@ body.dark-mode {
   font-size: 1rem;
 }
 
+/* Card styling */
+.card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: none;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-header h5 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.card-header h5 i {
+    margin-right: 0.75rem;
+    color: var(--primary-color);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 8px;
+    border: none;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9375rem;
+}
+
+.alert-info {
+    background-color: rgba(33, 150, 243, 0.1);
+    color: #0d6efd;
+}
+
+.alert-success {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--green);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: var(--amber);
+}
+
+.alert-danger {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--red);
+}
+
+.alert i {
+    margin-right: 0.5rem;
+}
+
+/* Button styling */
+.btn {
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn i {
+    margin-right: 0.375rem;
+}
+
+.btn-success {
+    background-color: var(--green);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #43a047;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-successs {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-successs:hover {
+    background-color: #c9a00a;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondaryy {
+    background-color: #e0e0e0;
+    color: var(--text-color);
+}
+
+.btn-secondaryy:hover {
+    background-color: #d0d0d0;
+}
+
+/* Inverter and settings styling */
+.inverter-heading {
+    font-weight: 600;
+    font-size: 1.125rem;
+    color: var(--text-color);
+    padding: 0.75rem 0;
+    margin-top: 1rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.change-item {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+}
+
+.change-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+
+.setting-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-color);
+}
+
+.change-value {
+    font-weight: 600;
+    color: var(--green);
+}
+
+.timestamp {
+    font-size: 0.8125rem;
+    color: var(--gray);
+}
+
+.edit-icon {
+    color: var(--blue);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    background-color: rgba(33, 150, 243, 0.1);
+    transition: all 0.2s;
+}
+
+.edit-icon:hover {
+    background-color: rgba(33, 150, 243, 0.2);
+    transform: scale(1.1);
+}
+
+/* Modal styling */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--text-color);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #dcdde1;
+    padding: 0.625rem 1rem;
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.15);
+}
+
+.input-group-text {
+    background-color: #f1f2f6;
+    border: 1px solid #dcdde1;
+    border-radius: 0 8px 8px 0;
+    color: var(--text-color);
+}
+
+.form-control-plaintext {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Spinner */
+.spinner-border {
+    color: var(--primary-color);
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Dark mode styles */
+.dark-mode .card {
+    background-color: rgba(32, 35, 41, 1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .card-header {
+    background-color: rgba(32, 35, 41, 1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .card-header h5,
+.dark-mode .setting-title,
+.dark-mode .form-label,
+.dark-mode .form-control-plaintext,
+.dark-mode .modal-title {
+    color: #f5f6fa;
+}
+
+.dark-mode .alert-info {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: #64b5f6;
+}
+
+.dark-mode .btn-secondaryy {
+    background-color: #424242;
+    color: #f5f6fa;
+}
+
+.dark-mode .btn-secondaryy:hover {
+    background-color: #505050;
+}
+
+.dark-mode .inverter-heading {
+    color: #f5f6fa;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.dark-mode .change-item {
+    background-color: rgba(32, 35, 41, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .change-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    border-color: var(--primary-color);
+}
+
+.dark-mode .timestamp {
+    color: #b0b0b0;
+}
+
+.dark-mode .modal-content {
+    background-color: rgba(32, 35, 41, 1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .form-control,
+.dark-mode .form-select {
+    background-color: rgba(48, 52, 63, 1);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+.dark-mode .form-control:focus,
+.dark-mode .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.25);
+}
+
+.dark-mode .input-group-text {
+    background-color: rgba(48, 52, 63, 1);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f5f6fa;
+}
+
+/* Bootstrap utility classes for spacing and alignment */
+.mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+
+.col-12 {
+    width: 100%;
+}
+
+.col-md-6 {
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .col-md-6 {
+        width: 50%;
+        float: left;
+        padding: 0 0.75rem;
+    }
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -0.75rem;
+    margin-left: -0.75rem;
+}
+
+.row::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.d-flex {
+    display: flex !important;
+}
+
+.justify-content-between {
+    justify-content: space-between !important;
+}
+
+.align-items-center {
+    align-items: center !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+.text-success {
+    color: var(--green) !important;
+}
+
+.py-5 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+}
+
+.mt-1 {
+    margin-top: 0.25rem !important;
+}
+
+.mt-2 {
+    margin-top: 0.5rem !important;
+}
+
+.mb-0 {
+    margin-bottom: 0 !important;
+}
+
+.me-1 {
+    margin-right: 0.25rem !important;
+}
+
+.me-2 {
+    margin-right: 0.5rem !important;
+}
+
+.me-3 {
+    margin-right: 1rem !important;
+}
+
+.d-inline-block {
+    display: inline-block !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .card-header div {
+        margin-top: 1rem;
+    }
+    
+    .change-item {
+        padding: 1rem;
+    }
+}
+/* Hidden Elements - Initially Hidden States */
 #editSettingModal {
     display: none; /* Initially hidden until triggered by JavaScript */
 }
@@ -1441,680 +1864,12 @@ body.dark-mode {
     }
 }
 
-/* Voltage Points Card Styling */
-.voltage-point-card {
-    border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s, box-shadow 0.2s;
-    overflow: hidden;
-    border: none;
-    margin-bottom: 1.75rem;
-}
 
-.voltage-point-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-}
-
-.voltage-point-card .card-header {
-    background: linear-gradient(to right, rgba(222, 175, 11, 0.1), rgba(222, 175, 11, 0.02));
-    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
-    padding: 1.25rem 1.5rem;
-}
-
-.voltage-point-card .card-header h5 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-}
-
-.voltage-point-card .card-header h5 i {
-    color: var(--primary-color);
-    margin-right: 0.75rem;
-    font-size: 1.125rem;
-}
-
-/* Voltage Points Table Styling */
-.voltage-point-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.voltage-point-table thead th {
-    background-color: rgba(222, 175, 11, 0.08);
-    color: var(--text-color);
-    font-weight: 600;
-    border-bottom: none;
-    padding: 1rem;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    text-align: left;
-}
-
-.voltage-point-table tbody td {
-    padding: 0.875rem 1rem;
-    vertical-align: middle;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.voltage-point-table tbody tr {
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.voltage-point-table tbody tr:hover {
-    background-color: rgba(222, 175, 11, 0.05);
-    transform: translateX(5px);
-}
-
-.voltage-point-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* Topic display styling */
-.topic-display {
-    display: block;
-    font-size: 0.75rem;
-    color: #6c757d;
-    max-width: 280px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Badge styling for voltage values */
-.voltage-point-table .badge {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: 500;
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-}
-
-.voltage-point-table tr:hover .badge {
-    transform: scale(1.05);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-}
-
-/* Timestamp styling */
-.timestamp {
-    display: flex;
-    align-items: center;
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-.timestamp i {
-    margin-right: 0.375rem;
-    color: var(--primary-color);
-}
-
-/* Edit button styling */
-.edit-voltage-point {
-    background-color: rgba(222, 175, 11, 0.1);
-    color: var(--text-color);
-    border: none;
-    transition: all 0.2s ease;
-}
-
-.edit-voltage-point:hover {
-    background-color: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Recent Changes Styling */
-.voltage-list {
-    max-height: 400px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(222, 175, 11, 0.5) rgba(0, 0, 0, 0.05);
-}
-
-.voltage-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.voltage-list::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 10px;
-}
-
-.voltage-list::-webkit-scrollbar-thumb {
-    background-color: rgba(222, 175, 11, 0.5);
-    border-radius: 10px;
-}
-
-/* Voltage Point Info Section */
-.list-group-item {
-    padding: 0.75rem 1.25rem;
-    background-color: transparent;
-    border: 1px solid rgba(222, 175, 11, 0.2);
-    margin-bottom: 0.5rem;
-    border-radius: 8px !important;
-    transition: all 0.2s ease;
-}
-
-.list-group-item:hover {
-    background-color: rgba(222, 175, 11, 0.05);
-    transform: translateX(5px);
-}
-
-.list-group-item .badge {
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 20px;
-    font-weight: 500;
-}
-
-.badge.bg-success {
-    background-color: var(--green) !important;
-}
-
-.badge.bg-primary {
-    background-color: var(--primary-color) !important;
-}
-
-/* Edit Voltage Point Modal */
-#editVoltagePointModal .modal-content {
-    border-radius: 15px;
-    border: none;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-}
-
-#editVoltagePointModal .modal-header {
-    background: linear-gradient(to right, rgba(222, 175, 11, 0.1), rgba(222, 175, 11, 0.02));
-    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
-    padding: 1.5rem;
-}
-
-#editVoltagePointModal .modal-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-color);
-}
-
-#editVoltagePointModal .modal-body {
-    padding: 1.75rem;
-}
-
-#editVoltagePointModal .form-label {
-    font-weight: 600;
-    color: var(--text-color);
-    margin-bottom: 0.5rem;
-}
-
-#editVoltagePointModal .text-muted {
-    color: #6c757d;
-}
-
-#editVoltagePointModal .input-group {
-    margin-bottom: 1.25rem;
-}
-
-#editVoltagePointModal .input-group-text {
-    background-color: rgba(222, 175, 11, 0.1);
-    border: 1px solid rgba(222, 175, 11, 0.2);
-    color: var(--text-color);
-    font-weight: 500;
-    padding: 0.75rem 1rem;
-    border-radius: 8px 0 0 8px;
-}
-
-#editVoltagePointModal .form-control {
-    border: 1px solid rgba(222, 175, 11, 0.2);
-    border-radius: 0 8px 8px 0;
-    padding: 0.75rem 1rem;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-#editVoltagePointModal .form-control:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.2);
-}
-
-#editVoltagePointModal .form-text {
-    font-size: 0.8125rem;
-    color: #6c757d;
-    margin-top: 0.375rem;
-}
-
-#editVoltagePointModal .form-control-plaintext {
-    font-weight: 600;
-    font-size: 1.125rem;
-    color: var(--green);
-}
-
-#editVoltagePointModal .modal-footer {
-    border-top: 1px solid rgba(222, 175, 11, 0.1);
-    padding: 1.25rem 1.5rem;
-}
-
-#editVoltagePointModal .btn-secondaryy {
-    background-color: #f1f2f6;
-    color: var(--text-color);
-    border: none;
-    padding: 0.625rem 1.5rem;
-    font-weight: 500;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-#editVoltagePointModal .btn-secondaryy:hover {
-    background-color: #e6e8ed;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
-}
-
-#editVoltagePointModal .btn-primaryy {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.625rem 1.5rem;
-    font-weight: 500;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-#editVoltagePointModal .btn-primaryy:hover {
-    background-color: #c9a00a;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Voltage Points History Modal */
-#voltagePointHistoryModal .modal-content {
-    border-radius: 15px;
-    border: none;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-}
-
-#voltagePointHistoryModal .modal-header {
-    background: linear-gradient(to right, rgba(222, 175, 11, 0.1), rgba(222, 175, 11, 0.02));
-    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
-    padding: 1.5rem;
-}
-
-#voltagePointHistoryModal .modal-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-color);
-}
-
-#voltagePointHistoryModal .modal-body {
-    padding: 1.75rem;
-}
-
-#voltagePointHistoryModal .table-responsive {
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    max-height: 500px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(222, 175, 11, 0.5) rgba(0, 0, 0, 0.05);
-}
-
-#voltagePointHistoryModal .table-responsive::-webkit-scrollbar {
-    width: 6px;
-}
-
-#voltagePointHistoryModal .table-responsive::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 10px;
-}
-
-#voltagePointHistoryModal .table-responsive::-webkit-scrollbar-thumb {
-    background-color: rgba(222, 175, 11, 0.5);
-    border-radius: 10px;
-}
-
-#voltagePointHistoryModal .table {
-    margin-bottom: 0;
-}
-
-#voltagePointHistoryModal .table thead th {
-    background-color: rgba(222, 175, 11, 0.08);
-    color: var(--text-color);
-    font-weight: 600;
-    border-bottom: none;
-    padding: 1rem;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    text-align: left;
-}
-
-#voltagePointHistoryModal .table tbody td {
-    padding: 0.875rem 1rem;
-    vertical-align: middle;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-#voltagePointHistoryModal .table tbody tr:hover {
-    background-color: rgba(222, 175, 11, 0.05);
-}
-
-#voltagePointHistoryModal .table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* Alert styling */
-.alert {
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
-    border: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    position: relative;
-    overflow: hidden;
-}
-
-.alert::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-}
-
-.alert-info {
-    background-color: rgba(33, 150, 243, 0.1);
-    color: #0c83e2;
-}
-
-.alert-info::before {
-    background-color: #0c83e2;
-}
-
-.alert-info i {
-    color: #0c83e2;
-}
-
-.alert-warning {
-    background-color: rgba(255, 193, 7, 0.1);
-    color: #e5ac00;
-}
-
-.alert-warning::before {
-    background-color: #e5ac00;
-}
-
-.alert-warning i {
-    color: #e5ac00;
-}
-
-/* Dark mode styles */
-.dark-mode .voltage-point-card {
-    background-color: rgba(32, 35, 41, 1);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-}
-
-.dark-mode .voltage-point-card .card-header {
-    background: linear-gradient(to right, rgba(222, 175, 11, 0.15), rgba(32, 35, 41, 1));
-    border-bottom: 1px solid rgba(222, 175, 11, 0.2);
-}
-
-.dark-mode .voltage-point-table thead th {
-    background-color: rgba(222, 175, 11, 0.15);
-    color: #f5f6fa;
-}
-
-.dark-mode .voltage-point-table tbody td {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: #f5f6fa;
-}
-
-.dark-mode .voltage-point-table tbody tr:hover {
-    background-color: rgba(222, 175, 11, 0.1);
-}
-
-.dark-mode .topic-display {
-    color: #b0b0b0;
-}
-
-.dark-mode .timestamp {
-    color: #b0b0b0;
-}
-
-.dark-mode .edit-voltage-point {
-    background-color: rgba(222, 175, 11, 0.2);
-    color: #f5f6fa;
-}
-
-.dark-mode .list-group-item {
-    border: 1px solid rgba(222, 175, 11, 0.25);
-    color: #f5f6fa;
-}
-
-.dark-mode .list-group-item:hover {
-    background-color: rgba(222, 175, 11, 0.1);
-}
-
-.dark-mode #editVoltagePointModal .modal-content,
-.dark-mode #voltagePointHistoryModal .modal-content {
-    background-color: rgba(32, 35, 41, 1);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
-}
-
-.dark-mode #editVoltagePointModal .modal-header,
-.dark-mode #voltagePointHistoryModal .modal-header {
-    background: linear-gradient(to right, rgba(222, 175, 11, 0.15), rgba(32, 35, 41, 1));
-    border-bottom: 1px solid rgba(222, 175, 11, 0.25);
-}
-
-.dark-mode #editVoltagePointModal .modal-title,
-.dark-mode #voltagePointHistoryModal .modal-title,
-.dark-mode #editVoltagePointModal .form-label {
-    color: #f5f6fa;
-}
-
-.dark-mode #editVoltagePointModal .text-muted {
-    color: #b0b0b0;
-}
-
-.dark-mode #editVoltagePointModal .input-group-text {
-    background-color: rgba(222, 175, 11, 0.15);
-    border: 1px solid rgba(222, 175, 11, 0.3);
-    color: #f5f6fa;
-}
-
-.dark-mode #editVoltagePointModal .form-control {
-    background-color: rgba(48, 52, 63, 1);
-    border: 1px solid rgba(222, 175, 11, 0.3);
-    color: #f5f6fa;
-}
-
-.dark-mode #editVoltagePointModal .form-text {
-    color: #b0b0b0;
-}
-
-.dark-mode #editVoltagePointModal .btn-secondaryy {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #f5f6fa;
-}
-
-.dark-mode #editVoltagePointModal .btn-secondaryy:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.dark-mode #voltagePointHistoryModal .table thead th {
-    background-color: rgba(222, 175, 11, 0.15);
-    color: #f5f6fa;
-}
-
-.dark-mode #voltagePointHistoryModal .table tbody td {
-    color: #f5f6fa;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.dark-mode #voltagePointHistoryModal .table tbody tr:hover {
-    background-color: rgba(222, 175, 11, 0.1);
-}
-
-.dark-mode .alert-info {
-    background-color: rgba(33, 150, 243, 0.15);
-    color: #64b5f6;
-}
-
-.dark-mode .alert-warning {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: #ffd54f;
-}
-
-/* Animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeInRight {
-    0% {
-        opacity: 0;
-        transform: translateX(20px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-/* Add animation to table rows */
-.voltage-point-table tbody tr {
-    opacity: 0;
-    animation: fadeInRight 0.4s forwards;
-}
-
-/* Add staggered animation delay to rows */
-.voltage-point-table tbody tr:nth-child(1) { animation-delay: 0.1s; }
-.voltage-point-table tbody tr:nth-child(2) { animation-delay: 0.2s; }
-.voltage-point-table tbody tr:nth-child(3) { animation-delay: 0.3s; }
-.voltage-point-table tbody tr:nth-child(4) { animation-delay: 0.4s; }
-.voltage-point-table tbody tr:nth-child(5) { animation-delay: 0.5s; }
-.voltage-point-table tbody tr:nth-child(6) { animation-delay: 0.6s; }
-.voltage-point-table tbody tr:nth-child(7) { animation-delay: 0.7s; }
-.voltage-point-table tbody tr:nth-child(8) { animation-delay: 0.8s; }
-.voltage-point-table tbody tr:nth-child(9) { animation-delay: 0.9s; }
-.voltage-point-table tbody tr:nth-child(10) { animation-delay: 1s; }
-
-/* Responsive adjustments */
-@media (max-width: 992px) {
-    .card-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .card-header div {
-        margin-top: 1rem;
-        width: 100%;
-    }
-    
-    .card-header div button {
-        width: 48%;
-    }
-}
-
-@media (max-width: 768px) {
-    .voltage-point-table .topic-display {
-        max-width: 200px;
-    }
-    
-    #editVoltagePointModal .modal-dialog,
-    #voltagePointHistoryModal .modal-dialog {
-        margin: 0.5rem;
-        max-width: calc(100% - 1rem);
-    }
-    
-    #editVoltagePointModal .modal-body,
-    #voltagePointHistoryModal .modal-body {
-        padding: 1.25rem;
-    }
-    
-    #voltagePointHistoryModal .table-responsive {
-        max-height: 350px;
-    }
-    
-    #voltagePointHistoryModal .table thead th {
-        padding: 0.75rem;
-        font-size: 0.875rem;
-    }
-    
-    #voltagePointHistoryModal .table tbody td {
-        padding: 0.6rem 0.75rem;
-        font-size: 0.875rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .voltage-point-table {
-        font-size: 0.875rem;
-    }
-    
-    .voltage-point-table .badge {
-        font-size: 0.75rem;
-        padding: 0.375rem 0.625rem;
-    }
-    
-    .edit-voltage-point {
-        padding: 0.375rem 0.625rem;
-        font-size: 0.75rem;
-    }
-    
-    .timestamp {
-        font-size: 0.75rem;
-    }
-    
-    .topic-display {
-        max-width: 150px;
-    }
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
-  background-color: #202429;
-}
-
-.dark-mode .main-content .nav-link {
-  color: #e5e7eb;
-}
-
-.dark-mode .main-content .nav-link:hover {
-  background-color: #32383e;
-  color: #fff;
-}
-
-.dark-mode .main-content .nav-link.active {
-  color: #fff;
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
-  background: #2a2e35;
-}
-
-.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
-  background: #4a4d53;
-}
-</style>
+ </style>
 </head>
-<body>
-      <!-- Add hamburger menu button -->
-      <button class="mobile-toggle" id="mobileToggle">
+<body data-mqtt-topic-prefix="<%= mqtt_topic_prefix %>">
+    <!-- Add hamburger menu button -->
+    <button class="mobile-toggle" id="mobileToggle">
         <span></span>
         <span></span>
         <span></span>
@@ -2122,55 +1877,81 @@ body.dark-mode {
     <div class="container">
         <div id="loadingOverlay" class="loading-overlay">
             <div class="loading-spinner"></div>
-          </div>
-          <div id="pageContent"> </div>
+        </div>
+        <div id="pageContent"> </div>
 
-          <%- include('partials/sidebar') %>
-     
-
-          <div class="main-content">
-            
-            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
-                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/learner">
-                        <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
-                    </a>
-                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
-                        <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
-                    </a>
-                <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
-                    <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="https://carbonoz.com/assets/images/image04.jpg?v=8b5d1d9b" width="45px" alt="">
+                </div>
+                <a href="https://carbonoz.com/" target="_blank" style="text-decoration: none;">
+                    <span class="logo-text">CARBONOZ <span class="highlight">SolarAutopilot</span></span>
                 </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
-                    <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
-                    <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
-                    <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
-                </a>
-            
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
-                    <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
-                </a>
-               
             </div>
+          
+            <nav>
+                <ul>
+                    <li><a href="/"><i>🏠</i><span>Dashboard</span></a></li>
+                    <li><a href="/chart"><i>📊</i><span>Charts</span></a></li>
+                    <li><a href="/messages"><i>💬</i><span>Messages</span></a></li>
+                    <li><a href="/settings"><i>⚙️</i><span>Settings</span></a></li>
+                    <li><a href="/analytics"><i>📈</i><span>Analytics</span></a></li>
+                    <li><a href="/learner"><i>🧠</i><span>Learner Mode</span></a></li>
+                    <li><a href="/results"><i>🌱</i><span>Carbon Intensity</span></a></li>
+                </ul>
+            </nav>
+            
+            <div class="bottom-options">
+                <div class="toggle-dark-mode" id="toggleDarkMode">
+                    <span class="toggle-text">Dark Mode</span>
+                    <div class="toggle-switch" id="darkModeSwitch"></div>
+                </div>
+            </div>
+        </div>
+          
+        <div class="main-content">
+            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
+                <a class="nav-link active text-nowrap" href="<%= ingress_path %>/learner">
+                    <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
+                </a>
+                <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
+                    <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
+                </a>
+            <a class="nav-link  text-nowrap" href="<%= ingress_path %>/energy-pattern">
+                <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
+                <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
+                <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
+                <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
+            </a>
+        
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
+                <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
+            </a>
+            <a class="nav-link text-nowrap" href="<%= ingress_path %>/rule-history">
+                <i class="fas fa-history me-1" style="color: #6f42c1;"></i>Rule History
+            </a>
+        </div>
+            
             <br>
+
             <div class="container">
                 <!-- Alerts container -->
                 <div id="alerts-container"></div>
         
-                <div class="voltage-cards-row">
-                    <!-- Voltage Points Card (Takes 2/3 width) -->
-                    <div class="voltage-card-column voltage-points-column">
-                        <div class="card voltage-point-card">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Voltage Points</h5>
+                                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Voltage Point Settings</h5>
                                 <div>
-                                    <button class="btn me-2" id="view-history-btn">
-                                        <i class="fas fa-history me-1"></i> View History
-                                    </button>
-                                    <button class="btn" id="refresh-voltage-points">
+                                    <button class="btn" id="refresh-settings">
                                         <i class="fas fa-sync-alt me-1"></i> Refresh
                                     </button>
                                 </div>
@@ -2178,628 +1959,647 @@ body.dark-mode {
                             <div class="card-body">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    Voltage points are dynamically detected from MQTT. Click on any voltage point to modify its value.
+                                    Voltage points control various power thresholds in your system. Click on any setting to modify its value.
                                 </div>
                                 
-                                <div class="table-responsive">
-                                    <table class="table table-hover voltage-point-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Voltage Point & Topic</th>
-                                                <th>Value (V)</th>
-                                                <th>Last Updated</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="voltage-points-list">
-                                            <tr>
-                                                <td colspan="4" class="text-center py-4">
-                                                    <div class="spinner-border text-primary" role="status"></div>
-                                                    <div class="mt-2">Loading voltage points...</div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                <!-- Recent changes will be loaded here -->
+                                <div id="recent-changes-container">
+                                    <p class="text-center py-5">
+                                        <span class="spinner-border text-primary" role="status"></span>
+                                        <br>
+                                        <span class="mt-2 d-inline-block">Loading voltage point settings...</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                     <!-- Voltage Point Info Card (Takes 1/3 width) -->
-    <div class="voltage-card-column voltage-info-column">
-        <div class="card voltage-point-card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Voltage Point Info</h5>
-            </div>
-            <div class="card-body" id="voltage-point-info">
-                <p>Voltage points control how your energy system operates at different battery voltage levels. These settings help optimize battery life and system performance.</p>
-                
-                <h6 class="mt-4">Voltage Points Summary</h6>
-                <ul class="list-group list-group-flush mb-3">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        Active Voltage Points
-                        <span class="badge bg-success rounded-pill" id="active-voltage-points">--</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        Inverters
-                        <span class="badge bg-primary rounded-pill" id="inverter-count">--</span>
-                    </li>
-                </ul>
-                
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Changes to voltage points take effect immediately. Use caution when modifying these values.
-                </div>
-                
-                <!-- Recent Changes Section -->
-                <h6 class="mt-4">Recent Changes</h6>
-                <div class="voltage-list" id="recent-changes">
-                    <div class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <div class="mt-2">Loading recent changes...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
             </div>
         
-            <!-- Edit Voltage Point Modal -->
-            <div class="modal fade" id="editVoltagePointModal" tabindex="-1" aria-labelledby="editVoltagePointModalLabel" aria-hidden="true">
+            <!-- Edit Setting Modal -->
+            <div class="modal fade" id="editSettingModal" tabindex="-1" aria-labelledby="editSettingModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editVoltagePointModalLabel">Edit Voltage Point</h5>
+                            <h5 class="modal-title" id="editSettingModalLabel">Edit Voltage Point</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <form id="editVoltagePointForm">
+                            <form id="editSettingForm">
                                 <input type="hidden" id="edit-inverter">
-                                <input type="hidden" id="edit-point-number">
+                                <input type="hidden" id="edit-setting">
                                 
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold" id="voltage-point-name-display">Voltage Point</label>
-                                    <p class="text-muted small" id="voltage-point-inverter-display">Inverter</p>
-                                    <p class="text-muted small" id="voltage-point-topic-display" style="word-break: break-all;">Topic</p>
+                                    <label class="form-label fw-bold" id="setting-name-display">Setting</label>
+                                    <p class="text-muted small" id="setting-inverter-display">Inverter</p>
                                 </div>
                                 
-                                <div class="mb-3">
-                                    <label for="edit-voltage" class="form-label">Voltage Value (V)</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="edit-voltage" min="40" max="60" step="0.1" required>
-                                        <span class="input-group-text">V</span>
-                                    </div>
-                                    <div class="form-text">Recommended range: 40V - 60V for 48V systems</div>
+                                <div class="mb-3" id="value-input-container">
+                                    <!-- Will be dynamically populated based on setting type -->
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label class="form-label">Current Value</label>
-                                    <p class="form-control-plaintext" id="current-voltage-display">-</p>
+                                    <p class="form-control-plaintext" id="current-value-display">-</p>
                                 </div>
                             </form>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondaryy" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primaryy" id="save-voltage-point-btn">Save Changes</button>
+                            <button type="button" class="btn btn-successs" id="save-setting-btn">Save Changes</button>
                         </div>
                     </div>
                 </div>
             </div>
-        
-            <!-- Voltage Point History Modal -->
-            <div class="modal fade" id="voltagePointHistoryModal" tabindex="-1" aria-labelledby="voltagePointHistoryModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="voltagePointHistoryModalLabel">Voltage Point Change History</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Date & Time</th>
-                                            <th>Voltage Point</th>
-                                            <th>Old Value</th>
-                                            <th>New Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="voltage-history-list">
-                                        <tr>
-                                            <td colspan="4" class="text-center py-4">
-                                                <div class="spinner-border text-primary" role="status"></div>
-                                                <div class="mt-2">Loading history...</div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        
         </div>
+    </div>
 
-   <!-- JavaScript Libraries -->
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-   
-   <script>
-       // Global variables
-       let voltagePoints = {};
-       
-       // Initialize the page
-       $(document).ready(function() {
-           // Load voltage points
-           loadVoltagePoints();
-           
-           // Load recent changes
-           loadRecentChanges();
-           
-           // Set up event listeners
-           setupEventListeners();
-       });
-       
-       // Setup event listeners
-       function setupEventListeners() {
-           // Refresh button
-           $('#refresh-voltage-points').click(function() {
-               loadVoltagePoints();
-               showAlert('info', 'Voltage points refreshed');
-           });
-           
-           // Save voltage point button
-           $('#save-voltage-point-btn').click(function() {
-               saveVoltagePoint();
-           });
-           
-           // View history button
-           $('#view-history-btn').click(function() {
-               loadVoltagePointHistory();
-               const historyModal = new bootstrap.Modal(document.getElementById('voltagePointHistoryModal'));
-               historyModal.show();
-           });
-       }
-       
-       // Load voltage points from the API
-       function loadVoltagePoints() {
-           $.ajax({
-               url: '<%= ingress_path %>/api/voltage-point-changes',
-               method: 'GET',
-               success: function(response) {
-                   // Try to parse the response flexibly
-                   let changes = response;
-                   
-                   // If response is an object, try to convert to array
-                   if (!Array.isArray(response)) {
-                       // Check if it might be an object with numeric or string keys
-                       changes = Object.values(response);
-                   }
-                   
-                   // If still not an array or empty, show no points message
-                   if (!Array.isArray(changes) || changes.length === 0) {
-                       $('#voltage-points-list').html('<tr><td colspan="4" class="text-center">No voltage points detected</td></tr>');
-                       $('#active-voltage-points').text('0');
-                       $('#inverter-count').text('0');
-                       return;
-                   }
-                   
-                   // Process the changes
-                   voltagePoints = {};
-                   const processedTopics = new Set();
-                   
-                   changes.forEach(change => {
-                       // Skip if no topic
-                       if (!change.topic) return;
-                       
-                       // Extract inverter and point information
-                       const topicParts = change.topic.split('/');
-                       
-                       // Find inverter and point details
-                       const inverterPart = topicParts.find(part => part.startsWith('inverter_')) || 'unknown_inverter';
-                       
-                       // Try to find voltage_point in the topic
-                       let pointPart = null;
-                       for (const part of topicParts) {
-                           if (part.includes('voltage_point_')) {
-                               pointPart = part;
-                               break;
-                           }
-                       }
-                       
-                       if (!pointPart) return; // Skip if no voltage point found
-                       
-                       // Extract point number
-                       const pointMatch = pointPart.match(/voltage_point_(\d+)/);
-                       if (!pointMatch) return;
-                       const pointNumber = pointMatch[1];
-                       
-                       // Skip if we've already processed this exact topic
-                       if (processedTopics.has(change.topic)) return;
-                       processedTopics.add(change.topic);
-                       
-                       // Determine the value (check multiple possible value fields)
-                       const value = change.new_value || change.value || change.current_value;
-                       
-                       if (!value) return;
-                       
-                       // Create nested structure
-                       if (!voltagePoints[inverterPart]) {
-                           voltagePoints[inverterPart] = {};
-                       }
-                       
-                       // Store the point details
-                       voltagePoints[inverterPart][pointNumber] = {
-                           value: parseFloat(value),
-                           topic: change.topic,
-                           timestamp: change.timestamp || new Date().toISOString()
-                       };
-                   });
-                   
-                   // Prepare to render the points
-                   const inverterCount = Object.keys(voltagePoints).length;
-                   const pointCount = Object.values(voltagePoints)
-                       .reduce((total, inverter) => total + Object.keys(inverter).length, 0);
-                   
-                   // Update summary
-                   $('#active-voltage-points').text(pointCount);
-                   $('#inverter-count').text(inverterCount);
-                   
-                   // Render the list
-                   renderVoltagePointsList();
-               },
-               error: function(xhr, status, error) {
-                   console.error('Error loading voltage points:', status, error);
-                   $('#voltage-points-list').html(`<tr><td colspan="4" class="text-center">Error loading voltage points</td></tr>`);
-                   $('#active-voltage-points').text('0');
-                   $('#inverter-count').text('0');
-               }
-           });
-       }
-       
-       // Render the voltage points list in the table
-       function renderVoltagePointsList() {
-           let html = '';
-           let foundPoints = false;
-           
-           // Loop through all inverters
-           for (const inverter in voltagePoints) {
-               const inverterId = inverter;
-               const displayName = inverterId !== 'unknown_inverter' ? 
-                   inverterId.replace('_', ' ').charAt(0).toUpperCase() + inverterId.slice(1) : 
-                   'Unknown Inverter';
-               
-               // Check if this inverter has any voltage points
-               const pointCount = Object.keys(voltagePoints[inverter]).length;
-               if (pointCount === 0) continue;
-               
-               foundPoints = true;
-               
-               // Add inverter header
-               html += `<tr class="table-secondary"><th colspan="4">${displayName}</th></tr>`;
-               
-               // Sort voltage points by number
-               const sortedPoints = Object.keys(voltagePoints[inverter])
-                   .sort((a, b) => parseInt(a) - parseInt(b));
-               
-               // Add each voltage point
-               sortedPoints.forEach((pointNumber) => {
-                   const point = voltagePoints[inverter][pointNumber];
-                   const pointName = `Voltage Point ${pointNumber}`;
-                   const topicDisplay = point.topic || `${inverter}/voltage_point_${pointNumber}/set`;
-                   
-                   html += `
-                       <tr data-inverter="${inverter}" data-point="${pointNumber}" data-value="${point.value}" data-topic="${topicDisplay}">
-                           <td>
-                               <div class="d-flex flex-column">
-                                   <strong>${pointName}</strong>
-                                   <small class="text-muted topic-display">${topicDisplay}</small>
-                               </div>
-                           </td>
-                           <td><span class="badge ">${point.value} V</span></td>
-                           <td>
-                               <span class="timestamp">
-                                   <i class="fas fa-clock me-1"></i>
-                                   ${moment(point.timestamp).format('MM/DD HH:mm')}
-                               </span>
-                           </td>
-                           <td>
-                               <button class="btn btn-sm  edit-voltage-point">
-                                   <i class="fas fa-edit me-1"></i>Edit
-                               </button>
-                           </td>
-                       </tr>
-                   `;
-               });
-           }
-           
-           if (!foundPoints) {
-               html = `
-                   <tr>
-                       <td colspan="4" class="no-points-message">
-                           <i class="fas fa-info-circle me-2"></i>
-                           No voltage points detected. Points will appear here as they are discovered from MQTT.
-                       </td>
-                   </tr>
-               `;
-           }
-           
-           $('#voltage-points-list').html(html);
-           
-           // Add row click handlers
-           $('#voltage-points-list tr').click(function() {
-               // Skip if this is a header row
-               if ($(this).hasClass('table-secondary')) return;
-               
-               const inverter = $(this).data('inverter');
-               const point = $(this).data('point');
-               const value = $(this).data('value');
-               const topic = $(this).data('topic');
-               
-               if (inverter && point) {
-                   openEditModal(inverter, point, value, topic);
-               }
-           });
-           
-           // Add click handler to edit buttons
-           $('.edit-voltage-point').click(function(e) {
-               e.stopPropagation(); // Prevent the row click event
-               
-               const row = $(this).closest('tr');
-               const inverter = row.data('inverter');
-               const point = row.data('point');
-               const value = row.data('value');
-               const topic = row.data('topic');
-               
-               openEditModal(inverter, point, value, topic);
-           });
-       }
-       
-       // Load recent changes
-       function loadRecentChanges() {
-           $.ajax({
-               url: '<%= ingress_path %>/api/voltage-point-changes',
-               method: 'GET',
-               success: function(response) {
-                   displayRecentChanges(response);
-               },
-               error: function() {
-                   $('#recent-changes').html('<div class="alert alert-warning">Failed to load recent changes</div>');
-               }
-           });
-       }
-       
-       // Display recent changes
-       function displayRecentChanges(changes) {
-           if (!changes || changes.length === 0) {
-               $('#recent-changes').html('<div class="text-center p-3">No recent changes found</div>');
-               return;
-           }
-           
-           // Sort changes by timestamp (newest first)
-           changes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-           
-           // Take only the 10 most recent changes
-           const recentChanges = changes.slice(0, 10);
-           
-           let html = '';
-           
-           recentChanges.forEach(change => {
-               const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
-               const topicParts = change.topic.split('/');
-               let pointName = 'Voltage Point';
-               
-               // Try to extract the point number from the topic
-               for (const part of topicParts) {
-                   if (part.includes('voltage_point_')) {
-                       pointName = `Voltage Point ${part.replace('voltage_point_', '')}`;
-                       break;
-                   }
-               }
-               
-               // Extract inverter from topic
-               let inverter = 'unknown';
-               for (const part of topicParts) {
-                   if (part.includes('inverter_')) {
-                       inverter = part;
-                       break;
-                   }
-               }
-               
-               const inverterDisplay = inverter !== 'unknown' ? 
-                   inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ') : 
-                   'Unknown';
-               
-               html += `
-                   <div class="p-2 border-bottom">
-                       <div class="d-flex justify-content-between align-items-center">
-                           <div>
-                               <div class="fw-bold">${pointName}</div>
-                               <div class="text-muted small">${inverterDisplay}</div>
-                           </div>
-                           <div class="text-end">
-                               <div>${timestamp}</div>
-                               <div class="badge bg-success">${change.new_value} V</div>
-                           </div>
-                       </div>
-                   </div>
-               `;
-           });
-           
-           $('#recent-changes').html(html);
-       }
-       
-       // Load voltage point history
-       function loadVoltagePointHistory() {
-           $.ajax({
-               url: '<%= ingress_path %>/api/voltage-point-changes',
-               method: 'GET',
-               success: function(response) {
-                   displayVoltagePointHistory(response);
-               },
-               error: function() {
-                   $('#voltage-history-list').html('<tr><td colspan="4" class="text-center">Failed to load history</td></tr>');
-               }
-           });
-       }
-       
-       // Display voltage point history
-       function displayVoltagePointHistory(changes) {
-           if (!changes || changes.length === 0) {
-               $('#voltage-history-list').html('<tr><td colspan="4" class="text-center">No history found</td></tr>');
-               return;
-           }
-           
-           // Sort changes by timestamp (newest first)
-           changes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-           
-           let html = '';
-           
-           changes.forEach(change => {
-               const timestamp = moment(change.timestamp).format('MM/DD/YYYY HH:mm:ss');
-               
-               html += `
-                   <tr>
-                       <td>${timestamp}</td>
-                       <td>${change.topic}</td>
-                       <td>${change.old_value || '--'} V</td>
-                       <td>${change.new_value} V</td>
-                   </tr>
-               `;
-           });
-           
-           $('#voltage-history-list').html(html);
-       }
-       
-       // Open the edit modal for a voltage point
-       function openEditModal(inverter, pointNumber, currentValue, topic) {
-           // Set hidden fields
-           $('#edit-inverter').val(inverter);
-           $('#edit-point-number').val(pointNumber);
-           
-           // Set display values
-           $('#voltage-point-name-display').text(`Voltage Point ${pointNumber}`);
-           
-           const inverterDisplay = inverter !== 'unknown_inverter' ? 
-               inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ') : 
-               'Unknown Inverter';
-           
-           $('#voltage-point-inverter-display').text(inverterDisplay);
-           $('#voltage-point-topic-display').text(topic || `${inverter}/voltage_point_${pointNumber}/set`);
-           $('#current-voltage-display').text(`${currentValue} V`);
-           
-           // Set the current value in the input field
-           $('#edit-voltage').val(currentValue);
-           
-           // Show the modal
-           const editModal = new bootstrap.Modal(document.getElementById('editVoltagePointModal'));
-           editModal.show();
-       }
-       
-       // Save the voltage point
-       function saveVoltagePoint() {
-           const inverter = $('#edit-inverter').val();
-           const pointNumber = $('#edit-point-number').val();
-           const value = $('#edit-voltage').val();
-           
-           // Validate input
-           if (!value) {
-               showAlert('warning', 'Please enter a voltage value', true);
-               return;
-           } 
-         // Get the topic for this voltage point
-let topic = '';
-if (voltagePoints[inverter] && voltagePoints[inverter][pointNumber]) {
-   // Get the base topic path but replace "/state" with "/set" if present
-   topic = voltagePoints[inverter][pointNumber].topic.replace(/\/state$/, '/set');
-   
-   // If it doesn't already end with "/set", add it
-   if (!topic.endsWith('/set')) {
-       topic = `${topic}/set`;
-   }
-} else {
-   // If topic not found in our cached points, construct it
-   topic = `${mqttTopicPrefix}/${inverter}/voltage_point_${pointNumber}/set`;
+    <!-- JavaScript Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script>
+   // Global variables for settings metadata
+const settingsMetadata = {
+    'voltage_point_1': {
+        display: 'Voltage Point 1',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Controls grid charging voltage threshold'
+    },
+    'voltage_point_2': {
+        display: 'Voltage Point 2',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Controls battery/grid switching threshold'
+    },
+    'voltage_point_3': {
+        display: 'Voltage Point 3',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Controls excess solar export threshold'
+    },
+    'voltage_point_4': {
+        display: 'Voltage Point 4',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Advanced voltage management setting'
+    },
+    'voltage_point_5': {
+        display: 'Voltage Point 5',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Advanced voltage management setting'
+    },
+    'voltage_point_6': {
+        display: 'Voltage Point 6',
+        type: 'number',
+        min: 40,
+        max: 60,
+        step: 0.1,
+        unit: 'V',
+        description: 'Advanced voltage management setting'
+    }
+};
+
+// Store MQTT topic prefix from server
+let mqttTopicPrefix;
+
+// Track unsaved changes
+let hasUnsavedChanges = false;
+
+// Initialize the page
+$(document).ready(function() {
+    // Get MQTT topic prefix from data attribute
+    mqttTopicPrefix = $('body').data('mqtt-topic-prefix') || 'energy';
+    
+    // Load recent changes
+    loadRecentChanges();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Initialize the edit modal
+    initializeEditModal();
+
+    // Set up dark mode toggle
+    setupDarkMode();
+});
+
+// Setup event listeners
+function setupEventListeners() {
+    // Refresh button
+    $('#refresh-settings').click(function() {
+        loadRecentChanges();
+        showAlert('info', 'Voltage point settings refreshed');
+    });
+    
+    // Save setting button
+    $('#save-setting-btn').click(function() {
+        saveSetting();
+    });
+
+    // Track changes in form inputs
+    $(document).on('input change', '#edit-value', function() {
+        hasUnsavedChanges = true;
+    });
+
+    // Handle ESC key to close modal
+    $(document).keydown(function(e) {
+        if (e.key === "Escape" && $('#editSettingModal').hasClass('show')) {
+            handleModalClose();
+        }
+    });
+    
+    // Handle Enter key to save
+    $(document).keydown(function(e) {
+        if (e.key === "Enter" && $('#editSettingModal').hasClass('show')) {
+            e.preventDefault();
+            saveSetting();
+        }
+    });
+
+    // Add confirmation for modal close buttons
+    $('.btn-close, .btn-secondaryy[data-bs-dismiss="modal"]').click(function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            handleModalClose();
+        }
+    });
+
+    // Handle backdrop click
+    $(document).on('click', '.modal-backdrop', function() {
+        if (hasUnsavedChanges && $('#editSettingModal').hasClass('show')) {
+            handleModalClose();
+        }
+    });
+
+    // Mobile toggle button
+    $('#mobileToggle').click(function() {
+        $(this).toggleClass('active');
+        $('#sidebar').toggleClass('active');
+        $('body').toggleClass('sidebar-open');
+        
+        // Add/remove overlay
+        if ($('#sidebar').hasClass('active')) {
+            if (!$('.sidebar-overlay').length) {
+                $('body').append('<div class="sidebar-overlay"></div>');
+            }
+            setTimeout(function() {
+                $('.sidebar-overlay').addClass('active');
+            }, 10);
+        } else {
+            $('.sidebar-overlay').removeClass('active');
+            setTimeout(function() {
+                $('.sidebar-overlay').remove();
+            }, 300);
+        }
+    });
+
+    // Close sidebar when clicking overlay
+    $(document).on('click', '.sidebar-overlay', function() {
+        $('#mobileToggle').removeClass('active');
+        $('#sidebar').removeClass('active');
+        $('body').removeClass('sidebar-open');
+        $('.sidebar-overlay').removeClass('active');
+        setTimeout(function() {
+            $('.sidebar-overlay').remove();
+        }, 300);
+    });
 }
-           
-           // Send to server
-           $.ajax({
-               url: '<%= ingress_path %>/api/command',
-               method: 'POST',
-               data: {
-                   topic: topic,
-                   value: value
-               },
-               success: function(response) {
-                   if (response.success) {
-                       // Hide the modal
-                       const editModal = bootstrap.Modal.getInstance(document.getElementById('editVoltagePointModal'));
-                       editModal.hide();
-                       
-                       showAlert('success', `Voltage Point ${pointNumber} updated successfully`);
-                       
-                       // Update our local data
-                       if (!voltagePoints[inverter]) {
-                           voltagePoints[inverter] = {};
-                       }
-                       
-                       voltagePoints[inverter][pointNumber] = {
-                           value: parseFloat(value),
-                           topic: topic,
-                           timestamp: new Date()
-                       };
-                       
-                       // Update UI
-                       renderVoltagePointsList();
-                       
-                       // Refresh data after a short delay
-                       setTimeout(() => {
-                           loadVoltagePoints();
-                           loadRecentChanges();
-                       }, 2000);
-                   } else {
-                       showAlert('danger', `Failed to update voltage point: ${response.message || 'Unknown error'}`, true);
-                   }
-               },
-               error: function(error) {
-                   showAlert('danger', `Error updating voltage point: ${error.responseJSON?.error || 'Server error'}`, true);
-               }
-           });
-       }
-       
-       function showAlert(type, message, inModal = false) {
-           const alertId = 'alert-' + Date.now();
-           const alertHtml = `
-               <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-                   ${message}
-                   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-               </div>
-           `;
-           
-           if (inModal) {
-               // Insert at the top of the modal body
-               $('#editVoltagePointModal .modal-body').prepend(alertHtml);
-           } else {
-               // Insert at the top of the alerts container
-               $('#alerts-container').prepend(alertHtml);
-           }
-           
-           // Automatically remove alert after 5 seconds
-           setTimeout(() => {
-               $(`#${alertId}`).alert('close');
-           }, 5000);
-       }
-   </script>
-      
-      <script src="<%= ingress_path %>/js/loading.js"></script>
-      <script src="<%= ingress_path %>/js/dark-mode.js"></script>
-      <script src="<%= ingress_path %>/js/mobile.js"></script>
+
+// Handle modal close with unsaved changes
+function handleModalClose() {
+    if (hasUnsavedChanges) {
+        if (confirm('You have unsaved changes. Are you sure you want to close without saving?')) {
+            const editModal = bootstrap.Modal.getInstance(document.getElementById('editSettingModal'));
+            editModal.hide();
+            hasUnsavedChanges = false;
+        }
+    } else {
+        const editModal = bootstrap.Modal.getInstance(document.getElementById('editSettingModal'));
+        editModal.hide();
+    }
+}
+
+// Load recent changes
+function loadRecentChanges() {
+    $.ajax({
+        url: '<%= ingress_path %>/api/voltage-point-changes',
+        method: 'GET',
+        beforeSend: function() {
+            $('#recent-changes-container').html(`
+                <p class="text-center py-5">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <br>
+                    <span class="mt-2 d-inline-block">Loading voltage point settings...</span>
+                </p>
+            `);
+        },
+        success: function(response) {
+            displayRecentChanges(response);
+        },
+        error: function(xhr, status, error) {
+            $('#recent-changes-container').html(`
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load voltage point settings: ${error}
+                </div>
+            `);
+        }
+    });
+}
+
+// Display recent changes grouped by inverter
+function displayRecentChanges(changes) {
+    const container = $('#recent-changes-container');
+    
+    if (!changes || changes.length === 0) {
+        container.html(`
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No voltage point settings recorded. Changes will appear here when settings are modified.
+            </div>
+        `);
+        return;
+    }
+    
+    // Group changes by inverter
+    const inverterChanges = {};
+    
+    changes.forEach(change => {
+        // Extract inverter from topic (e.g., "inverter_1/voltage_point_1/state")
+        const topicParts = change.topic.split('/');
+        let inverter = "unknown";
+        
+        // Find the inverter_X part in the topic
+        for (const part of topicParts) {
+            if (part.startsWith('inverter_')) {
+                inverter = part;
+                break;
+            }
+        }
+        
+        // Initialize array for this inverter if it doesn't exist
+        if (!inverterChanges[inverter]) {
+            inverterChanges[inverter] = [];
+        }
+        
+        // Add change to appropriate inverter array
+        inverterChanges[inverter].push(change);
+    });
+    
+    // Display changes grouped by inverter
+    let html = '';
+    
+    // Get all inverter keys and sort them naturally
+    const inverters = Object.keys(inverterChanges).sort((a, b) => {
+        const aNum = parseInt(a.replace('inverter_', ''));
+        const bNum = parseInt(b.replace('inverter_', ''));
+        return aNum - bNum;
+    });
+    
+    for (const inverter of inverters) {
+        // Get changes for this inverter and sort by timestamp (newest first)
+        const inverterData = inverterChanges[inverter]
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Create a lookup to eliminate duplicates (keep only most recent per setting)
+        const latestSettings = {};
+        
+        inverterData.forEach(change => {
+            // Extract the setting name from the topic
+            const settingName = extractSettingName(change.topic);
+            
+            // Only keep the most recent change for each setting
+            if (!latestSettings[settingName] || 
+                new Date(change.timestamp) > new Date(latestSettings[settingName].timestamp)) {
+                latestSettings[settingName] = change;
+            }
+        });
+        
+        // Format inverter name for display
+        const displayName = inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ');
+        
+        html += `<div class="inverter-heading">${displayName}</div>`;
+        
+        // Convert to array and sort by setting name for consistent display
+        const settingsArray = Object.values(latestSettings)
+            .sort((a, b) => {
+                const aName = extractSettingName(a.topic);
+                const bName = extractSettingName(b.topic);
+                return aName.localeCompare(bName);
+            });
+        
+        settingsArray.forEach(change => {
+            const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
+            const settingName = extractSettingName(change.topic);
+            const friendlyName = getSettingDisplayName(settingName);
+            
+            // Format the current value based on setting type
+            const formattedValue = formatSettingValue(settingName, change.new_value);
+            
+            // Add description if available
+            const description = settingsMetadata[settingName]?.description || '';
+            
+            html += `
+                <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="setting-title">${friendlyName}</div>
+                            <div class="mt-1">
+                                Current: <span class="change-value text-success">${formattedValue}</span>
+                            </div>
+                            ${description ? `<div class="text-muted small mt-1">${description}</div>` : ''}
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="timestamp me-3">${timestamp}</span>
+                            <i class="fas fa-edit edit-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    container.html(html);
+    
+    // Add click event to change items
+    $('.change-item').click(function() {
+        const inverter = $(this).data('inverter');
+        const setting = $(this).data('setting');
+        const value = $(this).data('value');
+        openEditModal(inverter, setting, value);
+    });
+}
+
+// Extract setting name from topic
+function extractSettingName(topic) {
+    // Try to extract the setting name from the topic path
+    // Examples: 
+    // - "inverter_1/voltage_point_1/state" -> "voltage_point_1"
+    // - "energy/inverter_1/voltage_point_2/state" -> "voltage_point_2"
+    
+    const parts = topic.split('/');
+    
+    // Search for known setting names in the parts
+    for (const part of parts) {
+        if (settingsMetadata[part]) {
+            return part;
+        }
+    }
+    
+    // If not found, search for settings with regex (voltage_point_[1-6])
+    for (const part of parts) {
+        if (/voltage_point_[1-6]/.test(part)) {
+            return part;
+        }
+    }
+    
+    // If still not found, use the second to last part (before "state" or "set")
+    if (parts.length >= 2) {
+        return parts[parts.length - 2];
+    }
+    
+    // Fallback
+    return parts[parts.length - 1];
+}
+
+// Get friendly display name for a setting
+function getSettingDisplayName(settingName) {
+    if (settingsMetadata[settingName]) {
+        return settingsMetadata[settingName].display;
+    }
+    
+    // Fallback: convert snake_case to Title Case
+    return settingName
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+// Format setting value for display
+function formatSettingValue(settingName, value) {
+    const metadata = settingsMetadata[settingName];
+    
+    if (!metadata) {
+        return value;
+    }
+    
+    if (metadata.type === 'number' && metadata.unit) {
+        return `${value} ${metadata.unit}`;
+    }
+    
+    return value;
+}
+
+// Initialize the edit modal
+function initializeEditModal() {
+    // This sets up the modal but doesn't open it yet
+    const editModal = new bootstrap.Modal(document.getElementById('editSettingModal'));
+    
+    // Reset unsaved changes when modal is hidden
+    $('#editSettingModal').on('hidden.bs.modal', function() {
+        hasUnsavedChanges = false;
+    });
+}
+
+// Open the edit modal for a specific setting
+function openEditModal(inverter, setting, currentValue) {
+    // Reset unsaved changes flag
+    hasUnsavedChanges = false;
+    
+    // Set hidden fields
+    $('#edit-inverter').val(inverter);
+    $('#edit-setting').val(setting);
+    
+    // Set display labels
+    $('#setting-name-display').text(getSettingDisplayName(setting));
+    $('#setting-inverter-display').text(inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' '));
+    $('#current-value-display').text(formatSettingValue(setting, currentValue));
+    
+    // Create the appropriate input element based on setting type
+    createInputElement(setting, currentValue);
+    
+    // Show the modal
+    const editModal = new bootstrap.Modal(document.getElementById('editSettingModal'));
+    editModal.show();
+    
+    // Focus the input field
+    setTimeout(() => {
+        $('#edit-value').focus();
+    }, 500);
+}
+
+// Create the appropriate input element for a setting
+function createInputElement(setting, currentValue) {
+    const container = $('#value-input-container');
+    const metadata = settingsMetadata[setting] || { type: 'number', min: 0, max: 10000, step: 1, unit: 'W' };
+    
+    let html = `<label for="edit-value" class="form-label">New Value</label>`;
+    
+    if (metadata.type === 'number') {
+        const min = metadata.min !== undefined ? `min="${metadata.min}"` : '';
+        const max = metadata.max !== undefined ? `max="${metadata.max}"` : '';
+        const step = metadata.step !== undefined ? `step="${metadata.step}"` : '';
+        const unit = metadata.unit ? metadata.unit : '';
+        
+        html += `
+            <div class="input-group">
+                <input type="number" class="form-control" id="edit-value" value="${currentValue}" ${min} ${max} ${step}>
+                ${unit ? `<span class="input-group-text">${unit}</span>` : ''}
+            </div>
+        `;
+        
+        if (metadata.description) {
+            html += `<div class="form-text text-muted">${metadata.description}</div>`;
+        }
+        
+        // Add min/max info if available
+        if (metadata.min !== undefined && metadata.max !== undefined) {
+            html += `<div class="form-text text-muted">Valid range: ${metadata.min} - ${metadata.max} ${unit}</div>`;
+        }
+    } else {
+        // Default to text input
+        html += `<input type="text" class="form-control" id="edit-value" value="${currentValue}">`;
+    }
+    
+    container.html(html);
+}
+
+// Save the setting
+function saveSetting() {
+    const inverter = $('#edit-inverter').val();
+    const setting = $('#edit-setting').val();
+    const value = $('#edit-value').val();
+    
+    // Validate input
+    if (!value) {
+        showAlert('warning', 'Please enter a value', true);
+        return;
+    }
+    
+    // Get metadata for validation
+    const metadata = settingsMetadata[setting] || {};
+    
+    // Validate number inputs
+    if (metadata.type === 'number') {
+        const numValue = parseFloat(value);
+        
+        if (isNaN(numValue)) {
+            showAlert('warning', 'Please enter a valid number', true);
+            return;
+        }
+        
+        if (metadata.min !== undefined && numValue < metadata.min) {
+            showAlert('warning', `Value must be at least ${metadata.min}`, true);
+            return;
+        }
+        
+        if (metadata.max !== undefined && numValue > metadata.max) {
+            showAlert('warning', `Value must be at most ${metadata.max}`, true);
+            return;
+        }
+    }
+    
+    // Show saving indicator
+    $('#save-setting-btn').html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...');
+    $('#save-setting-btn').prop('disabled', true);
+    
+    // Send to the server
+    $.ajax({
+        url: '<%= ingress_path %>/api/command',
+        method: 'POST',
+        data: {
+            topic: `${mqttTopicPrefix}/${inverter}/${setting}/set`,
+            value: value
+        },
+        success: function(response) {
+            if (response.success) {
+                // Reset button
+                $('#save-setting-btn').html('Save Changes');
+                $('#save-setting-btn').prop('disabled', false);
+                
+                // Reset unsaved changes flag
+                hasUnsavedChanges = false;
+                
+                // Hide the modal
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editSettingModal'));
+                editModal.hide();
+                
+                // Show success message
+                showAlert('success', `${getSettingDisplayName(setting)} updated successfully to ${value} ${metadata.unit || ''}`);
+                
+                // Refresh the changes after a short delay
+                setTimeout(loadRecentChanges, 1000);
+            } else {
+                // Reset button
+                $('#save-setting-btn').html('Save Changes');
+                $('#save-setting-btn').prop('disabled', false);
+                
+                showAlert('danger', `Failed to update setting: ${response.message || 'Unknown error'}`, true);
+            }
+        },
+        error: function(error) {
+            // Reset button
+            $('#save-setting-btn').html('Save Changes');
+            $('#save-setting-btn').prop('disabled', false);
+            
+            showAlert('danger', `Error updating setting: ${error.responseJSON?.error || 'Server error'}`, true);
+        }
+    });
+}
+
+// Show alert message
+function showAlert(type, message, inModal = false) {
+    const alertId = 'alert-' + Date.now();
+    const alertHtml = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    if (inModal) {
+        // Remove any existing alerts
+        $('.modal-body .alert').remove();
+        
+        // Insert at the top of the modal body
+        $('.modal-body').prepend(alertHtml);
+    } else {
+        // Insert at the top of the page
+        $('#alerts-container').append(alertHtml);
+    }
+    
+    // Auto-dismiss after 5 seconds if not a warning or error
+    if (type !== 'warning' && type !== 'danger') {
+        setTimeout(() => {
+            $(`#${alertId}`).alert('close');
+        }, 5000);
+    }
+}
+
+    </script>
+
+
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>
