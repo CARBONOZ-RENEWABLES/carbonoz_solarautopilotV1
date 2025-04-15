@@ -2449,7 +2449,7 @@ body.dark-mode {
       }
       
       try {
-        const response = await fetch('/api/rules');
+        const response = await fetch('<%= ingress_path %>/api/rules');
         if (!response.ok) throw new Error('Failed to fetch rules');
         
         allRules = await response.json();
