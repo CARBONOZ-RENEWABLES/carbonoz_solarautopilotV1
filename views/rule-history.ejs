@@ -1043,6 +1043,67 @@ body.dark-mode {
     margin: 0 auto;
 }
 
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  display: flex;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar {
+  height: 6px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.main-content .nav-link {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  color: #4b5563;
+  font-weight: 500;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.main-content .nav-link:hover {
+  background-color: #e9ecef;
+  color: #000;
+}
+
+.main-content .nav-link.active {
+  color: #fff;
+}
+
+.main-content .nav-link i,
+.main-content .nav-link svg {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
 /* More responsive page header */
 .page-header {
     display: flex;
@@ -1888,6 +1949,32 @@ body.dark-mode #historyTable tbody tr:hover {
 .modal.show .modal-content {
     animation: modalFadeIn 0.3s ease forwards;
 }
+
+}.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: #202429;
+}
+
+.dark-mode .main-content .nav-link {
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content .nav-link:hover {
+  background-color: #32383e;
+  color: #fff;
+}
+
+.dark-mode .main-content .nav-link.active {
+  color: #fff;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #2a2e35;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #4a4d53;
+}
+
 </style>
 </head>
 <body>
@@ -1906,8 +1993,37 @@ body.dark-mode #historyTable tbody tr:hover {
           <%- include('partials/sidebar') %>
 
           <div class="main-content">
+
             <div class="container">
+
+                <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
+                    <a class="nav-link active text-nowrap" href="<%= ingress_path %>/learner">
+                        <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
+                        <i class="fas fa-plug me-1" style="color: #007BFF;"></i>Grid Charge
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/energy-pattern">
+                        <i class="fas fa-battery-three-quarters me-1" style="color: #28A745;"></i>Energy Pattern
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/voltage-point">
+                        <i class="fas fa-bolt me-1" style="color: #DC3545;"></i>Voltage Points
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/work-mode">
+                        <i class="fas fa-cogs me-1" style="color: #FFC107;"></i>Work Mode
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/battery-charging">
+                        <i class="fas fa-charging-station me-1" style="color: #17A2B8;"></i>Battery Charging
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
+                        <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
+                    </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/rule-history">
+                        <i class="fas fa-history me-1" style="color: #6f42c1;"></i>Rule History
+                    </a>
+                </div>
                 
+                <br>
                 <div class="page-header">
                     <h1><i class="fas fa-clock-rotate-left"></i> Rule Execution History</h1>
                     <div class="btn-group">
