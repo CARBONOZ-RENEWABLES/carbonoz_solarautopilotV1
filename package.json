@@ -14,18 +14,18 @@
     "date-fns": "^3.6.0",
     "ejs": "^3.1.6",
     "exponential-backoff": "^3.1.1",
-    "express": "^4.17.1",
+    "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "express-session": "^1.18.1",
     "follow-redirects": "^1.15.6",
     "helmet": "^8.0.0",
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "mqtt": "^4.2.8",
     "node-cache": "^5.1.2",
     "node-cron": "^3.0.3",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "ws": "^8.2.3"
   }
 }

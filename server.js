@@ -40,7 +40,7 @@ const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 const inverterNumber = options.inverter_number || 1
 const batteryNumber = options.battery_number || 1
 const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy'
-const mongoDbUri = options.mongodb_uri || process.env.MONGODB_URI || 'mongodb://localadmin:05e1LbNatrSacABiSYQy4vJE1Ol1EZorMwiaEpgpW7U9YBboHl@100.79.49.117:27017/energy_monitor?authSource=carbonoz_dev&directConnection=true'
+
 
 
 // Constants
@@ -5339,9 +5339,9 @@ function gracefulShutdown() {
   console.log('Starting graceful shutdown...')
   
   // Close database connection
-  if (mongoose.connection.readyState === 1) {
-    console.log('Closing MongoDB connection')
-    mongoose.connection.close()
+  if (db) {
+    console.log('Closing SQLite connection')
+    db.close().catch(err => console.error('Error closing SQLite:', err))
   }
   
   // Close MQTT connection
@@ -5362,6 +5362,9 @@ process.on('SIGINT', gracefulShutdown)
 async function initializeConnections() {
   // Connect to MQTT broker
   connectToMqtt();
+  
+  // Connect to WebSocket broker
+  connectToWebSocketBroker();
   
   // Connect to database
   try {
