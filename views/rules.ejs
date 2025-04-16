@@ -2633,7 +2633,7 @@ body.dark-mode {
 /* Dark Mode CSS for main-content and its components */
 .dark-mode .main-content {
   background-color: rgba(24, 27, 31, 1);
-  color: #f5f6fa;
+  color: #fff;
 }
 
 .dark-mode .card,
@@ -2642,7 +2642,7 @@ body.dark-mode {
 .dark-mode .modal-content {
   background-color: rgb(36, 39, 46);
   border-color: rgb(48, 51, 58);
-  color: #f5f6fa;
+  color: #fff;
 }
 
 .dark-mode .card-header,
@@ -2659,12 +2659,12 @@ body.dark-mode {
 .dark-mode .form-control {
   background-color: rgb(36, 39, 46);
   border-color: rgb(48, 51, 58);
-  color: #f5f6fa;
+  color: #fff;
 }
 
 .dark-mode .btn-secondary {
   background-color: rgb(48, 51, 58);
-  color: #f5f6fa;
+  color: #fff;
 }
 
 .dark-mode .condition-item,
@@ -2679,7 +2679,7 @@ body.dark-mode {
 .dark-mode .rule-section h4,
 .dark-mode .rule-stats,
 .dark-mode .empty-message {
-  color: #a0a0a0;
+  color: #fff;
 }
 
 .dark-mode .dropdown-menu {
@@ -2769,6 +2769,70 @@ body.dark-mode {
     background-color: var(--primary-color);
     color: #1a1a1a;
   }
+}.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: #202429;
+}
+
+.dark-mode .main-content .nav-link {
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content .nav-link:hover {
+  background-color: #32383e;
+  color: #fff;
+}
+
+.dark-mode .main-content .nav-link.active {
+  color: #fff;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-track {
+  background: #2a2e35;
+}
+
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar-thumb {
+  background: #4a4d53;
+}
+
+/* Add these CSS rules to fix the dark mode for dashboard cards */
+
+.dark-mode .dashboard-cards .stats-card {
+  background: linear-gradient(135deg, rgb(36, 39, 46) 0%, rgb(30, 33, 40) 100%);
+  color: #f5f6fa;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .dashboard-cards .card-content h3 {
+  color: #a0a0a0;
+}
+
+.dark-mode .dashboard-cards .stats-number {
+  color: #f5f6fa;
+}
+
+.dark-mode .dashboard-cards .card-icon {
+  background-color: rgba(222, 175, 11, 0.2);
+}
+
+/* Fix the stats card colors for each type */
+.dark-mode .stats-card:nth-child(1) .card-icon {
+  background-color: rgba(222, 175, 11, 0.2);
+  color: #DEAF0B;
+}
+
+.dark-mode .stats-card:nth-child(2) .card-icon {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
+
+.dark-mode .stats-card:nth-child(3) .card-icon {
+  background-color: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+}
+
+.dark-mode .stats-card:nth-child(4) .card-icon {
+  background-color: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
 }
 </style>
 </head>
