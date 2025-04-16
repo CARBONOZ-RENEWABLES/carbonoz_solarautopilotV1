@@ -1,5 +1,5 @@
 name: "CARBONOZ SolarAutopilot"
-version: "1.0.2"
+version: "1.0.0"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
 url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
