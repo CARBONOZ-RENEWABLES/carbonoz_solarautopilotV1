@@ -504,9 +504,12 @@ async function batchUpdateRules(rules) {
   
   // Use the mutex pattern for transaction control
   return executeWithDbMutex(async () => {
+    let transactionStarted = false;
+    
     try {
       // Begin a transaction
       await db.run('BEGIN TRANSACTION');
+      transactionStarted = true;
       
       for (const rule of rules) {
         // Update in SQLite
@@ -525,15 +528,18 @@ async function batchUpdateRules(rules) {
       
       // Commit the transaction
       await db.run('COMMIT');
+      transactionStarted = false;
       return true;
     } catch (error) {
-      // Rollback on error
-      try {
-        await db.run('ROLLBACK');
-      } catch (rollbackError) {
-        // Only log the error if it's not "no transaction is active"
-        if (!rollbackError.message.includes('no transaction is active')) {
-          console.error('Error rolling back transaction:', rollbackError.message);
+      // Rollback on error, but only if we started a transaction
+      if (transactionStarted) {
+        try {
+          await db.run('ROLLBACK');
+        } catch (rollbackError) {
+          // Only log the error if it's not "no transaction is active"
+          if (!rollbackError.message.includes('no transaction is active')) {
+            console.error('Error rolling back transaction:', rollbackError.message);
+          }
         }
       }
       
@@ -547,140 +553,124 @@ async function batchUpdateRules(rules) {
 async function saveRule(ruleData) {
   if (!dbConnected) return null;
   
-  // Check if a transaction is already in progress
-  if (transactionInProgress) {
-    console.warn('Transaction already in progress, queueing rule save');
-    // Wait and retry
-    return new Promise(resolve => {
-      setTimeout(async () => {
-        resolve(await saveRule(ruleData));
-      }, 100);
-    });
-  }
-  
-  try {
-    // Set transaction flag
-    transactionInProgress = true;
+  // Use the mutex pattern for transaction control
+  return executeWithDbMutex(async () => {
+    let transactionStarted = false;
     
-    // Begin transaction
-    await db.run('BEGIN TRANSACTION');
-    
-    // Convert conditions, time restrictions, and actions to JSON strings
-    const conditionsJson = JSON.stringify(ruleData.conditions || []);
-    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-    const actionsJson = JSON.stringify(ruleData.actions || []);
-    
-    // Insert into SQLite
-    const result = await db.run(`
-      INSERT INTO rules 
-      (name, description, active, conditions, time_restrictions, actions, 
-       created_at, last_triggered, trigger_count, user_id, mqtt_username)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      ruleData.name,
-      ruleData.description || '',
-      ruleData.active ? 1 : 0,
-      conditionsJson,
-      timeRestrictionsJson,
-      actionsJson,
-      new Date().toISOString(),
-      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-      ruleData.triggerCount || 0,
-      ruleData.user_id,
-      ruleData.mqtt_username
-    ]);
-    
-    // Get the ID of the inserted rule
-    const rule = await db.get('SELECT last_insert_rowid() as id');
-    
-    // Commit transaction
-    await db.run('COMMIT');
-    
-    // Return the rule data with the new ID
-    return {
-      id: rule.id,
-      ...ruleData
-    };
-  } catch (error) {
-    // Rollback on error
     try {
-      await db.run('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('Error rolling back transaction:', rollbackError.message);
+      // Begin transaction
+      await db.run('BEGIN TRANSACTION');
+      transactionStarted = true;
+      
+      // Convert conditions, time restrictions, and actions to JSON strings
+      const conditionsJson = JSON.stringify(ruleData.conditions || []);
+      const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
+      const actionsJson = JSON.stringify(ruleData.actions || []);
+      
+      // Insert into SQLite
+      const result = await db.run(`
+        INSERT INTO rules 
+        (name, description, active, conditions, time_restrictions, actions, 
+         created_at, last_triggered, trigger_count, user_id, mqtt_username)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        ruleData.name,
+        ruleData.description || '',
+        ruleData.active ? 1 : 0,
+        conditionsJson,
+        timeRestrictionsJson,
+        actionsJson,
+        new Date().toISOString(),
+        ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
+        ruleData.triggerCount || 0,
+        ruleData.user_id,
+        ruleData.mqtt_username
+      ]);
+      
+      // Get the ID of the inserted rule
+      const rule = await db.get('SELECT last_insert_rowid() as id');
+      
+      // Commit transaction
+      await db.run('COMMIT');
+      transactionStarted = false;
+      
+      // Return the rule data with the new ID
+      return {
+        id: rule.id,
+        ...ruleData
+      };
+    } catch (error) {
+      // Rollback on error, but only if we started a transaction
+      if (transactionStarted) {
+        try {
+          await db.run('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('Error rolling back transaction:', rollbackError.message);
+        }
+      }
+      
+      console.error('Error saving rule to SQLite:', error.message);
+      return null;
     }
-    
-    console.error('Error saving rule to SQLite:', error.message);
-    return null;
-  } finally {
-    // Always reset the transaction flag when done
-    transactionInProgress = false;
-  }
+  });
 }
 
 // Function to get a rule by ID
 async function updateRule(id, ruleData) {
   if (!dbConnected) return false;
   
-  // Check if a transaction is already in progress
-  if (transactionInProgress) {
-    console.warn('Transaction already in progress, queueing rule update');
-    // Wait and retry
-    return new Promise(resolve => {
-      setTimeout(async () => {
-        resolve(await updateRule(id, ruleData));
-      }, 100);
-    });
-  }
-  
-  try {
-    // Set transaction flag
-    transactionInProgress = true;
+  // Use the mutex pattern for transaction control
+  return executeWithDbMutex(async () => {
+    let transactionStarted = false;
     
-    // Begin transaction
-    await db.run('BEGIN TRANSACTION');
-    
-    // Convert complex objects to JSON strings
-    const conditionsJson = JSON.stringify(ruleData.conditions || []);
-    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-    const actionsJson = JSON.stringify(ruleData.actions || []);
-    
-    // Update in SQLite
-    const result = await db.run(`
-      UPDATE rules 
-      SET name = ?, description = ?, active = ?, conditions = ?, 
-          time_restrictions = ?, actions = ?, last_triggered = ?, trigger_count = ?
-      WHERE id = ? AND user_id = ?
-    `, [
-      ruleData.name,
-      ruleData.description || '',
-      ruleData.active ? 1 : 0,
-      conditionsJson,
-      timeRestrictionsJson,
-      actionsJson,
-      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-      ruleData.triggerCount || 0,
-      id,
-      ruleData.user_id
-    ]);
-    
-    // Commit transaction
-    await db.run('COMMIT');
-    
-    return result.changes > 0;
-  } catch (error) {
-    // Rollback on error
     try {
-      await db.run('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('Error rolling back transaction:', rollbackError.message);
+      // Begin transaction
+      await db.run('BEGIN TRANSACTION');
+      transactionStarted = true;
+      
+      // Convert complex objects to JSON strings
+      const conditionsJson = JSON.stringify(ruleData.conditions || []);
+      const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
+      const actionsJson = JSON.stringify(ruleData.actions || []);
+      
+      // Update in SQLite
+      const result = await db.run(`
+        UPDATE rules 
+        SET name = ?, description = ?, active = ?, conditions = ?, 
+            time_restrictions = ?, actions = ?, last_triggered = ?, trigger_count = ?
+        WHERE id = ? AND user_id = ?
+      `, [
+        ruleData.name,
+        ruleData.description || '',
+        ruleData.active ? 1 : 0,
+        conditionsJson,
+        timeRestrictionsJson,
+        actionsJson,
+        ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
+        ruleData.triggerCount || 0,
+        id,
+        ruleData.user_id
+      ]);
+      
+      // Commit transaction
+      await db.run('COMMIT');
+      transactionStarted = false;
+      
+      return result.changes > 0;
+    } catch (error) {
+      // Rollback on error, but only if we started a transaction
+      if (transactionStarted) {
+        try {
+          await db.run('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('Error rolling back transaction:', rollbackError.message);
+        }
+      }
+      
+      console.error('Error updating rule in SQLite:', error.message);
+      return false;
     }
-    
-    console.error('Error updating rule in SQLite:', error.message);
-    return false;
-  } finally {
-    // Always reset the transaction flag when done
-    transactionInProgress = false;
-  }
+  });
 }
 
 // Function to get all rules
@@ -1105,44 +1095,33 @@ class Mutex {
       this.locked = false;
     }
   }
-
-  async withLock(fn) {
-    await this.acquire();
-    try {
-      return await fn();
-    } finally {
-      this.release();
-    }
-  }
 }
 
 // Create a database mutex
 const dbMutex = new Mutex();
 
-// Use the mutex for critical database operations
+// Helper function to execute with mutex
 async function executeWithDbMutex(operation) {
-  return dbMutex.withLock(operation);
+  await dbMutex.acquire();
+  try {
+    return await operation();
+  } finally {
+    dbMutex.release();
+  }
 }
 
-// Example of using the mutex for a database operation
-// This example wraps an existing function but you could also apply this pattern
-// directly to other database functions
-async function saveSettingsChangeWithMutex(changeData) {
-  return executeWithDbMutex(async () => {
-    return saveSettingsChange(changeData);
-  });
-}
-
-let transactionInProgress = false;
 // Function to batch save settings changes
 async function batchSaveSettingsChanges(changes) {
   if (!dbConnected || changes.length === 0) return;
   
   // Use the mutex pattern for transaction control
   return executeWithDbMutex(async () => {
+    let transactionStarted = false;
+    
     try {
       // Begin a transaction
       await db.run('BEGIN TRANSACTION');
+      transactionStarted = true;
       
       for (const change of changes) {
         // Convert system_state object to JSON string
@@ -1176,15 +1155,18 @@ async function batchSaveSettingsChanges(changes) {
       
       // Commit the transaction
       await db.run('COMMIT');
+      transactionStarted = false;
       return true;
     } catch (error) {
-      // Rollback on error
-      try {
-        await db.run('ROLLBACK');
-      } catch (rollbackError) {
-        // Only log the error if it's not "no transaction is active"
-        if (!rollbackError.message.includes('no transaction is active')) {
-          console.error('Error rolling back transaction:', rollbackError.message);
+      // Rollback on error, but only if we started a transaction
+      if (transactionStarted) {
+        try {
+          await db.run('ROLLBACK');
+        } catch (rollbackError) {
+          // Only log the error if it's not "no transaction is active"
+          if (!rollbackError.message.includes('no transaction is active')) {
+            console.error('Error rolling back transaction:', rollbackError.message);
+          }
         }
       }
       
