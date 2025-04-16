@@ -1997,7 +1997,7 @@ body.dark-mode #historyTable tbody tr:hover {
             <div class="container">
 
                 <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
-                    <a class="nav-link  text-nowrap" href="<%= ingress_path %>/learner">
+                    <a class="nav-link active text-nowrap" href="<%= ingress_path %>/learner">
                         <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
                     </a>
                     <a class="nav-link text-nowrap" href="<%= ingress_path %>/grid-charge">
@@ -2018,6 +2018,9 @@ body.dark-mode #historyTable tbody tr:hover {
                     <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
                         <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
                     </a>
+                    <a class="nav-link text-nowrap" href="<%= ingress_path %>/wizard">
+                        <i class="fas fa-magic me-1" style="color: #20c997;"></i>Rule Wizard
+                    </a>
                     <a class="nav-link text-nowrap" href="<%= ingress_path %>/rule-history">
                         <i class="fas fa-history me-1" style="color: #6f42c1;"></i>Rule History
                     </a>
@@ -2026,14 +2029,14 @@ body.dark-mode #historyTable tbody tr:hover {
                 <br>
                 <div class="page-header">
                     <h1><i class="fas fa-clock-rotate-left"></i> Rule Execution History</h1>
-                    <div class="btn-group">
+                    <!-- <div class="btn-group">
                         <a href="<%= ingress_path %>/rules" class="btn btn-outline-secondary">
                             <i class="fas fa-list-check"></i> Back to Rules
                         </a>
                         <a href="<%= ingress_path %>/wizard" class="btn btn-primary">
                             <i class="fas fa-plus-circle"></i> Create New Rule
                         </a>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- Summary Cards -->
