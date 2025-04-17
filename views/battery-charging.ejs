@@ -1949,7 +1949,7 @@ body.dark-mode {
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-charging-station me-2"></i>Battery Charging Settings</h5>
                                 <div>
-                                    <button class="btn btn-success" id="refresh-settings">
+                                    <button class="btn" id="refresh-settings">
                                         <i class="fas fa-sync-alt me-1"></i> Refresh
                                     </button>
                                 </div>
@@ -1957,13 +1957,13 @@ body.dark-mode {
                             <div class="card-body">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    Click on any setting to modify its value. All inverters and batteries are displayed below.
+                                    Manage battery charging parameters. Click on any setting to modify its value.
                                 </div>
                                 
-                                <!-- Recent changes will be loaded here -->
+                                <!-- Battery charging settings will be loaded here -->
                                 <div id="recent-changes-container">
                                     <p class="text-center py-5">
-                                        <span class="spinner-border text-success" role="status"></span>
+                                        <span class="spinner-border text-primary" role="status"></span>
                                         <br>
                                         <span class="mt-2 d-inline-block">Loading battery charging settings...</span>
                                     </p>
@@ -1974,12 +1974,13 @@ body.dark-mode {
                 </div>
             </div>
         
+        
             <!-- Edit Setting Modal -->
             <div class="modal fade" id="editSettingModal" tabindex="-1" aria-labelledby="editSettingModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editSettingModalLabel">Edit Battery Setting</h5>
+                            <h5 class="modal-title" id="editSettingModalLabel">Edit Battery Charging Setting</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
@@ -2009,8 +2010,9 @@ body.dark-mode {
                     </div>
                 </div>
             </div>
-            
         </div>
+    </div>
+
 <!-- JavaScript Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
@@ -2025,7 +2027,8 @@ body.dark-mode {
             min: 0,
             max: 100,
             step: 1,
-            unit: 'A'
+            unit: 'A',
+            description: 'Maximum current allowed to discharge from battery'
         },
         'max_charge_current': {
             display: 'Max Charge Current',
@@ -2033,7 +2036,8 @@ body.dark-mode {
             min: 0,
             max: 100,
             step: 1,
-            unit: 'A'
+            unit: 'A',
+            description: 'Maximum current allowed to charge the battery'
         },
         'max_grid_charge_current': {
             display: 'Max Grid Charge Current',
@@ -2041,7 +2045,8 @@ body.dark-mode {
             min: 0,
             max: 100,
             step: 1,
-            unit: 'A'
+            unit: 'A',
+            description: 'Maximum current allowed from grid to charge battery'
         },
         'max_generator_charge_current': {
             display: 'Max Generator Charge Current',
@@ -2049,7 +2054,8 @@ body.dark-mode {
             min: 0,
             max: 100,
             step: 1,
-            unit: 'A'
+            unit: 'A',
+            description: 'Maximum current allowed from generator to charge battery'
         },
         'battery_float_charge_voltage': {
             display: 'Battery Float Charge Voltage',
@@ -2057,7 +2063,8 @@ body.dark-mode {
             min: 40,
             max: 60,
             step: 0.1,
-            unit: 'V'
+            unit: 'V',
+            description: 'Voltage maintained after battery is fully charged'
         },
         'battery_absorption_charge_voltage': {
             display: 'Battery Absorption Charge Voltage',
@@ -2065,7 +2072,8 @@ body.dark-mode {
             min: 40,
             max: 60,
             step: 0.1,
-            unit: 'V'
+            unit: 'V',
+            description: 'Voltage during bulk charging phase'
         },
         'battery_equalization_charge_voltage': {
             display: 'Battery Equalization Charge Voltage',
@@ -2073,74 +2081,15 @@ body.dark-mode {
             min: 40,
             max: 60,
             step: 0.1,
-            unit: 'V'
-        },
-        'battery_temperature_compensation': {
-            display: 'Battery Temperature Compensation',
-            type: 'number',
-            min: -10,
-            max: 10,
-            step: 0.1,
-            unit: 'mV/°C'
-        },
-        'battery_type': {
-            display: 'Battery Type',
-            type: 'select',
-            options: [
-                { value: 'Lead-Acid', label: 'Lead-Acid' },
-                { value: 'Lithium-Ion', label: 'Lithium-Ion' },
-                { value: 'LiFePO4', label: 'LiFePO4 (Lithium Iron Phosphate)' },
-                { value: 'AGM', label: 'AGM' },
-                { value: 'Gel', label: 'Gel' },
-                { value: 'Custom', label: 'Custom' }
-            ]
-        },
-        'battery_capacity': {
-            display: 'Battery Capacity',
-            type: 'number',
-            min: 0,
-            max: 5000,
-            step: 1,
-            unit: 'Ah'
-        },
-        'charging_schedule_enabled': {
-            display: 'Charging Schedule Enabled',
-            type: 'select',
-            options: [
-                { value: 'Enabled', label: 'Enabled' },
-                { value: 'Disabled', label: 'Disabled' }
-            ]
-        },
-        'equalizing_charge_enabled': {
-            display: 'Equalizing Charge Enabled',
-            type: 'select',
-            options: [
-                { value: 'Enabled', label: 'Enabled' },
-                { value: 'Disabled', label: 'Disabled' }
-            ]
-        },
-        'charging_limit_soc': {
-            display: 'Charging Limit SOC',
-            type: 'number',
-            min: 50,
-            max: 100,
-            step: 1,
-            unit: '%'
-        },
-        'discharging_limit_soc': {
-            display: 'Discharging Limit SOC',
-            type: 'number',
-            min: 10,
-            max: 50,
-            step: 1,
-            unit: '%'
+            unit: 'V',
+            description: 'Voltage during periodic equalization charges'
         }
     };
     
     // Initialize the page
     $(document).ready(function() {
         // Load recent changes
-        loadBatteryChargingSettings();
+        loadBatterySettings();
         
         // Set up event listeners
         setupEventListeners();
@@ -2153,8 +2102,8 @@ body.dark-mode {
     function setupEventListeners() {
         // Refresh button
         $('#refresh-settings').click(function() {
-            loadBatteryChargingSettings();
-            showAlert('info', 'Battery charging settings refreshed');
+            loadBatterySettings();
+            showAlert('info', 'Battery settings refreshed');
         });
         
         // Save setting button
@@ -2164,12 +2113,12 @@ body.dark-mode {
     }
     
     // Load battery charging settings
-    function loadBatteryChargingSettings() {
+    function loadBatterySettings() {
         $.ajax({
             url: '<%= ingress_path %>/api/battery-charging-changes',
             method: 'GET',
             success: function(response) {
-                displayBatteryChargingSettings(response);
+                displayBatterySettings(response);
             },
             error: function() {
                 $('#recent-changes-container').html('<div class="alert alert-warning">Unable to load battery charging settings</div>');
@@ -2178,7 +2127,7 @@ body.dark-mode {
     }
     
     // Display battery charging settings grouped by inverter
-    function displayBatteryChargingSettings(changes) {
+    function displayBatterySettings(changes) {
         const container = $('#recent-changes-container');
         
         if (!changes || changes.length === 0) {
@@ -2253,8 +2202,6 @@ body.dark-mode {
                     return aName.localeCompare(bName);
                 });
             
-            html += `<div class="row">`;
-            
             settingsArray.forEach(change => {
                 const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
                 const settingName = extractSettingName(change.topic);
@@ -2263,30 +2210,35 @@ body.dark-mode {
                 // Format the current value based on setting type
                 const formattedValue = formatSettingValue(settingName, change.new_value);
                 
+                // Get description for tooltip if available
+                const description = settingsMetadata[settingName]?.description || '';
+                const tooltipAttr = description ? `title="${description}" data-toggle="tooltip"` : '';
+                
                 html += `
-                    <div class="col-md-6">
-                        <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="setting-title">${friendlyName}</div>
-                                    <div class="mt-1">
-                                        Current: <span class="change-value text-success">${formattedValue}</span>
-                                    </div>
+                    <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}" ${tooltipAttr}>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="setting-title">${friendlyName}</div>
+                                <div class="mt-1">
+                                    Current: <span class="change-value text-success">${formattedValue}</span>
                                 </div>
-                                <div class="d-flex align-items-center">
-                                    <span class="timestamp me-3">${timestamp}</span>
-                                    <i class="fas fa-edit edit-icon"></i>
-                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="timestamp me-3">${timestamp}</span>
+                                <i class="fas fa-edit edit-icon"></i>
                             </div>
                         </div>
                     </div>
                 `;
             });
-            
-            html += `</div>`;
         }
         
         container.html(html);
+        
+        // Initialize tooltips
+        if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
         
         // Add click event to change items
         $('.change-item').click(function() {
@@ -2383,26 +2335,7 @@ body.dark-mode {
         
         let html = `<label for="edit-value" class="form-label">New Value</label>`;
         
-        if (metadata.type === 'select') {
-            html += `<select class="form-select" id="edit-value">`;
-            
-            if (metadata.options) {
-                metadata.options.forEach(option => {
-                    const selected = option.value == currentValue ? 'selected' : '';
-                    html += `<option value="${option.value}" ${selected}>${option.label}</option>`;
-                });
-            } else {
-                // Default options for boolean settings
-                const enabledSelected = currentValue === 'Enabled' ? 'selected' : '';
-                const disabledSelected = currentValue === 'Disabled' ? 'selected' : '';
-                html += `
-                    <option value="Enabled" ${enabledSelected}>Enabled</option>
-                    <option value="Disabled" ${disabledSelected}>Disabled</option>
-                `;
-            }
-            
-            html += `</select>`;
-        } else if (metadata.type === 'number') {
+        if (metadata.type === 'number') {
             const min = metadata.min !== undefined ? `min="${metadata.min}"` : '';
             const max = metadata.max !== undefined ? `max="${metadata.max}"` : '';
             const step = metadata.step !== undefined ? `step="${metadata.step}"` : '';
@@ -2414,6 +2347,10 @@ body.dark-mode {
                     ${unit ? `<span class="input-group-text">${unit}</span>` : ''}
                 </div>
             `;
+            
+            if (metadata.description) {
+                html += `<small class="form-text text-muted mt-1">${metadata.description}</small>`;
+            }
         } else {
             // Default to text input
             html += `<input type="text" class="form-control" id="edit-value" value="${currentValue}">`;
@@ -2434,6 +2371,27 @@ body.dark-mode {
             return;
         }
         
+        // Validate based on metadata if available
+        const metadata = settingsMetadata[setting];
+        if (metadata && metadata.type === 'number') {
+            const numValue = parseFloat(value);
+            
+            if (isNaN(numValue)) {
+                showAlert('warning', 'Please enter a valid number', true);
+                return;
+            }
+            
+            if (metadata.min !== undefined && numValue < metadata.min) {
+                showAlert('warning', `Value must be at least ${metadata.min}`, true);
+                return;
+            }
+            
+            if (metadata.max !== undefined && numValue > metadata.max) {
+                showAlert('warning', `Value must not exceed ${metadata.max}`, true);
+                return;
+            }
+        }
+        
         // Send to the server
         $.ajax({
             url: '<%= ingress_path %>/api/battery-charging/set',
@@ -2452,7 +2410,7 @@ body.dark-mode {
                     showAlert('success', `${getSettingDisplayName(setting)} updated successfully`);
                     
                     // Refresh the changes after a short delay
-                    setTimeout(loadBatteryChargingSettings, 1000);
+                    setTimeout(loadBatterySettings, 1000);
                 } else {
                     showAlert('danger', `Failed to update setting: ${response.message || 'Unknown error'}`, true);
                 }
@@ -2486,10 +2444,10 @@ body.dark-mode {
             $(`#${alertId}`).alert('close');
         }, 3000);
     }
-</script>
-    
-       
       
+
+</script>
+         
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>
