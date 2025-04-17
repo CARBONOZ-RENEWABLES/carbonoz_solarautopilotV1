@@ -2812,6 +2812,13 @@ body.dark-mode {
   color: #fff;
 }
 
+.dark-mode .action-item strong {
+  color: #DEAF0B;
+}
+.dark-mode .action-value {
+  color: #DEAF0B;
+}
+
 .dark-mode .dashboard-cards .stats-number {
   color: #fff;
 }
@@ -3562,7 +3569,7 @@ body.dark-mode {
           <i class="fas fa-list-alt"></i>
           <h3>No rules found</h3>
           <p>Create your first automation rule to get started</p>
-          <button class="btn btn-primary" onclick="window.location.href='/wizard'">Create Rule</button>
+          <button class="btn btn-primary" onclick="window.location.href='<%= ingress_path %>/wizard'">Create Rule</button>
         </div>
       `;
     }
