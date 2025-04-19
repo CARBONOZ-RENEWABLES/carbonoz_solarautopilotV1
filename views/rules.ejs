@@ -704,21 +704,23 @@ body.dark-mode {
     }
 }
 
-/* Ensure main content adjusts properly */
+
+
+  /* Improved responsive styles for main content */
 @media (max-width: 768px) {
   .main-content {
-    margin-left: 0;
     padding: 1rem;
-    transition: margin-left 0.3s ease;
-  }
-  
-  .main-content .container {
-    padding: 0;
   }
   
   .dashboard-cards {
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+  
+  .rules-list {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
   }
   
   .card-header {
@@ -736,35 +738,6 @@ body.dark-mode {
   .search-input, 
   .select-input {
     width: 100%;
-  }
-  
-  .rules-list {
-    padding: 1rem;
-  }
-  
-  .rule-card {
-    padding: 0.75rem;
-  }
-  
-  .rule-header {
-    flex-wrap: wrap;
-    padding: 0.75rem;
-  }
-  
-  .rule-name {
-    font-size: 1rem;
-    width: 100%;
-    margin-top: 0.5rem;
-  }
-  
-  .rule-menu {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-  }
-  
-  .rule-details {
-    padding: 0.75rem;
   }
   
   .main-header {
@@ -792,6 +765,51 @@ body.dark-mode {
   .btn-primary {
     width: 100%;
   }
+  
+  .rule-card {
+    width: 100%;
+  }
+  
+  .rule-header {
+    flex-wrap: wrap;
+    padding: 0.75rem;
+  }
+  
+  .rule-name {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .rule-menu {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+  
+  .rule-details {
+    padding: 0.75rem;
+  }
+}
+
+/* Fix horizontal scrolling nav */
+.d-flex.flex-wrap.justify-content-center.gap-3 {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  justify-content: flex-start !important;
+  padding-bottom: 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.d-flex.flex-wrap.justify-content-center.gap-3::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ensure nav links don't wrap */
+.nav-link {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 
@@ -2923,6 +2941,7 @@ body.dark-mode {
 
             
                  <!-- Dashboard Cards -->
+<!-- Find the dashboard cards section and modify the battery SOC and PV Power values -->
 <div class="dashboard-cards">
   <div class="card stats-card">
     <div class="card-icon"><i class="fas fa-list-alt"></i></div>
@@ -2942,14 +2961,14 @@ body.dark-mode {
     <div class="card-icon"><i class="fas fa-battery-three-quarters"></i></div>
     <div class="card-content">
       <h3>Battery SOC</h3>
-      <p class="stats-number"><%= system_state.battery_soc ? Math.round(system_state.battery_soc) + '%' : 'N/A' %></p>
+      <p class="stats-number"><%= system_state.battery_soc ? Math.round(system_state.battery_soc) + '%' : '0%' %></p>
     </div>
   </div>
   <div class="card stats-card">
     <div class="card-icon"><i class="fas fa-solar-panel"></i></div>
     <div class="card-content">
       <h3>PV Power</h3>
-      <p class="stats-number"><%= system_state.pv_power ? Math.round(system_state.pv_power) + 'W' : 'N/A' %></p>
+      <p class="stats-number"><%= system_state.pv_power ? Math.round(system_state.pv_power) + 'W' : '0W' %></p>
     </div>
   </div>
 </div>
