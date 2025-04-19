@@ -4354,6 +4354,7 @@ app.get('/energy-pattern', async (req, res) => {
       changes_count: changesCount,
       db_connected: dbConnected,
       ingress_path: process.env.INGRESS_PATH || '',
+      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
