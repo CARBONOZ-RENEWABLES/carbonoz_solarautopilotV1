@@ -1718,6 +1718,170 @@ border: 0;
 .dark-mode .card.bg-light h6 {
   color: #f5f6fa;
 }
+
+/* Tablet breakpoint - adjust main content */
+@media (max-width: 991.98px) {
+  .main-content {
+    padding: 1.25rem;
+  }
+  
+  .stats-card-container {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  .main-content .card-header {
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .main-content .card-header > div {
+    margin-top: 0.75rem;
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .main-content .card-header .btn,
+  .main-content .card-header .form-select {
+    flex: 1;
+  }
+  
+  .main-content .card-body {
+    padding: 1.25rem;
+  }
+}
+
+/* Mobile breakpoint - further adjustments */
+@media (max-width: 767.98px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem 0.75rem;
+    padding-top: 4rem; /* Space for mobile menu button */
+  }
+  
+  .sidebar.collapsed + .main-content {
+    margin-left: 0;
+  }
+  
+  .stats-card-container {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .stats-card {
+    min-height: auto;
+  }
+  
+  .main-content .rule-item {
+    padding: 0.875rem;
+  }
+  
+  .main-content .rule-item .d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .main-content .rule-item .d-flex > div:last-child {
+    margin-top: 0.5rem;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .pagination-container {
+    margin-top: 1.25rem;
+    padding: 0.75rem;
+  }
+  
+  .pagination-info {
+    text-align: center;
+    width: 100%;
+  }
+  
+  .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    width: 100%;
+  }
+  
+  .pagination .page-item .page-link {
+    width: 32px;
+    height: 32px;
+  }
+  
+  /* Better modal for small screens */
+  .modal-dialog {
+    margin: 0.25rem;
+    max-height: calc(100vh - 0.5rem);
+  }
+  
+  .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 575.98px) {
+  .main-content {
+    padding: 0.75rem 0.5rem;
+    padding-top: 4rem;
+  }
+  
+  .main-content .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+  
+  .main-content .nav-link i {
+    margin-right: 0.25rem;
+  }
+  
+  .modal-header {
+    padding: 0.875rem 1rem;
+  }
+  
+  .modal-body {
+    padding: 0.75rem;
+  }
+  
+  .modal-footer {
+    padding: 0.875rem 1rem;
+  }
+}
+
+/* Dark mode adjustments */
+.dark-mode .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  background-color: rgba(36, 40, 48, 0.8);
+}
+
+/* Ensure sidebar toggle works correctly with main content */
+.sidebar.collapsed ~ .main-content {
+  margin-left: 80px;
+}
+
+@media (max-width: 767.98px) {
+  .sidebar.collapsed ~ .main-content {
+    margin-left: 0;
+  }
+  
+  .sidebar.active ~ .main-content {
+    filter: blur(2px);
+    pointer-events: none;
+  }
+}
     </style>
 </head>
 <body>
