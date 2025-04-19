@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbonoz SolarAutopilot - Grid Charge</title>
+    <title>Carbonoz SolarAutopilot </title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
  <style>
   
@@ -1888,6 +1888,258 @@ body.dark-mode {
   background: #4a4d53;
 }
 
+/* RESPONSIVE BREAKPOINTS */
+
+/* Extra small devices (phones, less than 576px) */
+@media (max-width: 575.98px) {
+  /* Main container adjustments */
+  .main-content {
+    padding: 1rem;
+    margin-left: 0;
+  }
+  
+  .main-content .container {
+    padding: 0;
+  }
+  
+  /* Navigation improvements */
+  .main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    padding-left: 3.5rem;
+  }
+  
+  .main-content .nav-link {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Card refinements */
+  .card {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+  }
+  
+  .card-header {
+    padding: 0.875rem 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .card-header h5 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .card-header div {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .card-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  /* Settings items */
+  .inverter-heading {
+    font-size: 1rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .change-item {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .change-item .d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .change-item .d-flex > div:last-child {
+    margin-top: 0.75rem;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Alert positioning */
+  #alerts-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  /* Form elements */
+  .form-control, .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.5rem 0.75rem;
+  }
+  
+  /* Modal adjustments */
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+  
+  .modal-content {
+    border-radius: 8px;
+  }
+  
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    margin: 0.25rem 0;
+  }
+  
+  /* Button sizing */
+  .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .main-content {
+    padding: 1.5rem;
+    margin-left: 0;
+  }
+  
+  .card-header {
+    padding: 1rem 1.25rem;
+    flex-wrap: wrap;
+  }
+  
+  .card-header div {
+    margin-top: 0.75rem;
+    width: 100%;
+  }
+  
+  .card-body {
+    padding: 1.25rem;
+  }
+  
+  .change-item .d-flex {
+    flex-wrap: wrap;
+  }
+  
+  /* Modal refinements */
+  .modal-footer {
+    flex-direction: row;
+  }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .main-content {
+    margin-left: 80px; /* For collapsed sidebar */
+    padding: 1.75rem;
+  }
+  
+  body.sidebar-open .main-content {
+    margin-left: 280px;
+  }
+  
+  .col-md-6 {
+    width: 50%;
+  }
+  
+  .change-item .d-flex {
+    flex-wrap: wrap;
+  }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+  .main-content {
+    margin-left: 280px;
+    padding: 2rem;
+  }
+  
+  .sidebar.collapsed + .main-content {
+    margin-left: 80px;
+  }
+  
+  .col-lg-4 {
+    width: 33.333333%;
+  }
+  
+  .col-md-6 {
+    width: 50%;
+  }
+}
+
+/* Mobile sidebar interaction */
+@media (max-width: 767.98px) {
+  /* Properly handle sidebar open state */
+  body.sidebar-open .main-content {
+    filter: blur(1px);
+    pointer-events: none;
+  }
+  
+  /* Mobile toggle button positioning */
+  #mobileToggle {
+    z-index: 1100;
+    transition: left 0.3s ease;
+  }
+  
+  body.sidebar-open #mobileToggle {
+    left: calc(280px + 0.5rem);
+  }
+  
+  /* Sidebar overlay */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+  }
+}
+
+/* Consistent navigation across all device sizes */
+.main-content .d-flex.flex-wrap.justify-content-center.gap-3 {
+  display: flex;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  justify-content: flex-start !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content .nav-link {
+  flex-shrink: 0;
+}
  </style>
 </head>
 <body data-mqtt-topic-prefix="<%= mqtt_topic_prefix %>">
