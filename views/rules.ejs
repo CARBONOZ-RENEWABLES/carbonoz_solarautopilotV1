@@ -2880,6 +2880,161 @@ body.dark-mode {
   background-color: rgba(243, 156, 18, 0.2);
   color: #f39c12;
 }
+
+/* Add this CSS to your styles to support the enhanced notifications */
+
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  background-color: #fff;
+  border-left: 4px solid #28a745;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  min-width: 300px;
+  max-width: 450px;
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.notification.error {
+  border-left-color: #dc3545;
+}
+
+.notification.pending {
+  border-left-color: #007bff;
+}
+
+.notification i {
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.notification.success i {
+  color: #28a745;
+}
+
+.notification.error i {
+  color: #dc3545;
+}
+
+.notification.pending i {
+  color: #007bff;
+}
+
+.notification span {
+  flex-grow: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.notification .close-notification {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  margin-left: 10px;
+}
+
+.notification .close-notification:hover {
+  color: #343a40;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Execute Modal Improvements */
+.execute-status {
+  text-align: center;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.execute-status.pending {
+  background-color: rgba(0, 123, 255, 0.1);
+  border-left: 4px solid #007bff;
+  padding-left: 16px;
+}
+
+.execute-status.success {
+  background-color: rgba(40, 167, 69, 0.1);
+  border-left: 4px solid #28a745;
+  padding-left: 16px;
+}
+
+.execute-status.error {
+  background-color: rgba(220, 53, 69, 0.1);
+  border-left: 4px solid #dc3545;
+  padding-left: 16px;
+}
+
+.execute-status .spinner-container {
+  margin-bottom: 10px;
+}
+
+.execute-status .spinner-container i {
+  font-size: 24px;
+  color: #007bff;
+}
+
+.execute-status.success .spinner-container i {
+  color: #28a745;
+}
+
+.execute-status.error .spinner-container i {
+  color: #dc3545;
+}
+
+/* Style improvements for rule cards */
+.rule-card {
+  transition: all 0.3s ease;
+}
+
+.rule-card[data-rule-active="false"] {
+  opacity: 0.75;
+  border-left: 4px solid #6c757d;
+}
+
+.rule-card[data-rule-active="true"] {
+  border-left: 4px solid #28a745;
+}
+
+/* Modal Improvements */
+.modal-content {
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 15px 20px;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 </style>
 </head>
 <body>
@@ -3131,586 +3286,748 @@ body.dark-mode {
   <!-- JavaScript Files -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
   <script>
-    // Global variables
-    let allRules = [];
-    const dbConnected = <%= db_connected %>;
-    
-    // DOM Elements
-    const rulesList = document.getElementById('rulesList');
-    const searchInput = document.getElementById('searchRules');
-    const filterSelect = document.getElementById('filterRules');
-    const btnCreateRule = document.getElementById('btnCreateRule');
-    const confirmationModal = document.getElementById('confirmationModal');
-    const executeModal = document.getElementById('executeModal');
-    
-    // Event Listeners
-    document.addEventListener('DOMContentLoaded', () => {
-      loadRules();
-      
-      // Search and filter
-      searchInput.addEventListener('input', filterRules);
-      filterSelect.addEventListener('change', filterRules);
-      
-      // Create rule button
-      btnCreateRule.addEventListener('click', () => {
-        window.location.href = '<%= ingress_path %>/wizard';
-      });
-      
-      // Close modals when clicking on X or outside
-      document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', closeAllModals);
-      });
-      
-      document.getElementById('closeExecute').addEventListener('click', closeAllModals);
-      
-      window.addEventListener('click', (e) => {
-        if (e.target === confirmationModal || e.target === executeModal) {
-          closeAllModals();
-        }
-      });
+// Complete client-side JavaScript with fixes for rule activation, deletion and duplication
+// Replace the entire script in your rules.ejs template with this code
+
+// Global variables
+let allRules = [];
+const dbConnected = <%= db_connected %>;
+const ingressPath = '<%= ingress_path %>';
+
+// DOM Elements
+const rulesList = document.getElementById('rulesList');
+const searchInput = document.getElementById('searchRules');
+const filterSelect = document.getElementById('filterRules');
+const confirmationModal = document.getElementById('confirmationModal');
+const executeModal = document.getElementById('executeModal');
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing rules page...');
+  loadRules();
+  
+  // Search and filter
+  searchInput.addEventListener('input', filterRules);
+  filterSelect.addEventListener('change', filterRules);
+  
+  // Create rule button
+  const btnCreateRule = document.getElementById('btnCreateRule');
+  if (btnCreateRule) {
+    btnCreateRule.addEventListener('click', () => {
+      window.location.href = `${ingressPath}/wizard`;
     });
+  }
+  
+  // Close modals when clicking on X or outside
+  document.querySelectorAll('.close-modal').forEach(btn => {
+    btn.addEventListener('click', closeAllModals);
+  });
+  
+  document.getElementById('closeExecute').addEventListener('click', closeAllModals);
+  
+  window.addEventListener('click', (e) => {
+    if (e.target === confirmationModal || e.target === executeModal) {
+      closeAllModals();
+    }
+  });
+});
+
+// Function to load rules from API
+async function loadRules() {
+  if (!dbConnected) {
+    showDatabaseError();
+    return;
+  }
+  
+  try {
+    // Show loading indicator
+    rulesList.innerHTML = `
+      <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading rules...</p>
+      </div>
+    `;
     
-    // Function to load rules from API
-    async function loadRules() {
-      if (!dbConnected) {
-        showDatabaseError();
-        return;
-      }
-      
-      try {
-        const response = await fetch('<%= ingress_path %>/api/rules');
-        if (!response.ok) throw new Error('Failed to fetch rules');
-        
-        allRules = await response.json();
-        renderRules(allRules);
-      } catch (error) {
-        console.error('Error loading rules:', error);
-        showError('Failed to load rules. Please try again later.');
-      }
+    const response = await fetch(`${ingressPath}/api/rules`);
+    
+    // Check for HTTP errors
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to fetch rules (${response.status})`);
     }
     
-    // Function to render rules
-    function renderRules(rules) {
-      rulesList.innerHTML = '';
+    allRules = await response.json();
+    console.log('Rules loaded:', allRules.length);
+    renderRules(allRules);
+  } catch (error) {
+    console.error('Error loading rules:', error);
+    showError(`Failed to load rules: ${error.message}`);
+  }
+}
+
+// Function to render rules
+function renderRules(rules) {
+  rulesList.innerHTML = '';
+  
+  if (!rules || rules.length === 0) {
+    showEmptyState();
+    return;
+  }
+  
+  // Sort rules by name
+  rules.sort((a, b) => a.name.localeCompare(b.name));
+  
+  rules.forEach(rule => {
+    const ruleCard = createRuleCard(rule);
+    rulesList.appendChild(ruleCard);
+  });
+  
+  // Add event listeners to rule cards
+  addRuleCardEventListeners();
+}
+
+// Function to create a rule card from template
+function createRuleCard(rule) {
+  console.log('Creating rule card for rule:', rule.name, 'active:', rule.active);
+  
+  const template = document.getElementById('ruleTemplate');
+  const ruleCard = document.importNode(template.content, true).children[0];
+  
+  // Set rule data attributes
+  ruleCard.setAttribute('data-rule-id', rule.id);
+  ruleCard.setAttribute('data-rule-active', rule.active.toString());
+  
+  // Visual indication of active/inactive
+  if (!rule.active) {
+    ruleCard.classList.add('inactive-rule');
+  }
+  
+  // Set rule status
+  const statusToggle = ruleCard.querySelector('.rule-active-toggle');
+  statusToggle.checked = !!rule.active;
+  
+  // Set rule name and description
+  ruleCard.querySelector('.rule-name').textContent = rule.name;
+  ruleCard.querySelector('.rule-description').textContent = rule.description || 'No description provided';
+  
+  // Render conditions
+  const conditionsList = ruleCard.querySelector('.conditions-list');
+  if (rule.conditions && rule.conditions.length > 0) {
+    rule.conditions.forEach(condition => {
+      const conditionEl = document.createElement('div');
+      conditionEl.className = 'condition-item';
+      conditionEl.innerHTML = formatCondition(condition);
+      conditionsList.appendChild(conditionEl);
+    });
+  } else {
+    conditionsList.innerHTML = '<p class="empty-message">No conditions (runs unconditionally)</p>';
+  }
+  
+  // Render time restrictions
+  const timeRestrictions = ruleCard.querySelector('.time-restrictions');
+  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+    const timeEl = document.createElement('div');
+    timeEl.className = 'time-item';
+    timeEl.innerHTML = formatTimeRestrictions(rule.timeRestrictions);
+    timeRestrictions.appendChild(timeEl);
+  } else {
+    timeRestrictions.innerHTML = '<p class="empty-message">No time restrictions (runs anytime)</p>';
+  }
+  
+  // Render actions
+  const actionsList = ruleCard.querySelector('.actions-list');
+  if (rule.actions && rule.actions.length > 0) {
+    rule.actions.forEach(action => {
+      const actionEl = document.createElement('div');
+      actionEl.className = 'action-item';
+      actionEl.innerHTML = formatAction(action);
+      actionsList.appendChild(actionEl);
+    });
+  } else {
+    actionsList.innerHTML = '<p class="empty-message">No actions defined</p>';
+  }
+  
+  // Set dates and counts
+  const createdDate = ruleCard.querySelector('.created-date');
+  createdDate.textContent = rule.createdAt ? new Date(rule.createdAt).toLocaleDateString() : 'Unknown';
+  
+  const triggeredDate = ruleCard.querySelector('.triggered-date');
+  triggeredDate.textContent = rule.lastTriggered ? new Date(rule.lastTriggered).toLocaleString() : 'Never';
+  
+  const triggerCount = ruleCard.querySelector('.trigger-count');
+  triggerCount.textContent = rule.triggerCount || 0;
+  
+  return ruleCard;
+}
+
+// Add event listeners to rule cards
+function addRuleCardEventListeners() {
+  // Toggle rule active status - FIXED VERSION
+  document.querySelectorAll('.rule-active-toggle').forEach(toggle => {
+    toggle.addEventListener('change', async (e) => {
+      const ruleCard = e.target.closest('.rule-card');
+      const ruleId = ruleCard.getAttribute('data-rule-id');
+      const rule = allRules.find(r => r.id == ruleId);
       
-      if (!rules || rules.length === 0) {
-        showEmptyState();
-        return;
-      }
-      
-      // Sort rules by name
-      rules.sort((a, b) => a.name.localeCompare(b.name));
-      
-      rules.forEach(rule => {
-        const ruleCard = createRuleCard(rule);
-        rulesList.appendChild(ruleCard);
-      });
-      
-      // Add event listeners to rule cards
-      addRuleCardEventListeners();
-    }
-    
-    // Function to create a rule card from template
-    function createRuleCard(rule) {
-      const template = document.getElementById('ruleTemplate');
-      const ruleCard = document.importNode(template.content, true).children[0];
-      
-      // Set rule data attributes
-      ruleCard.setAttribute('data-rule-id', rule.id);
-      
-      // Set rule status
-      const statusToggle = ruleCard.querySelector('.rule-active-toggle');
-      statusToggle.checked = rule.active;
-      
-      // Set rule name and description
-      ruleCard.querySelector('.rule-name').textContent = rule.name;
-      ruleCard.querySelector('.rule-description').textContent = rule.description || 'No description provided';
-      
-      // Render conditions
-      const conditionsList = ruleCard.querySelector('.conditions-list');
-      if (rule.conditions && rule.conditions.length > 0) {
-        rule.conditions.forEach(condition => {
-          const conditionEl = document.createElement('div');
-          conditionEl.className = 'condition-item';
-          conditionEl.innerHTML = formatCondition(condition);
-          conditionsList.appendChild(conditionEl);
-        });
-      } else {
-        conditionsList.innerHTML = '<p class="empty-message">No conditions (runs unconditionally)</p>';
-      }
-      
-      // Render time restrictions
-      const timeRestrictions = ruleCard.querySelector('.time-restrictions');
-      if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
-        const timeEl = document.createElement('div');
-        timeEl.className = 'time-item';
-        timeEl.innerHTML = formatTimeRestrictions(rule.timeRestrictions);
-        timeRestrictions.appendChild(timeEl);
-      } else {
-        timeRestrictions.innerHTML = '<p class="empty-message">No time restrictions (runs anytime)</p>';
-      }
-      
-      // Render actions
-      const actionsList = ruleCard.querySelector('.actions-list');
-      if (rule.actions && rule.actions.length > 0) {
-        rule.actions.forEach(action => {
-          const actionEl = document.createElement('div');
-          actionEl.className = 'action-item';
-          actionEl.innerHTML = formatAction(action);
-          actionsList.appendChild(actionEl);
-        });
-      } else {
-        actionsList.innerHTML = '<p class="empty-message">No actions defined</p>';
-      }
-      
-      // Set dates and counts
-      const createdDate = ruleCard.querySelector('.created-date');
-      createdDate.textContent = rule.createdAt ? new Date(rule.createdAt).toLocaleDateString() : 'Unknown';
-      
-      const triggeredDate = ruleCard.querySelector('.triggered-date');
-      triggeredDate.textContent = rule.lastTriggered ? new Date(rule.lastTriggered).toLocaleString() : 'Never';
-      
-      const triggerCount = ruleCard.querySelector('.trigger-count');
-      triggerCount.textContent = rule.triggerCount || 0;
-      
-      return ruleCard;
-    }
-    
-    // Add event listeners to rule cards
-    function addRuleCardEventListeners() {
-      // Toggle rule active status
-      document.querySelectorAll('.rule-active-toggle').forEach(toggle => {
-        toggle.addEventListener('change', async (e) => {
-          const ruleCard = e.target.closest('.rule-card');
-          const ruleId = ruleCard.getAttribute('data-rule-id');
-          const rule = allRules.find(r => r.id === ruleId);
+      if (rule) {
+        try {
+          // Show pending notification
+          const notification = showNotification(`${e.target.checked ? 'Activating' : 'Deactivating'} rule "${rule.name}"...`, 'pending');
           
-          if (rule) {
-            try {
-              rule.active = e.target.checked;
-              await updateRule(rule);
-              
-              // Show temporary notification
-              showNotification(`Rule "${rule.name}" ${e.target.checked ? 'activated' : 'deactivated'}`);
-            } catch (error) {
-              console.error('Error updating rule status:', error);
-              e.target.checked = !e.target.checked; // Revert toggle
-              showError('Failed to update rule status');
-            }
-          }
-        });
-      });
-      
-      // Dropdown menus
-      document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
-        toggle.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const menu = e.target.closest('.rule-menu').querySelector('.dropdown-menu');
+          // Update the rule in our local array and set the new active state
+          const newActiveState = e.target.checked;
+          rule.active = newActiveState;
           
-          // Close all other open menus
-          document.querySelectorAll('.dropdown-menu.show').forEach(m => {
-            if (m !== menu) m.classList.remove('show');
+          console.log(`Toggling rule ${rule.id} (${rule.name}) active state to:`, newActiveState);
+          
+          // Send update to server
+          const response = await fetch(`${ingressPath}/api/rules/${rule.id}`, {
+            method: 'PUT',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              ...rule,
+              active: newActiveState
+            })
           });
           
-          // Toggle this menu
-          menu.classList.toggle('show');
-        });
-      });
-      
-      // Close dropdown when clicking outside
-      document.addEventListener('click', () => {
-        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-          menu.classList.remove('show');
-        });
-      });
-      
-      // Edit rule
-      document.querySelectorAll('.edit-rule').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const ruleId = e.target.closest('.rule-card').getAttribute('data-rule-id');
-          window.location.href = `<%= ingress_path %>/wizard?edit=${ruleId}`;
-        });
-      });
-      
-      // Duplicate rule
-      document.querySelectorAll('.duplicate-rule').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          const ruleCard = e.target.closest('.rule-card');
-          const ruleId = ruleCard.getAttribute('data-rule-id');
-          
-          try {
-            const response = await fetch(`<%= ingress_path %>/api/rules/${ruleId}/duplicate`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (!response.ok) throw new Error('Failed to duplicate rule');
-            
-            const result = await response.json();
-            showNotification(`Rule duplicated successfully`);
-            
-            // Reload rules
-            loadRules();
-          } catch (error) {
-            console.error('Error duplicating rule:', error);
-            showError('Failed to duplicate rule');
+          // Check for HTTP errors
+          if (!response.ok) {
+            let errorMessage = `Server returned ${response.status}`;
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+              // If we can't parse the error, just use the status code message
+            }
+            throw new Error(errorMessage);
           }
-        });
+          
+          // Parse the response
+          const result = await response.json();
+          
+          // Remove pending notification
+          notification.remove();
+          
+          // Show success notification
+          showNotification(`Rule "${rule.name}" ${newActiveState ? 'activated' : 'deactivated'}`);
+          
+          // Update UI to reflect the change
+          ruleCard.setAttribute('data-rule-active', newActiveState.toString());
+          if (newActiveState) {
+            ruleCard.classList.remove('inactive-rule');
+          } else {
+            ruleCard.classList.add('inactive-rule');
+          }
+        } catch (error) {
+          console.error('Error updating rule status:', error);
+          
+          // Remove pending notification if exists
+          document.querySelectorAll('.notification.pending').forEach(n => n.remove());
+          
+          // Show error and revert toggle state
+          showError(`Failed to update rule status: ${error.message}`);
+          
+          // Revert toggle visually
+          e.target.checked = !e.target.checked;
+          
+          // Revert the rule in our array
+          if (rule) rule.active = !e.target.checked;
+        }
+      }
+    });
+  });
+  
+  // Dropdown menus
+  document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Find the dropdown menu - handle both when clicking on the button or the icon
+      const ruleMenu = e.target.closest('.rule-menu');
+      if (!ruleMenu) return;
+      
+      const menu = ruleMenu.querySelector('.dropdown-menu');
+      if (!menu) return;
+      
+      // Close all other open menus
+      document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+        if (m !== menu) m.classList.remove('show');
       });
       
-      // Execute rule
-      document.querySelectorAll('.execute-rule').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const ruleCard = e.target.closest('.rule-card');
-          const ruleId = ruleCard.getAttribute('data-rule-id');
-          const rule = allRules.find(r => r.id === ruleId);
-          
-          if (rule) {
-            openExecuteModal(rule);
-          }
-        });
-      });
+      // Toggle this menu
+      menu.classList.toggle('show');
+    });
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+      menu.classList.remove('show');
+    });
+  });
+  
+  // Edit rule
+  document.querySelectorAll('.edit-rule').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ruleId = e.target.closest('.rule-card').getAttribute('data-rule-id');
+      window.location.href = `${ingressPath}/wizard?edit=${ruleId}`;
+    });
+  });
+  
+  // Duplicate rule - FIXED VERSION
+  document.querySelectorAll('.duplicate-rule').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       
-      // Delete rule
-      document.querySelectorAll('.delete-rule').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const ruleCard = e.target.closest('.rule-card');
-          const ruleId = ruleCard.getAttribute('data-rule-id');
-          const rule = allRules.find(r => r.id === ruleId);
-          
-          if (rule) {
-            openConfirmationModal(
-              `Are you sure you want to delete the rule "${rule.name}"?`,
-              async () => {
-                try {
-                  const response = await fetch(`<%= ingress_path %>/api/rules/${ruleId}`, {
-                    method: 'DELETE'
-                  });
-                  
-                  if (!response.ok) throw new Error('Failed to delete rule');
-                  
-                  showNotification(`Rule "${rule.name}" deleted successfully`);
-                  
-                  // Remove rule from list and DOM
-                  allRules = allRules.filter(r => r.id !== ruleId);
-                  ruleCard.remove();
-                  
-                  if (allRules.length === 0) {
-                    showEmptyState();
-                  }
-                } catch (error) {
-                  console.error('Error deleting rule:', error);
-                  showError('Failed to delete rule');
-                }
-              }
-            );
-          }
-        });
-      });
-    }
-    
-    // Function to execute a rule
-    async function executeRule(rule) {
+      const ruleCard = e.target.closest('.rule-card');
+      const ruleId = ruleCard.getAttribute('data-rule-id');
+      const rule = allRules.find(r => r.id == ruleId);
+      
+      if (!rule) {
+        showError('Could not find rule to duplicate');
+        return;
+      }
+      
       try {
-        document.getElementById('executeStatus').classList.add('pending');
-        document.getElementById('executeMessage').textContent = `Executing rule "${rule.name}"...`;
+        // Show pending notification
+        const notification = showNotification(`Duplicating rule "${rule.name}"...`, 'pending');
         
-        // Display actions being executed
-        const actionsList = document.getElementById('executeActions');
-        actionsList.innerHTML = '';
+        console.log(`Attempting to duplicate rule ${ruleId} (${rule.name})`);
         
-        rule.actions.forEach(action => {
-          const li = document.createElement('li');
-          li.innerHTML = formatAction(action);
-          actionsList.appendChild(li);
-        });
-        
-        // Execute the rule
-        const response = await fetch(`<%= ingress_path %>/api/rules/${rule.id}/execute`, {
+        const response = await fetch(`${ingressPath}/api/rules/${ruleId}/duplicate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
         });
         
+        // Check for HTTP errors
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Rule execution failed');
+          let errorMessage = `Server returned ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            // If we can't parse the error, just use the status code message
+          }
+          throw new Error(errorMessage);
         }
         
+        // Parse the response
         const result = await response.json();
         
+        // Remove pending notification
+        notification.remove();
+        
         // Show success
-        document.getElementById('executeStatus').classList.remove('pending');
-        document.getElementById('executeStatus').classList.add('success');
-        document.getElementById('executeMessage').textContent = result.message;
+        showNotification(`Rule "${rule.name}" duplicated successfully`);
         
-        // Update rule in our array
-        const index = allRules.findIndex(r => r.id === rule.id);
-        if (index !== -1) {
-          allRules[index].lastTriggered = new Date().toISOString();
-          allRules[index].triggerCount = (allRules[index].triggerCount || 0) + 1;
-        }
-        
-        // Reload rules to reflect the updated trigger count
-        setTimeout(loadRules, 2000);
-        
-        return true;
+        // Reload rules to show the duplicated rule
+        await loadRules();
       } catch (error) {
-        console.error('Error executing rule:', error);
+        console.error('Error duplicating rule:', error);
+        
+        // Remove pending notification if exists
+        document.querySelectorAll('.notification.pending').forEach(n => n.remove());
         
         // Show error
-        document.getElementById('executeStatus').classList.remove('pending');
-        document.getElementById('executeStatus').classList.add('error');
-        document.getElementById('executeMessage').textContent = error.message;
-        
-        return false;
+        showError(`Failed to duplicate rule: ${error.message}`);
       }
-    }
-    
-    // Function to update rule
-    async function updateRule(rule) {
-      const response = await fetch(`<%= ingress_path %>/api/rules/${rule.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rule)
-      });
+    });
+  });
+  
+  // Execute rule
+  document.querySelectorAll('.execute-rule').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to update rule');
+      const ruleCard = e.target.closest('.rule-card');
+      const ruleId = ruleCard.getAttribute('data-rule-id');
+      const rule = allRules.find(r => r.id == ruleId);
+      
+      if (rule) {
+        openExecuteModal(rule);
       }
+    });
+  });
+  
+  // Delete rule - FIXED VERSION
+  document.querySelectorAll('.delete-rule').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       
-      return await response.json();
-    }
-    
-    // Function to filter rules
-    function filterRules() {
-      const searchText = searchInput.value.toLowerCase();
-      const filterValue = filterSelect.value;
+      const ruleCard = e.target.closest('.rule-card');
+      const ruleId = ruleCard.getAttribute('data-rule-id');
+      const rule = allRules.find(r => r.id == ruleId);
       
-      let filteredRules = allRules;
-      
-      // Filter by status
-      if (filterValue === 'active') {
-        filteredRules = filteredRules.filter(rule => rule.active);
-      } else if (filterValue === 'inactive') {
-        filteredRules = filteredRules.filter(rule => !rule.active);
+      if (!rule) {
+        showError('Could not find rule to delete');
+        return;
       }
       
-      // Filter by search text
-      if (searchText) {
-        filteredRules = filteredRules.filter(rule => 
-          rule.name.toLowerCase().includes(searchText) || 
-          (rule.description && rule.description.toLowerCase().includes(searchText))
-        );
-      }
-      
-      renderRules(filteredRules);
-    }
-    
-    // Helper function to format conditions
-    function formatCondition(condition) {
-      const parameterLabels = {
-        'battery_soc': 'Battery SOC',
-        'pv_power': 'PV Power',
-        'load': 'Load',
-        'grid_voltage': 'Grid Voltage',
-        'grid_power': 'Grid Power'
-      };
-      
-      const operatorLabels = {
-        'gt': 'greater than',
-        'lt': 'less than',
-        'eq': 'equal to',
-        'gte': 'greater than or equal to',
-        'lte': 'less than or equal to'
-      };
-      
-      const units = {
-        'battery_soc': '%',
-        'pv_power': 'W',
-        'load': 'W',
-        'grid_voltage': 'V',
-        'grid_power': 'W'
-      };
-      
-      const paramLabel = parameterLabels[condition.parameter] || condition.parameter;
-      const opLabel = operatorLabels[condition.operator] || condition.operator;
-      const unit = units[condition.parameter] || '';
-      
-      return `<strong>${paramLabel}</strong> is <strong>${opLabel}</strong> <strong>${condition.value}${unit}</strong>`;
-    }
-    
-    // Helper function to format time restrictions
-    function formatTimeRestrictions(restrictions) {
-      let result = '';
-      
-      if (restrictions.startTime && restrictions.endTime) {
-        result += `<div><i class="fas fa-clock"></i> From <strong>${restrictions.startTime}</strong> to <strong>${restrictions.endTime}</strong></div>`;
-      }
-      
-      if (restrictions.days && restrictions.days.length > 0) {
-        const daysFormatted = restrictions.days.map(day => 
-          day.charAt(0).toUpperCase() + day.slice(1)
-        ).join(', ');
-        result += `<div><i class="fas fa-calendar-day"></i> Only on: <strong>${daysFormatted}</strong></div>`;
-      }
-      
-      if (restrictions.specificDates && restrictions.specificDates.length > 0) {
-        const datesFormatted = restrictions.specificDates.join(', ');
-        result += `<div><i class="fas fa-calendar-check"></i> Only on dates: <strong>${datesFormatted}</strong></div>`;
-      }
-      
-      return result || 'Active at all times';
-    }
-    
-    // Helper function to format actions
-    function formatAction(action) {
-      const settingLabels = {
-        'grid_charge': 'Grid Charge',
-        'energy_pattern': 'Energy Pattern',
-        'voltage_point': 'Voltage Point',
-        'voltage_point_1': 'Voltage Point 1',
-        'voltage_point_2': 'Voltage Point 2',
-        'voltage_point_3': 'Voltage Point 3',
-        'voltage_point_4': 'Voltage Point 4',
-        'voltage_point_5': 'Voltage Point 5',
-        'voltage_point_6': 'Voltage Point 6',
-        'max_discharge_current': 'Max Discharge Current',
-        'max_charge_current': 'Max Charge Current',
-        'max_grid_charge_current': 'Max Grid Charge Current',
-        'battery_float_charge_voltage': 'Float Charge Voltage',
-        'work_mode': 'Work Mode',
-        'work_mode_timer': 'Timer Mode',
-        'remote_switch': 'Remote Switch'
-      };
-      
-      const inverterLabel = action.inverter === 'all' ? 'All Inverters' : `${action.inverter}`;
-      const settingLabel = settingLabels[action.setting] || action.setting;
-      
-      return `Set <strong>${settingLabel}</strong> to <strong>${action.value}</strong> on <strong>${inverterLabel}</strong>`;
-    }
-    
-    // Function to show empty state
-    function showEmptyState() {
-      rulesList.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-list-alt"></i>
-          <h3>No rules found</h3>
-          <p>Create your first automation rule to get started</p>
-          <button class="btn btn-primary" onclick="window.location.href='<%= ingress_path %>/wizard'">Create Rule</button>
-        </div>
-      `;
-    }
-    
-    // Function to show database error
-    function showDatabaseError() {
-      rulesList.innerHTML = `
-        <div class="error-state">
-          <i class="fas fa-database"></i>
-          <h3>Database Disconnected</h3>
-          <p>Cannot retrieve rules without database connection</p>
-          <button class="btn btn-secondary" onclick="window.location.reload()">Try Again</button>
-        </div>
-      `;
-    }
-    
-    // Function to show error
-    function showError(message) {
-      const notification = document.createElement('div');
-      notification.className = 'notification error';
-      notification.innerHTML = `
-        <i class="fas fa-exclamation-circle"></i>
-        <span>${message}</span>
-        <button class="close-notification">&times;</button>
-      `;
-      
-      document.body.appendChild(notification);
-      
-      // Add event listener to close button
-      notification.querySelector('.close-notification').addEventListener('click', () => {
-        notification.remove();
-      });
-      
-      // Auto-remove after 5 seconds
-      setTimeout(() => {
-        if (document.body.contains(notification)) {
-          notification.remove();
+      openConfirmationModal(
+        `Are you sure you want to delete the rule "${rule.name}"?`,
+        async () => {
+          try {
+            // Show loading indicator
+            const notification = showNotification(`Deleting rule "${rule.name}"...`, 'pending');
+            
+            console.log(`Attempting to delete rule ${ruleId} (${rule.name})`);
+            
+            const response = await fetch(`${ingressPath}/api/rules/${ruleId}`, {
+              method: 'DELETE',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            });
+            
+            // Log the raw response for debugging
+            console.log('Delete response status:', response.status);
+            
+            // Get the response text for debugging
+            const responseText = await response.text();
+            console.log('Delete response text:', responseText);
+            
+            // Parse the response as JSON (if it is JSON)
+            let result;
+            try {
+              result = JSON.parse(responseText);
+            } catch (e) {
+              console.error('Error parsing response as JSON:', e);
+              result = { success: false, error: 'Invalid server response' };
+            }
+            
+            // Check for HTTP errors
+            if (!response.ok) {
+              throw new Error(result.error || `Failed to delete rule (${response.status})`);
+            }
+            
+            // Remove previous notification
+            notification.remove();
+            
+            // Show success notification
+            showNotification(`Rule "${rule.name}" deleted successfully`);
+            
+            // Remove rule from list and DOM
+            allRules = allRules.filter(r => r.id != ruleId);
+            ruleCard.remove();
+            
+            // Show empty state if no rules left
+            if (allRules.length === 0) {
+              showEmptyState();
+            }
+          } catch (error) {
+            console.error('Error deleting rule:', error);
+            
+            // Remove pending notification if exists
+            document.querySelectorAll('.notification.pending').forEach(n => n.remove());
+            
+            // Show error
+            showError(`Failed to delete rule: ${error.message}`);
+          }
         }
-      }, 5000);
+      );
+    });
+  });
+}
+
+// Function to execute a rule
+async function executeRule(rule) {
+  try {
+    document.getElementById('executeStatus').classList.add('pending');
+    document.getElementById('executeMessage').textContent = `Executing rule "${rule.name}"...`;
+    
+    // Display actions being executed
+    const actionsList = document.getElementById('executeActions');
+    actionsList.innerHTML = '';
+    
+    rule.actions.forEach(action => {
+      const li = document.createElement('li');
+      li.innerHTML = formatAction(action);
+      actionsList.appendChild(li);
+    });
+    
+    // Execute the rule
+    const response = await fetch(`${ingressPath}/api/rules/${rule.id}/execute`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+    
+    // Get the response text for debugging
+    const responseText = await response.text();
+    console.log('Execute response text:', responseText);
+    
+    // Parse the response as JSON (if it is JSON)
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Error parsing response as JSON:', e);
+      result = { success: false, error: 'Invalid server response' };
     }
     
-    // Function to show notification
-    function showNotification(message) {
-      const notification = document.createElement('div');
-      notification.className = 'notification success';
-      notification.innerHTML = `
-        <i class="fas fa-check-circle"></i>
-        <span>${message}</span>
-        <button class="close-notification">&times;</button>
-      `;
-      
-      document.body.appendChild(notification);
-      
-      // Add event listener to close button
-      notification.querySelector('.close-notification').addEventListener('click', () => {
+    if (!response.ok) {
+      throw new Error(result.error || 'Rule execution failed');
+    }
+    
+    // Show success
+    document.getElementById('executeStatus').classList.remove('pending');
+    document.getElementById('executeStatus').classList.add('success');
+    document.getElementById('executeMessage').textContent = result.message || 'Rule executed successfully';
+    
+    // Update rule in our array
+    const index = allRules.findIndex(r => r.id == rule.id);
+    if (index !== -1) {
+      allRules[index].lastTriggered = new Date().toISOString();
+      allRules[index].triggerCount = (allRules[index].triggerCount || 0) + 1;
+    }
+    
+    // Reload rules to reflect the updated trigger count
+    setTimeout(loadRules, 2000);
+    
+    return true;
+  } catch (error) {
+    console.error('Error executing rule:', error);
+    
+    // Show error
+    document.getElementById('executeStatus').classList.remove('pending');
+    document.getElementById('executeStatus').classList.add('error');
+    document.getElementById('executeMessage').textContent = error.message;
+    
+    return false;
+  }
+}
+
+// Function to filter rules
+function filterRules() {
+  const searchText = searchInput.value.toLowerCase();
+  const filterValue = filterSelect.value;
+  
+  let filteredRules = allRules;
+  
+  // Filter by status
+  if (filterValue === 'active') {
+    filteredRules = filteredRules.filter(rule => rule.active);
+  } else if (filterValue === 'inactive') {
+    filteredRules = filteredRules.filter(rule => !rule.active);
+  }
+  
+  // Filter by search text
+  if (searchText) {
+    filteredRules = filteredRules.filter(rule => 
+      rule.name.toLowerCase().includes(searchText) || 
+      (rule.description && rule.description.toLowerCase().includes(searchText))
+    );
+  }
+  
+  renderRules(filteredRules);
+}
+
+// Helper function to format conditions
+function formatCondition(condition) {
+  const parameterLabels = {
+    'battery_soc': 'Battery SOC',
+    'pv_power': 'PV Power',
+    'load': 'Load',
+    'grid_voltage': 'Grid Voltage',
+    'grid_power': 'Grid Power'
+  };
+  
+  const operatorLabels = {
+    'gt': 'greater than',
+    'lt': 'less than',
+    'eq': 'equal to',
+    'gte': 'greater than or equal to',
+    'lte': 'less than or equal to'
+  };
+  
+  const units = {
+    'battery_soc': '%',
+    'pv_power': 'W',
+    'load': 'W',
+    'grid_voltage': 'V',
+    'grid_power': 'W'
+  };
+  
+  const paramLabel = parameterLabels[condition.parameter] || condition.parameter;
+  const opLabel = operatorLabels[condition.operator] || condition.operator;
+  const unit = units[condition.parameter] || '';
+  
+  return `<strong>${paramLabel}</strong> is <strong>${opLabel}</strong> <strong>${condition.value}${unit}</strong>`;
+}
+
+// Helper function to format time restrictions
+function formatTimeRestrictions(restrictions) {
+  let result = '';
+  
+  if (restrictions.startTime && restrictions.endTime) {
+    result += `<div><i class="fas fa-clock"></i> From <strong>${restrictions.startTime}</strong> to <strong>${restrictions.endTime}</strong></div>`;
+  }
+  
+  if (restrictions.days && restrictions.days.length > 0) {
+    const daysFormatted = restrictions.days.map(day => 
+      day.charAt(0).toUpperCase() + day.slice(1)
+    ).join(', ');
+    result += `<div><i class="fas fa-calendar-day"></i> Only on: <strong>${daysFormatted}</strong></div>`;
+  }
+  
+  if (restrictions.specificDates && restrictions.specificDates.length > 0) {
+    const datesFormatted = restrictions.specificDates.join(', ');
+    result += `<div><i class="fas fa-calendar-check"></i> Only on dates: <strong>${datesFormatted}</strong></div>`;
+  }
+  
+  return result || 'Active at all times';
+}
+
+// Helper function to format actions
+function formatAction(action) {
+  const settingLabels = {
+    'grid_charge': 'Grid Charge',
+    'energy_pattern': 'Energy Pattern',
+    'voltage_point': 'Voltage Point',
+    'voltage_point_1': 'Voltage Point 1',
+    'voltage_point_2': 'Voltage Point 2',
+    'voltage_point_3': 'Voltage Point 3',
+    'voltage_point_4': 'Voltage Point 4',
+    'voltage_point_5': 'Voltage Point 5',
+    'voltage_point_6': 'Voltage Point 6',
+    'max_discharge_current': 'Max Discharge Current',
+    'max_charge_current': 'Max Charge Current',
+    'max_grid_charge_current': 'Max Grid Charge Current',
+    'battery_float_charge_voltage': 'Float Charge Voltage',
+    'work_mode': 'Work Mode',
+    'work_mode_timer': 'Timer Mode',
+    'remote_switch': 'Remote Switch'
+  };
+  
+  const inverterLabel = action.inverter === 'all' ? 'All Inverters' : `${action.inverter}`;
+  const settingLabel = settingLabels[action.setting] || action.setting;
+  
+  return `Set <strong>${settingLabel}</strong> to <strong>${action.value}</strong> on <strong>${inverterLabel}</strong>`;
+}
+
+// Function to show empty state
+function showEmptyState() {
+  rulesList.innerHTML = `
+    <div class="empty-state">
+      <i class="fas fa-list-alt"></i>
+      <h3>No rules found</h3>
+      <p>Create your first automation rule to get started</p>
+      <button class="btn btn-primary" onclick="window.location.href='${ingressPath}/wizard'">Create Rule</button>
+    </div>
+  `;
+}
+
+// Function to show database error
+function showDatabaseError() {
+  rulesList.innerHTML = `
+    <div class="error-state">
+      <i class="fas fa-database"></i>
+      <h3>Database Disconnected</h3>
+      <p>Cannot retrieve rules without database connection</p>
+      <button class="btn btn-secondary" onclick="window.location.reload()">Try Again</button>
+    </div>
+  `;
+}
+
+// Enhanced notification function with support for different states
+function showNotification(message, type = 'success') {
+  // Remove any existing notifications with the same type
+  document.querySelectorAll(`.notification.${type}`).forEach(n => n.remove());
+  
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  
+  let icon = 'check-circle';
+  if (type === 'error') icon = 'exclamation-circle';
+  if (type === 'pending') icon = 'spinner fa-spin';
+  
+  notification.innerHTML = `
+    <i class="fas fa-${icon}"></i>
+    <span>${message}</span>
+    ${type !== 'pending' ? '<button class="close-notification">&times;</button>' : ''}
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Add event listener to close button (if not pending)
+  if (type !== 'pending') {
+    notification.querySelector('.close-notification').addEventListener('click', () => {
+      notification.remove();
+    });
+    
+    // Auto-remove after 5 seconds for non-pending notifications
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
         notification.remove();
-      });
-      
-      // Auto-remove after 5 seconds
-      setTimeout(() => {
-        if (document.body.contains(notification)) {
-          notification.remove();
-        }
-      }, 5000);
-    }
-    
-    // Function to open confirmation modal
-    function openConfirmationModal(message, confirmCallback) {
-      document.getElementById('confirmationMessage').textContent = message;
-      confirmationModal.style.display = 'block';
-      
-      // Set up confirm and cancel buttons
-      const confirmBtn = document.getElementById('confirmAction');
-      const cancelBtn = document.getElementById('cancelAction');
-      
-      // Remove any existing event listeners
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      const newCancelBtn = cancelBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-      
-      // Add new event listeners
-      newConfirmBtn.addEventListener('click', () => {
-        confirmCallback();
-        closeAllModals();
-      });
-      
-      newCancelBtn.addEventListener('click', closeAllModals);
-    }
-    
-    // Function to open execute modal
-    function openExecuteModal(rule) {
-      // Reset modal state
-      document.getElementById('executeStatus').className = 'execute-status';
-      document.getElementById('executeMessage').textContent = 'Preparing to execute rule...';
-      document.getElementById('executeActions').innerHTML = '';
-      
-      // Show modal
-      executeModal.style.display = 'block';
-      
-      // Execute the rule
-      setTimeout(() => executeRule(rule), 500);
-    }
-    
-    // Function to close all modals
-    function closeAllModals() {
-      confirmationModal.style.display = 'none';
-      executeModal.style.display = 'none';
-    }
+      }
+    }, 5000);
+  }
+  
+  return notification;
+}
+
+// Function to show error
+function showError(message) {
+  return showNotification(message, 'error');
+}
+
+// Function to open confirmation modal
+function openConfirmationModal(message, confirmCallback) {
+  document.getElementById('confirmationMessage').textContent = message;
+  confirmationModal.style.display = 'block';
+  
+  // Set up confirm and cancel buttons
+  const confirmBtn = document.getElementById('confirmAction');
+  const cancelBtn = document.getElementById('cancelAction');
+  
+  // Remove any existing event listeners
+  const newConfirmBtn = confirmBtn.cloneNode(true);
+  const newCancelBtn = cancelBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+  
+  // Add new event listeners
+  newConfirmBtn.addEventListener('click', () => {
+    confirmCallback();
+    closeAllModals();
+  });
+  
+  newCancelBtn.addEventListener('click', closeAllModals);
+}
+
+// Function to open execute modal
+function openExecuteModal(rule) {
+  // Reset modal state
+  document.getElementById('executeStatus').className = 'execute-status';
+  document.getElementById('executeMessage').textContent = 'Preparing to execute rule...';
+  document.getElementById('executeActions').innerHTML = '';
+  
+  // Show modal
+  executeModal.style.display = 'block';
+  
+  // Execute the rule
+  setTimeout(() => executeRule(rule), 500);
+}
+
+// Function to close all modals
+function closeAllModals() {
+  confirmationModal.style.display = 'none';
+  executeModal.style.display = 'none';
+}
   </script>
 
 
