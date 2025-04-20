@@ -3035,6 +3035,96 @@ body.dark-mode {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* Dark mode notification styles */
+.dark-mode .notification {
+  background-color: rgb(36, 39, 46);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .notification.success {
+  border-left: 4px solid #2ecc71;
+}
+
+.dark-mode .notification.error {
+  border-left: 4px solid #e74c3c;
+}
+
+.dark-mode .notification.pending {
+  border-left: 4px solid #3498db;
+}
+
+.dark-mode .notification i.fa-check-circle {
+  color: #2ecc71;
+}
+
+.dark-mode .notification i.fa-exclamation-circle {
+  color: #e74c3c;
+}
+
+.dark-mode .notification i.fa-spinner {
+  color: #3498db;
+}
+
+.dark-mode .notification span {
+  color: #f5f6fa;
+}
+
+.dark-mode .notification .close-notification {
+  color: #a0a0a0;
+}
+
+.dark-mode .notification .close-notification:hover {
+  color: #fff;
+}
+
+/* Additional improvements for overall notification visibility */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  background-color: #fff;
+  border-left: 4px solid #28a745;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  min-width: 300px;
+  max-width: 450px;
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Make notification text more visible in both light and dark modes */
+.notification span {
+  flex-grow: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* Add subtle fade in/out animation on hover */
+.notification {
+  transition: all 0.3s ease;
+}
+
+.notification:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
 </style>
 </head>
 <body>
@@ -3286,9 +3376,6 @@ body.dark-mode {
   <!-- JavaScript Files -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
   <script>
-// Complete client-side JavaScript with fixes for rule activation, deletion and duplication
-// Replace the entire script in your rules.ejs template with this code
-
 // Global variables
 let allRules = [];
 const dbConnected = <%= db_connected %>;
@@ -3359,9 +3446,28 @@ async function loadRules() {
     allRules = await response.json();
     console.log('Rules loaded:', allRules.length);
     renderRules(allRules);
+    
+    // Update dashboard stats
+    updateDashboardStats();
   } catch (error) {
     console.error('Error loading rules:', error);
     showError(`Failed to load rules: ${error.message}`);
+  }
+}
+
+// Function to update dashboard statistics
+function updateDashboardStats() {
+  // Update total rules count
+  const totalRulesEl = document.querySelector('.stats-card:nth-child(1) .stats-number');
+  if (totalRulesEl) {
+    totalRulesEl.textContent = allRules.length;
+  }
+  
+  // Update active rules count
+  const activeRulesCount = allRules.filter(rule => rule.active).length;
+  const activeRulesEl = document.querySelector('.stats-card:nth-child(2) .stats-number');
+  if (activeRulesEl) {
+    activeRulesEl.textContent = activeRulesCount;
   }
 }
 
@@ -3521,6 +3627,9 @@ function addRuleCardEventListeners() {
           } else {
             ruleCard.classList.add('inactive-rule');
           }
+          
+          // Update dashboard stats to reflect the change
+          updateDashboardStats();
         } catch (error) {
           console.error('Error updating rule status:', error);
           
@@ -3721,6 +3830,9 @@ function addRuleCardEventListeners() {
             // Remove rule from list and DOM
             allRules = allRules.filter(r => r.id != ruleId);
             ruleCard.remove();
+            
+            // Update dashboard stats to reflect the deletion
+            updateDashboardStats();
             
             // Show empty state if no rules left
             if (allRules.length === 0) {
