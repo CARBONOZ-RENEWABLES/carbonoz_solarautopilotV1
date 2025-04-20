@@ -5213,13 +5213,13 @@ function connectToMqtt() {
   })
 
   mqttClient.on('connect', () => {
-    console.log('Connected to MQTT broker')
+    console.log('✅ Connected to MQTT broker')
     // Subscribe to all topics with the prefix
     mqttClient.subscribe(`${mqttTopicPrefix}/#`, (err) => {
       if (err) {
         console.error('Error subscribing to topics:', err.message)
       } else {
-        console.log(`Subscribed to ${mqttTopicPrefix}/#`)
+        console.log(`📡 Subscribed to ${mqttTopicPrefix}/#`)
       }
     })
   })
@@ -5425,7 +5425,7 @@ async function initializeConnections() {
       await initializeAutomationRules();
     }
   } catch (err) {
-    console.error('Initial database connection failed:', err);
+    console.error('❌ Initial database connection failed:', err);
     // Continue app startup even if DB fails initially
     setTimeout(retryDatabaseConnection, 10000);
   }
@@ -5446,7 +5446,7 @@ async function initializeAutomationRules() {
     // Create weekend grid charge rules
     await createWeekendGridChargeRules();
     
-    console.log('All automation rules initialized successfully');
+    console.log('✅ All automation rules initialized successfully');
   } catch (error) {
     console.error('Error initializing automation rules:', error.message);
   }
