@@ -4373,13 +4373,7 @@ app.get('/voltage-point', async (req, res) => {
 app.get('/wizard', async (req, res) => {
   try {
     // Check if editing an existing rule (optional)
-    const ruleId = req.query.edit;
-    let rule = null;
-    
-    if (ruleId && dbConnected) {
-      // Find rule by ID and user ID to ensure it belongs to this user
-      rule = await getRuleById(ruleId, USER_ID);
-    }
+    const editParam = req.query.edit;
     
     // Get current system state for reference
     const systemState = { ...currentSystemState };
@@ -4388,10 +4382,9 @@ app.get('/wizard', async (req, res) => {
     const numInverters = inverterNumber || 1;
     
     res.render('wizard', { 
-      rule,
+      editParam,  // Pass the edit parameter to the template
       systemState,
       numInverters,
-      editMode: !!ruleId,
       db_connected: dbConnected,
       ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
