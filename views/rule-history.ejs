@@ -2142,426 +2142,457 @@ border: 0;
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
     <script>
-        // Pagination state
-        let currentPage = 1;
-        let itemsPerPage = 10;
-        let totalItems = 0;
-        let currentRuleId = null;
-        
-        // Initialize the page
-        $(document).ready(function() {
-            // Load rule statistics
-            loadRuleStatistics();
-            
-            // Load rule history with default sorting
-            loadRuleHistory();
-            
-            // Set up event listeners
-            setupEventListeners();
-        });
-        
-        // Setup event listeners
-        function setupEventListeners() {
-            // Refresh button
-            $('#refresh-history').click(function() {
-                loadRuleStatistics();
-                loadRuleHistory();
-                showAlert('info', 'Rule history refreshed');
-            });
-            
-            // Sort order change
-            $('#sort-order').change(function() {
-                // Reset to first page when sorting changes
-                currentPage = 1;
-                loadRuleHistory();
-            });
-            
-            // Pagination controls
-            $('#prev-page').click(function(e) {
-                e.preventDefault();
-                if ($(this).parent().hasClass('disabled')) return;
-                currentPage--;
-                loadRuleHistory();
-            });
-            
-            $('#next-page').click(function(e) {
-                e.preventDefault();
-                if ($(this).parent().hasClass('disabled')) return;
-                currentPage++;
-                loadRuleHistory();
-            });
-            
-            // Execute rule button
-            $('#execute-rule-btn').click(function() {
-                if (!currentRuleId) return;
-                executeRule(currentRuleId);
-            });
-            
-            // Edit rule button
-            $('#edit-rule-btn').click(function(e) {
-                e.preventDefault();
-                if (!currentRuleId) return;
-                window.location.href = `<%= ingress_path %>/wizard?edit=${currentRuleId}`;
-            });
+      // Updated JavaScript for rule-history.ejs
+// Replace the entire script section in your rule-history.ejs template
+
+// Pagination state
+let currentPage = 1;
+let itemsPerPage = 10;
+let totalItems = 0;
+let currentRuleId = null;
+const ingressPath = '<%= ingress_path %>';
+
+// Initialize the page
+$(document).ready(function() {
+    console.log('DOM loaded, initializing rule history page...');
+    // Load rule statistics
+    loadRuleStatistics();
+    
+    // Load rule history with default sorting
+    loadRuleHistory();
+    
+    // Set up event listeners
+    setupEventListeners();
+});
+
+// Setup event listeners
+function setupEventListeners() {
+    // Refresh button
+    $('#refresh-history').click(function() {
+        loadRuleStatistics();
+        loadRuleHistory();
+        showAlert('info', 'Rule history refreshed');
+    });
+    
+    // Sort order change
+    $('#sort-order').change(function() {
+        // Reset to first page when sorting changes
+        currentPage = 1;
+        loadRuleHistory();
+    });
+    
+    // Pagination controls
+    $('#prev-page').click(function(e) {
+        e.preventDefault();
+        if ($(this).parent().hasClass('disabled')) return;
+        currentPage--;
+        loadRuleHistory();
+    });
+    
+    $('#next-page').click(function(e) {
+        e.preventDefault();
+        if ($(this).parent().hasClass('disabled')) return;
+        currentPage++;
+        loadRuleHistory();
+    });
+    
+    // Execute rule button
+    $('#execute-rule-btn').click(function() {
+        if (!currentRuleId) return;
+        executeRule(currentRuleId);
+    });
+    
+    // Edit rule button
+    $('#edit-rule-btn').click(function(e) {
+        e.preventDefault();
+        if (!currentRuleId) return;
+        window.location.href = `${ingressPath}/wizard?edit=${currentRuleId}`;
+    });
+}
+
+// Load rule statistics
+function loadRuleStatistics() {
+    $.ajax({
+        url: `${ingressPath}/api/rules/statistics`,
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            // Update the statistics display
+            $('#total-rules-count').text(data.totalRules || 0);
+            $('#total-executions-count').text(data.totalExecutions || 0);
+            $('#last-24h-count').text(data.last24Hours || 0);
+            $('#most-active-rule').text(data.mostActiveRule || 'None');
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load rule statistics:', error);
+            showAlert('warning', 'Failed to load rule statistics');
         }
-        
-        // Load rule statistics
-        function loadRuleStatistics() {
-            $.ajax({
-                url: '<%= ingress_path %>/api/rules/statistics',
-                method: 'GET',
-                success: function(data) {
-                    // Update the statistics display
-                    $('#total-rules-count').text(data.totalRules || 0);
-                    $('#total-executions-count').text(data.totalExecutions || 0);
-                    $('#last-24h-count').text(data.last24Hours || 0);
-                    $('#most-active-rule').text(data.mostActiveRule || 'None');
-                },
-                error: function() {
-                    showAlert('warning', 'Failed to load rule statistics');
-                }
-            });
+    });
+}
+
+// Load rule history
+function loadRuleHistory() {
+    // Get sort parameters
+    const sortOption = $('#sort-order').val();
+    let sortBy, sortOrder;
+    
+    switch (sortOption) {
+        case 'time-desc':
+            sortBy = 'last_triggered';
+            sortOrder = 'DESC';
+            break;
+        case 'time-asc':
+            sortBy = 'last_triggered';
+            sortOrder = 'ASC';
+            break;
+        case 'trigger-desc':
+            sortBy = 'trigger_count';
+            sortOrder = 'DESC';
+            break;
+        case 'name-asc':
+            sortBy = 'name';
+            sortOrder = 'ASC';
+            break;
+    }
+    
+    // Calculate pagination parameters
+    const skip = (currentPage - 1) * itemsPerPage;
+    
+    // Show loading state
+    $('#rule-history-container').html(`
+        <p class="text-center py-5">
+            <span class="spinner-border text-primary" role="status"></span>
+            <br>
+            <span class="mt-2 d-inline-block">Loading rule history...</span>
+        </p>
+    `);
+    
+    $.ajax({
+        url: `${ingressPath}/api/rules/history`,
+        method: 'GET',
+        dataType: 'json',
+        data: {
+            limit: itemsPerPage,
+            skip: skip,
+            sortBy: sortBy,
+            sortOrder: sortOrder
+        },
+        success: function(response) {
+            displayRuleHistory(response);
+            updatePagination(response.pagination);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load rule history:', error);
+            $('#rule-history-container').html('<div class="alert alert-warning">Failed to load rule history</div>');
+            updatePagination({ total: 0, limit: itemsPerPage, skip: 0 });
         }
+    });
+}
+
+// Display rule history
+function displayRuleHistory(response) {
+    const container = $('#rule-history-container');
+    
+    if (!response || !response.rules || response.rules.length === 0) {
+        container.html('<div class="alert alert-warning">No rule execution history found</div>');
+        return;
+    }
+    
+    let html = '';
+    
+    response.rules.forEach(rule => {
+        const lastTriggered = rule.lastTriggered ? moment(rule.lastTriggered).format('MMM D, YYYY HH:mm:ss') : 'Never triggered';
+        const formattedName = rule.name.length > 50 ? rule.name.substring(0, 47) + '...' : rule.name;
+        const activeClass = rule.active ? '' : 'inactive-rule';
         
-        // Load rule history
-        function loadRuleHistory() {
-            // Get sort parameters
-            const sortOption = $('#sort-order').val();
-            let sortBy, sortOrder;
-            
-            switch (sortOption) {
-                case 'time-desc':
-                    sortBy = 'last_triggered';
-                    sortOrder = 'DESC';
-                    break;
-                case 'time-asc':
-                    sortBy = 'last_triggered';
-                    sortOrder = 'ASC';
-                    break;
-                case 'trigger-desc':
-                    sortBy = 'trigger_count';
-                    sortOrder = 'DESC';
-                    break;
-                case 'name-asc':
-                    sortBy = 'name';
-                    sortOrder = 'ASC';
-                    break;
-            }
-            
-            // Calculate pagination parameters
-            const skip = (currentPage - 1) * itemsPerPage;
-            
-            // Show loading state
-            $('#rule-history-container').html(`
-                <p class="text-center py-5">
-                    <span class="spinner-border text-primary" role="status"></span>
-                    <br>
-                    <span class="mt-2 d-inline-block">Loading rule history...</span>
-                </p>
-            `);
-            
-            $.ajax({
-                url: '<%= ingress_path %>/api/rules/history',
-                method: 'GET',
-                data: {
-                    limit: itemsPerPage,
-                    skip: skip,
-                    sortBy: sortBy,
-                    sortOrder: sortOrder
-                },
-                success: function(response) {
-                    displayRuleHistory(response);
-                    updatePagination(response.pagination);
-                },
-                error: function() {
-                    $('#rule-history-container').html('<div class="alert alert-warning">Failed to load rule history</div>');
-                    updatePagination({ total: 0, limit: itemsPerPage, skip: 0 });
-                }
-            });
-        }
-        
-        // Display rule history
-        function displayRuleHistory(response) {
-            const container = $('#rule-history-container');
-            
-            if (!response || !response.rules || response.rules.length === 0) {
-                container.html('<div class="alert alert-warning">No rule execution history found</div>');
-                return;
-            }
-            
-            let html = '';
-            
-            response.rules.forEach(rule => {
-                const lastTriggered = moment(rule.lastTriggered).format('MMM D, YYYY HH:mm:ss');
-                const formattedName = rule.name.length > 50 ? rule.name.substring(0, 47) + '...' : rule.name;
-                
-                html += `
-                    <div class="change-item rule-item" data-rule-id="${rule.id}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="setting-title">${formattedName}</div>
-                                <div class="mt-1">
-                                    Last triggered: <span class="timestamp">${lastTriggered}</span>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <span class="badge bg-primary me-3">${rule.triggerCount} executions</span>
-                                <i class="fas fa-eye text-primary edit-icon"></i>
-                            </div>
+        html += `
+            <div class="change-item rule-item ${activeClass}" data-rule-id="${rule.id}" data-rule-active="${rule.active}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="setting-title">${formattedName}</div>
+                        <div class="mt-1">
+                            Last triggered: <span class="timestamp">${lastTriggered}</span>
                         </div>
                     </div>
-                `;
-            });
-            
-            container.html(html);
-            
-            // Add click event to rule items
-            $('.rule-item').click(function() {
-                const ruleId = $(this).data('rule-id');
-                showRuleDetails(ruleId);
-            });
+                    <div class="d-flex align-items-center">
+                        <span class="badge ${rule.active ? 'bg-success' : 'bg-secondary'} me-2">${rule.active ? 'Active' : 'Inactive'}</span>
+                        <span class="badge bg-primary me-3">${rule.triggerCount || 0} executions</span>
+                        <i class="fas fa-eye text-primary edit-icon"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.html(html);
+    
+    // Add click event to rule items
+    $('.rule-item').click(function() {
+        const ruleId = $(this).data('rule-id');
+        showRuleDetails(ruleId);
+    });
+}
+
+// Update pagination controls
+function updatePagination(pagination) {
+    totalItems = pagination.total || 0;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const start = Math.min((currentPage - 1) * itemsPerPage + 1, totalItems);
+    const end = Math.min(currentPage * itemsPerPage, totalItems);
+    
+    // Update pagination info text
+    $('#pagination-info').text(`Showing ${start}-${end} of ${totalItems} items`);
+    
+    // Update pagination controls
+    const prevPageBtn = $('#prev-page').parent();
+    const nextPageBtn = $('#next-page').parent();
+    
+    if (currentPage <= 1) {
+        prevPageBtn.addClass('disabled');
+    } else {
+        prevPageBtn.removeClass('disabled');
+    }
+    
+    if (currentPage >= totalPages || totalPages === 0) {
+        nextPageBtn.addClass('disabled');
+    } else {
+        nextPageBtn.removeClass('disabled');
+    }
+    
+    // Clear existing page number buttons
+    $('#pagination-controls li:not(:first-child):not(:last-child)').remove();
+    
+    // Add page number buttons
+    if (totalPages > 0) {
+        // Determine which page numbers to show
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
         }
         
-        // Update pagination controls
-        function updatePagination(pagination) {
-            totalItems = pagination.total || 0;
-            const totalPages = Math.ceil(totalItems / itemsPerPage);
-            const start = Math.min((currentPage - 1) * itemsPerPage + 1, totalItems);
-            const end = Math.min(currentPage * itemsPerPage, totalItems);
+        // Insert page number buttons
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === currentPage;
+            const pageItem = $(`
+                <li class="page-item ${isActive ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `);
             
-            // Update pagination info text
-            $('#pagination-info').text(`Showing ${start}-${end} of ${totalItems} items`);
+            pageItem.insertBefore(nextPageBtn);
             
-            // Update pagination controls
-            const prevPageBtn = $('#prev-page').parent();
-            const nextPageBtn = $('#next-page').parent();
-            
-            if (currentPage <= 1) {
-                prevPageBtn.addClass('disabled');
-            } else {
-                prevPageBtn.removeClass('disabled');
-            }
-            
-            if (currentPage >= totalPages || totalPages === 0) {
-                nextPageBtn.addClass('disabled');
-            } else {
-                nextPageBtn.removeClass('disabled');
-            }
-            
-            // Clear existing page number buttons
-            $('#pagination-controls li:not(:first-child):not(:last-child)').remove();
-            
-            // Add page number buttons
-            if (totalPages > 0) {
-                // Determine which page numbers to show
-                let startPage = Math.max(1, currentPage - 2);
-                let endPage = Math.min(totalPages, startPage + 4);
-                
-                if (endPage - startPage < 4) {
-                    startPage = Math.max(1, endPage - 4);
-                }
-                
-                // Insert page number buttons
-                for (let i = startPage; i <= endPage; i++) {
-                    const isActive = i === currentPage;
-                    const pageItem = $(`
-                        <li class="page-item ${isActive ? 'active' : ''}">
-                            <a class="page-link" href="#" data-page="${i}">${i}</a>
-                        </li>
-                    `);
-                    
-                    pageItem.insertBefore(nextPageBtn);
-                    
-                    // Add click event if not active page
-                    if (!isActive) {
-                        pageItem.click(function(e) {
-                            e.preventDefault();
-                            currentPage = parseInt($(this).find('a').data('page'));
-                            loadRuleHistory();
-                        });
-                    }
-                }
-            }
-        }
-        
-        // Show rule details
-        function showRuleDetails(ruleId) {
-            // Store the current rule ID
-            currentRuleId = ruleId;
-            
-            // Reset modal content
-            $('#detail-rule-name').text('-');
-            $('#detail-rule-status').text('-');
-            $('#detail-last-triggered').text('-');
-            $('#detail-trigger-count').text('-');
-            $('#detail-description').text('-');
-            $('#detail-conditions-list').html('<li class="text-muted">No conditions</li>');
-            $('#detail-actions-list').html('<li class="text-muted">No actions</li>');
-            $('#detail-time-restrictions').html('<li class="text-muted">No time restrictions</li>');
-            
-            // Show loading indicator
-            $('#rule-details-loading').show();
-            $('#rule-details-content').hide();
-            
-            // Show the modal
-            const modal = new bootstrap.Modal(document.getElementById('ruleDetailsModal'));
-            modal.show();
-            
-            // Load rule details
-            $.ajax({
-                url: `<%= ingress_path %>/api/rules/${ruleId}/execution-history`,
-                method: 'GET',
-                success: function(response) {
-                    displayRuleDetails(response);
-                },
-                error: function() {
-                    showAlert('warning', 'Failed to load rule details', true);
-                    $('#rule-details-loading').hide();
-                    $('#rule-details-content').show();
-                }
-            });
-        }
-        
-        // Display rule details
-        function displayRuleDetails(response) {
-            if (!response || !response.rule) {
-                showAlert('warning', 'No rule details available', true);
-                return;
-            }
-            
-            const rule = response.rule;
-            
-            // Basic rule information
-            $('#detail-rule-name').text(rule.name);
-            $('#detail-rule-status').html(
-                rule.active 
-                    ? '<span class="badge bg-success">Active</span>' 
-                    : '<span class="badge bg-secondary">Inactive</span>'
-            );
-            
-            $('#detail-last-triggered').text(
-                rule.lastTriggered 
-                    ? moment(rule.lastTriggered).format('MMM D, YYYY HH:mm:ss') 
-                    : 'Never triggered'
-            );
-            
-            $('#detail-trigger-count').text(rule.triggerCount || 0);
-            $('#detail-description').text(rule.description || 'No description');
-            
-            // Conditions
-            if (rule.conditions && rule.conditions.length > 0) {
-                let conditionsHtml = '';
-                
-                rule.conditions.forEach(condition => {
-                    let operatorText = '';
-                    switch(condition.operator) {
-                        case 'eq': operatorText = 'equals'; break;
-                        case 'gt': operatorText = 'greater than'; break;
-                        case 'lt': operatorText = 'less than'; break;
-                        case 'gte': operatorText = 'greater than or equal to'; break;
-                        case 'lte': operatorText = 'less than or equal to'; break;
-                        default: operatorText = condition.operator;
-                    }
-                    
-                    conditionsHtml += `
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-1"></i>
-                            <strong>${formatParameterName(condition.parameter)}</strong> is ${operatorText} <span class="badge bg-light text-dark">${condition.value}</span>
-                        </li>
-                    `;
+            // Add click event if not active page
+            if (!isActive) {
+                pageItem.click(function(e) {
+                    e.preventDefault();
+                    currentPage = parseInt($(this).find('a').data('page'));
+                    loadRuleHistory();
                 });
-                
-                $('#detail-conditions-list').html(conditionsHtml);
             }
-            
-            // Actions
-            if (rule.actions && rule.actions.length > 0) {
-                let actionsHtml = '';
-                
-                rule.actions.forEach(action => {
-                    actionsHtml += `
-                        <li class="mb-2">
-                            <i class="fas fa-cog text-primary me-1"></i>
-                            Set <strong>${formatSettingName(action.setting)}</strong> to <span class="badge bg-light text-dark">${action.value}</span> on ${formatInverterName(action.inverter)}
-                        </li>
-                    `;
-                });
-                
-                $('#detail-actions-list').html(actionsHtml);
-            }
-            
-            // Time restrictions
-            if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
-                let timeRestrictionsHtml = '';
-                
-                if (rule.timeRestrictions.startTime && rule.timeRestrictions.endTime) {
-                    timeRestrictionsHtml += `
-                        <li class="mb-2">
-                            <i class="fas fa-clock text-warning me-1"></i>
-                            Active between <strong>${rule.timeRestrictions.startTime}</strong> and <strong>${rule.timeRestrictions.endTime}</strong>
-                        </li>
-                    `;
-                }
-                
-                if (rule.timeRestrictions.days && rule.timeRestrictions.days.length > 0) {
-                    const daysFormatted = rule.timeRestrictions.days
-                        .map(day => day.charAt(0).toUpperCase() + day.slice(1))
-                        .join(', ');
-                    
-                    timeRestrictionsHtml += `
-                        <li class="mb-2">
-                            <i class="fas fa-calendar-day text-warning me-1"></i>
-                            Active on: <strong>${daysFormatted}</strong>
-                        </li>
-                    `;
-                }
-                
-                if (timeRestrictionsHtml) {
-                    $('#detail-time-restrictions').html(timeRestrictionsHtml);
-                }
-            }
-            
-            // Hide loading and show content
+        }
+    }
+}
+
+// Show rule details
+function showRuleDetails(ruleId) {
+    // Store the current rule ID
+    currentRuleId = ruleId;
+    
+    // Reset modal content
+    $('#detail-rule-name').text('-');
+    $('#detail-rule-status').text('-');
+    $('#detail-last-triggered').text('-');
+    $('#detail-trigger-count').text('-');
+    $('#detail-description').text('-');
+    $('#detail-conditions-list').html('<li class="text-muted">No conditions</li>');
+    $('#detail-actions-list').html('<li class="text-muted">No actions</li>');
+    $('#detail-time-restrictions').html('<li class="text-muted">No time restrictions</li>');
+    
+    // Show loading indicator
+    $('#rule-details-loading').show();
+    $('#rule-details-content').hide();
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('ruleDetailsModal'));
+    modal.show();
+    
+    // Load rule details
+    $.ajax({
+        url: `${ingressPath}/api/rules/${ruleId}/execution-history`,
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            displayRuleDetails(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load rule details:', error);
+            showAlert('warning', 'Failed to load rule details', true);
             $('#rule-details-loading').hide();
             $('#rule-details-content').show();
         }
+    });
+}
+
+// Display rule details
+function displayRuleDetails(response) {
+    if (!response || !response.rule) {
+        showAlert('warning', 'No rule details available', true);
+        return;
+    }
+    
+    const rule = response.rule;
+    
+    // Basic rule information
+    $('#detail-rule-name').text(rule.name);
+    $('#detail-rule-status').html(
+        rule.active 
+            ? '<span class="badge bg-success">Active</span>' 
+            : '<span class="badge bg-secondary">Inactive</span>'
+    );
+    
+    $('#detail-last-triggered').text(
+        rule.lastTriggered 
+            ? moment(rule.lastTriggered).format('MMM D, YYYY HH:mm:ss') 
+            : 'Never triggered'
+    );
+    
+    $('#detail-trigger-count').text(rule.triggerCount || 0);
+    $('#detail-description').text(rule.description || 'No description');
+    
+    // Conditions
+    if (rule.conditions && rule.conditions.length > 0) {
+        let conditionsHtml = '';
         
-        // Helper function to format parameter names
-        function formatParameterName(parameter) {
-            return parameter
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-        }
-        
-        // Helper function to format setting names
-        function formatSettingName(setting) {
-            return setting
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-        }
-        
-        // Helper function to format inverter names
-        function formatInverterName(inverter) {
-            if (inverter === 'all') {
-                return 'All Inverters';
+        rule.conditions.forEach(condition => {
+            let operatorText = '';
+            switch(condition.operator) {
+                case 'eq': operatorText = 'equals'; break;
+                case 'gt': operatorText = 'greater than'; break;
+                case 'lt': operatorText = 'less than'; break;
+                case 'gte': operatorText = 'greater than or equal to'; break;
+                case 'lte': operatorText = 'less than or equal to'; break;
+                default: operatorText = condition.operator;
             }
             
-            return inverter
-                .replace('_', ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
+            conditionsHtml += `
+                <li class="mb-2">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    <strong>${formatParameterName(condition.parameter)}</strong> is ${operatorText} <span class="badge bg-light text-dark">${condition.value}</span>
+                </li>
+            `;
+        });
+        
+        $('#detail-conditions-list').html(conditionsHtml);
+    }
+    
+    // Actions
+    if (rule.actions && rule.actions.length > 0) {
+        let actionsHtml = '';
+        
+        rule.actions.forEach(action => {
+            actionsHtml += `
+                <li class="mb-2">
+                    <i class="fas fa-cog text-primary me-1"></i>
+                    Set <strong>${formatSettingName(action.setting)}</strong> to <span class="badge bg-light text-dark">${action.value}</span> on ${formatInverterName(action.inverter)}
+                </li>
+            `;
+        });
+        
+        $('#detail-actions-list').html(actionsHtml);
+    }
+    
+    // Time restrictions
+    if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+        let timeRestrictionsHtml = '';
+        
+        if (rule.timeRestrictions.startTime && rule.timeRestrictions.endTime) {
+            timeRestrictionsHtml += `
+                <li class="mb-2">
+                    <i class="fas fa-clock text-warning me-1"></i>
+                    Active between <strong>${rule.timeRestrictions.startTime}</strong> and <strong>${rule.timeRestrictions.endTime}</strong>
+                </li>
+            `;
         }
         
-      // Execute rule
+        if (rule.timeRestrictions.days && rule.timeRestrictions.days.length > 0) {
+            const daysFormatted = rule.timeRestrictions.days
+                .map(day => day.charAt(0).toUpperCase() + day.slice(1))
+                .join(', ');
+            
+            timeRestrictionsHtml += `
+                <li class="mb-2">
+                    <i class="fas fa-calendar-day text-warning me-1"></i>
+                    Active on: <strong>${daysFormatted}</strong>
+                </li>
+            `;
+        }
+        
+        if (timeRestrictionsHtml) {
+            $('#detail-time-restrictions').html(timeRestrictionsHtml);
+        }
+    }
+    
+    // Update the execute button based on rule active status
+    if (!rule.active) {
+        $('#execute-rule-btn').attr('disabled', 'disabled')
+            .attr('title', 'Cannot execute inactive rule');
+    } else {
+        $('#execute-rule-btn').removeAttr('disabled')
+            .removeAttr('title');
+    }
+    
+    // Hide loading and show content
+    $('#rule-details-loading').hide();
+    $('#rule-details-content').show();
+}
+
+// Helper function to format parameter names
+function formatParameterName(parameter) {
+    return parameter
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+// Helper function to format setting names
+function formatSettingName(setting) {
+    return setting
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+// Helper function to format inverter names
+function formatInverterName(inverter) {
+    if (inverter === 'all') {
+        return 'All Inverters';
+    }
+    
+    return inverter
+        .replace('_', ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Execute rule - Updated with better error handling
 function executeRule(ruleId) {
+    // Show pending state
     $('#execute-rule-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Executing...');
     
+    // Create a notification
+    showAlert('info', 'Executing rule...', true);
+    
     $.ajax({
-        url: `<%= ingress_path %>/api/rules/${ruleId}/execute`,
+        url: `${ingressPath}/api/rules/${ruleId}/execute`,
         method: 'POST',
+        dataType: 'json',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         success: function(response) {
-            showAlert('success', response.message || 'Rule executed successfully');
+            showAlert('success', response.message || 'Rule executed successfully', true);
             
             // Update trigger count and last triggered time
             if (response.execution) {
@@ -2579,8 +2610,26 @@ function executeRule(ruleId) {
                 loadRuleHistory();
             }, 1000);
         },
-        error: function(error) {
-            showAlert('danger', `Failed to execute rule: ${error.responseJSON?.error || 'Unknown error'}`, true);
+        error: function(xhr, status, error) {
+            console.error('Failed to execute rule:', error);
+            let errorMessage = 'Failed to execute rule';
+            
+            // Try to parse error message from response
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMessage += ': ' + xhr.responseJSON.error;
+            } else if (xhr.responseText) {
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    if (errorData.error) {
+                        errorMessage += ': ' + errorData.error;
+                    }
+                } catch (e) {
+                    // If parsing fails, use the status text
+                    errorMessage += ': ' + xhr.statusText;
+                }
+            }
+            
+            showAlert('danger', errorMessage, true);
         },
         complete: function() {
             $('#execute-rule-btn').prop('disabled', false).html('<i class="fas fa-play me-1"></i> Execute Now');
@@ -2606,12 +2655,11 @@ function showAlert(type, message, inModal = false) {
         $('#alerts-container').append(alertHtml);
     }
     
-    // Auto-dismiss after 3 seconds
+    // Auto-dismiss after 5 seconds
     setTimeout(() => {
         $(`#${alertId}`).alert('close');
-    }, 3000);
+    }, 5000);
 }
-
 </script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
