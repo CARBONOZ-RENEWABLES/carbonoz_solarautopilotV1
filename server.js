@@ -553,124 +553,114 @@ async function batchUpdateRules(rules) {
 async function saveRule(ruleData) {
   if (!dbConnected) return null;
   
-  // Use the mutex pattern for transaction control
-  return executeWithDbMutex(async () => {
-    let transactionStarted = false;
+  try {
+    // Debug the rule data
+    console.log('Saving new rule with data:', {
+      name: ruleData.name,
+      active: ruleData.active,
+      user_id: ruleData.user_id
+    });
     
-    try {
-      // Begin transaction
-      await db.run('BEGIN TRANSACTION');
-      transactionStarted = true;
-      
-      // Convert conditions, time restrictions, and actions to JSON strings
-      const conditionsJson = JSON.stringify(ruleData.conditions || []);
-      const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-      const actionsJson = JSON.stringify(ruleData.actions || []);
-      
-      // Insert into SQLite
-      const result = await db.run(`
-        INSERT INTO rules 
-        (name, description, active, conditions, time_restrictions, actions, 
-         created_at, last_triggered, trigger_count, user_id, mqtt_username)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        ruleData.name,
-        ruleData.description || '',
-        ruleData.active ? 1 : 0,
-        conditionsJson,
-        timeRestrictionsJson,
-        actionsJson,
-        new Date().toISOString(),
-        ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-        ruleData.triggerCount || 0,
-        ruleData.user_id,
-        ruleData.mqtt_username
-      ]);
-      
-      // Get the ID of the inserted rule
-      const rule = await db.get('SELECT last_insert_rowid() as id');
-      
-      // Commit transaction
-      await db.run('COMMIT');
-      transactionStarted = false;
-      
-      // Return the rule data with the new ID
-      return {
-        id: rule.id,
-        ...ruleData
-      };
-    } catch (error) {
-      // Rollback on error, but only if we started a transaction
-      if (transactionStarted) {
-        try {
-          await db.run('ROLLBACK');
-        } catch (rollbackError) {
-          console.error('Error rolling back transaction:', rollbackError.message);
-        }
-      }
-      
-      console.error('Error saving rule to SQLite:', error.message);
+    // Convert active boolean to integer (SQLite stores booleans as 0/1)
+    const activeValue = ruleData.active ? 1 : 0;
+    
+    // Convert complex objects to JSON strings
+    const conditionsJson = JSON.stringify(ruleData.conditions || []);
+    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
+    const actionsJson = JSON.stringify(ruleData.actions || []);
+    
+    // Insert into SQLite
+    const result = await db.run(`
+      INSERT INTO rules 
+      (name, description, active, conditions, time_restrictions, actions, 
+       created_at, last_triggered, trigger_count, user_id, mqtt_username)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      ruleData.name,
+      ruleData.description || '',
+      activeValue,  // Explicitly set as 0 or 1
+      conditionsJson,
+      timeRestrictionsJson,
+      actionsJson,
+      new Date().toISOString(),
+      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
+      ruleData.triggerCount || 0,
+      ruleData.user_id,
+      ruleData.mqtt_username
+    ]);
+    
+    console.log('Save rule result:', result);
+    
+    // Get the ID of the inserted rule
+    const ruleIdResult = await db.get('SELECT last_insert_rowid() as id');
+    
+    if (!ruleIdResult || !ruleIdResult.id) {
+      console.error('Failed to get ID of newly inserted rule');
       return null;
     }
-  });
+    
+    console.log(`New rule saved with ID ${ruleIdResult.id}`);
+    
+    // Return the rule data with the new ID
+    return {
+      id: ruleIdResult.id,
+      ...ruleData
+    };
+  } catch (error) {
+    console.error('Error saving rule to SQLite:', error.message);
+    return null;
+  }
 }
 
 // Function to get a rule by ID
 async function updateRule(id, ruleData) {
   if (!dbConnected) return false;
   
-  // Use the mutex pattern for transaction control
-  return executeWithDbMutex(async () => {
-    let transactionStarted = false;
+  try {
+    // Convert complex objects to JSON strings
+    const conditionsJson = JSON.stringify(ruleData.conditions || []);
+    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
+    const actionsJson = JSON.stringify(ruleData.actions || []);
     
-    try {
-      // Begin transaction
-      await db.run('BEGIN TRANSACTION');
-      transactionStarted = true;
-      
-      // Convert complex objects to JSON strings
-      const conditionsJson = JSON.stringify(ruleData.conditions || []);
-      const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-      const actionsJson = JSON.stringify(ruleData.actions || []);
-      
-      // Update in SQLite
-      const result = await db.run(`
-        UPDATE rules 
-        SET name = ?, description = ?, active = ?, conditions = ?, 
-            time_restrictions = ?, actions = ?, last_triggered = ?, trigger_count = ?
-        WHERE id = ? AND user_id = ?
-      `, [
-        ruleData.name,
-        ruleData.description || '',
-        ruleData.active ? 1 : 0,
-        conditionsJson,
-        timeRestrictionsJson,
-        actionsJson,
-        ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-        ruleData.triggerCount || 0,
-        id,
-        ruleData.user_id
-      ]);
-      
-      // Commit transaction
-      await db.run('COMMIT');
-      transactionStarted = false;
-      
-      return result.changes > 0;
-    } catch (error) {
-      // Rollback on error, but only if we started a transaction
-      if (transactionStarted) {
-        try {
-          await db.run('ROLLBACK');
-        } catch (rollbackError) {
-          console.error('Error rolling back transaction:', rollbackError.message);
-        }
-      }
-      
-      console.error('Error updating rule in SQLite:', error.message);
-      return false;
-    }
-  });
+    // Debug the rule data before update
+    console.log('Updating rule with active status:', ruleData.active);
+    
+    // Convert active boolean to integer (SQLite stores booleans as 0/1)
+    const activeValue = ruleData.active ? 1 : 0;
+    
+    // Update in SQLite with explicit active value
+    const result = await db.run(`
+      UPDATE rules 
+      SET name = ?, 
+          description = ?, 
+          active = ?, 
+          conditions = ?, 
+          time_restrictions = ?, 
+          actions = ?, 
+          last_triggered = ?, 
+          trigger_count = ?
+      WHERE id = ? AND user_id = ?
+    `, [
+      ruleData.name,
+      ruleData.description || '',
+      activeValue,  // This is now explicitly set as 0 or 1
+      conditionsJson,
+      timeRestrictionsJson,
+      actionsJson,
+      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
+      ruleData.triggerCount || 0,
+      id,
+      ruleData.user_id
+    ]);
+    
+    // Debug the update operation
+    console.log('Update rule result:', result);
+    
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error updating rule in SQLite:', error.message);
+    return false;
+  }
 }
 
 // Function to get all rules
@@ -705,6 +695,9 @@ async function getAllRules(userId, options = {}) {
       }
     }
     
+    // Debug the query
+    console.log('Rules query:', query, 'with params:', params);
+    
     const rules = await db.all(query, params);
     
     // Parse JSON fields for each rule
@@ -712,7 +705,7 @@ async function getAllRules(userId, options = {}) {
       id: rule.id,
       name: rule.name,
       description: rule.description,
-      active: rule.active === 1,
+      active: rule.active === 1, // Explicitly convert SQLite integer to boolean
       conditions: JSON.parse(rule.conditions || '[]'),
       timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
       actions: JSON.parse(rule.actions || '[]'),
@@ -732,45 +725,19 @@ async function getAllRules(userId, options = {}) {
 async function deleteRule(id, userId) {
   if (!dbConnected) return false;
   
-  // Check if a transaction is already in progress
-  if (transactionInProgress) {
-    console.warn('Transaction already in progress, queueing rule deletion');
-    // Wait and retry
-    return new Promise(resolve => {
-      setTimeout(async () => {
-        resolve(await deleteRule(id, userId));
-      }, 100);
-    });
-  }
-  
   try {
-    // Set transaction flag
-    transactionInProgress = true;
-    
-    // Begin transaction
-    await db.run('BEGIN TRANSACTION');
-    
+    // Run the SQL directly - simplifying to avoid mutex issues
     const result = await db.run(`
       DELETE FROM rules WHERE id = ? AND user_id = ?
     `, [id, userId]);
     
-    // Commit transaction
-    await db.run('COMMIT');
+    console.log('Delete rule result:', result);
     
+    // Check if any rows were affected (deletion successful)
     return result.changes > 0;
   } catch (error) {
-    // Rollback on error
-    try {
-      await db.run('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('Error rolling back transaction:', rollbackError.message);
-    }
-    
     console.error('Error deleting rule from SQLite:', error.message);
     return false;
-  } finally {
-    // Always reset the transaction flag when done
-    transactionInProgress = false;
   }
 }
 
@@ -779,18 +746,23 @@ async function getRuleById(id, userId) {
   if (!dbConnected) return null;
   
   try {
+    console.log(`Getting rule by ID ${id} for user ${userId}`);
+    
     const rule = await db.get(`
       SELECT * FROM rules WHERE id = ? AND user_id = ?
     `, [id, userId]);
     
-    if (!rule) return null;
+    if (!rule) {
+      console.log(`No rule found with ID ${id} for user ${userId}`);
+      return null;
+    }
     
     // Parse JSON fields
-    return {
+    const parsedRule = {
       id: rule.id,
       name: rule.name,
       description: rule.description,
-      active: rule.active === 1,
+      active: rule.active === 1, // Explicitly convert SQLite integer to boolean
       conditions: JSON.parse(rule.conditions || '[]'),
       timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
       actions: JSON.parse(rule.actions || '[]'),
@@ -800,8 +772,12 @@ async function getRuleById(id, userId) {
       user_id: rule.user_id,
       mqtt_username: rule.mqtt_username
     };
+    
+    console.log(`Found rule "${parsedRule.name}" with active status:`, parsedRule.active);
+    
+    return parsedRule;
   } catch (error) {
-    console.error('Error getting rule by ID:', error.message);
+    console.error(`Error getting rule by ID ${id}:`, error.message);
     return null;
   }
 }
@@ -2558,7 +2534,7 @@ async function processRules() {
       return;
     }
     
-    // Get all active rules for the current user
+    // Get all active rules for the current user - CRITICAL FIX: { active: true }
     const rules = await getAllRules(USER_ID, { active: true });
     
     // Batch update for triggered rules
@@ -2570,6 +2546,9 @@ async function processRules() {
     const currentTime = now.format('HH:mm');
     
     for (const rule of rules) {
+      // Double-check: only process active rules
+      if (!rule.active) continue;
+      
       // Skip processing if rule has time restrictions that don't match current time
       if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
         const { days, startTime, endTime } = rule.timeRestrictions;
@@ -4471,25 +4450,45 @@ app.post('/api/rules', async (req, res) => {
 // Get a specific rule
 app.put('/api/rules/:id', async (req, res) => {
   try {
+    const ruleId = req.params.id;
+    
+    console.log(`Attempting to update rule with ID: ${ruleId}`);
+    console.log('Request body:', req.body);
+    
     if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      console.log('Database not connected, cannot update rule');
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database not connected', 
+        status: 'disconnected' 
+      });
     }
     
     const { name, description, active, conditions, timeRestrictions, actions } = req.body;
     
     if (!name) {
-      return res.status(400).json({ error: 'Rule name is required' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Rule name is required' 
+      });
     }
     
     if (!actions || actions.length === 0) {
-      return res.status(400).json({ error: 'At least one action is required' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least one action is required' 
+      });
     }
     
     // Find the rule filtered by both ID and user_id to ensure it belongs to this user
-    const rule = await getRuleById(req.params.id, USER_ID);
+    const rule = await getRuleById(ruleId, USER_ID);
     
     if (!rule) {
-      return res.status(404).json({ error: 'Rule not found' });
+      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Rule not found' 
+      });
     }
     
     // Update the rule
@@ -4497,38 +4496,64 @@ app.put('/api/rules/:id', async (req, res) => {
       ...rule,
       name,
       description,
-      active: active !== undefined ? active : true,
+      // Ensure active is a proper boolean, default to current state if undefined
+      active: active !== undefined ? !!active : rule.active,
       conditions: conditions || [],
       timeRestrictions: timeRestrictions || {},
       actions
     };
     
-    const success = await updateRule(req.params.id, updatedRule);
+    console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
+    
+    const success = await updateRule(ruleId, updatedRule);
     
     if (!success) {
-      return res.status(500).json({ error: 'Failed to update rule' });
+      console.log(`Failed to update rule with ID ${ruleId}`);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to update rule' 
+      });
     }
     
-    console.log(`Rule "${name}" updated successfully`);
-    
-    res.json(updatedRule);
+    console.log(`Successfully updated rule with ID ${ruleId}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Rule updated successfully',
+      rule: updatedRule
+    });
   } catch (error) {
-    console.error('Error updating rule:', error);
-    res.status(400).json({ error: error.message });
+    console.error('Error in update rule endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
   }
 });
 
 app.post('/api/rules/:id/duplicate', async (req, res) => {
   try {
+    const ruleId = req.params.id;
+    
+    console.log(`Attempting to duplicate rule with ID: ${ruleId}`);
+    
     if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      console.log('Database not connected, cannot duplicate rule');
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database not connected', 
+        status: 'disconnected' 
+      });
     }
     
     // Find the original rule filtered by both ID and user_id
-    const originalRule = await getRuleById(req.params.id, USER_ID);
+    const originalRule = await getRuleById(ruleId, USER_ID);
     
     if (!originalRule) {
-      return res.status(404).json({ error: 'Rule not found' });
+      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Rule not found' 
+      });
     }
     
     // Create a new rule based on the original
@@ -4544,14 +4569,30 @@ app.post('/api/rules/:id/duplicate', async (req, res) => {
       mqtt_username: mqttConfig.username
     };
     
+    console.log(`Duplicating rule "${originalRule.name}"`, newRule);
+    
     const savedRule = await saveRule(newRule);
     
-    console.log(`Rule "${originalRule.name}" duplicated as "${newRule.name}"`);
+    if (!savedRule) {
+      console.log(`Failed to duplicate rule with ID ${ruleId}`);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to duplicate rule' 
+      });
+    }
     
-    res.status(201).json(savedRule);
+    console.log(`Successfully duplicated rule with ID ${ruleId} to new rule ID ${savedRule.id}`);
+    return res.status(201).json({
+      success: true,
+      message: `Rule "${originalRule.name}" duplicated successfully`,
+      rule: savedRule
+    });
   } catch (error) {
-    console.error('Error duplicating rule:', error);
-    res.status(400).json({ error: error.message });
+    console.error('Error in duplicate rule endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
   }
 });
 
@@ -4903,21 +4944,53 @@ app.get('/api/rules', async (req, res) => {
 
 app.delete('/api/rules/:id', async (req, res) => {
   try {
+    const ruleId = req.params.id;
+    
+    console.log(`Attempting to delete rule with ID: ${ruleId}`);
+    
     if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      console.log('Database not connected, cannot delete rule');
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database not connected', 
+        status: 'disconnected' 
+      });
     }
     
-    // Find and delete the rule filtered by both ID and user_id
-    const success = await deleteRule(req.params.id, USER_ID);
+    // First check if the rule exists and belongs to this user
+    const rule = await getRuleById(ruleId, USER_ID);
+    
+    if (!rule) {
+      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Rule not found' 
+      });
+    }
+    
+    // Proceed with deletion
+    console.log(`Found rule "${rule.name}" with ID ${ruleId}, proceeding with deletion`);
+    const success = await deleteRule(ruleId, USER_ID);
     
     if (!success) {
-      return res.status(404).json({ error: 'Rule not found' });
+      console.log(`Failed to delete rule with ID ${ruleId}`);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Rule found but could not be deleted' 
+      });
     }
     
-    res.json({ message: 'Rule deleted successfully' });
+    console.log(`Successfully deleted rule with ID ${ruleId}`);
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Rule deleted successfully' 
+    });
   } catch (error) {
-    console.error('Error deleting rule:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error in delete rule endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
   }
 });
 
