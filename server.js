@@ -612,6 +612,7 @@ async function saveRule(ruleData) {
   }
 }
 
+
 // Function to get a rule by ID
 async function updateRule(id, ruleData) {
   if (!dbConnected) return false;
@@ -675,8 +676,9 @@ async function getAllRules(userId, options = {}) {
     const params = [userId];
     
     if (active !== undefined) {
+      // Explicitly compare with 1 for active rules in SQLite
       query += ' AND active = ?';
-      params.push(active ? 1 : 0);
+      params.push(active ? 1 : 0); // Convert boolean to integer
     }
     
     if (sort) {
@@ -700,7 +702,7 @@ async function getAllRules(userId, options = {}) {
     
     const rules = await db.all(query, params);
     
-    // Parse JSON fields for each rule
+    // Parse JSON fields for each rule and ensure active is properly converted to boolean
     return rules.map(rule => ({
       id: rule.id,
       name: rule.name,
@@ -757,7 +759,7 @@ async function getRuleById(id, userId) {
       return null;
     }
     
-    // Parse JSON fields
+    // Parse JSON fields and explicitly convert active to boolean
     const parsedRule = {
       id: rule.id,
       name: rule.name,
@@ -2534,8 +2536,9 @@ async function processRules() {
       return;
     }
     
-    // Get all active rules for the current user - CRITICAL FIX: { active: true }
+    // FIXED: Get all active rules for the current user by explicitly specifying active: true
     const rules = await getAllRules(USER_ID, { active: true });
+    console.log(`Processing ${rules.length} active rules`);
     
     // Batch update for triggered rules
     const rulesToUpdate = [];
@@ -2546,8 +2549,13 @@ async function processRules() {
     const currentTime = now.format('HH:mm');
     
     for (const rule of rules) {
-      // Double-check: only process active rules
-      if (!rule.active) continue;
+      // FIXED: Enhanced double-check to ensure only active rules are processed
+      // Print out the active status for debugging
+      console.log(`Checking rule "${rule.name}" with active status: ${rule.active}`);
+      if (rule.active !== true) {
+        console.log(`Skipping inactive rule: ${rule.name}`);
+        continue; // Skip inactive rules
+      }
       
       // Skip processing if rule has time restrictions that don't match current time
       if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
@@ -2586,6 +2594,7 @@ async function processRules() {
       }
       
       if (allConditionsMet) {
+        console.log(`Rule "${rule.name}" conditions met, applying actions`);
         // Only apply actions if learner mode is active
         if (learnerModeActive && rule.actions && rule.actions.length > 0) {
           for (const action of rule.actions) {
@@ -2602,6 +2611,7 @@ async function processRules() {
     
     // Batch update all triggered rules
     if (rulesToUpdate.length > 0) {
+      console.log(`Updating statistics for ${rulesToUpdate.length} triggered rules`);
       await batchUpdateRules(rulesToUpdate);
     }
   } catch (error) {
@@ -4927,8 +4937,27 @@ app.get('/api/rules', async (req, res) => {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
     }
     
-    const rules = await getAllRules(USER_ID, { sort: { field: 'name', order: 'ASC' } });
-    res.json(rules);
+    // Allow filtering by active status in the API
+    const activeFilter = req.query.active;
+    let queryOptions = { sort: { field: 'name', order: 'ASC' } };
+    
+    // Only add the active filter if it's explicitly provided
+    if (activeFilter !== undefined) {
+      // Convert string 'true'/'false' to boolean
+      const activeBoolean = activeFilter === 'true' || activeFilter === '1';
+      queryOptions.active = activeBoolean;
+    }
+    
+    const rules = await getAllRules(USER_ID, queryOptions);
+    
+    // Add explicit indication of active status in response
+    const rulesWithStatus = rules.map(rule => ({
+      ...rule,
+      active: rule.active === true, // Ensure it's a boolean
+      isActive: rule.active === true // Additional explicit field
+    }));
+    
+    res.json(rulesWithStatus);
   } catch (error) {
     console.error('Error retrieving rules:', error);
     res.status(500).json({ error: 'Failed to retrieve rules' });
