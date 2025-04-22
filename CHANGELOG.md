@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.1] - 2025-04-20
+## [1.0.0] - 2025-04-20
 ### Added
 - Initial release of Carbonoz SolarAutopilot.
 - Live Solar dashboard with MQTT inverter control.
