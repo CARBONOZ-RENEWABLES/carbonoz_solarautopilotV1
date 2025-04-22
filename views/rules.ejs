@@ -2276,11 +2276,11 @@ body.dark-mode .slider {
   
   <!-- JavaScript Files -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-  <script>
-// Global variables
+<script>
+  // Global variables
 let allRules = [];
-const dbConnected = <%= db_connected %>;
-const ingressPath = '<%= ingress_path %>';
+const ingressPath = window.location.pathname.includes('/rules') ? 
+  window.location.pathname.substring(0, window.location.pathname.indexOf('/rules')) : '';
 
 // DOM Elements
 const rulesList = document.getElementById('rulesList');
@@ -2320,14 +2320,43 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Function to load rules from API
-async function loadRules() {
-  if (!dbConnected) {
-    showDatabaseError();
-    return;
-  }
-  
+/**
+ * Checks the database connection status
+ * @returns {Promise<Object>} Database connection status
+ */
+async function checkDatabaseConnection() {
   try {
+    const response = await fetch(`${ingressPath}/api/database/status`, {
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      return { connected: false, error: `HTTP error ${response.status}` };
+    }
+    
+    const status = await response.json();
+    return status;
+  } catch (error) {
+    console.error('Failed to check database status:', error);
+    return { connected: false, error: error.message };
+  }
+}
+
+/**
+ * Loads rules from the server API
+ */
+async function loadRules() {
+  try {
+    // Check database connection first
+    const dbStatus = await checkDatabaseConnection();
+    if (!dbStatus.connected) {
+      showDatabaseError();
+      return;
+    }
+    
     // Show loading indicator
     rulesList.innerHTML = `
       <div class="loading-spinner">
@@ -2336,27 +2365,58 @@ async function loadRules() {
       </div>
     `;
     
-    const response = await fetch(`${ingressPath}/api/rules`);
+    const response = await fetch(`${ingressPath}/api/rules`, {
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
     
-    // Check for HTTP errors
+    // Log the raw response for debugging
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Failed to fetch rules (${response.status})`);
+      const errorText = await response.text();
+      console.error("Raw API error response:", errorText);
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.error || `Failed to fetch rules (${response.status})`);
+      } catch (parseError) {
+        throw new Error(`Failed to parse error response: ${errorText}`);
+      }
     }
     
-    allRules = await response.json();
-    console.log('Rules loaded:', allRules.length);
-    renderRules(allRules);
+    // Get the response text for debugging
+    const responseText = await response.text();
+    console.log('Rules response length:', responseText.length);
     
-    // Update dashboard stats
-    updateDashboardStats();
+    // Parse the response as JSON
+    try {
+      allRules = JSON.parse(responseText);
+      
+      // Validate the response
+      if (!Array.isArray(allRules)) {
+        throw new Error(`Invalid rules data: Expected array but got ${typeof allRules}`);
+      }
+      
+      console.log('Rules loaded:', allRules.length);
+      renderRules(allRules);
+      
+      // Update dashboard stats
+      updateDashboardStats();
+    } catch (parseError) {
+      console.error('Error parsing rules JSON:', parseError);
+      console.error('First 100 chars of response:', responseText.substring(0, 100));
+      throw new Error(`Failed to parse rules data: ${parseError.message}`);
+    }
   } catch (error) {
     console.error('Error loading rules:', error);
     showError(`Failed to load rules: ${error.message}`);
   }
 }
 
-// Function to update dashboard statistics
+/**
+ * Updates dashboard statistics based on loaded rules
+ */
 function updateDashboardStats() {
   // Update total rules count
   const totalRulesEl = document.querySelector('.stats-card:nth-child(1) .stats-number');
@@ -2372,7 +2432,10 @@ function updateDashboardStats() {
   }
 }
 
-// Function to render rules
+/**
+ * Renders rules in the UI
+ * @param {Array} rules - Array of rule objects
+ */
 function renderRules(rules) {
   rulesList.innerHTML = '';
   
@@ -2393,16 +2456,31 @@ function renderRules(rules) {
   addRuleCardEventListeners();
 }
 
-// Function to create a rule card from template
+/**
+ * Creates a rule card from template
+ * @param {Object} rule - Rule object
+ * @returns {HTMLElement} Rule card element
+ */
 function createRuleCard(rule) {
   console.log('Creating rule card for rule:', rule.name, 'active:', rule.active);
   
+  // Validate required rule fields
+  if (!rule || !rule.id) {
+    console.error('Invalid rule data:', rule);
+    return document.createElement('div'); // Return empty div to avoid errors
+  }
+  
   const template = document.getElementById('ruleTemplate');
+  if (!template) {
+    console.error('Rule template not found in DOM');
+    return document.createElement('div');
+  }
+  
   const ruleCard = document.importNode(template.content, true).children[0];
   
   // Set rule data attributes
   ruleCard.setAttribute('data-rule-id', rule.id);
-  ruleCard.setAttribute('data-rule-active', rule.active.toString());
+  ruleCard.setAttribute('data-rule-active', Boolean(rule.active).toString());
   
   // Visual indication of active/inactive
   if (!rule.active) {
@@ -2411,65 +2489,88 @@ function createRuleCard(rule) {
   
   // Set rule status
   const statusToggle = ruleCard.querySelector('.rule-active-toggle');
-  statusToggle.checked = !!rule.active;
+  if (statusToggle) {
+    statusToggle.checked = Boolean(rule.active);
+  }
   
   // Set rule name and description
-  ruleCard.querySelector('.rule-name').textContent = rule.name;
-  ruleCard.querySelector('.rule-description').textContent = rule.description || 'No description provided';
+  const nameElement = ruleCard.querySelector('.rule-name');
+  if (nameElement) {
+    nameElement.textContent = rule.name || 'Unnamed Rule';
+  }
+  
+  const descElement = ruleCard.querySelector('.rule-description');
+  if (descElement) {
+    descElement.textContent = rule.description || 'No description provided';
+  }
   
   // Render conditions
   const conditionsList = ruleCard.querySelector('.conditions-list');
-  if (rule.conditions && rule.conditions.length > 0) {
-    rule.conditions.forEach(condition => {
-      const conditionEl = document.createElement('div');
-      conditionEl.className = 'condition-item';
-      conditionEl.innerHTML = formatCondition(condition);
-      conditionsList.appendChild(conditionEl);
-    });
-  } else {
-    conditionsList.innerHTML = '<p class="empty-message">No conditions (runs unconditionally)</p>';
+  if (conditionsList) {
+    if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+      rule.conditions.forEach(condition => {
+        const conditionEl = document.createElement('div');
+        conditionEl.className = 'condition-item';
+        conditionEl.innerHTML = formatCondition(condition);
+        conditionsList.appendChild(conditionEl);
+      });
+    } else {
+      conditionsList.innerHTML = '<p class="empty-message">No conditions (runs unconditionally)</p>';
+    }
   }
   
   // Render time restrictions
   const timeRestrictions = ruleCard.querySelector('.time-restrictions');
-  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
-    const timeEl = document.createElement('div');
-    timeEl.className = 'time-item';
-    timeEl.innerHTML = formatTimeRestrictions(rule.timeRestrictions);
-    timeRestrictions.appendChild(timeEl);
-  } else {
-    timeRestrictions.innerHTML = '<p class="empty-message">No time restrictions (runs anytime)</p>';
+  if (timeRestrictions) {
+    if (rule.timeRestrictions && typeof rule.timeRestrictions === 'object' && rule.timeRestrictions.enabled) {
+      const timeEl = document.createElement('div');
+      timeEl.className = 'time-item';
+      timeEl.innerHTML = formatTimeRestrictions(rule.timeRestrictions);
+      timeRestrictions.appendChild(timeEl);
+    } else {
+      timeRestrictions.innerHTML = '<p class="empty-message">No time restrictions (runs anytime)</p>';
+    }
   }
   
   // Render actions
   const actionsList = ruleCard.querySelector('.actions-list');
-  if (rule.actions && rule.actions.length > 0) {
-    rule.actions.forEach(action => {
-      const actionEl = document.createElement('div');
-      actionEl.className = 'action-item';
-      actionEl.innerHTML = formatAction(action);
-      actionsList.appendChild(actionEl);
-    });
-  } else {
-    actionsList.innerHTML = '<p class="empty-message">No actions defined</p>';
+  if (actionsList) {
+    if (rule.actions && Array.isArray(rule.actions) && rule.actions.length > 0) {
+      rule.actions.forEach(action => {
+        const actionEl = document.createElement('div');
+        actionEl.className = 'action-item';
+        actionEl.innerHTML = formatAction(action);
+        actionsList.appendChild(actionEl);
+      });
+    } else {
+      actionsList.innerHTML = '<p class="empty-message">No actions defined</p>';
+    }
   }
   
   // Set dates and counts
   const createdDate = ruleCard.querySelector('.created-date');
-  createdDate.textContent = rule.createdAt ? new Date(rule.createdAt).toLocaleDateString() : 'Unknown';
+  if (createdDate) {
+    createdDate.textContent = rule.createdAt ? new Date(rule.createdAt).toLocaleDateString() : 'Unknown';
+  }
   
   const triggeredDate = ruleCard.querySelector('.triggered-date');
-  triggeredDate.textContent = rule.lastTriggered ? new Date(rule.lastTriggered).toLocaleString() : 'Never';
+  if (triggeredDate) {
+    triggeredDate.textContent = rule.lastTriggered ? new Date(rule.lastTriggered).toLocaleString() : 'Never';
+  }
   
   const triggerCount = ruleCard.querySelector('.trigger-count');
-  triggerCount.textContent = rule.triggerCount || 0;
+  if (triggerCount) {
+    triggerCount.textContent = rule.triggerCount || 0;
+  }
   
   return ruleCard;
 }
 
-// Add event listeners to rule cards
+/**
+ * Adds event listeners to rule cards
+ */
 function addRuleCardEventListeners() {
-  // Toggle rule active status - FIXED VERSION
+  // Toggle rule active status
   document.querySelectorAll('.rule-active-toggle').forEach(toggle => {
     toggle.addEventListener('change', async (e) => {
       const ruleCard = e.target.closest('.rule-card');
@@ -2589,7 +2690,7 @@ function addRuleCardEventListeners() {
     });
   });
   
-  // Duplicate rule - FIXED VERSION
+  // Duplicate rule
   document.querySelectorAll('.duplicate-rule').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
@@ -2631,7 +2732,15 @@ function addRuleCardEventListeners() {
         }
         
         // Parse the response
-        const result = await response.json();
+        const responseText = await response.text();
+        let result;
+        
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing duplicate response:', parseError, responseText);
+          throw new Error('Invalid server response when duplicating rule');
+        }
         
         // Remove pending notification
         notification.remove();
@@ -2669,7 +2778,7 @@ function addRuleCardEventListeners() {
     });
   });
   
-  // Delete rule - FIXED VERSION
+  // Delete rule
   document.querySelectorAll('.delete-rule').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -2754,9 +2863,14 @@ function addRuleCardEventListeners() {
   });
 }
 
-// Function to execute a rule
+/**
+ * Executes a rule
+ * @param {Object} rule - Rule object
+ * @returns {Promise<boolean>} Success status
+ */
 async function executeRule(rule) {
   try {
+    document.getElementById('executeStatus').classList.remove('success', 'error');
     document.getElementById('executeStatus').classList.add('pending');
     document.getElementById('executeMessage').textContent = `Executing rule "${rule.name}"...`;
     
@@ -2824,7 +2938,9 @@ async function executeRule(rule) {
   }
 }
 
-// Function to filter rules
+/**
+ * Filters rules based on search and filter criteria
+ */
 function filterRules() {
   const searchText = searchInput.value.toLowerCase();
   const filterValue = filterSelect.value;
@@ -2849,8 +2965,17 @@ function filterRules() {
   renderRules(filteredRules);
 }
 
-// Helper function to format conditions
+/**
+ * Formats a condition for display
+ * @param {Object} condition - Condition object
+ * @returns {string} Formatted HTML string
+ */
 function formatCondition(condition) {
+  // Validate condition object
+  if (!condition || typeof condition !== 'object') {
+    return 'Invalid condition';
+  }
+  
   const parameterLabels = {
     'battery_soc': 'Battery SOC',
     'pv_power': 'PV Power',
@@ -2875,29 +3000,39 @@ function formatCondition(condition) {
     'grid_power': 'W'
   };
   
-  const paramLabel = parameterLabels[condition.parameter] || condition.parameter;
-  const opLabel = operatorLabels[condition.operator] || condition.operator;
+  const paramLabel = parameterLabels[condition.parameter] || condition.parameter || 'Unknown';
+  const opLabel = operatorLabels[condition.operator] || condition.operator || 'Unknown';
+  const value = condition.value !== undefined ? condition.value : 'Unknown';
   const unit = units[condition.parameter] || '';
   
-  return `<strong>${paramLabel}</strong> is <strong>${opLabel}</strong> <strong>${condition.value}${unit}</strong>`;
+  return `<strong>${paramLabel}</strong> is <strong>${opLabel}</strong> <strong>${value}${unit}</strong>`;
 }
 
-// Helper function to format time restrictions
+/**
+ * Formats time restrictions for display
+ * @param {Object} restrictions - Time restrictions object
+ * @returns {string} Formatted HTML string
+ */
 function formatTimeRestrictions(restrictions) {
+  // Validate restrictions object
+  if (!restrictions || typeof restrictions !== 'object') {
+    return 'No time restrictions';
+  }
+  
   let result = '';
   
   if (restrictions.startTime && restrictions.endTime) {
     result += `<div><i class="fas fa-clock"></i> From <strong>${restrictions.startTime}</strong> to <strong>${restrictions.endTime}</strong></div>`;
   }
   
-  if (restrictions.days && restrictions.days.length > 0) {
+  if (restrictions.days && Array.isArray(restrictions.days) && restrictions.days.length > 0) {
     const daysFormatted = restrictions.days.map(day => 
       day.charAt(0).toUpperCase() + day.slice(1)
     ).join(', ');
     result += `<div><i class="fas fa-calendar-day"></i> Only on: <strong>${daysFormatted}</strong></div>`;
   }
   
-  if (restrictions.specificDates && restrictions.specificDates.length > 0) {
+  if (restrictions.specificDates && Array.isArray(restrictions.specificDates) && restrictions.specificDates.length > 0) {
     const datesFormatted = restrictions.specificDates.join(', ');
     result += `<div><i class="fas fa-calendar-check"></i> Only on dates: <strong>${datesFormatted}</strong></div>`;
   }
@@ -2905,8 +3040,17 @@ function formatTimeRestrictions(restrictions) {
   return result || 'Active at all times';
 }
 
-// Helper function to format actions
+/**
+ * Formats an action for display
+ * @param {Object} action - Action object
+ * @returns {string} Formatted HTML string
+ */
 function formatAction(action) {
+  // Validate action object
+  if (!action || typeof action !== 'object') {
+    return 'Invalid action';
+  }
+  
   const settingLabels = {
     'grid_charge': 'Grid Charge',
     'energy_pattern': 'Energy Pattern',
@@ -2926,13 +3070,19 @@ function formatAction(action) {
     'remote_switch': 'Remote Switch'
   };
   
-  const inverterLabel = action.inverter === 'all' ? 'All Inverters' : `${action.inverter}`;
-  const settingLabel = settingLabels[action.setting] || action.setting;
+  const setting = action.setting || 'Unknown';
+  const value = action.value !== undefined ? action.value : 'Unknown';
+  const inverter = action.inverter || 'Unknown';
   
-  return `Set <strong>${settingLabel}</strong> to <strong>${action.value}</strong> on <strong>${inverterLabel}</strong>`;
+  const inverterLabel = inverter === 'all' ? 'All Inverters' : `${inverter}`;
+  const settingLabel = settingLabels[setting] || setting;
+  
+  return `Set <strong>${settingLabel}</strong> to <strong>${value}</strong> on <strong>${inverterLabel}</strong>`;
 }
 
-// Function to show empty state
+/**
+ * Shows empty state when no rules are found
+ */
 function showEmptyState() {
   rulesList.innerHTML = `
     <div class="empty-state">
@@ -2944,7 +3094,9 @@ function showEmptyState() {
   `;
 }
 
-// Function to show database error
+/**
+ * Shows database error when database is disconnected
+ */
 function showDatabaseError() {
   rulesList.innerHTML = `
     <div class="error-state">
@@ -2956,8 +3108,14 @@ function showDatabaseError() {
   `;
 }
 
-// Enhanced notification function with support for different states
-function showNotification(message, type = 'success') {
+/**
+ * Shows notification 
+ * @param {string} message - Notification message
+ * @param {string} type - Notification type: success, error, warning, info, pending
+ * @param {number} duration - Duration in milliseconds
+ * @returns {HTMLElement} Notification element
+ */
+function showNotification(message, type = 'success', duration = 5000) {
   // Remove any existing notifications with the same type
   document.querySelectorAll(`.notification.${type}`).forEach(n => n.remove());
   
@@ -2966,6 +3124,8 @@ function showNotification(message, type = 'success') {
   
   let icon = 'check-circle';
   if (type === 'error') icon = 'exclamation-circle';
+  if (type === 'warning') icon = 'exclamation-triangle';
+  if (type === 'info') icon = 'info-circle';
   if (type === 'pending') icon = 'spinner fa-spin';
   
   notification.innerHTML = `
@@ -2979,26 +3139,47 @@ function showNotification(message, type = 'success') {
   // Add event listener to close button (if not pending)
   if (type !== 'pending') {
     notification.querySelector('.close-notification').addEventListener('click', () => {
-      notification.remove();
+      notification.classList.add('removing');
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.remove();
+        }
+      }, 300); // Match the animation duration
     });
     
-    // Auto-remove after 5 seconds for non-pending notifications
-    setTimeout(() => {
-      if (document.body.contains(notification)) {
-        notification.remove();
-      }
-    }, 5000);
+    // Auto-remove after the specified duration
+    if (duration > 0) {
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.classList.add('removing');
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              notification.remove();
+            }
+          }, 300);
+        }
+      }, duration);
+    }
   }
   
   return notification;
 }
 
-// Function to show error
+/**
+ * Shows error notification
+ * @param {string} message - Error message
+ * @returns {HTMLElement} Notification element
+ */
 function showError(message) {
-  return showNotification(message, 'error');
+  console.error(message); // Also log to console for debugging
+  return showNotification(message, 'error', 8000); // Errors stay longer
 }
 
-// Function to open confirmation modal
+/**
+ * Opens confirmation modal
+ * @param {string} message - Confirmation message
+ * @param {Function} confirmCallback - Callback function on confirm
+ */
 function openConfirmationModal(message, confirmCallback) {
   document.getElementById('confirmationMessage').textContent = message;
   confirmationModal.style.display = 'block';
@@ -3022,7 +3203,10 @@ function openConfirmationModal(message, confirmCallback) {
   newCancelBtn.addEventListener('click', closeAllModals);
 }
 
-// Function to open execute modal
+/**
+ * Opens execute modal
+ * @param {Object} rule - Rule object
+ */
 function openExecuteModal(rule) {
   // Reset modal state
   document.getElementById('executeStatus').className = 'execute-status';
@@ -3036,12 +3220,32 @@ function openExecuteModal(rule) {
   setTimeout(() => executeRule(rule), 500);
 }
 
-// Function to close all modals
+/**
+ * Closes all modals
+ */
 function closeAllModals() {
   confirmationModal.style.display = 'none';
   executeModal.style.display = 'none';
 }
-  </script>
+
+/**
+ * Safe JSON parsing with default value
+ * @param {string} jsonString - JSON string to parse
+ * @param {*} defaultValue - Default value if parsing fails
+ * @returns {*} Parsed object or default value
+ */
+function safeParseJson(jsonString, defaultValue) {
+  try {
+    if (!jsonString || jsonString === 'null' || jsonString === 'undefined') {
+      return defaultValue;
+    }
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error('JSON parsing error:', error, jsonString);
+    return defaultValue;
+  }
+}
+</script>
 
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
