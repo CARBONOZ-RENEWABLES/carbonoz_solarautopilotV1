@@ -23,6 +23,13 @@ const cron = require('node-cron')
 const session = require('express-session');
 const { startOfDay } = require('date-fns')
 const { AuthenticateUser } = require('./utils/mongoService')
+const telegramService = require('./utils/telegram-service');
+const notificationRules = require('./utils/notification-rules');
+const notificationIntegration = require('./utils/notification-integration');
+const notificationScheduler = require('./utils/notification-scheduler');
+const telegramRoutes = require('./router/telegram-routes');
+const telegramRoutesModule = require('./router/telegram-routes');
+
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
@@ -35,6 +42,7 @@ app.set('views', path.join(__dirname, 'views'))
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number || 1
@@ -88,6 +96,7 @@ const limiter = rateLimit({
   max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use('/api/', limiter);
+app.use('/api/telegram', telegramRoutes);
 
 // InfluxDB configuration
 const influxConfig = {
@@ -176,6 +185,8 @@ let currentSystemState = {
   timestamp: null
 }
 
+notificationScheduler.initNotificationScheduler(currentSystemState);
+
 // Track previous state of settings to detect changes
 let previousSettings = {}
 
@@ -257,6 +268,9 @@ async function connectToDatabase() {
     return false;
   }
 }
+
+telegramService.initTelegramConfig();
+notificationRules.initNotificationRules();
   
 // ================ USER IDENTIFICATION SYSTEM ================
 
@@ -1566,6 +1580,22 @@ app.get('/', async (req, res) => {
 });
 
 
+app.get('/telegram', async (req, res) => {
+  try {
+    const telegramConfig = telegramService.getTelegramConfig();
+    
+    res.render('telegram', { 
+      telegramConfig,
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID
+    });
+  } catch (error) {
+    console.error('Error rendering telegram page:', error);
+    res.status(500).send('Error loading telegram page');
+  }
+});
+
+
 app.get('/analytics', async (req, res) => {
   try {
     const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
@@ -2536,7 +2566,7 @@ async function processRules() {
       return;
     }
     
-    // FIXED: Get all active rules for the current user by explicitly specifying active: true
+    // Get all active rules for the current user
     const rules = await getAllRules(USER_ID, { active: true });
     console.log(`Processing ${rules.length} active rules`);
     
@@ -2548,12 +2578,18 @@ async function processRules() {
     const currentDay = now.format('dddd').toLowerCase();
     const currentTime = now.format('HH:mm');
     
+    // Load Telegram config once (don't call for each rule)
+    let telegramConfig = null;
+    try {
+      telegramConfig = require('./utils/telegram-service').getTelegramConfig();
+    } catch (error) {
+      console.error('Error loading Telegram config:', error.message);
+      // Continue without Telegram if service isn't available
+    }
+    
     for (const rule of rules) {
-      // FIXED: Enhanced double-check to ensure only active rules are processed
-      // Print out the active status for debugging
-      console.log(`Checking rule "${rule.name}" with active status: ${rule.active}`);
+      // Enhanced double-check to ensure only active rules are processed
       if (rule.active !== true) {
-        console.log(`Skipping inactive rule: ${rule.name}`);
         continue; // Skip inactive rules
       }
       
@@ -2599,6 +2635,17 @@ async function processRules() {
         if (learnerModeActive && rule.actions && rule.actions.length > 0) {
           for (const action of rule.actions) {
             applyAction(action);
+          }
+        }
+        
+        // Send Telegram notification if enabled and configured
+        if (telegramConfig && telegramConfig.enabled && telegramConfig.notifyOnRuleTrigger) {
+          try {
+            const notificationIntegration = require('./utils/notification-integration');
+            await notificationIntegration.handleRuleTrigger(rule, currentSystemState);
+          } catch (error) {
+            console.error('Error sending rule trigger notification:', error.message);
+            // Continue even if notification fails - don't disrupt rule processing
           }
         }
         

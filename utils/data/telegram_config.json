@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "botToken": "7812371001:AAF4ANf3COoRqw63APoQUpOo5XlZ6W1LrwM",
+  "chatId": "6730257403",
+  "notifyOnRuleTrigger": true,
+  "notifyOnWarning": true,
+  "notifyOnGridChange": false,
+  "notifyOnBatteryLow": false,
+  "batteryLowThreshold": 20,
+  "maxNotificationsPerHour": 10,
+  "notificationCount": 0,
+  "notificationResetTime": "2025-04-22T10:00:00.498Z",
+  "lastNotificationTime": "2025-04-22T08:24:02.238Z",
+  "dailySummary": false,
+  "dailySummaryTime": "20:00"
+}
