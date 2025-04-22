@@ -315,27 +315,13 @@ console.log(`Generated User ID: ${USER_ID}`);
 async function retryDatabaseConnection() {
   try {
     if (!dbConnected) {
-      console.log('Retrying database connection...');
-      const connected = await connectToDatabase();
-      
-      if (connected) {
-        console.log('Successfully reconnected to database');
-        // Optionally trigger any initialization that depends on database
-        if (mqttClient && mqttClient.connected) {
-          console.log('Re-initializing with database connection...');
-          // Re-initialize as needed
-          await initializeAutomationRules();
-        }
-      } else {
-        console.log('Database reconnection attempt failed');
-        // Schedule another retry
-        setTimeout(retryDatabaseConnection, 30000);
-      }
+      console.log('Retrying database connection...')
+      await connectToDatabase()
     }
   } catch (error) {
-    console.error('Failed to connect to database on retry:', error.message);
+    console.error('Failed to connect to database on retry:', error.message)
     // Schedule another retry
-    setTimeout(retryDatabaseConnection, 30000);
+    setTimeout(retryDatabaseConnection, 30000)
   }
 }
 
@@ -733,17 +719,17 @@ async function getAllRules(userId, options = {}) {
     // Parse JSON fields for each rule and ensure active is properly converted to boolean
     return rules.map(rule => ({
       id: rule.id,
-      name: rule.name || "Unnamed Rule",
-      description: rule.description || "",
+      name: rule.name,
+      description: rule.description,
       active: rule.active === 1, // Explicitly convert SQLite integer to boolean
-      conditions: safeParseJson(rule.conditions, []),
-      timeRestrictions: safeParseJson(rule.time_restrictions, {}),
-      actions: safeParseJson(rule.actions, []),
-      createdAt: rule.created_at ? new Date(rule.created_at) : new Date(),
+      conditions: JSON.parse(rule.conditions || '[]'),
+      timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
+      actions: JSON.parse(rule.actions || '[]'),
+      createdAt: new Date(rule.created_at),
       lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-      triggerCount: rule.trigger_count || 0,
+      triggerCount: rule.trigger_count,
       user_id: rule.user_id,
-      mqtt_username: rule.mqtt_username || ""
+      mqtt_username: rule.mqtt_username
     }));
   } catch (error) {
     console.error('Error getting rules from SQLite:', error.message);
@@ -891,20 +877,6 @@ function parseJsonOrValue(value) {
   }
   
   return value;
-}
-
-
-
-function safeParseJson(jsonString, defaultValue) {
-  try {
-    if (!jsonString || jsonString === 'null' || jsonString === 'undefined') {
-      return defaultValue;
-    }
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.error('JSON parsing error for:', jsonString, error);
-    return defaultValue;
-  }
 }
 
 // Handle incoming MQTT messages
@@ -5025,31 +4997,17 @@ app.get('/api/rules', async (req, res) => {
     
     const rules = await getAllRules(USER_ID, queryOptions);
     
-    // Validate rules array before sending response
-    if (!Array.isArray(rules)) {
-      throw new Error('Invalid rules data: Expected array but got ' + typeof rules);
-    }
-    
     // Add explicit indication of active status in response
     const rulesWithStatus = rules.map(rule => ({
-      id: rule.id,
-      name: rule.name,
-      description: rule.description,
-      active: Boolean(rule.active), // Ensure it's a boolean
-      isActive: Boolean(rule.active), // Additional explicit field
-      conditions: Array.isArray(rule.conditions) ? rule.conditions : [],
-      timeRestrictions: typeof rule.timeRestrictions === 'object' ? rule.timeRestrictions : {},
-      actions: Array.isArray(rule.actions) ? rule.actions : [],
-      createdAt: rule.createdAt,
-      lastTriggered: rule.lastTriggered,
-      triggerCount: rule.triggerCount || 0,
-      user_id: rule.user_id
+      ...rule,
+      active: rule.active === true, // Ensure it's a boolean
+      isActive: rule.active === true // Additional explicit field
     }));
     
     res.json(rulesWithStatus);
   } catch (error) {
     console.error('Error retrieving rules:', error);
-    res.status(500).json({ error: 'Failed to retrieve rules: ' + error.message });
+    res.status(500).json({ error: 'Failed to retrieve rules' });
   }
 });
 
@@ -5250,25 +5208,12 @@ app.get('/api/learner/changes', async (req, res) => {
   }
 });
 
-app.get('/api/database/status', async (req, res) => {
-  try {
-    const dbStatus = {
-      connected: dbConnected,
-      type: 'SQLite',
-      file: DB_FILE.replace(/^.*[\\\/]/, ''), // Just the filename, not the full path
-      rulesCount: dbConnected ? await countRules(USER_ID) : 0,
-      lastChecked: new Date().toISOString()
-    };
-    
-    res.json(dbStatus);
-  } catch (error) {
-    console.error('Database status check error:', error);
-    res.status(500).json({ 
-      connected: false, 
-      error: error.message,
-      lastChecked: new Date().toISOString()
-    });
-  }
+app.get('/api/database/status', (req, res) => {
+  res.json({
+    connected: dbConnected,
+    type: 'SQLite',
+    file: DB_FILE.replace(/^.*[\\\/]/, '') // Just the filename, not the full path
+  });
 });
 
 app.get('/learner', async (req, res) => {
