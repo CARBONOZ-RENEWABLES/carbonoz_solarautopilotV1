@@ -38,6 +38,7 @@ app.set('views', path.join(__dirname, 'views'))
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
+
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number || 1
 const batteryNumber = options.battery_number || 1
@@ -50,6 +51,8 @@ const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json')
 const RULES_FILE = path.join(__dirname, 'data', 'rules.json')
 const CACHE_DURATION = 24 * 3600000 // 24 hours in milliseconds
 const DB_FILE = path.join(__dirname, 'data', 'energy_monitor.db')
+const TELEGRAM_CONFIG_FILE = path.join(__dirname, 'data', 'telegram_config.json')
+const WARNINGS_CONFIG_FILE = path.join(__dirname, 'data', 'warnings_config.json')
 
 // Create data directory if it doesn't exist
 if (!fs.existsSync(path.join(__dirname, 'data'))) {
@@ -2621,15 +2624,19 @@ async function processRules() {
     
     // Send notifications for any triggered warnings
     for (const warning of triggeredWarnings) {
-      // Check if this warning type should trigger a notification
-      if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
-        const message = telegramService.formatWarningMessage(warning, currentSystemState);
-        await telegramService.broadcastMessage(message);
-        console.log(`Warning notification sent: ${warning.title}`);
+      try {
+        // Check if this warning type should trigger a notification
+        if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
+          const message = telegramService.formatWarningMessage(warning, currentSystemState);
+          await telegramService.broadcastMessage(message);
+          console.log(`Warning notification sent: ${warning.title}`);
+        }
+      } catch (notifyError) {
+        console.error(`Error sending warning notification for ${warning.title}:`, notifyError);
       }
     }
     
-    // FIXED: Get all active rules for the current user by explicitly specifying active: true
+    // Get all active rules for the current user
     const rules = await getAllRules(USER_ID, { active: true });
     console.log(`Processing ${rules.length} active rules`);
     
@@ -2639,15 +2646,11 @@ async function processRules() {
     // Current time in the user's timezone for time-based rules
     const now = moment().tz(currentTimezone);
     const currentDay = now.format('dddd').toLowerCase();
-    const currentTime = now.format('HH:mm');
     
     for (const rule of rules) {
-      // FIXED: Enhanced double-check to ensure only active rules are processed
-      // Print out the active status for debugging
-      console.log(`Checking rule "${rule.name}" with active status: ${rule.active}`);
+      // Skip inactive rules
       if (rule.active !== true) {
-        console.log(`Skipping inactive rule: ${rule.name}`);
-        continue; // Skip inactive rules
+        continue;
       }
       
       // Skip processing if rule has time restrictions that don't match current time
@@ -2688,7 +2691,8 @@ async function processRules() {
       
       if (allConditionsMet) {
         console.log(`Rule "${rule.name}" conditions met, applying actions`);
-        // Only apply actions if learner mode is active
+        
+        // Apply actions if learner mode is active
         if (learnerModeActive && rule.actions && rule.actions.length > 0) {
           for (const action of rule.actions) {
             applyAction(action);
@@ -2701,10 +2705,14 @@ async function processRules() {
         rulesToUpdate.push(rule);
         
         // Send notification if configured for this rule
-        if (telegramService.shouldNotifyForRule(rule.id)) {
-          const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
-          await telegramService.broadcastMessage(message);
-          console.log(`Rule notification sent: ${rule.name}`);
+        try {
+          if (telegramService.shouldNotifyForRule(rule.id)) {
+            const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
+            await telegramService.broadcastMessage(message);
+            console.log(`Rule notification sent: ${rule.name}`);
+          }
+        } catch (notifyError) {
+          console.error(`Error sending rule notification for ${rule.name}:`, notifyError);
         }
       }
     }
@@ -4268,33 +4276,47 @@ async function initializeConnections() {
 }
 
 // Add a periodic check for warnings
-// This function should be added to your initialization
 function setupWarningChecks() {
   // Check for warnings every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
     try {
-      // Check for warnings based on the current system state
-      const telegramService = require('./services/telegramService');
-      const warningService = require('./services/warningService');
+      console.log('Running scheduled warning check...');
       
+      // Check for warnings based on the current system state
       const triggeredWarnings = warningService.checkWarnings(currentSystemState);
+      
+      if (triggeredWarnings.length > 0) {
+        console.log(`Found ${triggeredWarnings.length} warning(s) to process`);
+      }
       
       // Send notifications for warnings
       for (const warning of triggeredWarnings) {
-        if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
-          const message = telegramService.formatWarningMessage(warning, currentSystemState);
-          await telegramService.broadcastMessage(message);
-          console.log(`Warning notification sent: ${warning.title}`);
+        try {
+          if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
+            const message = telegramService.formatWarningMessage(warning, currentSystemState);
+            const sent = await telegramService.broadcastMessage(message);
+            
+            if (sent) {
+              console.log(`Warning notification sent: ${warning.title}`);
+            } else {
+              console.error(`Failed to send notification for warning: ${warning.title}`);
+            }
+          } else {
+            console.log(`Skipping notification for warning (${warning.title}) - notifications not enabled for this warning type`);
+          }
+        } catch (notifyError) {
+          console.error(`Error in warning notification process:`, notifyError);
         }
       }
     } catch (error) {
       console.error('Error checking for warnings:', error);
     }
   });
+  
+  console.log('✅ Warning check scheduler initialized');
 }
 
-// Call this function at app startup
-setupWarningChecks();
+
 
 app.get('/notifications', async (req, res) => {
   try {
@@ -5638,6 +5660,9 @@ async function initializeConnections() {
     if (dbConnected) {
       // Replace the original createDefaultRules() call with our enhanced initialization
       await initializeAutomationRules();
+      
+      // Initialize the notification system after the database is connected
+      await initializeNotificationSystem();
     }
   } catch (err) {
     console.error('❌ Initial database connection failed:', err);
@@ -5645,6 +5670,104 @@ async function initializeConnections() {
     setTimeout(retryDatabaseConnection, 10000);
   }
 }
+
+
+async function initializeNotificationSystem() {
+  try {
+    // Create a default Telegram config if it doesn't exist
+    ensureTelegramConfigExists();
+    
+    // Set up warning check schedule
+    setupWarningChecks();
+    
+    // Make sure global processRules function is updated
+    global.processRules = processRules;
+    
+    console.log('✅ Enhanced notification system initialized');
+    return true;
+  } catch (error) {
+    console.error('❌ Error initializing notification system:', error);
+    return false;
+  }
+}
+
+
+// Make sure Telegram config file exists with proper defaults
+function ensureTelegramConfigExists() {
+  const configDir = path.dirname(TELEGRAM_CONFIG_FILE);
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  
+  if (!fs.existsSync(TELEGRAM_CONFIG_FILE)) {
+    // Create initial notification rules for common events
+    const defaultConfig = {
+      enabled: false,
+      botToken: '',
+      chatIds: [],
+      notificationRules: [
+        {
+          id: 'rule_night_charging',
+          type: 'rule',
+          name: 'Night Charging Rule',
+          description: 'Get notified when night charging rules are triggered',
+          enabled: true,
+          ruleId: 'night-battery-charging',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'rule_grid_charge',
+          type: 'rule',
+          name: 'Grid Charge Rules',
+          description: 'Get notified when grid charge rules are triggered',
+          enabled: true,
+          ruleId: 'grid-charge',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'rule_energy_pattern',
+          type: 'rule',
+          name: 'Energy Pattern Rules',
+          description: 'Get notified when energy pattern rules are triggered',
+          enabled: true,
+          ruleId: 'energy-pattern',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'warning_battery',
+          type: 'warning',
+          name: 'Battery Warnings',
+          description: 'Get notified about battery warnings',
+          enabled: true,
+          warningType: 'low-battery',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'warning_grid',
+          type: 'warning',
+          name: 'Grid Warnings',
+          description: 'Get notified about grid warnings',
+          enabled: true,
+          warningType: 'grid-outage',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'warning_pv',
+          type: 'warning',
+          name: 'PV System Warnings',
+          description: 'Get notified about PV system warnings',
+          enabled: true,
+          warningType: 'pv-underperformance',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    };
+    
+    fs.writeFileSync(TELEGRAM_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
+    console.log('Created default Telegram configuration file with notification rules');
+  }
+}
+
 
 // Function that integrates both default and extended rules
 async function initializeAutomationRules() {
