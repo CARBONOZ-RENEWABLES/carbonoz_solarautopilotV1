@@ -1,0 +1,3593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbonoz SolarAutopilot - Grid Charge</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <style>
+  
+        body {
+          font-family: 'Inter', sans-serif;
+          background: var(--bg-color);
+        }
+        :root {
+            --primary-color: #DEAF0B;
+            --bg-color: #f5f6fa;
+            --text-color: #2f3640;
+            --icon-color: #636e72;
+            --green: #4CAF50;
+            --red: #F44336;
+            --blue: #2196F3;
+            --amber: #FFC107;
+            --gray: #757575;
+            --secondary-color: #2ecc71;
+            --secondary-dark: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --gray-color: #6c757d;
+            --light-gray: #e9ecef;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+           }
+           
+           body, html {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            
+           }
+            /* Sidebar styles */
+            .sidebar {
+                width: 280px;
+                height: 100vh;
+                background-color: white;
+                border-right: 1px solid #e5e7eb;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 1000;
+                transition: width 0.3s ease;
+            }
+           
+                   .logo-container {
+                       padding: 1.5rem;
+                       border-bottom: 1px solid #e5e7eb;
+                       display: flex;
+                       align-items: center;
+                       gap: 0.75rem;
+                   }
+           
+                   .logo-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+           }
+           
+           .logo-text {
+            margin-left: 10px;
+            font-weight: bold;
+            color: var(--text-color);
+            font-size: 18px;
+           }
+           
+           .logo-text .highlight {
+            color: var(--primary-color);
+            margin-left: 10px;
+           }
+           
+           
+           nav {
+            flex-grow: 1;
+           }
+           
+           nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+           }
+           nav li {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 18px;
+           }
+           
+           nav li a{
+            text-decoration: none;
+            color: #2f3640;
+            font-weight: bold;
+           }
+           nav li:hover {
+            background-color: var(--bg-color);
+           }
+           
+           nav li i {
+            margin-right: 15px;
+            color: var(--icon-color);
+            font-size: 24px;
+           }
+           
+           .bottom-options {
+            padding: 20px;
+            border-top: 1px solid #dcdde1;
+           }
+           
+           .toggle-sidebar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-size: 16px;
+           }
+           
+           .toggle-text {
+            margin-right: 10px;
+           }
+           
+           .toggle-switch {
+            width: 50px;
+            height: 25px;
+            background-color: #dcdde1;
+            border-radius: 12.5px;
+            position: relative;
+            transition: background-color 0.3s;
+           }
+           .toggle-switch::before {
+            content: '';
+            position: absolute;
+            width: 21px;
+            height: 21px;
+            border-radius: 50%;
+            background-color: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+           }
+           
+           .toggle-switch.active {
+            background-color: var(--primary-color);
+           }
+           
+           .toggle-switch.active::before {
+            transform: translateX(25px);
+           }
+           
+           .sidebar.collapsed .logo-text,
+           .sidebar.collapsed .search,
+           .sidebar.collapsed nav li span,
+           .sidebar.collapsed .toggle-text {
+            display: none;
+           }
+           
+           .sidebar.collapsed .logo {
+            justify-content: center;
+           }
+           
+           .sidebar.collapsed nav li {
+            justify-content: center;
+           }
+           
+           .sidebar.collapsed nav li i {
+            margin-right: 0;
+           }
+                   /* Main content styles */
+                   .main-content {
+                       flex: 1;
+                       margin-left: 280px;
+                       padding: 2rem;
+                   }
+           
+                   .content-header {
+                       margin-bottom: 2rem;
+                   }
+           
+                   .content-header h2 {
+                       font-size: 1.875rem;
+                       font-weight: 700;
+                       color: #111827;
+                   }
+           
+                   .metrics-grid {
+                       display: grid;
+                       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                       gap: 1.5rem;
+                       margin-bottom: 2rem;
+                   }
+           
+                   .metric-card {
+                       background: white;
+                       border-radius: 12px;
+                       padding: 1.5rem;
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                   }
+           
+                   .metric-title {
+                       font-size: 0.875rem;
+                       font-weight: 600;
+                       color: #4b5563;
+                       margin-bottom: 0.5rem;
+                   }
+           
+                   .metric-value {
+                       font-size: 1.5rem;
+                       font-weight: 700;
+                       margin-bottom: 0.25rem;
+                   }
+           
+                   .metric-subtitle {
+                       font-size: 0.875rem;
+                       color: #6b7280;
+                   }
+           
+                   .chart-container {
+                       background: white;
+                       border-radius: 12px;
+                       padding: 1.5rem;
+                       margin-bottom: 2rem;
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                   }
+           
+                   .chart-wrapper {
+                       height: 400px;
+                       margin-top: 1rem;
+                   }
+           
+                   .period-buttons {
+                       display: flex;
+                       gap: 0.75rem;
+                       margin-bottom: 1rem;
+                   }
+           
+                   .period-btn {
+                       padding: 0.5rem 1rem;
+                       border: none;
+                       background-color: #e5e7eb;
+                       color: #4b5563;
+                       border-radius: 6px;
+                       cursor: pointer;
+                       font-weight: 500;
+                       transition: all 0.2s;
+                   }
+           
+                   .period-btn:hover {
+                       background-color: #d1d5db;
+                   }
+           
+                   .period-btn.active {
+                       background-color: #DEAF0B;
+                       color: white;
+                   }
+           
+                   /* Toggle styles */
+                   .toggle {
+                       position: relative;
+                       display: inline-block;
+                       width: 44px;
+                       height: 24px;
+                   }
+           
+                   .toggle input {
+                       opacity: 0;
+                       width: 0;
+                       height: 0;
+                   }
+           
+                   .slider {
+                       position: absolute;
+                       cursor: pointer;
+                       top: 0;
+                       left: 0;
+                       right: 0;
+                       bottom: 0;
+                       background-color: #e5e7eb;
+                       transition: .4s;
+                       border-radius: 34px;
+                   }
+           
+                   .slider:before {
+                       position: absolute;
+                       content: "";
+                       height: 16px;
+                       width: 16px;
+                       left: 4px;
+                       bottom: 4px;
+                       background-color: white;
+                       transition: .4s;
+                       border-radius: 50%;
+                   }
+           
+                   input:checked + .slider {
+                       background-color: #DEAF0B;
+                   }
+           
+                   input:checked + .slider:before {
+                       transform: translateX(20px);
+                   }
+           
+                   /* Updated and new styles */
+                   .bottom-controls {
+                       padding: 1.5rem;
+                       border-top: 1px solid #e5e7eb;
+                   }
+           
+                   .control-item {
+                       display: flex;
+                       justify-content: space-between;
+                       align-items: center;
+                       margin-bottom: 1rem;
+                   }
+           
+                   .control-label {
+                       font-size: 0.875rem;
+                       color: #4b5563;
+                   }
+           
+                   .toggle {
+                       position: relative;
+                       display: inline-block;
+                       width: 44px;
+                       height: 24px;
+                   }
+           
+                   .toggle input {
+                       opacity: 0;
+                       width: 0;
+                       height: 0;
+                   }
+           
+                   .sidebar {
+            width: 280px;
+            background-color: white;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+            z-index: 10;
+           }
+           
+           .sidebar.collapsed {
+            width: 80px;
+           }
+           
+           .logo {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+           }
+           
+           
+                   input:checked + .slider {
+                       background-color: #DEAF0B;
+                   }
+           
+                   input:checked + .slider:before {
+                       transform: translateX(20px);
+                   }
+           
+                   .total-emissions {
+                       font-size: 1.25rem;
+                       font-weight: 600;
+                       margin-bottom: 1rem;
+                       color: #374151;
+                   }
+           
+                   .summary-grid {
+                       display: grid;
+                       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                       gap: 1rem;
+                       margin-bottom: 2rem;
+                   }
+           
+                   .summary-item {
+                       background-color: white;
+                       border-radius: 8px;
+                       padding: 1rem;
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                   }
+           
+                   .summary-label {
+                       font-size: 0.875rem;
+                       color: #6b7280;
+                       display: block;
+                       margin-bottom: 0.5rem;
+                   }
+           
+                   .summary-value {
+                       font-size: 1.25rem;
+                       font-weight: 600;
+                   }
+           
+               
+           
+                   /* Responsive styles */
+                   @media (max-width: 768px) {
+                       .sidebar {
+                           width: 100%;
+                           height: auto;
+                           position: static;
+                           border-right: none;
+                           border-bottom: 1px solid #e5e7eb;
+                       }
+           
+                       .main-content {
+                           margin-left: 0;
+                       }
+           
+                       body.collapsed-sidebar .sidebar {
+                           display: none;
+                       }
+           
+                       body.collapsed-sidebar .main-content {
+                           margin-left: 0;
+                       }
+           
+                       .metrics-grid,
+                       .summary-grid {
+                           grid-template-columns: 1fr;
+                       }
+           
+                       .period-buttons {
+                           flex-wrap: wrap;
+                       }
+           
+                       .period-btn {
+                           flex: 1 0 calc(50% - 0.375rem);
+                           margin-bottom: 0.75rem;
+                       }
+                   }
+        
+        /* loading css */
+        
+        .loading-overlay {
+         position: fixed;
+         top: 0;
+         left: 0;
+         width: 100%;
+         height: 100%;
+         background-color: #f8f9fa;
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         z-index: 9999;
+        }
+        
+        .loading-spinner {
+         width: 50px;
+         height: 50px;
+         border: 5px solid #e0e0e0;
+         border-top: 5px solid #3498db;
+         border-radius: 50%;
+         animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+         0% { transform: rotate(0deg); }
+         100% { transform: rotate(360deg); }
+        }
+        
+        .dashboard-column {
+        flex-basis: calc(33.33333% - 2px);
+        margin-right: 2px;
+        margin-bottom: 2px;
+        }
+        
+        @media only screen and (max-width: 128em) {
+        .dashboard-column {
+         flex-basis: calc(50% - 2px);
+        }
+        }
+        
+        @media only screen and (max-width: 62em) {
+        .dashboard-column {
+         flex-basis: calc(100% - 2px);
+        }
+        }
+        
+        .dashboard-column .card {
+        border: 0;
+        }
+        
+        .dashboard-column .card .iframe-moving {
+        display: block;
+        height: 100%;
+        min-height: 33em;
+        position: relative;
+        width: 100%;
+        }
+        
+        @media only screen and (max-width: 46em) {
+        .dashboard-column .card .iframe-moving {
+         min-height: 107em;
+        }
+        }
+        .dashboard-column .card .iframe-overview {
+        display: block;
+        height: 100%;
+        min-height: 22em;
+        width: 100%;
+        }
+        
+        @media only screen and (max-width: 46em) {
+        .dashboard-column .card .iframe-overview {
+         min-height: 18em;
+        }
+        }
+        
+        .dashboard-column .card .iframe-battery-power {
+        display: block;
+        height: 60%;
+        min-height: 18em;
+        width: 100%;
+        }
+        
+        @media only screen and (max-width: 46em) {
+        .dashboard-column .card .iframe-battery-power {
+         min-height: 15em;
+        }
+        }
+        
+        .dashboard-column .card .iframe-battery-soc {
+        display: block;
+        height: 40%;
+        min-height: 14em;
+        width: 100%;
+        }
+        
+        @media only screen and (max-width: 46em) {
+        .dashboard-column .card .iframe-battery-soc {
+         min-height: 12em;
+        }
+        }
+        
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: rgba(24, 27, 31, 1);
+         color: #f5f6fa;
+        }
+        
+        .dark-mode .main-content{
+            background-color: rgba(24, 27, 31, 1);
+            color: #f5f6fa;
+        }
+        
+        .dark-mode .sidebar {
+            background-color: rgba(24, 27, 31, 1);
+        }
+        
+        .dark-mode .sidebar .logo-icon {
+         color: #2f3640;
+        }
+        
+        .dark-mode .sidebar .logo-text {
+         color: #f5f6fa;
+        }
+        
+        .dark-mode .sidebar nav li {
+         color: #f5f6fa;
+        }
+        
+        .dark-mode .sidebar nav li:hover {
+         background-color: #383838;
+        }
+        
+        .dark-mode .sidebar nav li a {
+         color: #f5f6fa;
+        }
+        
+        .dark-mode .sidebar nav li i {
+         color: #dcdde1;
+        }
+        
+        .dark-mode .toggle-sidebar,
+        .dark-mode .toggle-dark-mode {
+         color: #f5f6fa;
+        }
+        
+        .dark-mode .toggle-switch {
+            background-color: var(--primary-color);
+        }
+        
+        .dark-mode .toggle-switch.active {
+         background-color: var(--primary-color);
+        }
+        
+        .dark-mode header {
+            background-color: rgb(17, 18, 23);
+        }
+        
+        .dark-mode .content-card {
+            background-color: rgba(24, 27, 31, 1);
+         color: #fff;
+        }
+        
+        
+        .dark-mode .loading-overlay{
+            background-color: rgba(24, 27, 31, 1);
+        }
+        
+        /* Mobile Sidebar Improvements */
+        @media (max-width: 768px) {
+            /* Sidebar base styles */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 280px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 1000;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                box-shadow: none;
+            }
+        
+            .sidebar.active {
+                transform: translateX(0);
+                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+            }
+        
+            /* Improved hamburger button */
+            .mobile-toggle {
+                display: block;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 1001;
+                background: none;
+                border: none;
+                cursor: pointer;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background-color: white;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                padding: 8px;
+            }
+        
+            .mobile-toggle span {
+                display: block;
+                width: 24px;
+                height: 2px;
+                background-color: var(--text-color);
+                margin: 5px auto;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+        
+            .mobile-toggle.active span:nth-child(1) {
+                transform: translateY(7px) rotate(45deg);
+            }
+        
+            .mobile-toggle.active span:nth-child(2) {
+                opacity: 0;
+            }
+        
+            .mobile-toggle.active span:nth-child(3) {
+                transform: translateY(-7px) rotate(-45deg);
+            }
+        
+            /* Improved nav items */
+            .sidebar nav ul {
+                padding: 1rem 0;
+            }
+        
+            .sidebar nav li {
+                padding: 0.875rem 1.5rem;
+                margin: 0.25rem 1rem;
+                border-radius: 8px;
+                transition: background-color 0.2s ease;
+            }
+        
+            .sidebar nav li a {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                font-size: 1rem;
+                color: var(--text-color);
+            }
+        
+            .sidebar nav li i {
+                font-size: 1.25rem;
+                min-width: 24px;
+                text-align: center;
+            }
+        
+            .sidebar nav li:active {
+                background-color: rgba(0, 0, 0, 0.05);
+            }
+        
+            /* Improved overlay */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(2px);
+                z-index: 999;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+        
+            .sidebar-overlay.active {
+                display: block;
+                opacity: 1;
+            }
+        
+            /* Dark mode adjustments */
+            .dark-mode .mobile-toggle {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+        
+            .dark-mode .mobile-toggle span {
+                background-color: #f5f6fa;
+            }
+        
+            .dark-mode .sidebar nav li:active {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+        }
+        
+        /* Ensure main content adjusts properly */
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                padding-top: 4.5rem;
+                transition: margin-left 0.3s ease;
+            }
+        
+            body.sidebar-open .main-content {
+                filter: blur(2px);
+                pointer-events: none;
+            }
+        }
+        
+        
+      /* Enhanced Main Content Styling */
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  min-height: 100vh;
+}
+
+/* Container styling */
+.main-content .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+.header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+
+        .page-title {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dark-mode h1{
+          color: #fff;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: var(--dark-color);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .badge-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .badge-success {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--primary-dark);
+            background-color: var(--light-gray);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .notification {
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            position: relative;
+            background-color: white;
+            transition: var(--transition);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .notification:hover {
+            transform: translateX(5px);
+        }
+
+        .notification-icon {
+            margin-right: 1rem;
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .notification-warning {
+            border-left-color: var(--warning-color);
+        }
+
+        .notification-warning .notification-icon {
+            background-color: rgba(243, 156, 18, 0.2);
+            color: var(--warning-color);
+        }
+
+        .notification-danger {
+            border-left-color: var(--danger-color);
+        }
+
+        .notification-danger .notification-icon {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--danger-color);
+        }
+
+        .notification-success {
+            border-left-color: var(--secondary-color);
+        }
+
+        .notification-success .notification-icon {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: var(--secondary-color);
+        }
+
+        .notification-info {
+            border-left-color: var(--primary-color);
+        }
+
+        .notification-info .notification-icon {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: var(--primary-color);
+        }
+
+        .notification-content {
+            flex-grow: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notification-message {
+            color: var(--gray-color);
+            font-size: 0.9rem;
+        }
+
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--gray-color);
+            margin-top: 0.5rem;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .btn i {
+            margin-right: 0.25rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-success {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: var(--secondary-dark);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--gray-color);
+            color: var(--gray-color);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--light-gray);
+        }
+
+        .settings-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .settings-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .settings-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .settings-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .settings-card-body {
+            flex-grow: 1;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--light-gray);
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+        }
+
+        .notification-settings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .notification-setting {
+            display: flex;
+            align-items: center;
+            background-color: var(--light-gray);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .notification-setting:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .notification-setting input {
+            margin-right: 0.5rem;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-left: auto;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--light-gray);
+            transition: var(--transition);
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-color);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .telegram-channels {
+            margin-top: 1rem;
+        }
+
+        .telegram-channel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background-color: var(--light-gray);
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .telegram-channel:last-child {
+            margin-bottom: 0;
+        }
+
+        .warning-type {
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: var(--transition);
+        }
+
+        .warning-type:hover {
+            border-color: var(--primary-color);
+        }
+
+        .warning-type-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-type-title {
+            font-weight: 600;
+        }
+
+        .warning-type-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .warning-type-detail {
+            background-color: var(--light-gray);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: var(--gray-color);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .pagination-item {
+            margin: 0 0.25rem;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .pagination-item:hover:not(.active) {
+            background-color: var(--light-gray);
+        }
+
+        .pagination-item.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            nav ul {
+                margin-top: 1rem;
+                flex-wrap: wrap;
+            }
+
+            nav ul li {
+                margin: 0.5rem 1rem 0.5rem 0;
+            }
+
+            .settings-content {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                padding: 0.5rem 1rem;
+            }
+        }
+    /* Enhanced Main Content Responsiveness */
+.main-content {
+    transition: all 0.3s ease;
+    padding: 1.5rem;
+}
+
+/* Make cards and grid more responsive */
+.metric-card, .notification, .warning-type, .settings-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+/* Better spacing on mobile */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem;
+        margin-left: 0;
+    }
+    
+    .page-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .page-title h1 {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Stacked tabs on mobile */
+    .tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab {
+        flex-grow: 1;
+        text-align: center;
+        min-width: 50%;
+    }
+    
+    /* Make cards full width on mobile */
+    .card, .metric-card, .notification, .warning-type, .settings-card {
+        width: 100%;
+    }
+    
+    /* Better spacing for forms */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    /* Make buttons larger on mobile for better touch targets */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 1rem;
+    }
+    
+    /* Simplify notification details on smaller screens */
+    .warning-type-details {
+        flex-direction: column;
+    }
+    
+    .warning-type-detail {
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+    
+    /* Adjust notification settings on mobile */
+    .notification-settings {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .notification-setting {
+        width: 100%;
+    }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+    .main-content {
+        padding: 0.75rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .notification-icon {
+        display: none; /* Hide icons on very small screens to save space */
+    }
+    
+    .tab {
+        min-width: 100%; /* Full width tabs on very small screens */
+        padding: 0.5rem;
+    }
+    
+    /* Stack action buttons */
+    .actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .actions .btn {
+        width: 100%;
+    }
+}
+
+/* Enhanced Dark Mode Styling */
+body.dark-mode {
+    background-color: rgba(24, 27, 31, 1);
+    color: #fff;
+}
+
+.dark-mode .main-content {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .card,
+.dark-mode .metric-card,
+.dark-mode .settings-card {
+    background-color: rgba(24, 27, 31, 1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .tabs {
+    border-bottom-color: #333;
+}
+
+.dark-mode .tab:hover:not(.active) {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .form-control {
+    background-color: rgb(32, 36, 41);
+    border-color: #333;
+    color: #fff;
+}
+
+.dark-mode .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.25);
+}
+
+.dark-mode .notification {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .notification-message,
+.dark-mode .notification-time {
+    color: #fff;
+}
+
+.dark-mode .warning-type {
+    border-color: #333;
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .warning-type:hover {
+    border-color: var(--primary-color);
+}
+
+.dark-mode .warning-type-detail {
+    background-color: rgb(32, 36, 41);
+    color: #fffc;
+}
+
+.dark-mode .notification-setting {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .toggle-slider {
+    background-color: #444;
+}
+
+.dark-mode .telegram-channel {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .btn-outline {
+    border-color: #555;
+    color: #fff;
+}
+
+.dark-mode .btn-outline:hover {
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .pagination-item:hover:not(.active) {
+    background-color: rgb(32, 36, 41);
+}
+
+/* Better contrast for notification badges in dark mode */
+.dark-mode .badge-primary {
+    background-color: #3498db;
+}
+
+.dark-mode .badge-warning {
+    background-color: #f39c12;
+}
+
+.dark-mode .badge-danger {
+    background-color: #e74c3c;
+}
+
+.dark-mode .badge-success {
+    background-color: #2ecc71;
+}
+
+/* Modal dark mode support */
+.dark-mode .modal-container {
+    background-color: rgba(24, 27, 31, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+    border-color: #333;
+}
+
+.dark-mode .modal-close {
+    color: #fff;
+}
+
+/* Loading overlay in dark mode */
+.dark-mode #loader .loader-spinner {
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .notification-toast {
+    background-color: rgba(24, 27, 31, 1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    color: #fff;
+}
+
+/* Adjustments for notification title with icon */
+.page-title-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-title-icon {
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.dark-mode .page-title-icon {
+    color: var(--primary-color);
+}
+  </style>
+</head>
+<body >
+    <!-- Add hamburger menu button -->
+    <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+        </div>
+        <div id="pageContent"> </div>
+
+        <%- include('partials/sidebar') %>
+          
+        <div class="main-content">
+            <div class="container">
+              <div class="page-title">
+                <div class="page-title-with-icon">
+                    <i class="fas fa-bell-on page-title-icon"></i>
+                    <h1>Notifications</h1>
+                </div>
+                <div>
+                    <button class="btn btn-success" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+    
+                <div class="tabs">
+                    <div class="tab active" data-tab="alerts">Recent Alerts</div>
+                    <div class="tab" data-tab="warnings">System Warnings</div>
+                    <div class="tab" data-tab="settings">Notification Settings</div>
+                    <div class="tab" data-tab="telegram">Telegram Bot</div>
+                </div>
+    
+                <!-- Alerts Tab -->
+                <div class="tab-content active" id="alerts-content">
+                    <div class="card">
+                        <div class="notification notification-info">
+                            <div class="notification-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">
+                                    Grid Charge Enabled
+                                    <span class="badge badge-primary">Rule Trigger</span>
+                                </div>
+                                <div class="notification-message">
+                                    Grid charge was automatically enabled because battery SOC dropped below 20%.
+                                </div>
+                                <div class="notification-time">
+                                    <i class="far fa-clock"></i> Today, 10:32 AM
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="notification notification-warning">
+                            <div class="notification-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">
+                                    Low Battery Warning
+                                    <span class="badge badge-warning">Warning</span>
+                                </div>
+                                <div class="notification-message">
+                                    Battery state of charge is at 15%, which is below the recommended minimum level.
+                                </div>
+                                <div class="notification-time">
+                                    <i class="far fa-clock"></i> Today, 9:45 AM
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="notification notification-success">
+                            <div class="notification-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">
+                                    Energy Pattern Changed
+                                    <span class="badge badge-success">Rule Trigger</span>
+                                </div>
+                                <div class="notification-message">
+                                    Energy pattern was changed to "Battery First" based on your automation rule.
+                                </div>
+                                <div class="notification-time">
+                                    <i class="far fa-clock"></i> Yesterday, 4:18 PM
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="notification notification-danger">
+                            <div class="notification-icon">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">
+                                    Grid Voltage Fluctuation
+                                    <span class="badge badge-danger">Alert</span>
+                                </div>
+                                <div class="notification-message">
+                                    Grid voltage dropped to 192V, which is below the stable threshold.
+                                </div>
+                                <div class="notification-time">
+                                    <i class="far fa-clock"></i> Yesterday, 2:05 PM
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="actions">
+                        <button class="btn btn-primary">
+                            <i class="fas fa-download"></i> Export Alerts
+                        </button>
+                        <button class="btn btn-outline">
+                            <i class="fas fa-trash"></i> Clear All
+                        </button>
+                    </div>
+    
+                    <div class="pagination">
+                        <div class="pagination-item active">1</div>
+                        <div class="pagination-item">2</div>
+                        <div class="pagination-item">3</div>
+                        <div class="pagination-item">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                        <div class="pagination-item">10</div>
+                    </div>
+                </div>
+    
+                <!-- Warnings Tab -->
+                <div class="tab-content" id="warnings-content">
+                    <div class="card">
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">Low Battery Warning</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                Battery state of charge is critically low
+                            </div>
+                            <div class="warning-type-details">
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-tachometer-alt"></i> Threshold: 15%
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-exclamation-circle"></i> Priority: High
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-clock"></i> Cooldown: 60 minutes
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">High Load Warning</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                System load is unusually high
+                            </div>
+                            <div class="warning-type-details">
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-tachometer-alt"></i> Threshold: 8000W
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-exclamation-circle"></i> Priority: Medium
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-clock"></i> Cooldown: 30 minutes
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">Grid Outage Warning</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                Grid voltage is too low or unstable
+                            </div>
+                            <div class="warning-type-details">
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-tachometer-alt"></i> Threshold: 190V
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-exclamation-circle"></i> Priority: High
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-clock"></i> Cooldown: 15 minutes
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">PV System Underperformance</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                PV power generation is lower than expected
+                            </div>
+                            <div class="warning-type-details">
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-tachometer-alt"></i> Threshold: 500W
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-exclamation-circle"></i> Priority: Medium
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-sun"></i> Daytime only
+                                </div>
+                                <div class="warning-type-detail">
+                                    <i class="fas fa-clock"></i> Cooldown: 240 minutes
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="actions">
+                        <button class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Warning Type
+                        </button>
+                    </div>
+                </div>
+    
+                <!-- Settings Tab -->
+                <div class="tab-content" id="settings-content">
+                    <div class="settings-content">
+                        <div class="card settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-title">Email Notifications</div>
+                                <label class="toggle">
+                                    <input type="checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-card-body">
+                                <div class="form-group">
+                                    <label for="email">Email Address</label>
+                                    <input type="email" id="email" class="form-control" placeholder="your@email.com">
+                                </div>
+                                <div class="notification-settings">
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="email-warnings">
+                                        <label for="email-warnings">System Warnings</label>
+                                    </div>
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="email-rules">
+                                        <label for="email-rules">Rule Triggers</label>
+                                    </div>
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="email-updates">
+                                        <label for="email-updates">System Updates</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </div>
+    
+                        <div class="card settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-title">System Notifications</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-card-body">
+                                <div class="form-group">
+                                    <label for="notifications-level">Notification Level</label>
+                                    <select id="notifications-level" class="form-control">
+                                        <option>All Notifications</option>
+                                        <option>Critical Only</option>
+                                        <option>Warnings & Critical</option>
+                                        <option>None</option>
+                                    </select>
+                                </div>
+                                <div class="notification-settings">
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="notify-rule-changes" checked>
+                                        <label for="notify-rule-changes">Rule Changes</label>
+                                    </div>
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="notify-grid-events" checked>
+                                        <label for="notify-grid-events">Grid Events</label>
+                                    </div>
+                                    <div class="notification-setting">
+                                        <input type="checkbox" id="notify-battery" checked>
+                                        <label for="notify-battery">Battery Events</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Telegram Tab -->
+                <div class="tab-content" id="telegram-content">
+                    <div class="card">
+                        <div class="settings-card-header">
+                            <div class="settings-card-title">Telegram Bot Configuration</div>
+                            <label class="toggle">
+                                <input type="checkbox" id="telegram-enabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+    
+                        <div class="form-group">
+                            <label for="bot-token">Bot Token</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="password" id="bot-token" class="form-control" placeholder="Enter your bot token" value="••••••••••3456">
+                                <button class="btn btn-outline" id="show-token">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--gray-color);">
+                                <i class="fas fa-info-circle"></i> Create a new bot by messaging @BotFather on Telegram
+                            </div>
+                        </div>
+    
+                        <div class="actions">
+                            <button class="btn btn-primary" id="save-token">Save Token</button>
+                            <button class="btn btn-outline" id="test-token">Test Connection</button>
+                        </div>
+    
+                        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--light-gray);">
+    
+                        <h3 style="margin-bottom: 1rem;">Connected Chat IDs</h3>
+                        <div class="telegram-channels">
+                            <div class="telegram-channel">
+                                <div>
+                                    <i class="fas fa-user"></i> Personal Chat (12345678)
+                                </div>
+                                <button class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+                            <div class="telegram-channel">
+                                <div>
+                                    <i class="fas fa-users"></i> Energy Monitor Group (-987654321)
+                                </div>
+                                <button class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+    
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="new-chat-id">Add Chat ID</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="new-chat-id" class="form-control" placeholder="Enter chat ID">
+                                <button class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--gray-color);">
+                                <i class="fas fa-info-circle"></i> Send /start to your bot to get the chat ID
+                            </div>
+                        </div>
+    
+                        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--light-gray);">
+    
+                        <h3 style="margin-bottom: 1rem;">Notification Rules</h3>
+                        
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">Rule Triggers</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                Get notified when automation rules are triggered
+                            </div>
+                            <div class="notification-settings" style="margin-top: 0.5rem;">
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="rules-night-charging" checked>
+                                    <label for="rules-night-charging">Night Charging Rule</label>
+                                </div>
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="rules-grid-charge" checked>
+                                    <label for="rules-grid-charge">Grid Charge Rules</label>
+                                </div>
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="rules-energy-pattern" checked>
+                                    <label for="rules-energy-pattern">Energy Pattern Rules</label>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">System Warnings</div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                Get notified about system warnings and alerts
+                            </div>
+                            <div class="notification-settings" style="margin-top: 0.5rem;">
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="warnings-battery" checked>
+                                    <label for="warnings-battery">Battery Warnings</label>
+                                </div>
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="warnings-grid" checked>
+                                    <label for="warnings-grid">Grid Warnings</label>
+                                </div>
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="warnings-pv" checked>
+                                    <label for="warnings-pv">PV System Warnings</label>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="warning-type">
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">Status Updates</div>
+                                <label class="toggle">
+                                    <input type="checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="notification-message">
+                                Receive daily or weekly status updates
+                            </div>
+                            <div class="notification-settings" style="margin-top: 0.5rem;">
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="status-daily">
+                                    <label for="status-daily">Daily Summary</label>
+                                </div>
+                                <div class="notification-setting">
+                                    <input type="checkbox" id="status-weekly" checked>
+                                    <label for="status-weekly">Weekly Report</label>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="actions" style="margin-top: 1.5rem;">
+                            <button class="btn btn-primary">Save Notification Rules</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   
+    <script>
+        // Main Notifications Controller
+      const NotificationsApp = {
+          // State management
+          state: {
+              telegramConfig: null,
+              warningTypes: [],
+              notificationRules: [],
+              warningHistory: [],
+              recentAlerts: [],
+              currentPage: 1,
+              itemsPerPage: 10,
+              totalPages: 1,
+              isLoading: false
+          },
+      
+          // API Endpoints
+          api: {
+              telegram: {
+                  config: '<%= ingress_path %>/api/notifications/telegram/config',
+                  updateConfig: '<%= ingress_path %>/api/notifications/telegram/config',
+                  test: '<%= ingress_path %>/api/notifications/telegram/test',
+                  chatIds: '<%= ingress_path %>/api/notifications/telegram/chat-ids',
+                  addChatId: '<%= ingress_path %>/api/notifications/telegram/chat-ids',
+                  removeChatId: (chatId) => `<%= ingress_path %>/api/notifications/telegram/chat-ids/${chatId}`
+              },
+              warnings: {
+                  types: '<%= ingress_path %>/api/notifications/warnings/types',
+                  addType: '<%= ingress_path %>/api/notifications/warnings/types',
+                  updateType: (id) => `<%= ingress_path %>/api/notifications/warnings/types/${id}`,
+                  deleteType: (id) => `<%= ingress_path %>/api/notifications/warnings/types/${id}`,
+                  history: '<%= ingress_path %>/api/notifications/warnings/history',
+                  clearHistory: '<%= ingress_path %>/api/notifications/warnings/history'
+              },
+              notificationRules: {
+                  all: '<%= ingress_path %>/api/notifications/rules',
+                  add: '<%= ingress_path %>/api/notifications/rules',
+                  update: (id) => `<%= ingress_path %>/api/notifications/rules/${id}`,
+                  delete: (id) => `<%= ingress_path %>/api/notifications/rules/${id}`
+              }
+          },
+      
+          // Initialize the application
+          init: function() {
+              this.bindUIElements();
+              this.bindEvents();
+              this.loadInitialData();
+          },
+      
+          // Bind UI elements
+          bindUIElements: function() {
+              // Tab navigation
+              this.tabs = document.querySelectorAll('.tab');
+              this.tabContents = document.querySelectorAll('.tab-content');
+              
+              // Alerts tab elements
+              this.alertsContainer = document.querySelector('#alerts-content .card');
+              this.pagination = document.querySelector('.pagination');
+              this.refreshBtn = document.getElementById('refreshBtn');
+              this.exportBtn = document.querySelector('#alerts-content .btn-primary');
+              this.clearBtn = document.querySelector('#alerts-content .btn-outline');
+              
+              // Warnings tab elements
+              this.warningsContainer = document.querySelector('#warnings-content .card');
+              this.addWarningBtn = document.querySelector('#warnings-content .btn-primary');
+              
+              // Settings tab elements
+              this.emailForm = document.querySelector('#settings-content .settings-card:nth-child(1)');
+              this.emailToggle = this.emailForm.querySelector('.toggle input');
+              this.emailInput = document.getElementById('email');
+              this.emailSaveBtn = this.emailForm.querySelector('.actions .btn-primary');
+              
+              this.systemNotificationsForm = document.querySelector('#settings-content .settings-card:nth-child(2)');
+              this.systemNotificationsToggle = this.systemNotificationsForm.querySelector('.toggle input');
+              this.notificationLevelSelect = document.getElementById('notifications-level');
+              this.systemNotificationsSaveBtn = this.systemNotificationsForm.querySelector('.actions .btn-primary');
+              
+              // Telegram tab elements
+              this.telegramEnabled = document.getElementById('telegram-enabled');
+              this.botToken = document.getElementById('bot-token');
+              this.showTokenBtn = document.getElementById('show-token');
+              this.saveTokenBtn = document.getElementById('save-token');
+              this.testTokenBtn = document.getElementById('test-token');
+              this.chatIdsContainer = document.querySelector('.telegram-channels');
+              this.newChatIdInput = document.getElementById('new-chat-id');
+              this.addChatIdBtn = document.querySelector('.form-group .btn-success');
+              this.telegramRulesContainer = document.querySelectorAll('#telegram-content .warning-type');
+              this.saveNotificationRulesBtn = document.querySelector('#telegram-content .actions .btn-primary');
+          },
+      
+          // Bind events
+          bindEvents: function() {
+              // Tab switching
+              this.tabs.forEach(tab => {
+                  tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+              });
+      
+              // Refresh button
+              this.refreshBtn.addEventListener('click', () => this.refreshData());
+      
+              // Export alerts
+              this.exportBtn.addEventListener('click', () => this.exportAlerts());
+      
+              // Clear alerts
+              this.clearBtn.addEventListener('click', () => this.clearAlerts());
+      
+              // Add warning type
+              this.addWarningBtn.addEventListener('click', () => this.showAddWarningTypeModal());
+      
+              // Email settings form
+              this.emailSaveBtn.addEventListener('click', () => this.saveEmailSettings());
+              
+              // System notifications settings form
+              this.systemNotificationsSaveBtn.addEventListener('click', () => this.saveSystemNotificationSettings());
+      
+              // Telegram toggle
+              this.telegramEnabled.addEventListener('change', () => this.toggleTelegramConfig());
+      
+              // Show/hide token
+              this.showTokenBtn.addEventListener('click', () => this.toggleTokenVisibility());
+      
+              // Save token
+              this.saveTokenBtn.addEventListener('click', () => this.saveTelegramToken());
+      
+              // Test token
+              this.testTokenBtn.addEventListener('click', () => this.testTelegramConnection());
+      
+              // Add chat ID
+              this.addChatIdBtn.addEventListener('click', () => this.addTelegramChatId());
+      
+              // Save notification rules
+              this.saveNotificationRulesBtn.addEventListener('click', () => this.saveNotificationRules());
+          },
+      
+          // Load initial data
+          loadInitialData: function() {
+              this.showLoader();
+              
+              // Fetch all required data in parallel
+              Promise.all([
+                  this.fetchRecentAlerts(),
+                  this.fetchWarningTypes(),
+                  this.fetchTelegramConfig(),
+                  this.fetchNotificationRules(),
+                  this.fetchEmailSettings(),
+                  this.fetchSystemNotificationSettings()
+              ]).then(() => {
+                  this.hideLoader();
+              }).catch(error => {
+                  console.error('Error loading initial data:', error);
+                  this.hideLoader();
+                  this.showNotification('Error loading data. Please try again.', 'error');
+              });
+          },
+      
+          // Switch between tabs
+          switchTab: function(tabId) {
+              this.tabs.forEach(t => t.classList.remove('active'));
+              this.tabContents.forEach(content => content.classList.remove('active'));
+              
+              document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+              document.getElementById(`${tabId}-content`).classList.add('active');
+      
+              // Refresh data when switching to certain tabs
+              if (tabId === 'alerts') {
+                  this.fetchRecentAlerts();
+              } else if (tabId === 'warnings') {
+                  this.fetchWarningTypes();
+              } else if (tabId === 'telegram') {
+                  this.fetchTelegramConfig();
+                  this.fetchNotificationRules();
+              }
+          },
+      
+          // ALERTS TAB FUNCTIONS
+      
+          // Fetch recent alerts
+          fetchRecentAlerts: function() {
+              this.state.isLoading = true;
+              
+              // Combine warnings history and rule triggers for the alerts view
+              return Promise.all([
+                  fetch(`${this.api.warnings.history}?limit=${this.state.itemsPerPage}&skip=${(this.state.currentPage - 1) * this.state.itemsPerPage}`).then(res => res.json()),
+                  fetch(`${this.api.notificationRules.all}`).then(res => res.json())
+              ]).then(([warningHistory, notificationRules]) => {
+                  this.state.warningHistory = warningHistory.warnings || [];
+                  this.state.totalPages = Math.ceil(warningHistory.total / this.state.itemsPerPage);
+                  
+                  // Merge and sort all alerts by timestamp
+                  this.state.recentAlerts = [
+                      ...this.state.warningHistory.map(warning => ({
+                          type: 'warning',
+                          title: warning.title,
+                          message: warning.description,
+                          timestamp: new Date(warning.timestamp),
+                          priority: warning.priority,
+                          data: warning
+                      }))
+                      // We would add rule triggers here if you have an API endpoint for them
+                  ].sort((a, b) => b.timestamp - a.timestamp);
+                  
+                  this.renderAlerts();
+                  this.renderPagination();
+                  this.state.isLoading = false;
+              }).catch(error => {
+                  console.error('Error fetching alerts:', error);
+                  this.state.isLoading = false;
+                  this.showNotification('Error fetching alerts. Please try again.', 'error');
+              });
+          },
+      
+          // Render alerts to the UI
+          renderAlerts: function() {
+              if (this.state.recentAlerts.length === 0) {
+                  this.alertsContainer.innerHTML = `
+                      <div class="empty-state">
+                          <i class="fas fa-bell-slash"></i>
+                          <h3>No notifications</h3>
+                          <p>You don't have any notifications yet.</p>
+                      </div>
+                  `;
+                  return;
+              }
+      
+              this.alertsContainer.innerHTML = this.state.recentAlerts.map(alert => {
+                  let iconClass = 'info-circle';
+                  let alertClass = 'notification-info';
+                  let badgeClass = 'badge-primary';
+                  let badgeText = 'Info';
+                  
+                  if (alert.type === 'warning') {
+                      switch (alert.priority) {
+                          case 'high':
+                              iconClass = 'exclamation-triangle';
+                              alertClass = 'notification-danger';
+                              badgeClass = 'badge-danger';
+                              badgeText = 'Alert';
+                              break;
+                          case 'medium':
+                              iconClass = 'exclamation-triangle';
+                              alertClass = 'notification-warning';
+                              badgeClass = 'badge-warning';
+                              badgeText = 'Warning';
+                              break;
+                          case 'low':
+                              iconClass = 'info-circle';
+                              alertClass = 'notification-info';
+                              badgeClass = 'badge-primary';
+                              badgeText = 'Info';
+                              break;
+                      }
+                  } else if (alert.type === 'rule') {
+                      iconClass = 'check-circle';
+                      alertClass = 'notification-success';
+                      badgeClass = 'badge-success';
+                      badgeText = 'Rule Trigger';
+                  }
+      
+                  return `
+                      <div class="notification ${alertClass}" data-id="${alert.data.id}">
+                          <div class="notification-icon">
+                              <i class="fas fa-${iconClass}"></i>
+                          </div>
+                          <div class="notification-content">
+                              <div class="notification-title">
+                                  ${this.escapeHtml(alert.title)}
+                                  <span class="badge ${badgeClass}">${badgeText}</span>
+                              </div>
+                              <div class="notification-message">
+                                  ${this.escapeHtml(alert.message)}
+                              </div>
+                              <div class="notification-time">
+                                  <i class="far fa-clock"></i> ${this.formatTimestamp(alert.timestamp)}
+                              </div>
+                          </div>
+                      </div>
+                  `;
+              }).join('');
+          },
+      
+          // Render pagination
+          renderPagination: function() {
+              if (this.state.totalPages <= 1) {
+                  this.pagination.style.display = 'none';
+                  return;
+              }
+      
+              this.pagination.style.display = 'flex';
+              let paginationHtml = '';
+      
+              // Previous button
+              if (this.state.currentPage > 1) {
+                  paginationHtml += `
+                      <div class="pagination-item" data-page="${this.state.currentPage - 1}">
+                          <i class="fas fa-chevron-left"></i>
+                      </div>
+                  `;
+              }
+      
+              // Page numbers
+              const displayPageCount = 5;
+              let startPage = Math.max(1, this.state.currentPage - Math.floor(displayPageCount / 2));
+              let endPage = Math.min(this.state.totalPages, startPage + displayPageCount - 1);
+              
+              if (endPage - startPage + 1 < displayPageCount) {
+                  startPage = Math.max(1, endPage - displayPageCount + 1);
+              }
+      
+              // First page
+              if (startPage > 1) {
+                  paginationHtml += `
+                      <div class="pagination-item" data-page="1">1</div>
+                  `;
+                  if (startPage > 2) {
+                      paginationHtml += `
+                          <div class="pagination-item">
+                              <i class="fas fa-ellipsis-h"></i>
+                          </div>
+                      `;
+                  }
+              }
+      
+              // Pages
+              for (let i = startPage; i <= endPage; i++) {
+                  paginationHtml += `
+                      <div class="pagination-item ${i === this.state.currentPage ? 'active' : ''}" data-page="${i}">${i}</div>
+                  `;
+              }
+      
+              // Last page
+              if (endPage < this.state.totalPages) {
+                  if (endPage < this.state.totalPages - 1) {
+                      paginationHtml += `
+                          <div class="pagination-item">
+                              <i class="fas fa-ellipsis-h"></i>
+                          </div>
+                      `;
+                  }
+                  paginationHtml += `
+                      <div class="pagination-item" data-page="${this.state.totalPages}">${this.state.totalPages}</div>
+                  `;
+              }
+      
+              // Next button
+              if (this.state.currentPage < this.state.totalPages) {
+                  paginationHtml += `
+                      <div class="pagination-item" data-page="${this.state.currentPage + 1}">
+                          <i class="fas fa-chevron-right"></i>
+                      </div>
+                  `;
+              }
+      
+              this.pagination.innerHTML = paginationHtml;
+      
+              // Add event listeners to pagination items
+              this.pagination.querySelectorAll('.pagination-item[data-page]').forEach(item => {
+                  item.addEventListener('click', () => {
+                      this.state.currentPage = parseInt(item.dataset.page);
+                      this.fetchRecentAlerts();
+                  });
+              });
+          },
+      
+          // Export alerts to CSV
+          exportAlerts: function() {
+              if (this.state.recentAlerts.length === 0) {
+                  this.showNotification('No alerts to export.', 'warning');
+                  return;
+              }
+      
+              // Fetch all alerts without pagination
+              fetch(`${this.api.warnings.history}?limit=1000`).then(res => res.json())
+                  .then(data => {
+                      const alerts = (data.warnings || []).map(warning => ({
+                          type: 'warning',
+                          title: warning.title,
+                          message: warning.description,
+                          timestamp: new Date(warning.timestamp),
+                          priority: warning.priority
+                      }));
+      
+                      if (alerts.length === 0) {
+                          this.showNotification('No alerts to export.', 'warning');
+                          return;
+                      }
+      
+                      // Create CSV content
+                      let csvContent = "data:text/csv;charset=utf-8," + 
+                          "Type,Title,Message,Timestamp,Priority\n" + 
+                          alerts.map(alert => {
+                              return `${alert.type},${this.escapeCsv(alert.title)},${this.escapeCsv(alert.message)},${alert.timestamp.toISOString()},${alert.priority}`;
+                          }).join("\n");
+      
+                      // Create download link
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", encodedUri);
+                      link.setAttribute("download", `energy-monitor-alerts-${new Date().toISOString().split('T')[0]}.csv`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+      
+                      this.showNotification('Alerts exported successfully.', 'success');
+                  })
+                  .catch(error => {
+                      console.error('Error exporting alerts:', error);
+                      this.showNotification('Error exporting alerts. Please try again.', 'error');
+                  });
+          },
+      
+          // Clear all alerts
+          clearAlerts: function() {
+              if (confirm('Are you sure you want to clear all alerts? This action cannot be undone.')) {
+                  fetch(this.api.warnings.clearHistory, {
+                      method: 'DELETE'
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.state.recentAlerts = [];
+                          this.state.warningHistory = [];
+                          this.state.currentPage = 1;
+                          this.state.totalPages = 1;
+                          this.renderAlerts();
+                          this.renderPagination();
+                          this.showNotification('Alerts cleared successfully.', 'success');
+                      } else {
+                          throw new Error(data.message || 'Failed to clear alerts');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error clearing alerts:', error);
+                      this.showNotification('Error clearing alerts. Please try again.', 'error');
+                  });
+              }
+          },
+      
+          // Refresh data with animation
+          refreshData: function() {
+              const icon = this.refreshBtn.querySelector('i');
+              icon.classList.add('fa-spin');
+              
+              this.loadInitialData().finally(() => {
+                  setTimeout(() => {
+                      icon.classList.remove('fa-spin');
+                  }, 1000);
+              });
+          },
+      
+          // WARNINGS TAB FUNCTIONS
+      
+          // Fetch warning types
+          fetchWarningTypes: function() {
+              return fetch(this.api.warnings.types)
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.state.warningTypes = data.warningTypes || [];
+                          this.renderWarningTypes();
+                      } else {
+                          throw new Error(data.error || 'Failed to fetch warning types');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error fetching warning types:', error);
+                      this.showNotification('Error fetching warning types. Please try again.', 'error');
+                  });
+          },
+      
+          // Render warning types
+          renderWarningTypes: function() {
+              if (this.state.warningTypes.length === 0) {
+                  this.warningsContainer.innerHTML = `
+                      <div class="empty-state">
+                          <i class="fas fa-exclamation-triangle"></i>
+                          <h3>No warning types</h3>
+                          <p>You don't have any warning types configured yet.</p>
+                      </div>
+                  `;
+                  return;
+              }
+      
+              this.warningsContainer.innerHTML = this.state.warningTypes.map(warning => {
+                  let conditionText = '';
+                  switch (warning.condition) {
+                      case 'lt': conditionText = 'Less than'; break;
+                      case 'gt': conditionText = 'Greater than'; break;
+                      case 'eq': conditionText = 'Equal to'; break;
+                      case 'lte': conditionText = 'Less than or equal to'; break;
+                      case 'gte': conditionText = 'Greater than or equal to'; break;
+                      default: conditionText = warning.condition;
+                  }
+      
+                  return `
+                      <div class="warning-type" data-id="${warning.id}">
+                          <div class="warning-type-header">
+                              <div class="warning-type-title">${this.escapeHtml(warning.name)}</div>
+                              <label class="toggle">
+                                  <input type="checkbox" class="warning-enabled" ${warning.enabled ? 'checked' : ''}>
+                                  <span class="toggle-slider"></span>
+                              </label>
+                          </div>
+                          <div class="notification-message">
+                              ${this.escapeHtml(warning.description)}
+                          </div>
+                          <div class="warning-type-details">
+                              <div class="warning-type-detail">
+                                  <i class="fas fa-tachometer-alt"></i> Parameter: ${warning.parameter}
+                              </div>
+                              <div class="warning-type-detail">
+                                  <i class="fas fa-not-equal"></i> Condition: ${conditionText}
+                              </div>
+                              <div class="warning-type-detail">
+                                  <i class="fas fa-tachometer-alt"></i> Threshold: ${warning.threshold}
+                              </div>
+                              <div class="warning-type-detail">
+                                  <i class="fas fa-exclamation-circle"></i> Priority: ${warning.priority}
+                              </div>
+                              <div class="warning-type-detail">
+                                  <i class="fas fa-clock"></i> Cooldown: ${warning.cooldownMinutes} minutes
+                              </div>
+                              ${warning.timeCondition ? `
+                                  <div class="warning-type-detail">
+                                      <i class="fas fa-sun"></i> ${warning.timeCondition === 'daytime' ? 'Daytime only' : warning.timeCondition}
+                                  </div>
+                              ` : ''}
+                          </div>
+                          <div class="actions" style="margin-top: 1rem;">
+                              <button class="btn btn-sm btn-primary edit-warning" data-id="${warning.id}">
+                                  <i class="fas fa-edit"></i> Edit
+                              </button>
+                              <button class="btn btn-sm btn-danger delete-warning" data-id="${warning.id}">
+                                  <i class="fas fa-trash"></i> Delete
+                              </button>
+                          </div>
+                      </div>
+                  `;
+              }).join('');
+      
+              // Add event listeners for warning type actions
+              this.warningsContainer.querySelectorAll('.warning-enabled').forEach(toggle => {
+                  toggle.addEventListener('change', (e) => {
+                      const warningId = e.target.closest('.warning-type').dataset.id;
+                      this.toggleWarningType(warningId, e.target.checked);
+                  });
+              });
+      
+              this.warningsContainer.querySelectorAll('.edit-warning').forEach(btn => {
+                  btn.addEventListener('click', (e) => {
+                      const warningId = e.target.dataset.id || e.target.closest('.edit-warning').dataset.id;
+                      this.editWarningType(warningId);
+                  });
+              });
+      
+              this.warningsContainer.querySelectorAll('.delete-warning').forEach(btn => {
+                  btn.addEventListener('click', (e) => {
+                      const warningId = e.target.dataset.id || e.target.closest('.delete-warning').dataset.id;
+                      this.deleteWarningType(warningId);
+                  });
+              });
+          },
+      
+          // Toggle warning type enabled/disabled
+          toggleWarningType: function(warningId, enabled) {
+              const warningType = this.state.warningTypes.find(w => w.id === warningId);
+              if (!warningType) return;
+      
+              // Update in the UI immediately for perceived performance
+              warningType.enabled = enabled;
+              
+              // Update on the server
+              fetch(this.api.warnings.updateType(warningId), {
+                  method: 'PUT',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ ...warningType })
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (!data.success) {
+                      // Revert if server update failed
+                      warningType.enabled = !enabled;
+                      this.renderWarningTypes();
+                      throw new Error(data.message || 'Failed to update warning type');
+                  }
+                  this.showNotification(`Warning type ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+              })
+              .catch(error => {
+                  console.error('Error updating warning type:', error);
+                  this.showNotification('Error updating warning type. Please try again.', 'error');
+              });
+          },
+      
+          // Show modal to add a new warning type
+          showAddWarningTypeModal: function() {
+              // Create modal HTML
+              const modalHtml = `
+                  <div class="modal-overlay" id="warning-modal-overlay">
+                      <div class="modal-container">
+                          <div class="modal-header">
+                              <h3>Add Warning Type</h3>
+                              <button class="modal-close" id="warning-modal-close">×</button>
+                          </div>
+                          <div class="modal-body">
+                              <div class="form-group">
+                                  <label for="warning-name">Name</label>
+                                  <input type="text" id="warning-name" class="form-control" placeholder="Warning Name" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-description">Description</label>
+                                  <textarea id="warning-description" class="form-control" placeholder="Description" rows="2"></textarea>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-parameter">Parameter</label>
+                                  <select id="warning-parameter" class="form-control" required>
+                                      <option value="battery_soc">Battery SOC</option>
+                                      <option value="pv_power">PV Power</option>
+                                      <option value="load">Load</option>
+                                      <option value="grid_voltage">Grid Voltage</option>
+                                      <option value="grid_power">Grid Power</option>
+                                  </select>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-condition">Condition</label>
+                                  <select id="warning-condition" class="form-control" required>
+                                      <option value="lt">Less than</option>
+                                      <option value="gt">Greater than</option>
+                                      <option value="eq">Equal to</option>
+                                      <option value="lte">Less than or equal to</option>
+                                      <option value="gte">Greater than or equal to</option>
+                                  </select>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-threshold">Threshold</label>
+                                  <input type="number" id="warning-threshold" class="form-control" placeholder="Threshold value" required>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-priority">Priority</label>
+                                  <select id="warning-priority" class="form-control">
+                                      <option value="high">High</option>
+                                      <option value="medium" selected>Medium</option>
+                                      <option value="low">Low</option>
+                                  </select>
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-cooldown">Cooldown (minutes)</label>
+                                  <input type="number" id="warning-cooldown" class="form-control" min="1" value="30">
+                              </div>
+                              <div class="form-group">
+                                  <label for="warning-time-condition">Time Condition</label>
+                                  <select id="warning-time-condition" class="form-control">
+                                      <option value="">Always</option>
+                                      <option value="daytime">Daytime only</option>
+                                  </select>
+                              </div>
+                              <div class="form-group">
+                                  <label>
+                                      <input type="checkbox" id="warning-enabled" checked>
+                                      Enabled
+                                  </label>
+                              </div>
+                          </div>
+                          <div class="modal-footer">
+                              <button class="btn btn-outline" id="warning-modal-cancel">Cancel</button>
+                              <button class="btn btn-primary" id="warning-modal-save">Save</button>
+                          </div>
+                      </div>
+                  </div>
+              `;
+      
+              // Add modal to the DOM
+              document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+              // Add event listeners
+              document.getElementById('warning-modal-close').addEventListener('click', this.closeModal);
+              document.getElementById('warning-modal-cancel').addEventListener('click', this.closeModal);
+              document.getElementById('warning-modal-save').addEventListener('click', () => {
+                  // Gather form data
+                  const warningType = {
+                      name: document.getElementById('warning-name').value,
+                      description: document.getElementById('warning-description').value,
+                      parameter: document.getElementById('warning-parameter').value,
+                      condition: document.getElementById('warning-condition').value,
+                      threshold: parseFloat(document.getElementById('warning-threshold').value),
+                      priority: document.getElementById('warning-priority').value,
+                      cooldownMinutes: parseInt(document.getElementById('warning-cooldown').value),
+                      timeCondition: document.getElementById('warning-time-condition').value,
+                      enabled: document.getElementById('warning-enabled').checked
+                  };
+      
+                  // Validate
+                  if (!warningType.name || !warningType.parameter || !warningType.condition || isNaN(warningType.threshold)) {
+                      this.showNotification('Please fill in all required fields.', 'error');
+                      return;
+                  }
+      
+                  // Save warning type
+                  this.saveWarningType(warningType);
+              });
+          },
+      
+          // Save a new warning type
+          saveWarningType: function(warningType) {
+              fetch(this.api.warnings.addType, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(warningType)
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      this.closeModal();
+                      this.fetchWarningTypes();
+                      this.showNotification('Warning type added successfully.', 'success');
+                  } else {
+                      throw new Error(data.error || 'Failed to add warning type');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error adding warning type:', error);
+                  this.showNotification('Error adding warning type. Please try again.', 'error');
+              });
+          },
+      
+          // Show modal to edit a warning type
+          editWarningType: function(warningId) {
+              const warningType = this.state.warningTypes.find(w => w.id === warningId);
+              if (!warningType) return;
+      
+              // Create modal with pre-filled values
+              this.showAddWarningTypeModal();
+      
+              // Fill in form values
+              document.getElementById('warning-name').value = warningType.name;
+              document.getElementById('warning-description').value = warningType.description;
+              document.getElementById('warning-parameter').value = warningType.parameter;
+              document.getElementById('warning-condition').value = warningType.condition;
+              document.getElementById('warning-threshold').value = warningType.threshold;
+              document.getElementById('warning-priority').value = warningType.priority;
+              document.getElementById('warning-cooldown').value = warningType.cooldownMinutes;
+              document.getElementById('warning-time-condition').value = warningType.timeCondition || '';
+              document.getElementById('warning-enabled').checked = warningType.enabled;
+      
+              // Change modal title
+              document.querySelector('.modal-header h3').textContent = 'Edit Warning Type';
+      
+              // Change save button action
+              document.getElementById('warning-modal-save').addEventListener('click', () => {
+                  // Gather form data
+                  const updatedWarningType = {
+                      id: warningId,
+                      name: document.getElementById('warning-name').value,
+                      description: document.getElementById('warning-description').value,
+                      parameter: document.getElementById('warning-parameter').value,
+                      condition: document.getElementById('warning-condition').value,
+                      threshold: parseFloat(document.getElementById('warning-threshold').value),
+                      priority: document.getElementById('warning-priority').value,
+                      cooldownMinutes: parseInt(document.getElementById('warning-cooldown').value),
+                      timeCondition: document.getElementById('warning-time-condition').value,
+                      enabled: document.getElementById('warning-enabled').checked
+                  };
+      
+                  // Validate
+                  if (!updatedWarningType.name || !updatedWarningType.parameter || !updatedWarningType.condition || isNaN(updatedWarningType.threshold)) {
+                      this.showNotification('Please fill in all required fields.', 'error');
+                      return;
+                  }
+      
+                  // Update warning type
+                  fetch(this.api.warnings.updateType(warningId), {
+                      method: 'PUT',
+                      headers: {
+                          'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify(updatedWarningType)
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.closeModal();
+                          this.fetchWarningTypes();
+                          this.showNotification('Warning type updated successfully.', 'success');
+                      } else {
+                          throw new Error(data.error || 'Failed to update warning type');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error updating warning type:', error);
+                      this.showNotification('Error updating warning type. Please try again.', 'error');
+                  });
+              }, { once: true });
+          },
+      
+          // Delete a warning type
+          deleteWarningType: function(warningId) {
+              if (confirm('Are you sure you want to delete this warning type? This action cannot be undone.')) {
+                  fetch(this.api.warnings.deleteType(warningId), {
+                      method: 'DELETE'
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.state.warningTypes = this.state.warningTypes.filter(w => w.id !== warningId);
+                          this.renderWarningTypes();
+                          this.showNotification('Warning type deleted successfully.', 'success');
+                      } else {
+                          throw new Error(data.error || 'Failed to delete warning type');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error deleting warning type:', error);
+                      this.showNotification('Error deleting warning type. Please try again.', 'error');
+                  });
+              }
+          },
+      
+          // TELEGRAM TAB FUNCTIONS
+      
+          // Fetch Telegram configuration
+          fetchTelegramConfig: function() {
+              return fetch(this.api.telegram.config)
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success !== false) {
+                          this.state.telegramConfig = data;
+                          this.renderTelegramConfig();
+                      } else {
+                          throw new Error(data.error || 'Failed to fetch Telegram configuration');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error fetching Telegram configuration:', error);
+                      this.showNotification('Error fetching Telegram configuration. Please try again.', 'error');
+                  });
+          },
+      
+          // Render Telegram configuration
+          renderTelegramConfig: function() {
+              // Set toggle state
+              this.telegramEnabled.checked = this.state.telegramConfig.enabled;
+              
+              // Update bot token field
+              this.botToken.value = this.state.telegramConfig.botToken || '';
+              
+              // Toggle form elements based on enabled state
+              this.toggleTelegramConfig();
+              
+              // Render chat IDs
+              this.renderTelegramChatIds();
+          },
+      
+          // Toggle Telegram configuration
+          toggleTelegramConfig: function() {
+              const isEnabled = this.telegramEnabled.checked;
+              
+              // Update UI
+              this.botToken.disabled = !isEnabled;
+              this.saveTokenBtn.disabled = !isEnabled;
+              this.testTokenBtn.disabled = !isEnabled;
+              
+              // Only update server if we have config data loaded
+              if (this.state.telegramConfig) {
+                  // Update config on the server
+                  fetch(this.api.telegram.updateConfig, {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                          enabled: isEnabled
+                      })
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.state.telegramConfig.enabled = isEnabled;
+                          this.showNotification(`Telegram notifications ${isEnabled ? 'enabled' : 'disabled'}.`, 'success');
+                      } else {
+                          throw new Error(data.error || 'Failed to update Telegram configuration');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error updating Telegram configuration:', error);
+                      this.showNotification('Error updating Telegram configuration. Please try again.', 'error');
+                      // Revert UI if server update failed
+                      this.telegramEnabled.checked = !isEnabled;
+                      this.toggleTelegramConfig();
+                  });
+              }
+          },
+      
+          // Toggle token visibility
+          toggleTokenVisibility: function() {
+              if (this.botToken.type === 'password') {
+                  this.botToken.type = 'text';
+                  this.showTokenBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+              } else {
+                  this.botToken.type = 'password';
+                  this.showTokenBtn.innerHTML = '<i class="fas fa-eye"></i>';
+              }
+          },
+      
+          // Save Telegram token
+          saveTelegramToken: function() {
+              const token = this.botToken.value.trim();
+              
+              if (!token) {
+                  this.showNotification('Please enter a bot token.', 'error');
+                  return;
+              }
+      
+              this.showLoader();
+              
+              // Update config on the server directly without testing first
+              fetch(this.api.telegram.updateConfig, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                      botToken: token
+                  })
+              })
+              .then(res => res.json())
+              .then(data => {
+                  this.hideLoader();
+                  if (data.success) {
+                      this.state.telegramConfig.botToken = token;
+                      this.showNotification('Bot token saved successfully.', 'success');
+                  } else {
+                      throw new Error(data.error || 'Failed to save bot token');
+                  }
+              })
+              .catch(error => {
+                  this.hideLoader();
+                  console.error('Error saving bot token:', error);
+                  this.showNotification(`Error: ${error.message || 'Failed to save bot token. Please try again.'}`, 'error');
+              });
+          },
+      
+          // Test Telegram connection
+          testTelegramConnection: function() {
+              const token = this.botToken.value.trim();
+              
+              if (!token) {
+                  this.showNotification('Please enter a bot token.', 'error');
+                  return;
+              }
+      
+              this.showLoader();
+              fetch(this.api.telegram.test, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                      message: 'This is a test message from your CARBONOZ SOlarAutopilot Addon.'
+                  })
+              })
+              .then(res => res.json())
+              .then(data => {
+                  this.hideLoader();
+                  if (data.success) {
+                      this.showNotification('Test message sent successfully.', 'success');
+                  } else {
+                      throw new Error(data.error || 'Failed to send test message');
+                  }
+              })
+              .catch(error => {
+                  this.hideLoader();
+                  console.error('Error testing Telegram connection:', error);
+                  this.showNotification(`Error: ${error.message || 'Failed to test connection. Please try again.'}`, 'error');
+              });
+          },
+      
+          // Render Telegram chat IDs
+          renderTelegramChatIds: function() {
+              if (!this.state.telegramConfig.chatIds || this.state.telegramConfig.chatIds.length === 0) {
+                  this.chatIdsContainer.innerHTML = `
+                      <div class="empty-state" style="padding: 1rem;">
+                          <p>No chat IDs added yet.</p>
+                      </div>
+                  `;
+                  return;
+              }
+      
+              this.chatIdsContainer.innerHTML = this.state.telegramConfig.chatIds.map(chatId => {
+                  let chatType = 'user';
+                  let icon = 'fa-user';
+                  let name = 'Personal Chat';
+                  
+                  // Detect chat type based on ID
+                  if (chatId.toString().startsWith('-100')) {
+                      chatType = 'channel';
+                      icon = 'fa-bullhorn';
+                      name = 'Channel';
+                  } else if (chatId.toString().startsWith('-')) {
+                      chatType = 'group';
+                      icon = 'fa-users';
+                      name = 'Group';
+                  }
+      
+                  return `
+                      <div class="telegram-channel" data-id="${chatId}">
+                          <div>
+                              <i class="fas ${icon}"></i> ${name} (${chatId})
+                          </div>
+                          <button class="btn btn-sm btn-danger remove-chat-id" data-id="${chatId}">
+                              <i class="fas fa-trash"></i> Remove
+                          </button>
+                      </div>
+                  `;
+              }).join('');
+      
+              // Add event listeners to remove buttons
+              this.chatIdsContainer.querySelectorAll('.remove-chat-id').forEach(btn => {
+                  btn.addEventListener('click', (e) => {
+                      const chatId = e.target.dataset.id || e.target.closest('.remove-chat-id').dataset.id;
+                      this.removeTelegramChatId(chatId);
+                  });
+              });
+          },
+      
+          // Add Telegram chat ID
+          addTelegramChatId: function() {
+              const chatId = this.newChatIdInput.value.trim();
+              
+              if (!chatId) {
+                  this.showNotification('Please enter a chat ID.', 'error');
+                  return;
+              }
+      
+              fetch(this.api.telegram.addChatId, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ chatId })
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      // Update state
+                      if (!this.state.telegramConfig.chatIds) {
+                          this.state.telegramConfig.chatIds = [];
+                      }
+                      this.state.telegramConfig.chatIds.push(chatId);
+                      
+                      // Clear input
+                      this.newChatIdInput.value = '';
+                      
+                      // Render updated list
+                      this.renderTelegramChatIds();
+                      this.showNotification('Chat ID added successfully.', 'success');
+                  } else {
+                      throw new Error(data.error || 'Failed to add chat ID');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error adding chat ID:', error);
+                  this.showNotification(`Error: ${error.message || 'Failed to add chat ID. Please try again.'}`, 'error');
+              });
+          },
+      
+          // Remove Telegram chat ID
+          removeTelegramChatId: function(chatId) {
+              fetch(this.api.telegram.removeChatId(chatId), {
+                  method: 'DELETE'
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      // Update state
+                      this.state.telegramConfig.chatIds = this.state.telegramConfig.chatIds.filter(id => id.toString() !== chatId.toString());
+                      
+                      // Render updated list
+                      this.renderTelegramChatIds();
+                      this.showNotification('Chat ID removed successfully.', 'success');
+                  } else {
+                      throw new Error(data.error || 'Failed to remove chat ID');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error removing chat ID:', error);
+                  this.showNotification(`Error: ${error.message || 'Failed to remove chat ID. Please try again.'}`, 'error');
+              });
+          },
+      
+          // Fetch notification rules
+          fetchNotificationRules: function() {
+              return fetch(this.api.notificationRules.all)
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success !== false) {
+                          this.state.notificationRules = data.rules || [];
+                          this.renderNotificationRules();
+                      } else {
+                          throw new Error(data.error || 'Failed to fetch notification rules');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error fetching notification rules:', error);
+                      this.showNotification('Error fetching notification rules. Please try again.', 'error');
+                  });
+          },
+      
+          // Email Settings functions
+          fetchEmailSettings: function() {
+              // For demo purposes, using mock data - in a real implementation, 
+              // you would fetch from your server API
+              return new Promise((resolve) => {
+                  setTimeout(() => {
+                      this.state.emailSettings = {
+                          enabled: false,
+                          email: '',
+                          notifications: {
+                              warnings: false,
+                              rules: false,
+                              updates: false
+                          }
+                      };
+                      
+                      // Update UI
+                      this.emailToggle.checked = this.state.emailSettings.enabled;
+                      this.emailInput.value = this.state.emailSettings.email;
+                      document.getElementById('email-warnings').checked = this.state.emailSettings.notifications.warnings;
+                      document.getElementById('email-rules').checked = this.state.emailSettings.notifications.rules;
+                      document.getElementById('email-updates').checked = this.state.emailSettings.notifications.updates;
+                      
+                      resolve();
+                  }, 200);
+              });
+          },
+          
+          saveEmailSettings: function() {
+              const emailSettings = {
+                  enabled: this.emailToggle.checked,
+                  email: this.emailInput.value.trim(),
+                  notifications: {
+                      warnings: document.getElementById('email-warnings').checked,
+                      rules: document.getElementById('email-rules').checked,
+                      updates: document.getElementById('email-updates').checked
+                  }
+              };
+              
+              // Validate email if enabled
+              if (emailSettings.enabled && !this.validateEmail(emailSettings.email)) {
+                  this.showNotification('Please enter a valid email address.', 'error');
+                  return;
+              }
+              
+              this.showLoader();
+              
+              // In a real implementation, you would save to your server API
+              // For demo purposes, simulating API call
+              setTimeout(() => {
+                  this.hideLoader();
+                  this.state.emailSettings = emailSettings;
+                  this.showNotification('Email notification settings saved successfully.', 'success');
+              }, 500);
+          },
+          
+          // System Notification Settings functions
+          fetchSystemNotificationSettings: function() {
+              // For demo purposes, using mock data
+              return new Promise((resolve) => {
+                  setTimeout(() => {
+                      this.state.systemNotificationSettings = {
+                          enabled: true,
+                          level: 'All Notifications',
+                          notifications: {
+                              ruleChanges: true,
+                              gridEvents: true,
+                              battery: true
+                          }
+                      };
+                      
+                      // Update UI
+                      this.systemNotificationsToggle.checked = this.state.systemNotificationSettings.enabled;
+                      this.notificationLevelSelect.value = this.state.systemNotificationSettings.level;
+                      document.getElementById('notify-rule-changes').checked = this.state.systemNotificationSettings.notifications.ruleChanges;
+                      document.getElementById('notify-grid-events').checked = this.state.systemNotificationSettings.notifications.gridEvents;
+                      document.getElementById('notify-battery').checked = this.state.systemNotificationSettings.notifications.battery;
+                      
+                      resolve();
+                  }, 200);
+              });
+          },
+          
+          saveSystemNotificationSettings: function() {
+              const systemNotificationSettings = {
+                  enabled: this.systemNotificationsToggle.checked,
+                  level: this.notificationLevelSelect.value,
+                  notifications: {
+                      ruleChanges: document.getElementById('notify-rule-changes').checked,
+                      gridEvents: document.getElementById('notify-grid-events').checked,
+                      battery: document.getElementById('notify-battery').checked
+                  }
+              };
+              
+              this.showLoader();
+              
+              // In a real implementation, you would save to your server API
+              // For demo purposes, simulating API call
+              setTimeout(() => {
+                  this.hideLoader();
+                  this.state.systemNotificationSettings = systemNotificationSettings;
+                  this.showNotification('System notification settings saved successfully.', 'success');
+              }, 500);
+          },
+      
+          // Validate email format
+          validateEmail: function(email) {
+              const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+              return re.test(String(email).toLowerCase());
+          },
+      
+          // Save notification rules
+          saveNotificationRules: function() {
+              // Collect the notification rules from the UI
+              const ruleTriggersEnabled = document.querySelector('#telegram-content .warning-type:nth-child(1) .toggle input').checked;
+              const systemWarningsEnabled = document.querySelector('#telegram-content .warning-type:nth-child(2) .toggle input').checked;
+              const statusUpdatesEnabled = document.querySelector('#telegram-content .warning-type:nth-child(3) .toggle input').checked;
+              
+              // Get individual rule options
+              const nightChargingEnabled = document.getElementById('rules-night-charging').checked;
+              const gridChargeEnabled = document.getElementById('rules-grid-charge').checked;
+              const energyPatternEnabled = document.getElementById('rules-energy-pattern').checked;
+              const batteryWarningsEnabled = document.getElementById('warnings-battery').checked;
+              const gridWarningsEnabled = document.getElementById('warnings-grid').checked;
+              const pvWarningsEnabled = document.getElementById('warnings-pv').checked;
+              const dailySummaryEnabled = document.getElementById('status-daily').checked;
+              const weeklyReportEnabled = document.getElementById('status-weekly').checked;
+              
+              // Create or update notification rules
+              const updatedRules = [];
+              
+              // Add rule triggers rules
+              if (ruleTriggersEnabled) {
+                  if (nightChargingEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('rule_night_charging', 'rule', 'Night Charging Rule', true));
+                  }
+                  if (gridChargeEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('rule_grid_charge', 'rule', 'Grid Charge Rules', true));
+                  }
+                  if (energyPatternEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('rule_energy_pattern', 'rule', 'Energy Pattern Rules', true));
+                  }
+              }
+              
+              // Add warning type rules
+              if (systemWarningsEnabled) {
+                  if (batteryWarningsEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('warning_battery', 'warning', 'Battery Warnings', true, 'low-battery'));
+                  }
+                  if (gridWarningsEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('warning_grid', 'warning', 'Grid Warnings', true, 'grid-outage'));
+                  }
+                  if (pvWarningsEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('warning_pv', 'warning', 'PV System Warnings', true, 'pv-underperformance'));
+                  }
+              }
+              
+              // Add status update rules
+              if (statusUpdatesEnabled) {
+                  if (dailySummaryEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('status_daily', 'status', 'Daily Summary', true));
+                  }
+                  if (weeklyReportEnabled) {
+                      updatedRules.push(this.createOrUpdateNotificationRule('status_weekly', 'status', 'Weekly Report', true));
+                  }
+              }
+              
+              // Update all rules in one batch request
+              Promise.all(updatedRules.map(rule => {
+                  const existingRule = this.state.notificationRules.find(r => r.id === rule.id);
+                  
+                  if (existingRule) {
+                      return fetch(this.api.notificationRules.update(rule.id), {
+                          method: 'PUT',
+                          headers: {
+                              'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify(rule)
+                      }).then(res => res.json());
+                  } else {
+                      return fetch(this.api.notificationRules.add, {
+                          method: 'POST',
+                          headers: {
+                              'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify(rule)
+                      }).then(res => res.json());
+                  }
+              }))
+              .then(results => {
+                  const allSuccess = results.every(result => result.success);
+                  
+                  if (allSuccess) {
+                      this.showNotification('Notification rules saved successfully.', 'success');
+                      this.fetchNotificationRules();
+                  } else {
+                      throw new Error('Some rules failed to save');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error saving notification rules:', error);
+                  this.showNotification('Error saving notification rules. Please try again.', 'error');
+              });
+          },
+      
+          // Helper to create or update a notification rule
+          createOrUpdateNotificationRule: function(id, type, name, enabled, warningType = null, ruleId = null) {
+              // Find existing rule
+              const existingRule = this.state.notificationRules.find(r => r.id === id);
+              
+              if (existingRule) {
+                  // Update existing rule
+                  return {
+                      ...existingRule,
+                      enabled,
+                      type,
+                      name,
+                      warningType: type === 'warning' ? warningType : undefined,
+                      ruleId: type === 'rule' ? (ruleId || existingRule.ruleId) : undefined
+                  };
+              } else {
+                  // Create new rule
+                  return {
+                      id,
+                      type,
+                      name,
+                      description: name,
+                      enabled,
+                      warningType: type === 'warning' ? warningType : undefined,
+                      ruleId: type === 'rule' ? ruleId : undefined,
+                      createdAt: new Date().toISOString()
+                  };
+              }
+          },
+      
+          // UTILITY FUNCTIONS
+      
+          // Show loading indicator
+          showLoader: function() {
+              if (document.getElementById('loader')) return;
+              
+              const loader = document.createElement('div');
+              loader.id = 'loader';
+              loader.innerHTML = `
+                  <div class="loader-overlay"></div>
+                  <div class="loader-spinner">
+                      <i class="fas fa-spinner fa-spin"></i>
+                  </div>
+              `;
+              document.body.appendChild(loader);
+              
+              // Add styles if not already in the document
+              if (!document.getElementById('loader-styles')) {
+                  const style = document.createElement('style');
+                  style.id = 'loader-styles';
+                  style.textContent = `
+                      .loader-overlay {
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          right: 0;
+                          bottom: 0;
+                          background-color: rgba(0, 0, 0, 0.5);
+                          z-index: 9998;
+                      }
+                      .loader-spinner {
+                          position: fixed;
+                          top: 50%;
+                          left: 50%;
+                          transform: translate(-50%, -50%);
+                          z-index: 9999;
+                          background-color: white;
+                          padding: 2rem;
+                          border-radius: 8px;
+                          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                      }
+                      .loader-spinner i {
+                          font-size: 2rem;
+                          color: var(--primary-color);
+                      }
+                      .modal-overlay {
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          right: 0;
+                          bottom: 0;
+                          background-color: rgba(0, 0, 0, 0.5);
+                          z-index: 1000;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                      }
+                      .modal-container {
+                          background-color: white;
+                          border-radius: 8px;
+                          width: 90%;
+                          max-width: 500px;
+                          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                          overflow: hidden;
+                      }
+                      .modal-header {
+                          padding: 1rem 1.5rem;
+                          border-bottom: 1px solid var(--light-gray);
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                      }
+                      .modal-close {
+                          background: none;
+                          border: none;
+                          font-size: 1.5rem;
+                          cursor: pointer;
+                          color: var(--gray-color);
+                      }
+                      .modal-body {
+                          padding: 1.5rem;
+                          max-height: 70vh;
+                          overflow-y: auto;
+                      }
+                      .modal-footer {
+                          padding: 1rem 1.5rem;
+                          border-top: 1px solid var(--light-gray);
+                          display: flex;
+                          justify-content: flex-end;
+                          gap: 0.5rem;
+                      }
+                      .notification-toast {
+                          position: fixed;
+                          bottom: 20px;
+                          right: 20px;
+                          padding: 1rem 1.5rem;
+                          background-color: white;
+                          border-left: 4px solid var(--primary-color);
+                          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                          border-radius: 4px;
+                          z-index: 9999;
+                          transition: transform 0.3s ease, opacity 0.3s ease;
+                          transform: translateY(100%);
+                          opacity: 0;
+                          max-width: 400px;
+                      }
+                      .notification-toast.show {
+                          transform: translateY(0);
+                          opacity: 1;
+                      }
+                      .notification-toast.success {
+                          border-left-color: var(--secondary-color);
+                      }
+                      .notification-toast.error {
+                          border-left-color: var(--danger-color);
+                      }
+                      .notification-toast.warning {
+                          border-left-color: var(--warning-color);
+                      }
+                  `;
+                  document.head.appendChild(style);
+              }
+          },
+      
+          // Hide loading indicator
+          hideLoader: function() {
+              const loader = document.getElementById('loader');
+              if (loader) {
+                  loader.remove();
+              }
+          },
+      
+          // Close modal
+          closeModal: function() {
+              const modal = document.getElementById('warning-modal-overlay');
+              if (modal) {
+                  modal.remove();
+              }
+          },
+      
+          // Show notification toast
+          showNotification: function(message, type = 'info') {
+              // Remove existing notification
+              const existingNotification = document.querySelector('.notification-toast');
+              if (existingNotification) {
+                  existingNotification.remove();
+              }
+              
+              // Create notification element
+              const notification = document.createElement('div');
+              notification.className = `notification-toast ${type}`;
+              notification.textContent = message;
+              
+              // Add to DOM
+              document.body.appendChild(notification);
+              
+              // Show notification
+              setTimeout(() => {
+                  notification.classList.add('show');
+              }, 10);
+              
+              // Auto hide after 3 seconds
+              setTimeout(() => {
+                  notification.classList.remove('show');
+                  setTimeout(() => {
+                      notification.remove();
+                  }, 300);
+              }, 3000);
+          },
+      
+          // Format timestamp for display
+          formatTimestamp: function(timestamp) {
+              const date = new Date(timestamp);
+              const now = new Date();
+              const yesterday = new Date(now);
+              yesterday.setDate(yesterday.getDate() - 1);
+              
+              const isToday = date.toDateString() === now.toDateString();
+              const isYesterday = date.toDateString() === yesterday.toDateString();
+              
+              if (isToday) {
+                  return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+              } else if (isYesterday) {
+                  return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+              } else {
+                  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+              }
+          },
+      
+          // Escape HTML to prevent XSS
+          escapeHtml: function(text) {
+              const div = document.createElement('div');
+              div.textContent = text;
+              return div.innerHTML;
+          },
+      
+          // Escape CSV values
+          escapeCsv: function(text) {
+              if (typeof text !== 'string') {
+                  return text;
+              }
+              
+              // If the text contains quotes, commas, or newlines, wrap it in quotes and escape inner quotes
+              if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+                  return '"' + text.replace(/"/g, '""') + '"';
+              }
+              
+              return text;
+          }
+      };
+      
+      // Initialize when DOM is ready
+      document.addEventListener('DOMContentLoaded', () => {
+          NotificationsApp.init();
+          
+          // Add modal overlay and notification styles
+          const styles = document.createElement('style');
+          styles.textContent = `
+              /* Add any additional styles here that aren't already in the main CSS */
+          `;
+          document.head.appendChild(styles);
+      });
+      </script>
+
+<script src="<%= ingress_path %>/js/loading.js"></script>
+<script src="<%= ingress_path %>/js/dark-mode.js"></script>
+<script src="<%= ingress_path %>/js/mobile.js"></script>
+  
+</body>
+</html>

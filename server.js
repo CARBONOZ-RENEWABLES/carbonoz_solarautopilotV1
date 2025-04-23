@@ -23,14 +23,9 @@ const cron = require('node-cron')
 const session = require('express-session');
 const { startOfDay } = require('date-fns')
 const { AuthenticateUser } = require('./utils/mongoService')
-const telegramService = require('./utils/telegram-service');
-const notificationRules = require('./utils/notification-rules');
-const notificationIntegration = require('./utils/notification-integration');
-const notificationScheduler = require('./utils/notification-scheduler');
-const telegramRoutes = require('./router/telegram-routes');
-const telegramRoutesModule = require('./router/telegram-routes');
-
-
+const telegramService = require('./services/telegramService');
+const warningService = require('./services/warningService');
+const notificationRoutes = require('./routes/notificationRoutes');
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -42,7 +37,6 @@ app.set('views', path.join(__dirname, 'views'))
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number || 1
@@ -96,7 +90,6 @@ const limiter = rateLimit({
   max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use('/api/', limiter);
-app.use('/api/telegram', telegramRoutes);
 
 // InfluxDB configuration
 const influxConfig = {
@@ -185,8 +178,6 @@ let currentSystemState = {
   timestamp: null
 }
 
-notificationScheduler.initNotificationScheduler(currentSystemState);
-
 // Track previous state of settings to detect changes
 let previousSettings = {}
 
@@ -268,9 +259,6 @@ async function connectToDatabase() {
     return false;
   }
 }
-
-telegramService.initTelegramConfig();
-notificationRules.initNotificationRules();
   
 // ================ USER IDENTIFICATION SYSTEM ================
 
@@ -1580,22 +1568,6 @@ app.get('/', async (req, res) => {
 });
 
 
-app.get('/telegram', async (req, res) => {
-  try {
-    const telegramConfig = telegramService.getTelegramConfig();
-    
-    res.render('telegram', { 
-      telegramConfig,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID
-    });
-  } catch (error) {
-    console.error('Error rendering telegram page:', error);
-    res.status(500).send('Error loading telegram page');
-  }
-});
-
-
 app.get('/analytics', async (req, res) => {
   try {
     const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
@@ -2566,7 +2538,20 @@ async function processRules() {
       return;
     }
     
-    // Get all active rules for the current user
+    // Check for warnings based on current system state
+    const triggeredWarnings = warningService.checkWarnings(currentSystemState);
+    
+    // Send notifications for any triggered warnings
+    for (const warning of triggeredWarnings) {
+      // Check if this warning type should trigger a notification
+      if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
+        const message = telegramService.formatWarningMessage(warning, currentSystemState);
+        await telegramService.broadcastMessage(message);
+        console.log(`Warning notification sent: ${warning.title}`);
+      }
+    }
+    
+    // FIXED: Get all active rules for the current user by explicitly specifying active: true
     const rules = await getAllRules(USER_ID, { active: true });
     console.log(`Processing ${rules.length} active rules`);
     
@@ -2578,18 +2563,12 @@ async function processRules() {
     const currentDay = now.format('dddd').toLowerCase();
     const currentTime = now.format('HH:mm');
     
-    // Load Telegram config once (don't call for each rule)
-    let telegramConfig = null;
-    try {
-      telegramConfig = require('./utils/telegram-service').getTelegramConfig();
-    } catch (error) {
-      console.error('Error loading Telegram config:', error.message);
-      // Continue without Telegram if service isn't available
-    }
-    
     for (const rule of rules) {
-      // Enhanced double-check to ensure only active rules are processed
+      // FIXED: Enhanced double-check to ensure only active rules are processed
+      // Print out the active status for debugging
+      console.log(`Checking rule "${rule.name}" with active status: ${rule.active}`);
       if (rule.active !== true) {
+        console.log(`Skipping inactive rule: ${rule.name}`);
         continue; // Skip inactive rules
       }
       
@@ -2638,21 +2617,17 @@ async function processRules() {
           }
         }
         
-        // Send Telegram notification if enabled and configured
-        if (telegramConfig && telegramConfig.enabled && telegramConfig.notifyOnRuleTrigger) {
-          try {
-            const notificationIntegration = require('./utils/notification-integration');
-            await notificationIntegration.handleRuleTrigger(rule, currentSystemState);
-          } catch (error) {
-            console.error('Error sending rule trigger notification:', error.message);
-            // Continue even if notification fails - don't disrupt rule processing
-          }
-        }
-        
         // Always update rule statistics
         rule.lastTriggered = new Date();
         rule.triggerCount = (rule.triggerCount || 0) + 1;
         rulesToUpdate.push(rule);
+        
+        // Send notification if configured for this rule
+        if (telegramService.shouldNotifyForRule(rule.id)) {
+          const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
+          await telegramService.broadcastMessage(message);
+          console.log(`Rule notification sent: ${rule.name}`);
+        }
       }
     }
     
@@ -4173,6 +4148,88 @@ app.post('/api/work-mode/set', (req, res) => {
 });
 
 
+// Add this line where you set up your other routes
+app.use('/api/notifications', notificationRoutes);
+
+// Add this line to your server.js or app.js file to make the processRules function available globally
+global.processRules = processRules;
+
+// Add to your initialization function
+async function initializeConnections() {
+  // Connect to MQTT broker
+  connectToMqtt();
+  
+  // Connect to WebSocket broker
+  connectToWebSocketBroker();
+  
+  // Initialize warning service
+  const warningService = require('./services/warningService');
+  console.log('✅ Warning service initialized');
+  
+  // Initialize Telegram service
+  const telegramService = require('./services/telegramService');
+  console.log('✅ Telegram notification service initialized');
+  
+  // Connect to database
+  try {
+    await connectToDatabase();
+    
+    // Create default rules if connected to DB
+    if (dbConnected) {
+      // Replace the original createDefaultRules() call with our enhanced initialization
+      await initializeAutomationRules();
+    }
+  } catch (err) {
+    console.error('❌ Initial database connection failed:', err);
+    // Continue app startup even if DB fails initially
+    setTimeout(retryDatabaseConnection, 10000);
+  }
+}
+
+// Add a periodic check for warnings
+// This function should be added to your initialization
+function setupWarningChecks() {
+  // Check for warnings every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      // Check for warnings based on the current system state
+      const telegramService = require('./services/telegramService');
+      const warningService = require('./services/warningService');
+      
+      const triggeredWarnings = warningService.checkWarnings(currentSystemState);
+      
+      // Send notifications for warnings
+      for (const warning of triggeredWarnings) {
+        if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
+          const message = telegramService.formatWarningMessage(warning, currentSystemState);
+          await telegramService.broadcastMessage(message);
+          console.log(`Warning notification sent: ${warning.title}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for warnings:', error);
+    }
+  });
+}
+
+// Call this function at app startup
+setupWarningChecks();
+
+app.get('/notifications', async (req, res) => {
+  try {
+    res.render('notifications', {
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID
+    });
+  } catch (error) {
+    console.error('Error rendering notifications page:', error);
+    res.status(500).send('Error loading notifications page');
+  }
+});
+
+
+
+
 // 5. Add API endpoint for retrieving setting history to create charts/graphs in UI
 app.get('/api/settings-history/:setting', async (req, res) => {
   try {
@@ -4682,7 +4739,6 @@ app.get('/rule-history', async (req, res) => {
       ruleHistory,
       db_connected: dbConnected,
       system_state: systemState,
-      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
@@ -4968,7 +5024,6 @@ app.get('/rules', async (req, res) => {
       active_rules_count: activeRulesCount,
       system_state: systemState,
       recently_triggered: recentlyTriggered,
-      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
@@ -5233,7 +5288,6 @@ app.get('/learner', async (req, res) => {
       monitored_settings: settingsToMonitor,
       changes_count: changesCount,
       db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
