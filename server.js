@@ -4228,8 +4228,6 @@ app.get('/notifications', async (req, res) => {
 });
 
 
-
-
 // 5. Add API endpoint for retrieving setting history to create charts/graphs in UI
 app.get('/api/settings-history/:setting', async (req, res) => {
   try {
@@ -4739,6 +4737,7 @@ app.get('/rule-history', async (req, res) => {
       ruleHistory,
       db_connected: dbConnected,
       system_state: systemState,
+      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
@@ -5024,6 +5023,7 @@ app.get('/rules', async (req, res) => {
       active_rules_count: activeRulesCount,
       system_state: systemState,
       recently_triggered: recentlyTriggered,
+      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
@@ -5288,6 +5288,7 @@ app.get('/learner', async (req, res) => {
       monitored_settings: settingsToMonitor,
       changes_count: changesCount,
       db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID // Pass user ID to template
     });
   } catch (error) {
