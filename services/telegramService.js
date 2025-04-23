@@ -55,25 +55,40 @@ async function sendMessageToChatId(chatId, message) {
   const config = getConfig();
   
   if (!config.enabled || !config.botToken) {
-    console.error('Telegram notifications disabled or not configured');
+    console.log('Telegram notifications disabled or not configured');
     return false;
   }
   
-  try {
-    const response = await axios.post(
-      `https://api.telegram.org/bot${config.botToken}/sendMessage`,
-      {
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'HTML'
+  // Try up to 3 times with increasing delays
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await axios.post(
+        `https://api.telegram.org/bot${config.botToken}/sendMessage`,
+        {
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'HTML'
+        },
+        { timeout: 5000 } // 5 second timeout
+      );
+      
+      if (response.data && response.data.ok) {
+        return true;
+      } else {
+        console.error(`Telegram API returned error for chat ${chatId}:`, response.data);
       }
-    );
-    
-    return response.data.ok;
-  } catch (error) {
-    console.error('Error sending Telegram message:', error.response?.data || error.message);
-    return false;
+    } catch (error) {
+      console.error(`Attempt ${attempt}/3 failed to send message to chat ${chatId}:`, 
+        error.response?.data?.description || error.message);
+      
+      // If not the last attempt, wait before retrying
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000)); // Wait 1s, 2s, 3s
+      }
+    }
   }
+  
+  return false; // All attempts failed
 }
 
 // Send message to all configured chat IDs
@@ -81,15 +96,30 @@ async function broadcastMessage(message) {
   const config = getConfig();
   
   if (!config.enabled || !config.botToken || !config.chatIds.length) {
-    console.error('Telegram notifications disabled or not configured properly');
+    console.log('Telegram notifications disabled or not configured properly');
     return false;
   }
   
-  const results = await Promise.all(
-    config.chatIds.map(chatId => sendMessageToChatId(chatId, message))
-  );
-  
-  return results.some(result => result);
+  try {
+    // Send to all configured chat IDs with fallback handling
+    const results = await Promise.allSettled(
+      config.chatIds.map(chatId => sendMessageToChatId(chatId, message))
+    );
+    
+    // Count successful deliveries
+    const successCount = results.filter(result => 
+      result.status === 'fulfilled' && result.value === true
+    ).length;
+    
+    // Log delivery results
+    console.log(`Sent notification to ${successCount}/${config.chatIds.length} chats`);
+    
+    // If any delivery was successful, return true
+    return successCount > 0;
+  } catch (error) {
+    console.error('Error broadcasting Telegram message:', error);
+    return false;
+  }
 }
 
 // Format message for a rule trigger
@@ -156,24 +186,46 @@ function formatWarningMessage(warning, systemState) {
 function shouldNotifyForRule(ruleId) {
   const config = getConfig();
   
-  if (!config.enabled) return false;
+  if (!config.enabled) {
+    console.log(`Telegram notifications disabled for rule ${ruleId}`);
+    return false;
+  }
+  
+  if (!config.botToken || !config.chatIds || config.chatIds.length === 0) {
+    console.log(`Telegram not fully configured (missing token or chat IDs) for rule ${ruleId}`);
+    return false;
+  }
   
   // Check if we have a notification rule for this rule ID
-  return config.notificationRules.some(rule => 
+  const hasRule = config.notificationRules.some(rule => 
     rule.enabled && rule.type === 'rule' && rule.ruleId === ruleId
   );
+  
+  console.log(`Notification for rule ${ruleId} ${hasRule ? 'enabled' : 'disabled'}`);
+  return hasRule;
 }
 
 // Should notification be sent for this warning type?
 function shouldNotifyForWarning(warningType) {
   const config = getConfig();
   
-  if (!config.enabled) return false;
+  if (!config.enabled) {
+    console.log(`Telegram notifications disabled for warning ${warningType}`);
+    return false;
+  }
+  
+  if (!config.botToken || !config.chatIds || config.chatIds.length === 0) {
+    console.log(`Telegram not fully configured (missing token or chat IDs) for warning ${warningType}`);
+    return false;
+  }
   
   // Check if we have a notification rule for this warning type
-  return config.notificationRules.some(rule => 
+  const hasRule = config.notificationRules.some(rule => 
     rule.enabled && rule.type === 'warning' && rule.warningType === warningType
   );
+  
+  console.log(`Notification for warning ${warningType} ${hasRule ? 'enabled' : 'disabled'}`);
+  return hasRule;
 }
 
 // Add chat ID to configuration
