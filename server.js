@@ -928,11 +928,10 @@ async function handleMqttMessage(topic, message) {
   // Batch changes to be processed together for better performance
   const settingsChanges = [];
 
-  // Handle existing settings changes
+  // Check if this topic is in our monitored settings
+  let matchedSetting = null;
+  
   try {
-    // Check if this topic is in our monitored settings
-    let matchedSetting = null;
-    
     // First check specific patterns that have dedicated handlers
     if (specificTopic.includes('grid_charge')) {
       matchedSetting = 'grid_charge';
@@ -1015,24 +1014,14 @@ async function handleMqttMessage(topic, message) {
     console.error('Error handling MQTT message:', error.message);
   }
 
-  // Batch save all changes to database - use a limit to prevent overloading
+  // Batch save all changes to database
   if (settingsChanges.length > 0 && dbConnected) {
     try {
-      // Process in smaller batches if there are many changes
-      const BATCH_SIZE = 20;
-      
-      if (settingsChanges.length <= BATCH_SIZE) {
-        await batchSaveSettingsChanges(settingsChanges);
-      } else {
-        // Process in smaller batches
-        for (let i = 0; i < settingsChanges.length; i += BATCH_SIZE) {
-          const batch = settingsChanges.slice(i, i + BATCH_SIZE);
-          await batchSaveSettingsChanges(batch);
-        }
-      }
+      // Queue the batch save operation through our rate limiter
+      queueSettingsChanges(settingsChanges);
     } catch (error) {
-      console.error('Error saving settings changes to database:', error.message);
-      // Try to connect to database in background
+      console.error('Error queuing settings changes:', error.message);
+      // Try to reconnect to database in background
       retryDatabaseConnection();
     }
   }
@@ -1045,6 +1034,23 @@ async function handleMqttMessage(topic, message) {
     } catch (error) {
       console.error('Error processing rules:', error.message);
     }
+  }
+}
+
+
+// Create a settings changes queue with rate limiting
+const settingsChangesQueue = [];
+let processingQueue = false;
+const PROCESSING_INTERVAL = 1000; // Process at most once per second
+
+function queueSettingsChanges(changes) {
+  // Add all changes to the queue
+  settingsChangesQueue.push(...changes);
+  
+  // Start processing if not already running
+  if (!processingQueue) {
+    processingQueue = true;
+    setTimeout(processSettingsChangesQueue, 50); // Start soon but not immediately
   }
 }
 
@@ -1090,6 +1096,37 @@ async function executeWithDbMutex(operation) {
   }
 }
 
+async function processSettingsChangesQueue() {
+  if (settingsChangesQueue.length === 0) {
+    processingQueue = false;
+    return;
+  }
+
+  try {
+    // Take a batch from the queue, up to 50 items
+    const batchSize = Math.min(50, settingsChangesQueue.length);
+    const currentBatch = settingsChangesQueue.splice(0, batchSize);
+    
+    // Process this batch
+    if (dbConnected) {
+      await batchSaveSettingsChanges(currentBatch);
+    }
+    
+    // If there are more items, schedule the next batch
+    if (settingsChangesQueue.length > 0) {
+      setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL);
+    } else {
+      processingQueue = false;
+    }
+  } catch (error) {
+    console.error('Error processing settings changes queue:', error.message);
+    // Even on error, continue processing the queue after a delay
+    setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL * 2);
+  }
+}
+
+
+
 // Function to batch save settings changes
 async function batchSaveSettingsChanges(changes) {
   if (!dbConnected || changes.length === 0) return;
@@ -1116,8 +1153,8 @@ async function batchSaveSettingsChanges(changes) {
           JSON.stringify(change.new_value) : 
           String(change.new_value || '');
         
-        // Insert into SQLite
-        await db.run(`
+        // Insert into SQLite with exponential backoff on error
+        await backOff(() => db.run(`
           INSERT INTO settings_changes 
           (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -1130,7 +1167,11 @@ async function batchSaveSettingsChanges(changes) {
           change.change_type,
           change.user_id,
           change.mqtt_username
-        ]);
+        ]), {
+          numOfAttempts: 5,
+          startingDelay: 100,
+          timeMultiple: 2
+        });
       }
       
       // Commit the transaction
@@ -1154,6 +1195,43 @@ async function batchSaveSettingsChanges(changes) {
       return false;
     }
   });
+}
+
+// Rate-limited API for fetching settings changes
+const API_REQUEST_LIMIT = {};
+const API_REQUEST_INTERVAL = 2000; // 2 seconds between requests
+
+function canMakeRequest(endpoint, userId) {
+  const key = `${endpoint}:${userId}`;
+  const now = Date.now();
+  
+  if (!API_REQUEST_LIMIT[key]) {
+    API_REQUEST_LIMIT[key] = now;
+    return true;
+  }
+  
+  const timeSinceLastRequest = now - API_REQUEST_LIMIT[key];
+  if (timeSinceLastRequest < API_REQUEST_INTERVAL) {
+    return false;
+  }
+  
+  API_REQUEST_LIMIT[key] = now;
+  return true;
+}
+
+// Add this middleware to the API routes that need rate limiting
+function apiRateLimiter(req, res, next) {
+  const endpoint = req.originalUrl.split('?')[0]; // Get just the path without query params
+  const userId = USER_ID; // Using the global user ID
+  
+  if (!canMakeRequest(endpoint, userId)) {
+    return res.status(429).json({ 
+      error: 'Too Many Requests', 
+      message: 'Please wait before making another request'
+    });
+  }
+  
+  next();
 }
 
 // 3. Create a debounced version of processRules to avoid excessive processing
@@ -3697,41 +3775,42 @@ async function createWeekendGridChargeRules() {
 // ================ API ROUTES ================
 
 // API Routes with database integration
-  app.get('/api/energy-pattern-changes', async (req, res) => {
-    try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
-      const results = await db.all(`
-        SELECT * FROM settings_changes 
-        WHERE (topic LIKE '%energy_pattern%' OR change_type = 'energy_pattern')
-        AND user_id = ?
-        ORDER BY timestamp DESC
-      `, [USER_ID]);
-      
-      // Parse JSON fields and format dates
-      const energyPatternChanges = results.map(change => ({
-        id: change.id,
-        timestamp: new Date(change.timestamp),
-        topic: change.topic,
-        old_value: parseJsonOrValue(change.old_value),
-        new_value: parseJsonOrValue(change.new_value),
-        system_state: JSON.parse(change.system_state || '{}'),
-        change_type: change.change_type,
-        user_id: change.user_id,
-        mqtt_username: change.mqtt_username
-      }));
-      
-      res.json(energyPatternChanges);
-    } catch (error) {
-      console.error('Error retrieving energy pattern changes:', error);
-      res.status(500).json({ error: 'Failed to retrieve data' });
+app.get('/api/energy-pattern-changes', apiRateLimiter, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
     }
-  });
+    
+    const results = await db.all(`
+      SELECT * FROM settings_changes 
+      WHERE (topic LIKE '%energy_pattern%' OR change_type = 'energy_pattern')
+      AND user_id = ?
+      ORDER BY timestamp DESC
+      LIMIT 100
+    `, [USER_ID]);
+    
+    // Parse JSON fields and format dates
+    const energyPatternChanges = results.map(change => ({
+      id: change.id,
+      timestamp: new Date(change.timestamp),
+      topic: change.topic,
+      old_value: parseJsonOrValue(change.old_value),
+      new_value: parseJsonOrValue(change.new_value),
+      system_state: JSON.parse(change.system_state || '{}'),
+      change_type: change.change_type,
+      user_id: change.user_id,
+      mqtt_username: change.mqtt_username
+    }));
+    
+    res.json(energyPatternChanges);
+  } catch (error) {
+    console.error('Error retrieving energy pattern changes:', error);
+    res.status(500).json({ error: 'Failed to retrieve data' });
+  }
+});
 
 // === Add API endpoints for retrieving battery charging settings changes ===
-app.get('/api/battery-charging-changes', async (req, res) => {
+app.get('/api/battery-charging-changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -3759,6 +3838,7 @@ app.get('/api/battery-charging-changes', async (req, res) => {
       )
       AND user_id = ?
       ORDER BY timestamp DESC
+      LIMIT 100
     `, [USER_ID]);
     
     // Parse JSON fields and format dates
@@ -3782,7 +3862,7 @@ app.get('/api/battery-charging-changes', async (req, res) => {
 });
 
 // === Add API endpoints for retrieving work mode settings changes ===
-app.get('/api/work-mode-changes', async (req, res) => {
+app.get('/api/work-mode-changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -3820,6 +3900,7 @@ app.get('/api/work-mode-changes', async (req, res) => {
       )
       AND user_id = ?
       ORDER BY timestamp DESC
+      LIMIT 100
     `, [USER_ID]);
     
     // Parse JSON fields and format dates
@@ -4229,7 +4310,7 @@ app.get('/notifications', async (req, res) => {
 
 
 // 5. Add API endpoint for retrieving setting history to create charts/graphs in UI
-app.get('/api/settings-history/:setting', async (req, res) => {
+app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -4249,6 +4330,7 @@ app.get('/api/settings-history/:setting', async (req, res) => {
       AND timestamp >= ? 
       AND user_id = ?
       ORDER BY timestamp ASC
+      LIMIT 1000
     `, [`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID]);
     
     // Format data for charting (timestamp + value pairs)
@@ -4327,7 +4409,7 @@ app.get('/work-mode', async (req, res) => {
 
 
 // New API endpoint for voltage point changes
-app.get('/api/voltage-point-changes', async (req, res) => {
+app.get('/api/voltage-point-changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -4338,6 +4420,7 @@ app.get('/api/voltage-point-changes', async (req, res) => {
       WHERE (topic LIKE '%voltage_point%' OR change_type = 'voltage_point')
       AND user_id = ?
       ORDER BY timestamp DESC
+      LIMIT 100
     `, [USER_ID]);
     
     // Parse JSON fields and format dates
@@ -4387,7 +4470,7 @@ app.get('/grid-charge', async (req, res) => {
   }
 });
 
-app.get('/api/grid-charge-changes', async (req, res) => {
+app.get('/api/grid-charge-changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -4405,6 +4488,7 @@ app.get('/api/grid-charge-changes', async (req, res) => {
       )
       AND user_id = ?
       ORDER BY timestamp DESC
+      LIMIT 100
     `, [USER_ID]);
     
     // Parse JSON fields and format dates
@@ -5146,7 +5230,7 @@ app.get('/api/system-state', (req, res) => {
   });
 });
 
-app.get('/api/settings-changes', async (req, res) => {
+app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
@@ -5228,7 +5312,7 @@ app.post('/api/learner/toggle', (req, res) => {
   });
 });
 
-app.get('/api/learner/changes', async (req, res) => {
+app.get('/api/learner/changes', apiRateLimiter, async (req, res) => {
   try {
     if (!dbConnected) {
       return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
