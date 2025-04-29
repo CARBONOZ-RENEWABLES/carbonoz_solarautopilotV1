@@ -2462,7 +2462,9 @@ function loadRecentChanges() {
             `);
         },
         success: function(response) {
-            displayRecentChanges(response);
+            // Transform the response to the expected format
+            const transformedData = transformServerResponse(response);
+            displayRecentChanges(transformedData);
         },
         error: function(xhr, status, error) {
             $('#recent-changes-container').html(`
@@ -2476,6 +2478,92 @@ function loadRecentChanges() {
     });
 }
 
+
+
+function transformServerResponse(response) {
+    if (!response || !response.success || !response.currentSettings) {
+        return [];
+    }
+    
+    const transformedData = [];
+    
+    // Process grid_charge settings
+    const gridChargeSettings = response.currentSettings.grid_charge || {};
+    for (const inverterId in gridChargeSettings) {
+        if (gridChargeSettings[inverterId] && gridChargeSettings[inverterId].value !== undefined) {
+            transformedData.push({
+                topic: `${inverterId}/grid_charge/state`,
+                new_value: gridChargeSettings[inverterId].value,
+                timestamp: gridChargeSettings[inverterId].lastUpdated || response.timestamp
+            });
+        }
+    }
+    
+    // Process max_grid_charge_current settings
+    const maxGridCurrentSettings = response.currentSettings.max_grid_charge_current || {};
+    for (const inverterId in maxGridCurrentSettings) {
+        if (maxGridCurrentSettings[inverterId] && maxGridCurrentSettings[inverterId].value !== undefined) {
+            transformedData.push({
+                topic: `${inverterId}/max_grid_charge_current/state`,
+                new_value: maxGridCurrentSettings[inverterId].value,
+                timestamp: maxGridCurrentSettings[inverterId].lastUpdated || response.timestamp
+            });
+        }
+    }
+    
+    // Process grid_charge_point_X settings (typically numbered 1-6)
+    for (let pointNum = 1; pointNum <= 6; pointNum++) {
+        const settingKey = `grid_charge_point_${pointNum}`;
+        
+        // Check if this setting exists in the response
+        if (response.currentSettings[settingKey]) {
+            const pointSettings = response.currentSettings[settingKey];
+            
+            for (const inverterId in pointSettings) {
+                if (pointSettings[inverterId] && pointSettings[inverterId].value !== undefined) {
+                    transformedData.push({
+                        topic: `${inverterId}/${settingKey}/state`,
+                        new_value: pointSettings[inverterId].value,
+                        timestamp: pointSettings[inverterId].lastUpdated || response.timestamp
+                    });
+                }
+            }
+        }
+    }
+    
+    // Check for grid_charge_schedule settings
+    const scheduleSettings = response.currentSettings.grid_charge_schedule || {};
+    for (const inverterId in scheduleSettings) {
+        if (scheduleSettings[inverterId] && scheduleSettings[inverterId].value !== undefined) {
+            transformedData.push({
+                topic: `${inverterId}/grid_charge_schedule/state`,
+                new_value: scheduleSettings[inverterId].value,
+                timestamp: scheduleSettings[inverterId].lastUpdated || response.timestamp
+            });
+        }
+    }
+    
+    // Check for grid_charge_target settings
+    const targetSettings = response.currentSettings.grid_charge_target || {};
+    for (const inverterId in targetSettings) {
+        if (targetSettings[inverterId] && targetSettings[inverterId].value !== undefined) {
+            transformedData.push({
+                topic: `${inverterId}/grid_charge_target/state`,
+                new_value: targetSettings[inverterId].value,
+                timestamp: targetSettings[inverterId].lastUpdated || response.timestamp
+            });
+        }
+    }
+    
+    // Add debugging log to see the transformed data
+    console.log('Transformed grid charge data:', transformedData);
+    
+    return transformedData;
+}
+
+
+
+
 // Display recent changes grouped by inverter
 function displayRecentChanges(changes) {
     const container = $('#recent-changes-container');
@@ -2484,7 +2572,7 @@ function displayRecentChanges(changes) {
         container.html(`
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                No grid charge settings recorded. Changes will appear here when settings are modified.
+                No grid charge settings found. Please check your device connections.
             </div>
         `);
         return;
@@ -2506,6 +2594,11 @@ function displayRecentChanges(changes) {
             }
         }
         
+        // If no inverter_X found, use the first part assuming it's the inverter ID
+        if (inverter === "unknown" && topicParts.length > 0) {
+            inverter = topicParts[0];
+        }
+        
         // Initialize array for this inverter if it doesn't exist
         if (!inverterChanges[inverter]) {
             inverterChanges[inverter] = [];
@@ -2520,10 +2613,24 @@ function displayRecentChanges(changes) {
     
     // Get all inverter keys and sort them naturally
     const inverters = Object.keys(inverterChanges).sort((a, b) => {
-        const aNum = parseInt(a.replace('inverter_', ''));
-        const bNum = parseInt(b.replace('inverter_', ''));
+        const aNum = parseInt(a.replace('inverter_', '')) || 0;
+        const bNum = parseInt(b.replace('inverter_', '')) || 0;
         return aNum - bNum;
     });
+    
+    if (inverters.length === 0) {
+        container.html(`
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No inverters found. Please check your device connections.
+            </div>
+        `);
+        return;
+    }
+    
+    // Add debugging information
+    console.log(`Found ${inverters.length} inverters:`, inverters);
+    console.log('Settings data by inverter:', inverterChanges);
     
     for (const inverter of inverters) {
         // Get changes for this inverter and sort by timestamp (newest first)

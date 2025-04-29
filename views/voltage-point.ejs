@@ -2489,7 +2489,9 @@ function loadRecentChanges() {
             `);
         },
         success: function(response) {
-            displayRecentChanges(response);
+            // Transform the response to the expected format
+            const transformedData = transformServerResponse(response);
+            displayRecentChanges(transformedData);
         },
         error: function(xhr, status, error) {
             $('#recent-changes-container').html(`
@@ -2498,8 +2500,76 @@ function loadRecentChanges() {
                     Unable to load voltage point settings: ${error}
                 </div>
             `);
+            console.error('Error loading voltage point settings:', xhr.responseText);
         }
     });
+}
+
+// Transform server response to the expected format
+function transformServerResponse(response) {
+    if (!response || !response.success || !response.currentSettings) {
+        return [];
+    }
+    
+    const transformedData = [];
+    
+    // Process voltage_point settings which might have nested point structure
+    const voltagePointSettings = response.currentSettings.voltage_point || {};
+    
+    for (const inverterId in voltagePointSettings) {
+        const inverterPoints = voltagePointSettings[inverterId];
+        
+        // Check if this has nested point structure (point_1, point_2, etc.)
+        if (typeof inverterPoints === 'object' && inverterPoints !== null) {
+            // Case 1: Nested structure with point_X keys
+            if (Object.keys(inverterPoints).some(key => key.startsWith('point_'))) {
+                for (const pointKey in inverterPoints) {
+                    if (inverterPoints[pointKey] && inverterPoints[pointKey].value !== undefined) {
+                        // Extract the point number (e.g., "point_1" -> "1")
+                        const pointNumber = pointKey.replace('point_', '');
+                        const settingName = `voltage_point_${pointNumber}`;
+                        
+                        transformedData.push({
+                            topic: `${inverterId}/${settingName}/state`,
+                            new_value: inverterPoints[pointKey].value,
+                            timestamp: inverterPoints[pointKey].lastUpdated || response.timestamp
+                        });
+                    }
+                }
+            } 
+            // Case 2: Direct voltage_point_X structure
+            else if (inverterPoints.value !== undefined) {
+                transformedData.push({
+                    topic: `${inverterId}/voltage_point/state`,
+                    new_value: inverterPoints.value,
+                    timestamp: inverterPoints.lastUpdated || response.timestamp
+                });
+            }
+        }
+    }
+    
+    // Also check for direct voltage_point_X entries in currentSettings
+    for (let i = 1; i <= 6; i++) {
+        const settingKey = `voltage_point_${i}`;
+        if (response.currentSettings[settingKey]) {
+            const settings = response.currentSettings[settingKey];
+            
+            for (const inverterId in settings) {
+                if (settings[inverterId] && settings[inverterId].value !== undefined) {
+                    transformedData.push({
+                        topic: `${inverterId}/${settingKey}/state`,
+                        new_value: settings[inverterId].value,
+                        timestamp: settings[inverterId].lastUpdated || response.timestamp
+                    });
+                }
+            }
+        }
+    }
+    
+    // Add debugging log to see the transformed data
+    console.log('Transformed voltage point data:', transformedData);
+    
+    return transformedData;
 }
 
 // Display recent changes grouped by inverter
@@ -2510,7 +2580,7 @@ function displayRecentChanges(changes) {
         container.html(`
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                No voltage point settings recorded. Changes will appear here when settings are modified.
+                No voltage point settings found. Please check your device connections.
             </div>
         `);
         return;
@@ -2532,6 +2602,11 @@ function displayRecentChanges(changes) {
             }
         }
         
+        // If no inverter_X found, use the first part assuming it's the inverter ID
+        if (inverter === "unknown" && topicParts.length > 0) {
+            inverter = topicParts[0];
+        }
+        
         // Initialize array for this inverter if it doesn't exist
         if (!inverterChanges[inverter]) {
             inverterChanges[inverter] = [];
@@ -2546,10 +2621,24 @@ function displayRecentChanges(changes) {
     
     // Get all inverter keys and sort them naturally
     const inverters = Object.keys(inverterChanges).sort((a, b) => {
-        const aNum = parseInt(a.replace('inverter_', ''));
-        const bNum = parseInt(b.replace('inverter_', ''));
+        const aNum = parseInt(a.replace('inverter_', '')) || 0;
+        const bNum = parseInt(b.replace('inverter_', '')) || 0;
         return aNum - bNum;
     });
+    
+    if (inverters.length === 0) {
+        container.html(`
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No inverters found. Please check your device connections.
+            </div>
+        `);
+        return;
+    }
+    
+    // Add debugging information
+    console.log(`Found ${inverters.length} inverters:`, inverters);
+    console.log('Settings data by inverter:', inverterChanges);
     
     for (const inverter of inverters) {
         // Get changes for this inverter and sort by timestamp (newest first)
@@ -2580,6 +2669,15 @@ function displayRecentChanges(changes) {
             .sort((a, b) => {
                 const aName = extractSettingName(a.topic);
                 const bName = extractSettingName(b.topic);
+                
+                // Extract numbers from setting names for better sorting
+                const aMatch = aName.match(/(\d+)$/);
+                const bMatch = bName.match(/(\d+)$/);
+                
+                if (aMatch && bMatch) {
+                    return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+                }
+                
                 return aName.localeCompare(bName);
             });
         

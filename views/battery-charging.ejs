@@ -2316,140 +2316,196 @@ body.dark-mode {
     
     // Load battery charging settings
     function loadBatterySettings() {
-        $.ajax({
-            url: '<%= ingress_path %>/api/battery-charging-changes',
-            method: 'GET',
-            success: function(response) {
-                displayBatterySettings(response);
-            },
-            error: function() {
-                $('#recent-changes-container').html('<div class="alert alert-warning">Unable to load battery charging settings</div>');
-            }
-        });
+    $.ajax({
+        url: '<%= ingress_path %>/api/battery-charging-changes',
+        method: 'GET',
+        success: function(response) {
+            // Transform the response to the expected format
+            const transformedData = transformServerResponse(response);
+            displayBatterySettings(transformedData);
+        },
+        error: function() {
+            $('#recent-changes-container').html('<div class="alert alert-warning">Unable to load battery charging settings</div>');
+        }
+    });
+}
+
+// Transform server response to the expected format
+function transformServerResponse(response) {
+    if (!response || !response.success || !response.currentSettings) {
+        return [];
     }
+    
+    const transformedData = [];
+    
+    // Process all battery charging related settings
+    const batteryChargingSettings = [
+        'max_discharge_current',
+        'max_charge_current',
+        'max_grid_charge_current',
+        'max_generator_charge_current',
+        'battery_float_charge_voltage',
+        'battery_absorption_charge_voltage',
+        'battery_equalization_charge_voltage'
+    ];
+    
+    // Process each setting type
+    batteryChargingSettings.forEach(settingKey => {
+        const settings = response.currentSettings[settingKey] || {};
+        
+        for (const inverterId in settings) {
+            if (settings[inverterId] && settings[inverterId].value !== undefined) {
+                transformedData.push({
+                    topic: `${inverterId}/${settingKey}/state`,
+                    new_value: settings[inverterId].value,
+                    timestamp: settings[inverterId].lastUpdated || response.timestamp
+                });
+            }
+        }
+    });
+    
+    // Add debugging logs
+    console.log('Transformed battery charging data:', transformedData);
+    
+    return transformedData;
+}
     
     // Display battery charging settings grouped by inverter
     function displayBatterySettings(changes) {
-        const container = $('#recent-changes-container');
+    const container = $('#recent-changes-container');
+    
+    if (!changes || changes.length === 0) {
+        container.html('<div class="alert alert-warning">No battery charging settings found. Please check your device connections.</div>');
+        return;
+    }
+    
+    // Group changes by inverter
+    const inverterChanges = {};
+    
+    changes.forEach(change => {
+        // Extract inverter from topic (e.g., "inverter_1/max_charge_current/state")
+        const topicParts = change.topic.split('/');
+        let inverter = "unknown";
         
-        if (!changes || changes.length === 0) {
-            container.html('<div class="alert alert-warning">No battery charging settings recorded</div>');
-            return;
+        // Find the inverter_X part in the topic
+        for (const part of topicParts) {
+            if (part.startsWith('inverter_')) {
+                inverter = part;
+                break;
+            }
         }
         
-        // Group changes by inverter
-        const inverterChanges = {};
+        // If no inverter_X found, use the first part assuming it's the inverter ID
+        if (inverter === "unknown" && topicParts.length > 0) {
+            inverter = topicParts[0];
+        }
         
-        changes.forEach(change => {
-            // Extract inverter from topic (e.g., "inverter_1/max_charge_current/state")
-            const topicParts = change.topic.split('/');
-            let inverter = "unknown";
+        // Initialize array for this inverter if it doesn't exist
+        if (!inverterChanges[inverter]) {
+            inverterChanges[inverter] = [];
+        }
+        
+        // Add change to appropriate inverter array
+        inverterChanges[inverter].push(change);
+    });
+    
+    // Display changes grouped by inverter
+    let html = '';
+    
+    // Get all inverter keys and sort them naturally
+    const inverters = Object.keys(inverterChanges).sort((a, b) => {
+        const aNum = parseInt(a.replace('inverter_', '')) || 0;
+        const bNum = parseInt(b.replace('inverter_', '')) || 0;
+        return aNum - bNum;
+    });
+    
+    if (inverters.length === 0) {
+        container.html('<div class="alert alert-warning">No inverters found. Please check your device connections.</div>');
+        return;
+    }
+    
+    // Add debugging information
+    console.log(`Found ${inverters.length} inverters:`, inverters);
+    console.log('Settings data by inverter:', inverterChanges);
+    
+    for (const inverter of inverters) {
+        // Get changes for this inverter and sort by timestamp (newest first)
+        const inverterData = inverterChanges[inverter]
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Create a lookup to eliminate duplicates (keep only most recent per setting)
+        const latestSettings = {};
+        
+        inverterData.forEach(change => {
+            // Extract the setting name from the topic
+            const settingName = extractSettingName(change.topic);
             
-            // Find the inverter_X part in the topic
-            for (const part of topicParts) {
-                if (part.startsWith('inverter_')) {
-                    inverter = part;
-                    break;
-                }
+            // Only keep the most recent change for each setting
+            if (!latestSettings[settingName] || 
+                new Date(change.timestamp) > new Date(latestSettings[settingName].timestamp)) {
+                latestSettings[settingName] = change;
             }
-            
-            // Initialize array for this inverter if it doesn't exist
-            if (!inverterChanges[inverter]) {
-                inverterChanges[inverter] = [];
-            }
-            
-            // Add change to appropriate inverter array
-            inverterChanges[inverter].push(change);
         });
         
-        // Display changes grouped by inverter
-        let html = '';
+        // Format inverter name for display
+        const displayName = inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ');
         
-        // Get all inverter keys and sort them naturally
-        const inverters = Object.keys(inverterChanges).sort((a, b) => {
-            const aNum = parseInt(a.replace('inverter_', ''));
-            const bNum = parseInt(b.replace('inverter_', ''));
-            return aNum - bNum;
-        });
+        html += `<div class="inverter-heading">${displayName}</div>`;
         
-        for (const inverter of inverters) {
-            // Get changes for this inverter and sort by timestamp (newest first)
-            const inverterData = inverterChanges[inverter]
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            // Create a lookup to eliminate duplicates (keep only most recent per setting)
-            const latestSettings = {};
-            
-            inverterData.forEach(change => {
-                // Extract the setting name from the topic
-                const settingName = extractSettingName(change.topic);
-                
-                // Only keep the most recent change for each setting
-                if (!latestSettings[settingName] || 
-                    new Date(change.timestamp) > new Date(latestSettings[settingName].timestamp)) {
-                    latestSettings[settingName] = change;
-                }
+        // Convert to array and sort by setting name for consistent display
+        const settingsArray = Object.values(latestSettings)
+            .sort((a, b) => {
+                const aName = extractSettingName(a.topic);
+                const bName = extractSettingName(b.topic);
+                return aName.localeCompare(bName);
             });
+        
+        settingsArray.forEach(change => {
+            const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
+            const settingName = extractSettingName(change.topic);
+            const friendlyName = getSettingDisplayName(settingName);
             
-            // Format inverter name for display
-            const displayName = inverter.replace('_', ' ').charAt(0).toUpperCase() + inverter.slice(1).replace('_', ' ');
+            // Format the current value based on setting type
+            const formattedValue = formatSettingValue(settingName, change.new_value);
             
-            html += `<div class="inverter-heading">${displayName}</div>`;
+            // Get description for tooltip if available
+            const description = settingsMetadata[settingName]?.description || '';
+            const tooltipAttr = description ? `title="${description}" data-toggle="tooltip"` : '';
             
-            // Convert to array and sort by setting name for consistent display
-            const settingsArray = Object.values(latestSettings)
-                .sort((a, b) => {
-                    const aName = extractSettingName(a.topic);
-                    const bName = extractSettingName(b.topic);
-                    return aName.localeCompare(bName);
-                });
-            
-            settingsArray.forEach(change => {
-                const timestamp = moment(change.timestamp).format('MM/DD HH:mm');
-                const settingName = extractSettingName(change.topic);
-                const friendlyName = getSettingDisplayName(settingName);
-                
-                // Format the current value based on setting type
-                const formattedValue = formatSettingValue(settingName, change.new_value);
-                
-                // Get description for tooltip if available
-                const description = settingsMetadata[settingName]?.description || '';
-                const tooltipAttr = description ? `title="${description}" data-toggle="tooltip"` : '';
-                
-                html += `
-                    <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}" ${tooltipAttr}>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="setting-title">${friendlyName}</div>
-                                <div class="mt-1">
-                                    Current: <span class="change-value text-success">${formattedValue}</span>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <span class="timestamp me-3">${timestamp}</span>
-                                <i class="fas fa-edit edit-icon"></i>
+            html += `
+                <div class="change-item" data-inverter="${inverter}" data-setting="${settingName}" data-value="${change.new_value}" ${tooltipAttr}>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="setting-title">${friendlyName}</div>
+                            <div class="mt-1">
+                                Current: <span class="change-value text-success">${formattedValue}</span>
                             </div>
                         </div>
+                        <div class="d-flex align-items-center">
+                            <span class="timestamp me-3">${timestamp}</span>
+                            <i class="fas fa-edit edit-icon"></i>
+                        </div>
                     </div>
-                `;
-            });
-        }
-        
-        container.html(html);
-        
-        // Initialize tooltips
-        if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
-            $('[data-toggle="tooltip"]').tooltip();
-        }
-        
-        // Add click event to change items
-        $('.change-item').click(function() {
-            const inverter = $(this).data('inverter');
-            const setting = $(this).data('setting');
-            const value = $(this).data('value');
-            openEditModal(inverter, setting, value);
+                </div>
+            `;
         });
     }
+    
+    container.html(html);
+    
+    // Initialize tooltips
+    if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+    
+    // Add click event to change items
+    $('.change-item').click(function() {
+        const inverter = $(this).data('inverter');
+        const setting = $(this).data('setting');
+        const value = $(this).data('value');
+        openEditModal(inverter, setting, value);
+    });
+}
     
     // Extract setting name from topic
     function extractSettingName(topic) {

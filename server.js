@@ -38,11 +38,10 @@ app.set('views', path.join(__dirname, 'views'))
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
-
 // Extract configuration values with defaults
-const inverterNumber = options.inverter_number || 1
-const batteryNumber = options.battery_number || 1
-const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy'
+const inverterNumber = options.inverter_number 
+const batteryNumber = options.battery_number 
+const mqttTopicPrefix = options.mqtt_topic_prefix 
 
 
 
@@ -180,6 +179,44 @@ let currentSystemState = {
   inverter_state: null,
   timestamp: null
 }
+
+
+const currentSettingsState = {
+  // Grid Charge Settings
+  grid_charge: {},
+  
+  // Energy Pattern Settings
+  energy_pattern: {},
+  
+  // Voltage Point Settings
+  voltage_point: {},
+  
+  // Work Mode Settings
+  work_mode: {},
+  remote_switch: {},
+  generator_charge: {},
+  force_generator_on: {},
+  output_shutdown_voltage: {},
+  stop_battery_discharge_voltage: {},
+  start_battery_discharge_voltage: {},
+  start_grid_charge_voltage: {},
+  solar_export_when_battery_full: {},
+  max_sell_power: {},
+  max_solar_power: {},
+  grid_trickle_feed: {},
+  
+  // Battery Charging Settings
+  max_discharge_current: {},
+  max_charge_current: {},
+  max_grid_charge_current: {},
+  max_generator_charge_current: {},
+  battery_float_charge_voltage: {},
+  battery_absorption_charge_voltage: {},
+  battery_equalization_charge_voltage: {},
+  
+  // Last updated timestamp
+  lastUpdated: null
+};
 
 // Track previous state of settings to detect changes
 let previousSettings = {}
@@ -906,6 +943,186 @@ async function handleMqttMessage(topic, message) {
   // Track if this message should trigger rule processing
   let shouldProcessRules = false;
 
+  // ========= UPDATE CURRENT SETTINGS STATE IN MEMORY =========
+  // Extract inverter ID from the topic
+  let inverterId = "inverter_1"; // Default
+  const inverterMatch = specificTopic.match(/inverter_(\d+)/);
+  if (inverterMatch) {
+    inverterId = `inverter_${inverterMatch[1]}`;
+  }
+  
+  // Update settings based on topic patterns
+  if (specificTopic.includes('/grid_charge/')) {
+    if (!currentSettingsState.grid_charge[inverterId]) {
+      currentSettingsState.grid_charge[inverterId] = {};
+    }
+    currentSettingsState.grid_charge[inverterId].value = messageContent;
+    currentSettingsState.grid_charge[inverterId].lastUpdated = new Date();
+  } 
+  else if (specificTopic.includes('/energy_pattern/')) {
+    if (!currentSettingsState.energy_pattern[inverterId]) {
+      currentSettingsState.energy_pattern[inverterId] = {};
+    }
+    currentSettingsState.energy_pattern[inverterId].value = messageContent;
+    currentSettingsState.energy_pattern[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.match(/\/voltage_point_\d+\//)) {
+    // Extract voltage point number (e.g., voltage_point_1, voltage_point_2)
+    const voltagePointMatch = specificTopic.match(/voltage_point_(\d+)/);
+    if (voltagePointMatch) {
+      const pointNumber = voltagePointMatch[1];
+      if (!currentSettingsState.voltage_point[inverterId]) {
+        currentSettingsState.voltage_point[inverterId] = {};
+      }
+      if (!currentSettingsState.voltage_point[inverterId][`point_${pointNumber}`]) {
+        currentSettingsState.voltage_point[inverterId][`point_${pointNumber}`] = {};
+      }
+      currentSettingsState.voltage_point[inverterId][`point_${pointNumber}`].value = messageContent;
+      currentSettingsState.voltage_point[inverterId][`point_${pointNumber}`].lastUpdated = new Date();
+    }
+  }
+  
+  // Work Mode Settings
+  else if (specificTopic.includes('/work_mode/') && !specificTopic.includes('work_mode_timer')) {
+    if (!currentSettingsState.work_mode[inverterId]) {
+      currentSettingsState.work_mode[inverterId] = {};
+    }
+    currentSettingsState.work_mode[inverterId].value = messageContent;
+    currentSettingsState.work_mode[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/remote_switch/')) {
+    if (!currentSettingsState.remote_switch[inverterId]) {
+      currentSettingsState.remote_switch[inverterId] = {};
+    }
+    currentSettingsState.remote_switch[inverterId].value = messageContent;
+    currentSettingsState.remote_switch[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/generator_charge/')) {
+    if (!currentSettingsState.generator_charge[inverterId]) {
+      currentSettingsState.generator_charge[inverterId] = {};
+    }
+    currentSettingsState.generator_charge[inverterId].value = messageContent;
+    currentSettingsState.generator_charge[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/force_generator_on/')) {
+    if (!currentSettingsState.force_generator_on[inverterId]) {
+      currentSettingsState.force_generator_on[inverterId] = {};
+    }
+    currentSettingsState.force_generator_on[inverterId].value = messageContent;
+    currentSettingsState.force_generator_on[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/output_shutdown_voltage/')) {
+    if (!currentSettingsState.output_shutdown_voltage[inverterId]) {
+      currentSettingsState.output_shutdown_voltage[inverterId] = {};
+    }
+    currentSettingsState.output_shutdown_voltage[inverterId].value = messageContent;
+    currentSettingsState.output_shutdown_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/stop_battery_discharge_voltage/')) {
+    if (!currentSettingsState.stop_battery_discharge_voltage[inverterId]) {
+      currentSettingsState.stop_battery_discharge_voltage[inverterId] = {};
+    }
+    currentSettingsState.stop_battery_discharge_voltage[inverterId].value = messageContent;
+    currentSettingsState.stop_battery_discharge_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/start_battery_discharge_voltage/')) {
+    if (!currentSettingsState.start_battery_discharge_voltage[inverterId]) {
+      currentSettingsState.start_battery_discharge_voltage[inverterId] = {};
+    }
+    currentSettingsState.start_battery_discharge_voltage[inverterId].value = messageContent;
+    currentSettingsState.start_battery_discharge_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/start_grid_charge_voltage/')) {
+    if (!currentSettingsState.start_grid_charge_voltage[inverterId]) {
+      currentSettingsState.start_grid_charge_voltage[inverterId] = {};
+    }
+    currentSettingsState.start_grid_charge_voltage[inverterId].value = messageContent;
+    currentSettingsState.start_grid_charge_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/solar_export_when_battery_full/')) {
+    if (!currentSettingsState.solar_export_when_battery_full[inverterId]) {
+      currentSettingsState.solar_export_when_battery_full[inverterId] = {};
+    }
+    currentSettingsState.solar_export_when_battery_full[inverterId].value = messageContent;
+    currentSettingsState.solar_export_when_battery_full[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/max_sell_power/')) {
+    if (!currentSettingsState.max_sell_power[inverterId]) {
+      currentSettingsState.max_sell_power[inverterId] = {};
+    }
+    currentSettingsState.max_sell_power[inverterId].value = messageContent;
+    currentSettingsState.max_sell_power[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/max_solar_power/')) {
+    if (!currentSettingsState.max_solar_power[inverterId]) {
+      currentSettingsState.max_solar_power[inverterId] = {};
+    }
+    currentSettingsState.max_solar_power[inverterId].value = messageContent;
+    currentSettingsState.max_solar_power[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/grid_trickle_feed/')) {
+    if (!currentSettingsState.grid_trickle_feed[inverterId]) {
+      currentSettingsState.grid_trickle_feed[inverterId] = {};
+    }
+    currentSettingsState.grid_trickle_feed[inverterId].value = messageContent;
+    currentSettingsState.grid_trickle_feed[inverterId].lastUpdated = new Date();
+  }
+  
+  // Battery Charging Settings
+  else if (specificTopic.includes('/max_discharge_current/')) {
+    if (!currentSettingsState.max_discharge_current[inverterId]) {
+      currentSettingsState.max_discharge_current[inverterId] = {};
+    }
+    currentSettingsState.max_discharge_current[inverterId].value = messageContent;
+    currentSettingsState.max_discharge_current[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/max_charge_current/')) {
+    if (!currentSettingsState.max_charge_current[inverterId]) {
+      currentSettingsState.max_charge_current[inverterId] = {};
+    }
+    currentSettingsState.max_charge_current[inverterId].value = messageContent;
+    currentSettingsState.max_charge_current[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/max_grid_charge_current/')) {
+    if (!currentSettingsState.max_grid_charge_current[inverterId]) {
+      currentSettingsState.max_grid_charge_current[inverterId] = {};
+    }
+    currentSettingsState.max_grid_charge_current[inverterId].value = messageContent;
+    currentSettingsState.max_grid_charge_current[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/max_generator_charge_current/')) {
+    if (!currentSettingsState.max_generator_charge_current[inverterId]) {
+      currentSettingsState.max_generator_charge_current[inverterId] = {};
+    }
+    currentSettingsState.max_generator_charge_current[inverterId].value = messageContent;
+    currentSettingsState.max_generator_charge_current[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/battery_float_charge_voltage/')) {
+    if (!currentSettingsState.battery_float_charge_voltage[inverterId]) {
+      currentSettingsState.battery_float_charge_voltage[inverterId] = {};
+    }
+    currentSettingsState.battery_float_charge_voltage[inverterId].value = messageContent;
+    currentSettingsState.battery_float_charge_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/battery_absorption_charge_voltage/')) {
+    if (!currentSettingsState.battery_absorption_charge_voltage[inverterId]) {
+      currentSettingsState.battery_absorption_charge_voltage[inverterId] = {};
+    }
+    currentSettingsState.battery_absorption_charge_voltage[inverterId].value = messageContent;
+    currentSettingsState.battery_absorption_charge_voltage[inverterId].lastUpdated = new Date();
+  }
+  else if (specificTopic.includes('/battery_equalization_charge_voltage/')) {
+    if (!currentSettingsState.battery_equalization_charge_voltage[inverterId]) {
+      currentSettingsState.battery_equalization_charge_voltage[inverterId] = {};
+    }
+    currentSettingsState.battery_equalization_charge_voltage[inverterId].value = messageContent;
+    currentSettingsState.battery_equalization_charge_voltage[inverterId].lastUpdated = new Date();
+  }
+  
+  // Update the global timestamp
+  currentSettingsState.lastUpdated = new Date();
+  // ========= END OF CURRENT SETTINGS STATE UPDATES =========
+
   // Update system state for key metrics - always do this regardless of learner mode
   if (specificTopic.includes('total/battery_state_of_charge')) {
     currentSystemState.battery_soc = parseFloat(messageContent)
@@ -1039,7 +1256,6 @@ async function handleMqttMessage(topic, message) {
     }
   }
 }
-
 
 // Create a settings changes queue with rate limiting
 const settingsChangesQueue = [];
@@ -3599,7 +3815,6 @@ async function createNightChargingRule() {
 }
 
 
-
 // Function to create weekend grid charge rules
 async function createWeekendGridChargeRules() {
   if (!dbConnected) return;
@@ -3780,197 +3995,105 @@ async function createWeekendGridChargeRules() {
   }
 }
 
-// ================ API ROUTES ================
+// ================  ROUTES ================
 
-// API Routes with database integration
-app.get('/api/energy-pattern-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const results = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (topic LIKE '%energy_pattern%' OR change_type = 'energy_pattern')
-      AND user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `, [USER_ID]);
-    
-    // Parse JSON fields and format dates
-    const energyPatternChanges = results.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(energyPatternChanges);
-  } catch (error) {
-    console.error('Error retrieving energy pattern changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
-
-// === Add API endpoints for retrieving battery charging settings changes ===
-app.get('/api/battery-charging-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const results = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (
-        topic LIKE '%max_discharge_current%' OR
-        topic LIKE '%max_charge_current%' OR
-        topic LIKE '%max_grid_charge_current%' OR
-        topic LIKE '%max_generator_charge_current%' OR
-        topic LIKE '%battery_float_charge_voltage%' OR
-        topic LIKE '%battery_absorption_charge_voltage%' OR
-        topic LIKE '%battery_equalization_charge_voltage%' OR
-        change_type IN (
-          'max_discharge_current', 
-          'max_charge_current', 
-          'max_grid_charge_current', 
-          'max_generator_charge_current', 
-          'battery_float_charge_voltage', 
-          'battery_absorption_charge_voltage', 
-          'battery_equalization_charge_voltage'
-        )
-      )
-      AND user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `, [USER_ID]);
-    
-    // Parse JSON fields and format dates
-    const batteryChargingChanges = results.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(batteryChargingChanges);
-  } catch (error) {
-    console.error('Error retrieving battery charging changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
-
-// === Add API endpoints for retrieving work mode settings changes ===
-app.get('/api/work-mode-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const results = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (
-        topic LIKE '%remote_switch%' OR
-        topic LIKE '%generator_charge%' OR
-        topic LIKE '%force_generator_on%' OR
-        topic LIKE '%output_shutdown_voltage%' OR
-        topic LIKE '%stop_battery_discharge_voltage%' OR
-        topic LIKE '%start_battery_discharge_voltage%' OR
-        topic LIKE '%start_grid_charge_voltage%' OR
-        topic LIKE '%work_mode%' OR
-        topic LIKE '%solar_export_when_battery_full%' OR
-        topic LIKE '%max_sell_power%' OR
-        topic LIKE '%max_solar_power%' OR
-        topic LIKE '%grid_trickle_feed%' OR
-        change_type IN (
-          'remote_switch', 
-          'generator_charge', 
-          'force_generator_on', 
-          'output_shutdown_voltage', 
-          'stop_battery_discharge_voltage', 
-          'start_battery_discharge_voltage', 
-          'start_grid_charge_voltage',
-          'work_mode',
-          'solar_export_when_battery_full',
-          'max_sell_power',
-          'max_solar_power',
-          'grid_trickle_feed'
-        )
-      )
-      AND user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `, [USER_ID]);
-    
-    // Parse JSON fields and format dates
-    const workModeChanges = results.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(workModeChanges);
-  } catch (error) {
-    console.error('Error retrieving work mode changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
 
 // === Add routes for viewing battery charging and work mode settings ===
 app.get('/battery-charging', async (req, res) => {
   try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes 
-        WHERE (
-          topic LIKE '%max_discharge_current%' OR
-          topic LIKE '%max_charge_current%' OR
-          topic LIKE '%max_grid_charge_current%' OR
-          topic LIKE '%max_generator_charge_current%' OR
-          topic LIKE '%battery_float_charge_voltage%' OR
-          topic LIKE '%battery_absorption_charge_voltage%' OR
-          topic LIKE '%battery_equalization_charge_voltage%' OR
-          change_type IN (
-            'max_discharge_current', 
-            'max_charge_current', 
-            'max_grid_charge_current', 
-            'max_generator_charge_current', 
-            'battery_float_charge_voltage', 
-            'battery_absorption_charge_voltage', 
-            'battery_equalization_charge_voltage'
-          )
-        )
-        AND user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
+    // No need to query SQLite for change count anymore
     
     res.render('battery-charging', { 
       active: learnerModeActive,
-      changes_count: changesCount,
       db_connected: dbConnected,
       ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
+      user_id: USER_ID,
+      // Flag to tell the frontend we're using in-memory settings
+      useInMemorySettings: true
     });
   } catch (error) {
     console.error('Error rendering battery-charging page:', error);
+    res.status(500).send('Error loading page data');
+  }
+});
+
+
+app.get('/work-mode', async (req, res) => {
+  try {
+    // No need to query SQLite for change count anymore
+    
+    res.render('work-mode', { 
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID,
+      // Flag to tell the frontend we're using in-memory settings
+      useInMemorySettings: true
+    });
+  } catch (error) {
+    console.error('Error rendering work-mode page:', error);
+    res.status(500).send('Error loading page data');
+  }
+});
+
+
+app.get('/grid-charge', async (req, res) => {
+  try {
+    // No need to query SQLite for change count anymore
+    // Pass the current settings directly to the template
+    
+    res.render('grid-charge', { 
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID,
+      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
+      // Flag to tell the frontend we're using in-memory settings
+      useInMemorySettings: true
+    });
+  } catch (error) {
+    console.error('Error rendering grid-charge page:', error);
+    res.status(500).send('Error loading page data');
+  }
+});
+
+
+
+app.get('/energy-pattern', async (req, res) => {
+  try {
+    // No need to query SQLite for change count anymore
+    
+    res.render('energy-pattern', { 
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
+      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
+      user_id: USER_ID,
+      // Flag to tell the frontend we're using in-memory settings
+      useInMemorySettings: true
+    });
+  } catch (error) {
+    console.error('Error rendering energy-pattern page:', error);
+    res.status(500).send('Error loading page data');
+  }
+});
+
+// New route for voltage point view
+app.get('/voltage-point', async (req, res) => {
+  try {
+    // No need to query SQLite for change count anymore
+    
+    res.render('voltage-point', { 
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID,
+      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
+      // Flag to tell the frontend we're using in-memory settings
+      useInMemorySettings: true
+    });
+  } catch (error) {
+    console.error('Error rendering voltage-point page:', error);
     res.status(500).send('Error loading page data');
   }
 });
@@ -4063,60 +4186,6 @@ app.post('/api/battery-charging/set', (req, res) => {
   }
 });
 
-// 3. Add API endpoint for getting current battery charging and work mode settings
-app.get('/api/current-settings', async (req, res) => {
-  try {
-    // Create an object to hold current settings
-    const currentSettings = {
-      battery_charging: {},
-      work_mode: {}
-    };
-    
-    // Filter the previousSettings object to get battery charging settings
-    for (const topic in previousSettings) {
-      if (topic.includes('max_discharge_current') || 
-          topic.includes('max_charge_current') || 
-          topic.includes('max_grid_charge_current') || 
-          topic.includes('max_generator_charge_current') || 
-          topic.includes('battery_float_charge_voltage') || 
-          topic.includes('battery_absorption_charge_voltage') || 
-          topic.includes('battery_equalization_charge_voltage')) {
-        
-        // Extract the setting name from the topic
-        const settingName = topic.split('/').pop();
-        currentSettings.battery_charging[settingName] = previousSettings[topic];
-      }
-      
-      // Filter for work mode settings
-      if (topic.includes('remote_switch') || 
-          topic.includes('generator_charge') || 
-          topic.includes('force_generator_on') || 
-          topic.includes('output_shutdown_voltage') || 
-          topic.includes('stop_battery_discharge_voltage') || 
-          topic.includes('start_battery_discharge_voltage') || 
-          topic.includes('start_grid_charge_voltage') || 
-          topic.includes('work_mode') || 
-          topic.includes('solar_export_when_battery_full') || 
-          topic.includes('max_sell_power') || 
-          topic.includes('max_solar_power') || 
-          topic.includes('grid_trickle_feed')) {
-        
-        const settingName = topic.split('/').pop();
-        currentSettings.work_mode[settingName] = previousSettings[topic];
-      }
-    }
-    
-    res.json({
-      success: true,
-      currentSettings,
-      inverterCount: inverterNumber,
-      batteryCount: batteryNumber
-    });
-  } catch (error) {
-    console.error('Error retrieving current settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve current settings' });
-  }
-});
 
 
 // Fix API endpoints for manually changing work mode settings from UI
@@ -4318,6 +4387,146 @@ function setupWarningChecks() {
 
 
 
+
+// ================ UPDATED API ROUTES ================
+
+// Replace your current '/api/current-settings' endpoint
+app.get('/api/current-settings', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      currentSettings: currentSettingsState,
+      inverterCount: inverterNumber,
+      batteryCount: batteryNumber,
+      timestamp: new Date(),
+      systemState: currentSystemState
+    });
+  } catch (error) {
+    console.error('Error retrieving current settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve current settings' });
+  }
+});
+
+// Replace your current '/api/grid-charge-changes' endpoint
+app.get('/api/grid-charge-changes', (req, res) => {
+  try {
+    // Instead of fetching from database, return the current in-memory state
+    const gridChargeSettings = {
+      grid_charge: currentSettingsState.grid_charge,
+      max_grid_charge_current: currentSettingsState.max_grid_charge_current
+    };
+    
+    res.json({
+      success: true,
+      currentSettings: gridChargeSettings,
+      inverterCount: inverterNumber,
+      timestamp: new Date(),
+      fromMemory: true // Flag to indicate this is current data, not historical
+    });
+  } catch (error) {
+    console.error('Error retrieving grid charge settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve grid charge settings' });
+  }
+});
+
+// Replace your current '/api/energy-pattern-changes' endpoint
+app.get('/api/energy-pattern-changes', (req, res) => {
+  try {
+    // Instead of fetching from database, return the current in-memory state
+    res.json({
+      success: true,
+      currentSettings: {
+        energy_pattern: currentSettingsState.energy_pattern
+      },
+      inverterCount: inverterNumber,
+      timestamp: new Date(),
+      fromMemory: true
+    });
+  } catch (error) {
+    console.error('Error retrieving energy pattern settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve energy pattern settings' });
+  }
+});
+
+// Replace your current '/api/voltage-point-changes' endpoint
+app.get('/api/voltage-point-changes', (req, res) => {
+  try {
+    // Instead of fetching from database, return the current in-memory state
+    res.json({
+      success: true,
+      currentSettings: {
+        voltage_point: currentSettingsState.voltage_point
+      },
+      inverterCount: inverterNumber,
+      timestamp: new Date(),
+      fromMemory: true
+    });
+  } catch (error) {
+    console.error('Error retrieving voltage point settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve voltage point settings' });
+  }
+});
+
+// Replace your current '/api/work-mode-changes' endpoint
+app.get('/api/work-mode-changes', (req, res) => {
+  try {
+    // Combine all relevant work mode settings
+    const workModeSettings = {
+      work_mode: currentSettingsState.work_mode,
+      remote_switch: currentSettingsState.remote_switch,
+      generator_charge: currentSettingsState.generator_charge,
+      force_generator_on: currentSettingsState.force_generator_on,
+      output_shutdown_voltage: currentSettingsState.output_shutdown_voltage,
+      stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage,
+      start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage,
+      start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage,
+      solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full,
+      max_sell_power: currentSettingsState.max_sell_power,
+      max_solar_power: currentSettingsState.max_solar_power,
+      grid_trickle_feed: currentSettingsState.grid_trickle_feed
+    };
+    
+    res.json({
+      success: true,
+      currentSettings: workModeSettings,
+      inverterCount: inverterNumber,
+      timestamp: new Date(),
+      fromMemory: true
+    });
+  } catch (error) {
+    console.error('Error retrieving work mode settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve work mode settings' });
+  }
+});
+
+// Replace your current '/api/battery-charging-changes' endpoint
+app.get('/api/battery-charging-changes', (req, res) => {
+  try {
+    // Combine all relevant battery charging settings
+    const batteryChargingSettings = {
+      max_discharge_current: currentSettingsState.max_discharge_current,
+      max_charge_current: currentSettingsState.max_charge_current,
+      max_grid_charge_current: currentSettingsState.max_grid_charge_current,
+      max_generator_charge_current: currentSettingsState.max_generator_charge_current,
+      battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage,
+      battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage,
+      battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage
+    };
+    
+    res.json({
+      success: true,
+      currentSettings: batteryChargingSettings,
+      inverterCount: inverterNumber,
+      timestamp: new Date(),
+      fromMemory: true
+    });
+  } catch (error) {
+    console.error('Error retrieving battery charging settings:', error);
+    res.status(500).json({ error: 'Failed to retrieve battery charging settings' });
+  }
+});
+
+
 app.get('/notifications', async (req, res) => {
   try {
     res.render('notifications', {
@@ -4376,217 +4585,6 @@ app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
 });
 
 
-app.get('/work-mode', async (req, res) => {
-  try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes 
-        WHERE (
-          topic LIKE '%remote_switch%' OR
-          topic LIKE '%generator_charge%' OR
-          topic LIKE '%force_generator_on%' OR
-          topic LIKE '%output_shutdown_voltage%' OR
-          topic LIKE '%stop_battery_discharge_voltage%' OR
-          topic LIKE '%start_battery_discharge_voltage%' OR
-          topic LIKE '%start_grid_charge_voltage%' OR
-          topic LIKE '%work_mode%' OR
-          topic LIKE '%solar_export_when_battery_full%' OR
-          topic LIKE '%max_sell_power%' OR
-          topic LIKE '%max_solar_power%' OR
-          topic LIKE '%grid_trickle_feed%' OR
-          change_type IN (
-            'remote_switch', 
-            'generator_charge', 
-            'force_generator_on', 
-            'output_shutdown_voltage', 
-            'stop_battery_discharge_voltage', 
-            'start_battery_discharge_voltage', 
-            'start_grid_charge_voltage',
-            'work_mode',
-            'solar_export_when_battery_full',
-            'max_sell_power',
-            'max_solar_power',
-            'grid_trickle_feed'
-          )
-        )
-        AND user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
-    
-    res.render('work-mode', { 
-      active: learnerModeActive,
-      changes_count: changesCount,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
-    });
-  } catch (error) {
-    console.error('Error rendering work-mode page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-
-// New API endpoint for voltage point changes
-app.get('/api/voltage-point-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const voltagePointChanges = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (topic LIKE '%voltage_point%' OR change_type = 'voltage_point')
-      AND user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `, [USER_ID]);
-    
-    // Parse JSON fields and format dates
-    const formattedChanges = voltagePointChanges.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(formattedChanges);
-  } catch (error) {
-    console.error('Error retrieving voltage point changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
-
-app.get('/grid-charge', async (req, res) => {
-  try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes 
-        WHERE (topic LIKE '%grid_charge%' OR change_type = 'grid_charge')
-        AND user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
-    
-    res.render('grid-charge', { 
-      active: learnerModeActive,
-      changes_count: changesCount,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy' // Pass the MQTT topic prefix
-    });
-  } catch (error) {
-    console.error('Error rendering grid-charge page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-app.get('/api/grid-charge-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    // Get all changes related to grid charge, including:
-    // - Basic grid_charge setting
-    // - max_grid_charge_current
-    // - grid_charge_point_X settings
-    const gridChargeChanges = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (
-        topic LIKE '%grid_charge%' OR 
-        change_type IN ('grid_charge', 'max_grid_charge_current')
-      )
-      AND user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `, [USER_ID]);
-    
-    // Parse JSON fields and format dates
-    const formattedChanges = gridChargeChanges.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(formattedChanges);
-  } catch (error) {
-    console.error('Error retrieving grid charge changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
-
-app.get('/energy-pattern', async (req, res) => {
-  try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes 
-        WHERE (topic LIKE '%energy_pattern%' OR change_type = 'energy_pattern')
-        AND user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
-    
-    res.render('energy-pattern', { 
-      active: learnerModeActive,
-      changes_count: changesCount,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
-      user_id: USER_ID // Pass user ID to template
-    });
-  } catch (error) {
-    console.error('Error rendering energy-pattern page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-// New route for voltage point view
-app.get('/voltage-point', async (req, res) => {
-  try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes 
-        WHERE (topic LIKE '%voltage_point%' OR change_type = 'voltage_point')
-        AND user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
-    
-    res.render('voltage-point', { 
-      active: learnerModeActive,
-      changes_count: changesCount,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID, // Pass user ID to template
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy' // Add this line to pass MQTT topic prefix
-    });
-  } catch (error) {
-    console.error('Error rendering voltage-point page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
 
 app.get('/wizard', async (req, res) => {
   try {
