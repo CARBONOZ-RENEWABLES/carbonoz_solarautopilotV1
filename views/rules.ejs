@@ -362,9 +362,8 @@
          }
          
          
-                 input:checked + .slider {
-                     background-color: #DEAF0B;
-                 }
+         input:checked + .slider {
+  background-color: #22c55e;}
          
                  input:checked + .slider:before {
                      transform: translateX(20px);
@@ -927,15 +926,37 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   transition: box-shadow 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid #ef4444 !important; /* Red for inactive */
 }
 
 .rule-card:hover {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Active state - Green left border */
+.rule-card[data-rule-active="true"] {
+  border-left: 4px solid #22c55e !important; /* Green for active */
+}
+
+body.dark-mode .rule-card {
+  border-left: 4px solid #ef4444 !important; /* Red for inactive in dark mode */
+}
+
+body.dark-mode .rule-card[data-rule-active="true"] {
+  border-left: 4px solid #22c55e !important; /* Green for active in dark mode */
+}
+
+/* 6. Remove any previous color uses */
+.rule-card {
+  border-left-color: #ef4444 !important; /* Override the --primary-color */
+}
+
+.rule-card[data-rule-active="true"] {
+  border-left-color: #22c55e !important; /* Override the --primary-color */
+}
+
 .inactive-rule {
-  border-left-color: var(--gray);
+  border-left-color: #ef4444 !important;
   opacity: 0.8;
 }
 
@@ -1204,8 +1225,14 @@ body.dark-mode .dropdown-menu a.delete-rule:hover {
   border-radius: 50%;
 }
 
+
+.switch .slider {
+  background-color: #ef4444; /* Red for inactive state */
+  transition: .4s;
+}
+
 input:checked + .slider {
-  background-color: var(--primary-color);
+  background-color: #22c55e; /* Green for active state */
 }
 
 input:checked + .slider:before {
@@ -1896,10 +1923,39 @@ body.dark-mode .error-state h3 {
   color: #fff;
 }
 
-body.dark-mode .slider {
-  background-color: rgba(40, 45, 50, 1);
+body.dark-mode .switch .slider {
+  background-color: #ef4444; 
 }
 
+
+body.dark-mode input:checked + .slider {
+  background-color: #22c55e; /* Keep green for active in dark mode */
+}
+
+
+
+/* Override any other switch styling to maintain consistency */
+.rule-active-toggle + .slider {
+  background-color: #ef4444 !important; /* Ensure inactive is always red */
+}
+
+.rule-active-toggle:checked + .slider {
+  background-color: #22c55e !important; /* Ensure active is always green */
+}
+
+/* Adjust the thumb (circle) color for better contrast */
+.slider:before {
+  background-color: white; /* White thumb for better visibility */
+}
+
+/* Add a subtle border to make the slider stand out more */
+.switch .slider {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .switch .slider {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 /* Improved Mobile Navigation for Dark Mode */
 @media (max-width: 768px) {
