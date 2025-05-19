@@ -53,8 +53,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -87,7 +86,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "",
@@ -124,8 +123,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "light-green",
-                "value": null
+                "color": "light-green"
               }
             ]
           },
@@ -158,7 +156,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -195,8 +193,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "light-green",
-                "value": null
+                "color": "light-green"
               }
             ]
           },
@@ -229,7 +226,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -268,8 +265,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -310,7 +306,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -394,8 +390,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -631,7 +626,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Load power",
@@ -738,8 +733,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -816,7 +810,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -902,8 +896,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -955,7 +948,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1039,8 +1032,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1111,7 +1103,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1195,8 +1187,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1248,7 +1239,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1303,8 +1294,8 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 21,
-            "gradientMode": "opacity",
+            "fillOpacity": 7,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -1321,7 +1312,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1333,8 +1324,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1345,6 +1335,18 @@
           "unit": "watt"
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blindleistung"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "voltampreact"
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byName",
@@ -1368,7 +1370,7 @@
         "x": 0,
         "y": 36
       },
-      "id": 195,
+      "id": 243,
       "options": {
         "legend": {
           "calcs": [
@@ -1383,11 +1385,11 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1408,13 +1410,13 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_power_1\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "PV Power",
+      "title": "MPPT 1 power",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -1472,8 +1474,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1538,7 +1539,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1559,13 +1560,13 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
+          "query": "SELECT MEAN(\"value\") AS \"PV Power\" FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_power_2\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "MPPT 1 power",
+      "title": "MPPT 2 power",
       "transformations": [
         {
           "id": "renameByRegex",
@@ -1623,8 +1624,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1673,7 +1673,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -1717,20 +1717,70 @@
       "datasource": "InfluxDB",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "yellow",
-                "value": null
+                "color": "yellow"
               }
             ]
-          },
-          "unit": "Watts"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Bus Voltage"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1740,37 +1790,32 @@
       },
       "id": 205,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "alias": "Netzbezug",
+          "alias": "Bus Voltage",
           "datasource": "InfluxDB",
           "hide": false,
-          "query": "SELECT MEAN(\"value\") AS \"Load Power\" FROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /^.+\\/inverter_\\d\\/auxiliary_pv_power\\/state$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT last(\"value\") AS \"Bus Voltage\"\nFROM \"state\"\nWHERE $timeFilter\nAND \"topic\" =~ /.+\\/total\\/bus_voltage\\/state/\nGROUP BY time($__interval) fill(null)\n",
           "rawQuery": true,
           "refId": "C",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Auxiliary PV power",
-      "type": "stat"
+      "title": "Bus Voltage",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -1830,8 +1875,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1883,7 +1927,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Inverter $tag_topic",
@@ -1959,8 +2003,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2010,7 +2053,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2112,8 +2155,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2163,7 +2205,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2265,8 +2307,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2316,7 +2357,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -2439,8 +2480,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "dark-red",
@@ -2503,7 +2543,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Inverter temperature",
@@ -2594,8 +2634,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "yellow",
@@ -2627,7 +2666,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Inverter $tag_topic",
@@ -2767,8 +2806,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2824,7 +2862,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Battery Temperature",
@@ -2917,8 +2955,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2959,7 +2996,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3060,8 +3097,7 @@
             "mode": "percentage",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -3134,7 +3170,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3278,8 +3314,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -3313,7 +3348,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "$tag_topic",
@@ -3393,8 +3428,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "semi-dark-yellow",
-                "value": null
+                "color": "semi-dark-yellow"
               },
               {
                 "color": "orange",
@@ -3470,7 +3504,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.2",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "Battery Power",
@@ -3519,7 +3553,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 40,
+  "schemaVersion": 41,
   "tags": [],
   "templating": {
     "list": [
@@ -3636,6 +3670,5 @@
   "timezone": "",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 6,
-  "weekStart": ""
+  "version": 6
 }
