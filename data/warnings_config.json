@@ -1,0 +1,87 @@
+{
+  "enabled": true,
+  "warningTypes": [
+    {
+      "id": "low-battery",
+      "name": "Low Battery",
+      "description": "Battery state of charge is critically low",
+      "parameter": "battery_soc",
+      "condition": "lt",
+      "threshold": 15,
+      "enabled": true,
+      "priority": "high",
+      "cooldownMinutes": 60
+    },
+    {
+      "id": "high-load",
+      "name": "High Load",
+      "description": "System load is unusually high",
+      "parameter": "load",
+      "condition": "gt",
+      "threshold": 8000,
+      "enabled": true,
+      "priority": "medium",
+      "cooldownMinutes": 30
+    },
+    {
+      "id": "grid-outage",
+      "name": "Grid Outage",
+      "description": "Grid voltage is too low or unstable",
+      "parameter": "grid_voltage",
+      "condition": "lt",
+      "threshold": 190,
+      "enabled": true,
+      "priority": "high",
+      "cooldownMinutes": 15
+    },
+    {
+      "id": "battery-full-discharge",
+      "name": "Battery Full Discharge Warning",
+      "description": "Battery is being fully discharged too frequently",
+      "parameter": "battery_soc",
+      "condition": "lt",
+      "threshold": 10,
+      "enabled": true,
+      "priority": "high",
+      "cooldownMinutes": 120
+    },
+    {
+      "id": "pv-underperformance",
+      "name": "PV System Underperformance",
+      "description": "PV power generation is lower than expected",
+      "parameter": "pv_power",
+      "condition": "lt",
+      "threshold": 500,
+      "timeCondition": "daytime",
+      "enabled": true,
+      "priority": "medium",
+      "cooldownMinutes": 240
+    }
+  ],
+  "warningHistory": [
+    {
+      "id": "instance-1747649700904",
+      "warningTypeId": "high-load",
+      "timestamp": "2025-05-19T10:15:00.904Z",
+      "systemState": {
+        "battery_soc": 63,
+        "pv_power": 9498,
+        "load": 9602,
+        "grid_voltage": 224.1,
+        "grid_power": 0,
+        "inverter_state": "Solar/Battery",
+        "timestamp": "2025-05-19 12:15:00"
+      },
+      "title": "High Load",
+      "description": "System load is unusually high",
+      "priority": "medium",
+      "triggered": {
+        "parameter": "load",
+        "value": 9602,
+        "threshold": 8000,
+        "condition": "gt"
+      }
+    }
+  ],
+  "maxHistoryItems": 100
+}

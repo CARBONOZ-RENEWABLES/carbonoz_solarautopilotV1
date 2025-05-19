@@ -26,6 +26,8 @@ const { AuthenticateUser } = require('./utils/mongoService')
 const telegramService = require('./services/telegramService');
 const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
+const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
+const dynamicPricingController = require('./services/dynamicPricingController');
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -34,6 +36,9 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
+
+app.use('/api/dynamic-pricing', require('./routes/dynamicPricingRoutes'));
+app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
@@ -291,6 +296,11 @@ async function connectToDatabase() {
   try {
     if (!dbConnected) {
       await initializeDatabase();
+      
+      // Since we just connected to the database, prune old records
+      if (dbConnected) {
+        await pruneOldSettingsChanges();
+      }
     }
     return dbConnected;
   } catch (error) {
@@ -1206,6 +1216,23 @@ async function handleMqttMessage(topic, message) {
         }
       }
     }
+
+    if (topic.includes('battery_state_of_charge') || 
+      topic.includes('grid_voltage') || 
+      topic.includes('pv_power')) {
+    
+    // Only run the dynamic pricing check if the feature is enabled and ready
+    if (dynamicPricingInstance && 
+        dynamicPricingInstance.enabled && 
+        dynamicPricingInstance.isReady()) {
+      
+      // Check if we should charge now based on price and battery state
+      const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+      
+      // Send the appropriate command
+      dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+    }
+  }
     
     // If we found a match, check if the value changed
     if (matchedSetting && previousSettings[specificTopic] !== messageContent) {
@@ -1329,6 +1356,9 @@ async function processSettingsChangesQueue() {
     // Process this batch
     if (dbConnected) {
       await batchSaveSettingsChanges(currentBatch);
+      
+      // Check if we need to prune old records after adding new ones
+      await pruneOldSettingsChanges();
     }
     
     // If there are more items, schedule the next batch
@@ -2943,6 +2973,40 @@ async function processRules() {
   }
 }
 
+
+// Function to check and prune old settings changes
+async function pruneOldSettingsChanges() {
+  if (!dbConnected) return;
+  
+  try {
+    // Count total records
+    const countResult = await db.get('SELECT COUNT(*) as total FROM settings_changes');
+    const totalRecords = countResult.total;
+    
+    // If we have more than 5000 records, delete the oldest ones
+    if (totalRecords > 5000) {
+      // Calculate how many records to delete
+      const recordsToDelete = totalRecords - 5000;
+      
+      console.log(`Pruning ${recordsToDelete} old settings changes from database to maintain limit of 5000 records`);
+      
+      // Delete oldest records
+      await db.run(`
+        DELETE FROM settings_changes 
+        WHERE id IN (
+          SELECT id FROM settings_changes 
+          ORDER BY timestamp ASC 
+          LIMIT ?
+        )
+      `, [recordsToDelete]);
+      
+      console.log(`Successfully pruned ${recordsToDelete} old records`);
+    }
+  } catch (error) {
+    console.error('Error pruning old settings changes:', error.message);
+  }
+}
+
 // Function to create a default set of rules if none exist
 async function createDefaultRules() {
   if (!dbConnected) return;
@@ -4491,6 +4555,13 @@ app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
   }
 });
 
+app.get('/dynamic-pricing', (req, res) => {
+  res.render('dynamic-pricing', {
+    ingress_path: process.env.INGRESS_PATH || '',
+    user_id: USER_ID // Use your global user ID variable
+  });
+});
+
 
 
 app.get('/wizard', async (req, res) => {
@@ -5525,6 +5596,16 @@ cron.schedule('0 0 * * 1', () => {
   // Can add specific weekday settings here if needed
 })
 
+
+// Run database maintenance once per day
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running scheduled database maintenance...');
+  if (dbConnected) {
+    await pruneOldSettingsChanges();
+  }
+});
+
+
 // Graceful shutdown function
 function gracefulShutdown() {
   console.log('Starting graceful shutdown...')
@@ -5549,6 +5630,8 @@ function gracefulShutdown() {
 process.on('SIGTERM', gracefulShutdown)
 process.on('SIGINT', gracefulShutdown)
 
+
+let dynamicPricingInstance = null;
 // Initialize connections to external services
 async function initializeConnections() {
   // Connect to MQTT broker
@@ -5556,6 +5639,21 @@ async function initializeConnections() {
   
   // Connect to WebSocket broker
   connectToWebSocketBroker();
+  
+  // Initialize warning service
+  const warningService = require('./services/warningService');
+  console.log('✅ Warning service initialized');
+  
+  // Initialize Telegram service
+  const telegramService = require('./services/telegramService');
+  console.log('✅ Telegram notification service initialized');
+  
+  // Initialize dynamic pricing integration
+  const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+  dynamicPricingInstance = await dynamicPricingController.initialize(app, mqttClient, currentSystemState);
+
+    // Make it globally available for API routes
+    global.dynamicPricingInstance = dynamicPricingInstance;
   
   // Connect to database
   try {
@@ -5565,9 +5663,6 @@ async function initializeConnections() {
     if (dbConnected) {
       // Replace the original createDefaultRules() call with our enhanced initialization
       await initializeAutomationRules();
-      
-      // Initialize the notification system after the database is connected
-      await initializeNotificationSystem();
     }
   } catch (err) {
     console.error('❌ Initial database connection failed:', err);
