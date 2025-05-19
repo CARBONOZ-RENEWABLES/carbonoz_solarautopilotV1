@@ -5,6 +5,7 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
+const pricingApis = require('./pricingApis');
 
 // Configuration file path
 const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
@@ -30,7 +31,11 @@ function ensureConfigExists() {
       chargingHours: [], // Will contain objects with start and end times
       lastUpdate: null,
       pricingData: [],
-      timezone: 'Europe/Berlin'
+      timezone: 'Europe/Berlin',
+      preferAwattar: false, // Preference for aWATTar API (DE, AT)
+      preferEpex: false, // Preference for EPEX Spot
+      currency: 'EUR', // Default currency
+      pricingSource: 'auto' // 'auto', 'entso-e', 'awattar', 'nordpool', 'epex', etc.
     };
     
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
@@ -57,112 +62,6 @@ function saveConfig(config) {
   } catch (error) {
     console.error('Error saving dynamic pricing config:', error.message);
     return false;
-  }
-}
-
-// Fetch electricity prices from Entso-E API
-async function fetchEntsoeElectricityPrices(config) {
-  if (!config.apiKey) {
-    console.error('API key for Entso-E is missing');
-    return [];
-  }
-  
-  try {
-    const today = moment().format('YYYYMMDD');
-    const tomorrow = moment().add(1, 'day').format('YYYYMMDD');
-    
-    // Entso-E API uses specific area codes
-    const areaCodeMap = {
-      'DE': '10Y1001A1001A83F', // Germany
-      'FR': '10Y1001A1001A39I', // France
-      'ES': '10YES-REE------0', // Spain
-      'IT': '10Y1001A1001A73I', // Italy
-      'UK': '10Y1001A1001A92E', // UK
-      'NL': '10Y1001A1001A16H'  // Netherlands
-    };
-    
-    const areaCode = areaCodeMap[config.market] || areaCodeMap['DE'];
-    
-    const url = `https://transparency.entsoe.eu/api?documentType=A44&in_Domain=${areaCode}&out_Domain=${areaCode}&periodStart=${today}0000&periodEnd=${tomorrow}2300&securityToken=${config.apiKey}`;
-    
-    const response = await axios.get(url, { 
-      headers: { 'Content-Type': 'application/xml' },
-      timeout: 10000
-    });
-    
-    // Parse XML response to extract price points
-    // For simplicity, we'll use a placeholder function
-    // In production, you would use an XML parser library
-    const prices = parseEntsoeXmlResponse(response.data);
-    
-    return prices;
-  } catch (error) {
-    console.error('Error fetching Entso-E electricity prices:', error.message);
-    return [];
-  }
-}
-
-// Placeholder function to parse Entso-E XML response
-// In a real implementation, you would use xml2js or another XML parser
-function parseEntsoeXmlResponse(xmlData) {
-  // This is a placeholder - in a real implementation,
-  // you would parse the XML to extract prices
-  
-  // Sample placeholder data structure
-  const prices = [];
-  const now = moment();
-  
-  // Generate 48 hourly price points (24 hours x 2 days)
-  for (let i = 0; i < 48; i++) {
-    const timestamp = moment(now).add(i, 'hours');
-    
-    // Generate a random price between 0.05 and 0.20 EUR/kWh
-    // In a real implementation, this would come from the XML
-    const price = (Math.random() * 0.15 + 0.05).toFixed(4);
-    
-    prices.push({
-      timestamp: timestamp.toISOString(),
-      price: parseFloat(price),
-      currency: 'EUR',
-      unit: 'kWh'
-    });
-  }
-  
-  return prices;
-}
-
-// Alternative: Fetch prices from AWATTAR API (available in Germany and Austria)
-async function fetchAwattarPrices(config) {
-  try {
-    const countryDomain = config.country.toLowerCase() === 'at' ? 'at' : 'de';
-    const url = `https://api.awattar.${countryDomain}/v1/marketdata`;
-    
-    const response = await axios.get(url, { timeout: 10000 });
-    
-    if (response.data && response.data.data) {
-      return response.data.data.map(item => ({
-        timestamp: moment(item.start_timestamp).toISOString(),
-        price: item.marketprice / 1000, // Convert from EUR/MWh to EUR/kWh
-        currency: 'EUR',
-        unit: 'kWh'
-      }));
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('Error fetching aWATTar prices:', error.message);
-    return [];
-  }
-}
-
-// Fetch prices from selected provider based on country settings
-async function fetchElectricityPrices(config) {
-  // Default to using aWATTar for Germany and Austria
-  if (config.country === 'DE' || config.country === 'AT') {
-    return await fetchAwattarPrices(config);
-  } else {
-    // Use Entso-E for other European countries
-    return await fetchEntsoeElectricityPrices(config);
   }
 }
 
@@ -374,8 +273,8 @@ async function updatePricingData(mqttClient, currentSystemState) {
       return false;
     }
     
-    // Fetch latest pricing data
-    const prices = await fetchElectricityPrices(config);
+    // Fetch latest pricing data using the pricingApis module
+    const prices = await pricingApis.fetchElectricityPrices(config);
     
     if (prices && prices.length > 0) {
       // Update the config with new pricing data
@@ -385,7 +284,7 @@ async function updatePricingData(mqttClient, currentSystemState) {
       // Save the updated config
       saveConfig(config);
       
-      console.log(`Updated electricity pricing data with ${prices.length} price points`);
+      console.log(`Updated electricity pricing data with ${prices.length} price points for ${config.country}`);
       
       // Determine if we should charge based on new data
       scheduleCharging(config, mqttClient, currentSystemState);
@@ -399,6 +298,157 @@ async function updatePricingData(mqttClient, currentSystemState) {
     console.error('Error updating pricing data:', error.message);
     return false;
   }
+}
+
+// Get available pricing sources for a country
+function getAvailablePricingSources(country) {
+  // Define country groups based on available APIs
+  const awattarCountries = ['DE', 'AT']; // AWATTAR is available in Germany and Austria
+  const nordpoolCountries = ['NO', 'SE', 'FI', 'DK', 'EE', 'LV', 'LT']; // Nordic and Baltic countries
+  const epexSpotCountries = ['DE', 'FR', 'AT', 'CH', 'BE', 'NL', 'UK']; // EPEX spot market countries
+  const entsoeCountries = [
+    'DE', 'FR', 'ES', 'IT', 'UK', 'NL', 'BE', 'AT', 'CH', 'DK', 'NO', 'SE', 'FI', 'PL', 'CZ', 'SK', 'HU', 
+    'RO', 'BG', 'GR', 'PT', 'IE', 'LU', 'EE', 'LV', 'LT', 'SI', 'HR', 'RS', 'ME', 'AL', 'MK', 'BA', 'XK'
+  ]; // European countries in ENTSO-E
+  
+  // African countries with specific implementations
+  const africanCountries = ['ZA', 'KE', 'EG', 'NG', 'MA', 'MU'];
+  
+  // Define other countries with specific implementations
+  const specificCountries = ['US', 'CA', 'AU', 'NZ', 'JP', 'CN', 'IN', 'BR', 'KY'];
+  
+  // Build the list of available sources
+  const sources = ['auto'];
+  
+  if (entsoeCountries.includes(country)) sources.push('entso-e');
+  if (awattarCountries.includes(country)) sources.push('awattar');
+  if (nordpoolCountries.includes(country)) sources.push('nordpool');
+  if (epexSpotCountries.includes(country)) sources.push('epex');
+  
+  // Add specific sources for certain countries
+  if (africanCountries.includes(country)) {
+    const africanSourcesMap = {
+      'ZA': 'eskom',
+      'KE': 'kplc',
+      'EG': 'egypt',
+      'NG': 'nigeria',
+      'MA': 'morocco',
+      'MU': 'mauritius'
+    };
+    if (africanSourcesMap[country]) sources.push(africanSourcesMap[country]);
+  }
+  
+  if (specificCountries.includes(country)) {
+    sources.push('country-specific');
+  }
+  
+  // Add the fallback source
+  sources.push('sample');
+  
+  return sources;
+}
+
+// Set up predefined timezones based on country
+function getTimezoneForCountry(country) {
+  const timezonesMap = {
+    // Europe
+    'DE': 'Europe/Berlin',
+    'FR': 'Europe/Paris',
+    'ES': 'Europe/Madrid',
+    'IT': 'Europe/Rome',
+    'GB': 'Europe/London',
+    'UK': 'Europe/London',
+    'NL': 'Europe/Amsterdam',
+    'BE': 'Europe/Brussels',
+    'AT': 'Europe/Vienna',
+    'CH': 'Europe/Zurich',
+    'DK': 'Europe/Copenhagen',
+    'NO': 'Europe/Oslo',
+    'SE': 'Europe/Stockholm',
+    'FI': 'Europe/Helsinki',
+    'PL': 'Europe/Warsaw',
+    'CZ': 'Europe/Prague',
+    'SK': 'Europe/Bratislava',
+    'HU': 'Europe/Budapest',
+    'RO': 'Europe/Bucharest',
+    'BG': 'Europe/Sofia',
+    'GR': 'Europe/Athens',
+    'PT': 'Europe/Lisbon',
+    'IE': 'Europe/Dublin',
+    'LU': 'Europe/Luxembourg',
+    'IS': 'Atlantic/Reykjavik',
+    'MT': 'Europe/Malta',
+    'CY': 'Asia/Nicosia',
+    'EE': 'Europe/Tallinn',
+    'LV': 'Europe/Riga',
+    'LT': 'Europe/Vilnius',
+    'SI': 'Europe/Ljubljana',
+    'HR': 'Europe/Zagreb',
+    'RS': 'Europe/Belgrade',
+    'ME': 'Europe/Podgorica',
+    'AL': 'Europe/Tirane',
+    'MK': 'Europe/Skopje',
+    'BA': 'Europe/Sarajevo',
+    
+    // Africa
+    'ZA': 'Africa/Johannesburg',
+    'EG': 'Africa/Cairo',
+    'MA': 'Africa/Casablanca',
+    'DZ': 'Africa/Algiers',
+    'TN': 'Africa/Tunis',
+    'NG': 'Africa/Lagos',
+    'KE': 'Africa/Nairobi',
+    'ET': 'Africa/Addis_Ababa',
+    'GH': 'Africa/Accra',
+    'CI': 'Africa/Abidjan',
+    'TZ': 'Africa/Dar_es_Salaam',
+    'CD': 'Africa/Kinshasa',
+    'MU': 'Indian/Mauritius',
+    'SN': 'Africa/Dakar',
+    'CM': 'Africa/Douala',
+    'UG': 'Africa/Kampala',
+    'ZM': 'Africa/Lusaka',
+    'ZW': 'Africa/Harare',
+    'AO': 'Africa/Luanda',
+    'NA': 'Africa/Windhoek',
+    'BW': 'Africa/Gaborone',
+    'MZ': 'Africa/Maputo',
+    'RW': 'Africa/Kigali',
+    'MG': 'Indian/Antananarivo',
+    
+    // Americas
+    'US': 'America/New_York', // Default to Eastern Time, should be adjusted based on state
+    'CA': 'America/Toronto',  // Default to Eastern Time, should be adjusted based on province
+    'MX': 'America/Mexico_City',
+    'BR': 'America/Sao_Paulo',
+    'AR': 'America/Argentina/Buenos_Aires',
+    'CO': 'America/Bogota',
+    'CL': 'America/Santiago',
+    'PE': 'America/Lima',
+    'KY': 'America/Cayman',
+    'JM': 'America/Jamaica',
+    'BS': 'America/Nassau',
+    'BB': 'America/Barbados',
+    'TT': 'America/Port_of_Spain',
+    
+    // Asia
+    'CN': 'Asia/Shanghai',
+    'JP': 'Asia/Tokyo',
+    'KR': 'Asia/Seoul',
+    'IN': 'Asia/Kolkata',
+    'ID': 'Asia/Jakarta',
+    'MY': 'Asia/Kuala_Lumpur',
+    'SG': 'Asia/Singapore',
+    'TH': 'Asia/Bangkok',
+    'VN': 'Asia/Ho_Chi_Minh',
+    'PH': 'Asia/Manila',
+    
+    // Oceania
+    'AU': 'Australia/Sydney', // Default to Sydney, should be adjusted based on state
+    'NZ': 'Pacific/Auckland'
+  };
+  
+  return timezonesMap[country] || 'UTC';
 }
 
 // Initialize dynamic pricing module
@@ -432,10 +482,11 @@ function initializeDynamicPricing(mqttClient, currentSystemState) {
       updatePricingData,
       scheduleCharging,
       determineLowPricePeriods,
-      fetchElectricityPrices
+      getAvailablePricingSources,
+      getTimezoneForCountry
     };
     
-    console.log('✅ Dynamic electricity pricing module initialized');
+    console.log('✅ Dynamic electricity pricing module initialized with support for multiple countries');
     return true;
   } catch (error) {
     console.error('❌ Error initializing dynamic pricing module:', error.message);
@@ -448,7 +499,8 @@ module.exports = {
   updatePricingData,
   scheduleCharging,
   determineLowPricePeriods,
-  fetchElectricityPrices,
   loadConfig,
-  saveConfig
+  saveConfig,
+  getAvailablePricingSources,
+  getTimezoneForCountry
 };
