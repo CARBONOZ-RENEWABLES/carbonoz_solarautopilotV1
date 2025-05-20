@@ -138,7 +138,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 400
+const MAX_MESSAGES = 200
 
 // Learner mode configuration
 let learnerModeActive = false
@@ -309,6 +309,38 @@ async function connectToDatabase() {
     return false;
   }
 }
+
+// Add this after the currentSettingsState declaration (around line 99)
+function cleanupCurrentSettingsState() {
+  try {
+    const now = Date.now();
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    
+    // For each category in currentSettingsState
+    Object.keys(currentSettingsState).forEach(category => {
+      if (typeof currentSettingsState[category] === 'object' && category !== 'lastUpdated') {
+        // For each inverter in this category
+        Object.keys(currentSettingsState[category]).forEach(inverterId => {
+          // If the entry is older than 24 hours, remove it
+          if (currentSettingsState[category][inverterId] && 
+              currentSettingsState[category][inverterId].lastUpdated) {
+            const lastUpdated = new Date(currentSettingsState[category][inverterId].lastUpdated).getTime();
+            if (now - lastUpdated > MAX_AGE_MS) {
+              delete currentSettingsState[category][inverterId];
+            }
+          }
+        });
+      }
+    });
+    
+    console.log('Cleaned up stale entries in currentSettingsState');
+  } catch (error) {
+    console.error('Error cleaning up currentSettingsState:', error.message);
+  }
+}
+
+
+
   
 // ================ USER IDENTIFICATION SYSTEM ================
 
@@ -920,34 +952,44 @@ function parseJsonOrValue(value) {
 // Handle incoming MQTT messages
 async function handleMqttMessage(topic, message) {
   // Keep circular buffer of messages but with reduced size in learner mode
-  const formattedMessage = `${topic}: ${message.toString()}`
-  
-  // Add to the circular buffer of messages - use a smaller buffer size when in learner mode
   const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
-  incomingMessages.push(formattedMessage)
-  if (incomingMessages.length > bufferSize) {
-    incomingMessages.shift()
+  
+  // Limit message size to prevent memory issues
+  const messageStr = message.toString();
+  const maxMessageSize = 10000; // Limit to 10KB
+  
+  // Truncate extremely large messages
+  const truncatedMessage = messageStr.length > maxMessageSize 
+    ? messageStr.substring(0, maxMessageSize) + '... [truncated]' 
+    : messageStr;
+  
+  const formattedMessage = `${topic}: ${truncatedMessage}`;
+  
+  // Add to the circular buffer of messages with proper size control
+  incomingMessages.push(formattedMessage);
+  while (incomingMessages.length > bufferSize) {
+    incomingMessages.shift();
   }
 
-  // Parse message content
-  let messageContent
+  // Parse message content with size limits
+  let messageContent;
   try {
-    messageContent = message.toString()
+    messageContent = messageStr;
     
-    // Try to parse as JSON if it looks like JSON
-    if (messageContent.startsWith('{') && messageContent.endsWith('}')) {
-      messageContent = JSON.parse(messageContent)
+    // Try to parse as JSON if it looks like JSON and isn't too large
+    if (messageStr.length < maxMessageSize && messageStr.startsWith('{') && messageStr.endsWith('}')) {
+      messageContent = JSON.parse(messageStr);
     }
   } catch (error) {
     // If not JSON, keep as string
-    messageContent = message.toString()
+    messageContent = messageStr;
   }
 
   // Extract the specific topic part after the prefix
-  const topicPrefix = options.mqtt_topic_prefix || ''
-  let specificTopic = topic
+  const topicPrefix = options.mqtt_topic_prefix || '';
+  let specificTopic = topic;
   if (topic.startsWith(topicPrefix)) {
-    specificTopic = topic.substring(topicPrefix.length + 1) // +1 for the slash
+    specificTopic = topic.substring(topicPrefix.length + 1); // +1 for the slash
   }
 
   // Track if this message should trigger rule processing
@@ -1135,23 +1177,23 @@ async function handleMqttMessage(topic, message) {
 
   // Update system state for key metrics - always do this regardless of learner mode
   if (specificTopic.includes('total/battery_state_of_charge')) {
-    currentSystemState.battery_soc = parseFloat(messageContent)
-    currentSystemState.timestamp = moment().format('YYYY-MM-DD HH:mm:ss')
+    currentSystemState.battery_soc = parseFloat(messageContent);
+    currentSystemState.timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     shouldProcessRules = true;
   } else if (specificTopic.includes('total/pv_power')) {
-    currentSystemState.pv_power = parseFloat(messageContent)
+    currentSystemState.pv_power = parseFloat(messageContent);
     shouldProcessRules = true;
   } else if (specificTopic.includes('total/load_power')) {
-    currentSystemState.load = parseFloat(messageContent)
+    currentSystemState.load = parseFloat(messageContent);
     shouldProcessRules = true;
   } else if (specificTopic.includes('total/grid_voltage')) {
-    currentSystemState.grid_voltage = parseFloat(messageContent)
+    currentSystemState.grid_voltage = parseFloat(messageContent);
     shouldProcessRules = true;
   } else if (specificTopic.includes('total/grid_power')) {
-    currentSystemState.grid_power = parseFloat(messageContent)
+    currentSystemState.grid_power = parseFloat(messageContent);
     shouldProcessRules = true;
   } else if (specificTopic.includes('inverter_state') || specificTopic.includes('device_mode')) {
-    currentSystemState.inverter_state = messageContent
+    currentSystemState.inverter_state = messageContent;
     shouldProcessRules = true;
   }
 
@@ -1221,18 +1263,18 @@ async function handleMqttMessage(topic, message) {
       topic.includes('grid_voltage') || 
       topic.includes('pv_power')) {
     
-    // Only run the dynamic pricing check if the feature is enabled and ready
-    if (dynamicPricingInstance && 
-        dynamicPricingInstance.enabled && 
-        dynamicPricingInstance.isReady()) {
-      
-      // Check if we should charge now based on price and battery state
-      const shouldCharge = dynamicPricingInstance.shouldChargeNow();
-      
-      // Send the appropriate command
-      dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+      // Only run the dynamic pricing check if the feature is enabled and ready
+      if (dynamicPricingInstance && 
+          dynamicPricingInstance.enabled && 
+          dynamicPricingInstance.isReady()) {
+        
+        // Check if we should charge now based on price and battery state
+        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+        
+        // Send the appropriate command
+        dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+      }
     }
-  }
     
     // If we found a match, check if the value changed
     if (matchedSetting && previousSettings[specificTopic] !== messageContent) {
@@ -1286,10 +1328,23 @@ async function handleMqttMessage(topic, message) {
 
 // Create a settings changes queue with rate limiting
 const settingsChangesQueue = [];
+const MAX_QUEUE_SIZE = 500;
 let processingQueue = false;
 const PROCESSING_INTERVAL = 1000; // Process at most once per second
 
 function queueSettingsChanges(changes) {
+  // Prevent queue from growing too large
+  if (settingsChangesQueue.length + changes.length > MAX_QUEUE_SIZE) {
+    console.warn(`Settings changes queue exceeding limit (${MAX_QUEUE_SIZE}). Dropping oldest items.`);
+    // Keep only the newest changes
+    const totalToKeep = MAX_QUEUE_SIZE - changes.length;
+    if (totalToKeep > 0) {
+      settingsChangesQueue.splice(0, settingsChangesQueue.length - totalToKeep);
+    } else {
+      settingsChangesQueue.length = 0; // Clear the entire queue if necessary
+    }
+  }
+  
   // Add all changes to the queue
   settingsChangesQueue.push(...changes);
   
@@ -1402,25 +1457,26 @@ async function batchSaveSettingsChanges(changes) {
           JSON.stringify(change.new_value) : 
           String(change.new_value || '');
         
-        // Insert into SQLite with exponential backoff on error
-        await backOff(() => db.run(`
-          INSERT INTO settings_changes 
-          (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          change.timestamp.toISOString(),
-          change.topic,
-          oldValueStr,
-          newValueStr,
-          systemStateJson,
-          change.change_type,
-          change.user_id,
-          change.mqtt_username
-        ]), {
-          numOfAttempts: 5,
-          startingDelay: 100,
-          timeMultiple: 2
-        });
+        // Insert into SQLite with retry on error
+        try {
+          await db.run(`
+            INSERT INTO settings_changes 
+            (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            change.timestamp.toISOString(),
+            change.topic,
+            oldValueStr,
+            newValueStr,
+            systemStateJson,
+            change.change_type,
+            change.user_id,
+            change.mqtt_username
+          ]);
+        } catch (insertError) {
+          console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
+          // Continue with other changes
+        }
       }
       
       // Commit the transaction
@@ -1488,10 +1544,23 @@ function apiRateLimiter(req, res, next) {
 const debouncedProcessRules = (() => {
   let timeout = null;
   let pendingRuleProcess = false;
+  let lastProcessTime = 0;
+  const MIN_INTERVAL = 5000; // Minimum 5 seconds between processing
   
   return function() {
     if (timeout) {
       clearTimeout(timeout);
+    }
+    
+    const now = Date.now();
+    
+    // If we recently processed rules, wait longer
+    if (now - lastProcessTime < MIN_INTERVAL) {
+      timeout = setTimeout(() => {
+        pendingRuleProcess = false;
+        debouncedProcessRules();
+      }, MIN_INTERVAL - (now - lastProcessTime));
+      return;
     }
     
     // If we already have a pending rule process, just mark that we need another one
@@ -1500,9 +1569,12 @@ const debouncedProcessRules = (() => {
     }
     
     pendingRuleProcess = true;
+    lastProcessTime = now;
     
     // Process immediately but wait before allowing another process
-    processRules().finally(() => {
+    processRules().catch(error => {
+      console.error('Error in rule processing:', error);
+    }).finally(() => {
       timeout = setTimeout(() => {
         pendingRuleProcess = false;
       }, 1000); // 1 second cooldown
@@ -2524,93 +2596,178 @@ function calculateEmissionsForPeriod(
 
 // ================ FORWARDING MESSAGES TO OUR BACKEND ================
 
-  // WebSocket Connection & MQTT Message Forwarding
-  const connectToWebSocketBroker = async () => {
-    let heartbeatInterval = null;
-    const reconnectTimeout = 5000; // 5 seconds reconnection delay
-  
-    const startHeartbeat = (wsClient) => {
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-      
-      heartbeatInterval = setInterval(() => {
-        if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-          wsClient.send(JSON.stringify({ type: 'ping' }));
+// WebSocket Connection & MQTT Message Forwarding
+const connectToWebSocketBroker = async () => {
+  let wsClient = null;
+  let heartbeatInterval = null;
+  const reconnectTimeout = 5000; // 5 seconds reconnection delay
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 10; // Try 10 times, then back off
+
+  const startHeartbeat = (client) => {
+    // Stop existing heartbeat if any
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+    
+    // Start new heartbeat
+    heartbeatInterval = setInterval(() => {
+      if (client && client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(JSON.stringify({ type: 'ping' }));
+        } catch (error) {
+          console.error('Error sending heartbeat:', error.message);
+          stopHeartbeat();
         }
-      }, 30000); // Send ping every 30 seconds
-    };
-  
-    const stopHeartbeat = () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
+      } else {
+        // Clear interval if client is disconnected
+        stopHeartbeat();
       }
-    };
-  
-    const connect = async () => {
-      try {
-        const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
-        const wsClient = new WebSocket(brokerServerUrl);
-  
-        wsClient.on('open', async () => {
-          console.log('Connected to WebSocket broker');
-          
-          try {
-            const isUser = await AuthenticateUser(options);
-            console.log('Authentication Result:', { isUser });
-  
-            if (isUser) {
-              startHeartbeat(wsClient);
-  
-              // Move MQTT message forwarding outside of the WebSocket connection event
-              mqttClient.on('message', (topic, message) => {
-                if (wsClient.readyState === WebSocket.OPEN) {
-                  try {
-                    wsClient.send(
-                      JSON.stringify({
-                        mqttTopicPrefix,
-                        topic,
-                        message: message.toString(),
-                        userId: isUser,
-                        timestamp: new Date().toISOString()
-                      })
-                    );
-          
-                  } catch (sendError) {
-                    console.error('Error sending message to WebSocket:', sendError);
-                  }
-                } else {
-                  console.warn('WebSocket is not open. Cannot send message');
-                }
-              });
-            } else {
-              console.warn('Authentication failed. Message forwarding disabled.');
-            }
-          } catch (authError) {
-            console.error('Authentication error:', authError);
-          }
-        });
-  
-        wsClient.on('error', (error) => {
-          console.error('WebSocket Error:', error);
-          stopHeartbeat();
-          setTimeout(connect, reconnectTimeout);
-        });
-  
-        wsClient.on('close', (code, reason) => {
-          console.log(`WebSocket closed with code ${code}: ${reason}. Reconnecting...`);
-          stopHeartbeat();
-          setTimeout(connect, reconnectTimeout);
-        });
-  
-      } catch (error) {
-        console.error('Connection setup error:', error);
-        setTimeout(connect, reconnectTimeout);
-      }
-    };
-  
-    connect();
+    }, 30000); // Send ping every 30 seconds
   };
+
+  const stopHeartbeat = () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  };
+
+  const connect = async () => {
+    // Only attempt reconnection if we haven't exceeded the max attempts
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.log(`Reached maximum reconnection attempts (${maxReconnectAttempts}). Disabling WebSocket broker.`);
+      return; // Don't attempt to reconnect anymore
+    }
+    
+    reconnectAttempts++;
+    
+    // Calculate backoff time based on attempt number (exponential backoff)
+    const currentReconnectTimeout = reconnectAttempts > 3 ? 
+      reconnectTimeout * Math.pow(2, Math.min(reconnectAttempts - 3, 5)) : 
+      reconnectTimeout;
+    
+    // Properly clean up any existing connection before creating a new one
+    if (wsClient) {
+      try {
+        stopHeartbeat();
+        
+        // Use a try-catch here specifically to handle the error
+        try {
+          wsClient.removeAllListeners();
+          wsClient.terminate();
+        } catch (e) {
+          console.error('Error during WebSocket cleanup (expected if connection failed):', e.message);
+        }
+        
+        wsClient = null;
+      } catch (e) {
+        console.error('Error cleaning up WebSocket connection:', e);
+      }
+    }
+    
+    try {
+      console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
+      
+      const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+      
+      // Create a connection with error handling
+      wsClient = new WebSocket(brokerServerUrl);
+
+      // Add timeout to prevent connection hanging
+      const connectionTimeout = setTimeout(() => {
+        if (wsClient && wsClient.readyState !== WebSocket.OPEN) {
+          console.log('WebSocket connection timeout. Closing and retrying...');
+          try {
+            wsClient.terminate();
+          } catch (e) {
+            console.log('Error terminating timed-out connection:', e.message);
+          }
+        }
+      }, 15000); // 15 second timeout
+      
+      wsClient.on('open', async () => {
+        console.log('Connected to WebSocket broker');
+        clearTimeout(connectionTimeout);
+        
+        // Reset reconnect attempts on successful connection
+        reconnectAttempts = 0;
+        
+        try {
+          const isUser = await AuthenticateUser(options);
+          console.log('Authentication Result:', { isUser });
+
+          if (isUser) {
+            startHeartbeat(wsClient);
+
+            // Set up message forwarding
+            mqttClient.on('message', (topic, message) => {
+              if (wsClient.readyState === WebSocket.OPEN) {
+                try {
+                  // Limit message size
+                  const messageStr = message.toString();
+                  const maxSize = 10000; // 10KB max
+                  const truncatedMessage = messageStr.length > maxSize ? 
+                    messageStr.substring(0, maxSize) + '...[truncated]' : 
+                    messageStr;
+                  
+                  wsClient.send(
+                    JSON.stringify({
+                      mqttTopicPrefix,
+                      topic,
+                      message: truncatedMessage,
+                      userId: isUser,
+                      timestamp: new Date().toISOString()
+                    })
+                  );
+                } catch (sendError) {
+                  console.error('Error sending message to WebSocket:', sendError);
+                }
+              }
+            });
+          } else {
+            console.warn('Authentication failed. Message forwarding disabled.');
+          }
+        } catch (authError) {
+          console.error('Authentication error:', authError);
+        }
+      });
+
+      wsClient.on('error', (error) => {
+        clearTimeout(connectionTimeout);
+        console.error('WebSocket Error:', error.message);
+        stopHeartbeat();
+        
+        // Don't try to terminate or close on error, since that's what's causing the crash
+        // The 'close' event will fire automatically
+      });
+
+      wsClient.on('close', (code, reason) => {
+        clearTimeout(connectionTimeout);
+        console.log(`WebSocket closed with code ${code}: ${reason || 'No reason provided'}. Reconnecting...`);
+        stopHeartbeat();
+        
+        // Schedule reconnection with backoff
+        setTimeout(connect, currentReconnectTimeout);
+      });
+
+    } catch (error) {
+      console.error('Connection setup error:', error.message);
+      setTimeout(connect, currentReconnectTimeout);
+    }
+  };
+
+  connect();
   
+  // Return function to reset connection attempts
+  return {
+    resetConnectionAttempts: () => {
+      reconnectAttempts = 0;
+      console.log('WebSocket broker connection attempts reset');
+    }
+  };
+};
 
 
 // ================ AUTOMATION RULES ENGINE ================
@@ -3001,6 +3158,19 @@ async function pruneOldSettingsChanges() {
       `, [recordsToDelete]);
       
       console.log(`Successfully pruned ${recordsToDelete} old records`);
+    }
+    
+    // Also prune by age - delete records older than 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const oldRecordsResult = await db.run(`
+      DELETE FROM settings_changes 
+      WHERE timestamp < ?
+    `, [thirtyDaysAgo.toISOString()]);
+    
+    if (oldRecordsResult.changes > 0) {
+      console.log(`Pruned ${oldRecordsResult.changes} records older than 30 days`);
     }
   } catch (error) {
     console.error('Error pruning old settings changes:', error.message);
@@ -5235,7 +5405,8 @@ app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
     }
     
     const changeType = req.query.type;
-    const limit = parseInt(req.query.limit) || 100;
+    // Enforce smaller limits on result sets
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100 items, default 50
     const skip = parseInt(req.query.skip) || 0;
     
     let query = `SELECT * FROM settings_changes WHERE user_id = ?`;
@@ -5264,10 +5435,16 @@ app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
       topic: change.topic,
       old_value: parseJsonOrValue(change.old_value),
       new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
+      // Only include a limited portion of system state to save memory
+      system_state: {
+        battery_soc: JSON.parse(change.system_state || '{}').battery_soc,
+        pv_power: JSON.parse(change.system_state || '{}').pv_power,
+        load: JSON.parse(change.system_state || '{}').load,
+        grid_power: JSON.parse(change.system_state || '{}').grid_power,
+        timestamp: JSON.parse(change.system_state || '{}').timestamp
+      },
       change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
+      user_id: change.user_id
     }));
     
     res.json({
@@ -5606,24 +5783,44 @@ cron.schedule('0 0 * * *', async () => {
 });
 
 
+cron.schedule('0 */4 * * *', cleanupCurrentSettingsState); // Every 4 hours
+
 // Graceful shutdown function
 function gracefulShutdown() {
-  console.log('Starting graceful shutdown...')
+  console.log('Starting graceful shutdown...');
+  
+  // Set a timeout to force exit if graceful shutdown takes too long
+  const forceExitTimeout = setTimeout(() => {
+    console.error('Forced exit after timeout');
+    process.exit(1);
+  }, 10000); // 10 seconds
   
   // Close database connection
   if (db) {
-    console.log('Closing SQLite connection')
-    db.close().catch(err => console.error('Error closing SQLite:', err))
+    console.log('Closing SQLite connection');
+    db.close().catch(err => console.error('Error closing SQLite:', err));
   }
   
   // Close MQTT connection
   if (mqttClient) {
-    console.log('Closing MQTT connection')
-    mqttClient.end(true)
+    console.log('Closing MQTT connection');
+    mqttClient.end(true, () => {
+      console.log('MQTT connection closed');
+    });
   }
   
-  console.log('Shutdown complete')
-  process.exit(0)
+  // Clear any intervals or timeouts
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  
+  // Clean up any other resources
+  // Release memory
+  incomingMessages = [];
+  settingsChangesQueue.length = 0;
+  
+  // Clear the force exit timeout and exit normally
+  clearTimeout(forceExitTimeout);
+  console.log('Shutdown complete');
+  process.exit(0);
 }
 
 // Register signal handlers
