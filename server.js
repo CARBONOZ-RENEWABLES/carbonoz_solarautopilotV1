@@ -41,7 +41,13 @@ app.use('/api/dynamic-pricing', require('./routes/dynamicPricingRoutes'));
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
+
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number 
@@ -127,7 +133,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -2596,13 +2602,15 @@ function calculateEmissionsForPeriod(
 
 // ================ FORWARDING MESSAGES TO OUR BACKEND ================
 
+// Make sure this variable is declared at the top of your file with other globals
+let heartbeatInterval = null;
+
 // WebSocket Connection & MQTT Message Forwarding
 const connectToWebSocketBroker = async () => {
   let wsClient = null;
-  let heartbeatInterval = null;
-  const reconnectTimeout = 5000; // 5 seconds reconnection delay
   let reconnectAttempts = 0;
   const maxReconnectAttempts = 10; // Try 10 times, then back off
+  const reconnectTimeout = 5000; // 5 seconds reconnection delay
 
   const startHeartbeat = (client) => {
     // Stop existing heartbeat if any
@@ -2768,7 +2776,6 @@ const connectToWebSocketBroker = async () => {
     }
   };
 };
-
 
 // ================ AUTOMATION RULES ENGINE ================
 
@@ -5810,7 +5817,11 @@ function gracefulShutdown() {
   }
   
   // Clear any intervals or timeouts
-  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  if (heartbeatInterval) {
+    console.log('Clearing heartbeat interval');
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
   
   // Clean up any other resources
   // Release memory
