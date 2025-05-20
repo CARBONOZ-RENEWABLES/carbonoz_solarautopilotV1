@@ -11,10 +11,7 @@
    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
    
    <style>  
-  body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-color);
-}
+ 
        
     :root {
         --primary-color: #DEAF0B;
@@ -32,12 +29,17 @@
             --gray: #6c757d;
             --background: #f5f7ff;
             --card-bg: #ffffff;
+            --bg-color: #f5f6fa;
             --text: #333333;
             --border: #e0e0e0;
             --shadow: rgba(0, 0, 0, 0.1);
             --text-color: #2f3640;
         }
-   
+        body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
+}
+body.dark-mode { background-color: rgba(24, 27, 31, 1); color: #f5f6fa; }
        body, html {
         font-family: Arial, sans-serif;
         margin: 0;
