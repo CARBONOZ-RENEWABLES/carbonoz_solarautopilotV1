@@ -502,5 +502,6 @@ module.exports = {
   loadConfig,
   saveConfig,
   getAvailablePricingSources,
-  getTimezoneForCountry
+  getTimezoneForCountry,
+  ensureConfigExists  // Add this line to export the function
 };
