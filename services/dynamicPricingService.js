@@ -7,6 +7,9 @@ const path = require('path');
 const cron = require('node-cron');
 const pricingApis = require('./pricingApis');
 
+let pricingUpdateJob = null;
+let chargingCheckJob = null;
+
 // Configuration file path
 const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
 
@@ -57,11 +60,82 @@ function loadConfig() {
 // Save the configuration
 function saveConfig(config) {
   try {
+    console.log(`[Dynamic Pricing] Saving config - enabled: ${config.enabled}`);
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+    
+    // If dynamic pricing is being disabled, stop cron jobs and disable charging
+    if (!config.enabled) {
+      console.log('[Dynamic Pricing] Dynamic pricing disabled - stopping scheduled jobs');
+      stopCronJobs();
+      
+      // Disable grid charging when dynamic pricing is turned off
+      const mqttClient = global.mqttClient; // Assuming MQTT client is available globally
+      if (mqttClient) {
+        sendGridChargeCommand(mqttClient, false, config);
+        console.log('[Dynamic Pricing] Grid charging disabled due to dynamic pricing being turned off');
+      }
+    } else {
+      console.log('[Dynamic Pricing] Dynamic pricing enabled - starting scheduled jobs');
+      // Restart cron jobs when enabled
+      const currentSystemState = global.currentSystemState; // Assuming system state is available globally
+      startCronJobs(global.mqttClient, currentSystemState);
+    }
+    
     return true;
   } catch (error) {
     console.error('Error saving dynamic pricing config:', error.message);
     return false;
+  }
+}
+
+
+// New function to start cron jobs
+function startCronJobs(mqttClient, currentSystemState) {
+  console.log('[Dynamic Pricing] Starting cron jobs...');
+  
+  // Stop existing jobs first to prevent duplicates
+  stopCronJobs();
+  
+  // Update pricing data every 6 hours
+  pricingUpdateJob = cron.schedule('0 */6 * * *', async () => {
+    console.log('[Dynamic Pricing] Running scheduled pricing data update...');
+    const config = loadConfig();
+    if (config && config.enabled) {
+      await updatePricingData(mqttClient, currentSystemState);
+    } else {
+      console.log('[Dynamic Pricing] Skipping pricing update - dynamic pricing is disabled');
+    }
+  });
+  
+  // Check charging schedule every 15 minutes
+  chargingCheckJob = cron.schedule('*/15 * * * *', () => {
+    console.log('[Dynamic Pricing] Running scheduled charging check...');
+    const config = loadConfig();
+    if (config && config.enabled) {
+      scheduleCharging(config, mqttClient, currentSystemState);
+    } else {
+      console.log('[Dynamic Pricing] Skipping charging check - dynamic pricing is disabled');
+    }
+  });
+  
+  console.log('[Dynamic Pricing] Cron jobs started successfully');
+}
+
+
+// New function to stop cron jobs
+function stopCronJobs() {
+  console.log('[Dynamic Pricing] Stopping cron jobs...');
+  
+  if (pricingUpdateJob) {
+    pricingUpdateJob.destroy();
+    pricingUpdateJob = null;
+    console.log('[Dynamic Pricing] Pricing update job stopped');
+  }
+  
+  if (chargingCheckJob) {
+    chargingCheckJob.destroy();
+    chargingCheckJob = null;
+    console.log('[Dynamic Pricing] Charging check job stopped');
   }
 }
 
@@ -126,9 +200,12 @@ function determineLowPricePeriods(prices, config) {
   return chargingPeriods;
 }
 
-// Schedule charging based on pricing
+// Modified scheduleCharging function with better logging
 function scheduleCharging(config, mqttClient, currentSystemState) {
+  console.log(`[Dynamic Pricing] Checking if charging should be scheduled - enabled: ${config.enabled}`);
+  
   if (!config.enabled) {
+    console.log('[Dynamic Pricing] Dynamic pricing is disabled, skipping charging decision');
     return false;
   }
   
@@ -136,7 +213,7 @@ function scheduleCharging(config, mqttClient, currentSystemState) {
   const currentPrices = config.pricingData;
   
   if (!currentPrices || currentPrices.length === 0) {
-    console.log('No pricing data available for dynamic charging decision');
+    console.log('[Dynamic Pricing] No pricing data available for dynamic charging decision');
     return false;
   }
   
@@ -148,7 +225,7 @@ function scheduleCharging(config, mqttClient, currentSystemState) {
   });
   
   if (!currentPrice) {
-    console.log('No price data available for current hour');
+    console.log('[Dynamic Pricing] No price data available for current hour');
     return false;
   }
   
@@ -165,6 +242,8 @@ function scheduleCharging(config, mqttClient, currentSystemState) {
   // Check battery state
   const batterySoC = currentSystemState?.battery_soc || 0;
   
+  console.log(`[Dynamic Pricing] Current conditions - Price: ${currentPrice.price}, Low price period: ${isLowPriceNow}, Battery SoC: ${batterySoC}%, Target: ${config.targetSoC}%`);
+  
   // Only charge if:
   // 1. Current price is low OR we're in a specifically scheduled charging period
   // 2. Battery is below target level
@@ -180,19 +259,19 @@ function scheduleCharging(config, mqttClient, currentSystemState) {
     // Send command to enable grid charging
     sendGridChargeCommand(mqttClient, true, config);
     
-    console.log(`Dynamic pricing: Enabling grid charging at price ${currentPrice.price} ${currentPrice.currency}/${currentPrice.unit}`);
+    console.log(`[Dynamic Pricing] Enabling grid charging at price ${currentPrice.price} ${currentPrice.currency}/${currentPrice.unit}`);
     return true;
   } else if (batterySoC >= config.targetSoC) {
     // Battery is fully charged, disable grid charging
     sendGridChargeCommand(mqttClient, false, config);
     
-    console.log(`Dynamic pricing: Disabling grid charging as battery SoC (${batterySoC}%) is at or above target (${config.targetSoC}%)`);
+    console.log(`[Dynamic Pricing] Disabling grid charging as battery SoC (${batterySoC}%) is at or above target (${config.targetSoC}%)`);
     return true;
   } else if (!isLowPriceNow && !isWithinScheduledChargingTime(config, now)) {
     // Not in a low price period, disable grid charging
     sendGridChargeCommand(mqttClient, false, config);
     
-    console.log(`Dynamic pricing: Disabling grid charging as current price (${currentPrice.price}) is not low enough`);
+    console.log(`[Dynamic Pricing] Disabling grid charging as current price (${currentPrice.price}) is not low enough`);
     return true;
   }
   
@@ -218,10 +297,10 @@ function isWithinScheduledChargingTime(config, currentTime) {
   });
 }
 
-// Send a command to enable or disable grid charging
+// Modified sendGridChargeCommand function with better logging
 function sendGridChargeCommand(mqttClient, enable, config) {
   if (!mqttClient || !mqttClient.connected) {
-    console.error('MQTT client is not connected, cannot send grid charge command');
+    console.error('[Dynamic Pricing] MQTT client is not connected, cannot send grid charge command');
     return false;
   }
   
@@ -234,6 +313,8 @@ function sendGridChargeCommand(mqttClient, enable, config) {
     // Determine which inverters to send the command to
     const inverterNumber = options.inverter_number || 1;
     
+    console.log(`[Dynamic Pricing] Sending grid charge command: ${enable ? 'ENABLE' : 'DISABLE'} to ${inverterNumber} inverter(s)`);
+    
     // Send command to each inverter
     for (let i = 1; i <= inverterNumber; i++) {
       const topic = `${mqttTopicPrefix}/inverter_${i}/grid_charge/set`;
@@ -241,35 +322,43 @@ function sendGridChargeCommand(mqttClient, enable, config) {
       
       mqttClient.publish(topic, value, { qos: 1, retain: false }, (err) => {
         if (err) {
-          console.error(`Error publishing to ${topic}: ${err.message}`);
+          console.error(`[Dynamic Pricing] Error publishing to ${topic}: ${err.message}`);
           return false;
         }
         
-        console.log(`Dynamic pricing grid charge command sent: ${topic} = ${value}`);
+        console.log(`[Dynamic Pricing] Grid charge command sent: ${topic} = ${value}`);
       });
     }
     
     // Log the action to a dedicated log file
     const logMessage = `${new Date().toISOString()} - Dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging`;
-    fs.appendFileSync(path.join(__dirname, 'logs', 'dynamic_pricing.log'), logMessage + '\n');
+    const logDir = path.join(__dirname, 'logs');
+    
+    // Ensure log directory exists
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    
+    fs.appendFileSync(path.join(logDir, 'dynamic_pricing.log'), logMessage + '\n');
     
     return true;
   } catch (error) {
-    console.error('Error sending grid charge command:', error.message);
+    console.error('[Dynamic Pricing] Error sending grid charge command:', error.message);
     return false;
   }
 }
 
-// Update the pricing data on a schedule
+
+// Modified updatePricingData function with better logging
 async function updatePricingData(mqttClient, currentSystemState) {
-  console.log('Updating electricity pricing data...');
+  console.log('[Dynamic Pricing] Updating electricity pricing data...');
   
   try {
     // Load current config
     const config = loadConfig();
     
     if (!config || !config.enabled) {
-      console.log('Dynamic pricing is disabled, skipping price update');
+      console.log('[Dynamic Pricing] Dynamic pricing is disabled, skipping price update');
       return false;
     }
     
@@ -281,24 +370,29 @@ async function updatePricingData(mqttClient, currentSystemState) {
       config.pricingData = prices;
       config.lastUpdate = new Date().toISOString();
       
-      // Save the updated config
-      saveConfig(config);
-      
-      console.log(`Updated electricity pricing data with ${prices.length} price points for ${config.country}`);
+      // Save the updated config (but don't trigger the disable logic)
+      try {
+        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+        console.log(`[Dynamic Pricing] Updated electricity pricing data with ${prices.length} price points for ${config.country}`);
+      } catch (error) {
+        console.error('[Dynamic Pricing] Error saving updated pricing data:', error.message);
+        return false;
+      }
       
       // Determine if we should charge based on new data
       scheduleCharging(config, mqttClient, currentSystemState);
       
       return true;
     } else {
-      console.error('Failed to fetch pricing data or no price points received');
+      console.error('[Dynamic Pricing] Failed to fetch pricing data or no price points received');
       return false;
     }
   } catch (error) {
-    console.error('Error updating pricing data:', error.message);
+    console.error('[Dynamic Pricing] Error updating pricing data:', error.message);
     return false;
   }
 }
+
 
 // Get available pricing sources for a country
 function getAvailablePricingSources(country) {
@@ -454,26 +548,26 @@ function getTimezoneForCountry(country) {
 // Initialize dynamic pricing module
 function initializeDynamicPricing(mqttClient, currentSystemState) {
   try {
+    console.log('[Dynamic Pricing] Initializing dynamic pricing module...');
+    
     // Ensure config file exists
     ensureConfigExists();
     
-    // Set up scheduled jobs
+    // Store references globally for use in saveConfig
+    global.mqttClient = mqttClient;
+    global.currentSystemState = currentSystemState;
     
-    // Update pricing data every 6 hours
-    cron.schedule('0 */6 * * *', async () => {
-      await updatePricingData(mqttClient, currentSystemState);
-    });
-    
-    // Check charging schedule every 15 minutes
-    cron.schedule('*/15 * * * *', () => {
-      const config = loadConfig();
-      if (config && config.enabled) {
-        scheduleCharging(config, mqttClient, currentSystemState);
-      }
-    });
-    
-    // Do an initial update
-    updatePricingData(mqttClient, currentSystemState);
+    // Load config and start cron jobs only if enabled
+    const config = loadConfig();
+    if (config && config.enabled) {
+      console.log('[Dynamic Pricing] Dynamic pricing is enabled, starting scheduled jobs');
+      startCronJobs(mqttClient, currentSystemState);
+      
+      // Do an initial update
+      updatePricingData(mqttClient, currentSystemState);
+    } else {
+      console.log('[Dynamic Pricing] Dynamic pricing is disabled, not starting scheduled jobs');
+    }
     
     // Make the functions available globally for the web interface
     global.dynamicPricingService = {
@@ -483,13 +577,15 @@ function initializeDynamicPricing(mqttClient, currentSystemState) {
       scheduleCharging,
       determineLowPricePeriods,
       getAvailablePricingSources,
-      getTimezoneForCountry
+      getTimezoneForCountry,
+      startCronJobs,
+      stopCronJobs
     };
     
-    console.log('✅ Dynamic electricity pricing module initialized with support for multiple countries');
+    console.log('✅ [Dynamic Pricing] Dynamic electricity pricing module initialized with support for multiple countries');
     return true;
   } catch (error) {
-    console.error('❌ Error initializing dynamic pricing module:', error.message);
+    console.error('❌ [Dynamic Pricing] Error initializing dynamic pricing module:', error.message);
     return false;
   }
 }
@@ -503,5 +599,7 @@ module.exports = {
   saveConfig,
   getAvailablePricingSources,
   getTimezoneForCountry,
-  ensureConfigExists  // Add this line to export the function
+  ensureConfigExists,
+  startCronJobs,
+  stopCronJobs
 };
