@@ -12,9 +12,8 @@ const mqtt = require('mqtt');
 // Load options to get MQTT configuration
 function getMqttConfig() {
   try {
-    // Read configuration from options file
-    const optionsPath = path.join(__dirname, 'options.json');
-    const options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
+    // Read configuration from Home Assistant add-on options
+    const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
     
     return {
       host: options.mqtt_host,
@@ -78,7 +77,7 @@ function sendGridChargeCommand(mqttClient, enable, config) {
     }
     
     // Log the action
-    const logDir = path.join(__dirname, 'logs');
+    const logDir = '/data/logs';
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
