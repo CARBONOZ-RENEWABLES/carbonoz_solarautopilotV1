@@ -305,17 +305,18 @@ function sendGridChargeCommand(mqttClient, enable, config) {
   }
   
   try {
-    // Read the global options to get the MQTT topic prefix
-    const optionsPath = path.join(__dirname, 'options.json');
-    const options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
+    // Read configuration from Home Assistant add-on options (same as main server)
+    const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
     const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy';
-    
-    // Determine which inverters to send the command to
     const inverterNumber = options.inverter_number || 1;
+    
+    console.log(`[Dynamic Pricing] Using MQTT topic prefix: ${mqttTopicPrefix}, inverter count: ${inverterNumber}`);
     
     console.log(`[Dynamic Pricing] Sending grid charge command: ${enable ? 'ENABLE' : 'DISABLE'} to ${inverterNumber} inverter(s)`);
     
     // Send command to each inverter
+    let commandsSent = 0;
+    
     for (let i = 1; i <= inverterNumber; i++) {
       const topic = `${mqttTopicPrefix}/inverter_${i}/grid_charge/set`;
       const value = enable ? 'Enabled' : 'Disabled';
@@ -323,15 +324,16 @@ function sendGridChargeCommand(mqttClient, enable, config) {
       mqttClient.publish(topic, value, { qos: 1, retain: false }, (err) => {
         if (err) {
           console.error(`[Dynamic Pricing] Error publishing to ${topic}: ${err.message}`);
-          return false;
+        } else {
+          console.log(`[Dynamic Pricing] Grid charge command sent: ${topic} = ${value}`);
         }
-        
-        console.log(`[Dynamic Pricing] Grid charge command sent: ${topic} = ${value}`);
       });
+      
+      commandsSent++;
     }
     
     // Log the action to a dedicated log file
-    const logMessage = `${new Date().toISOString()} - Dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging`;
+    const logMessage = `${new Date().toISOString()} - Dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging (${commandsSent} commands sent)`;
     const logDir = path.join(__dirname, 'logs');
     
     // Ensure log directory exists
@@ -339,14 +341,19 @@ function sendGridChargeCommand(mqttClient, enable, config) {
       fs.mkdirSync(logDir, { recursive: true });
     }
     
-    fs.appendFileSync(path.join(logDir, 'dynamic_pricing.log'), logMessage + '\n');
+    try {
+      fs.appendFileSync(path.join(logDir, 'dynamic_pricing.log'), logMessage + '\n');
+    } catch (logError) {
+      console.error(`[Dynamic Pricing] Could not write to log file: ${logError.message}`);
+    }
     
-    return true;
+    return commandsSent > 0;
   } catch (error) {
     console.error('[Dynamic Pricing] Error sending grid charge command:', error.message);
     return false;
   }
 }
+
 
 
 // Modified updatePricingData function with better logging
