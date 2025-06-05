@@ -39,7 +39,12 @@ app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 
 // Extract configuration values with defaults
@@ -126,7 +131,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -224,6 +229,12 @@ const currentSettingsState = {
 
 // Track previous state of settings to detect changes
 let previousSettings = {}
+
+let dynamicPricingInstance = null;
+
+
+// Make learner mode accessible globally for dynamic pricing
+global.learnerModeActive = learnerModeActive;
 
 // ================ DATABASE FUNCTIONS ================
 
@@ -949,6 +960,7 @@ function parseJsonOrValue(value) {
 }
 
 // Handle incoming MQTT messages
+// Handle incoming MQTT messages
 async function handleMqttMessage(topic, message) {
   // Keep circular buffer of messages but with reduced size in learner mode
   const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
@@ -1196,6 +1208,54 @@ async function handleMqttMessage(topic, message) {
     shouldProcessRules = true;
   }
 
+  // ========= DYNAMIC PRICING INTEGRATION =========
+  // Check for key system metrics that should trigger dynamic pricing evaluation
+  // IMPORTANT: Dynamic pricing commands will only be sent when Learner Mode is active
+  if (topic.includes('battery_state_of_charge') || 
+      topic.includes('grid_voltage') || 
+      topic.includes('pv_power') ||
+      topic.includes('load_power')) {
+    
+    // Only run the dynamic pricing check if the feature is enabled, ready, AND learner mode is active
+    if (dynamicPricingInstance && 
+        dynamicPricingInstance.enabled && 
+        dynamicPricingInstance.isReady() &&
+        learnerModeActive) { // ← KEY CONDITION: Only execute when learner mode is active
+      
+      try {
+        // Check if we should charge now based on price and battery state
+        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+        
+        // Send the appropriate command only if learner mode allows it
+        if (shouldCharge !== null) {
+          const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+          
+          if (commandSent) {
+            const action = shouldCharge ? 'enabled' : 'disabled';
+            const reason = shouldCharge 
+              ? 'Low electricity price or scheduled charging time' 
+              : 'High electricity price or target SoC reached';
+            
+            console.log(`Dynamic pricing: Grid charging ${action} - ${reason}`);
+            
+            // Log the action for the actions log in the UI
+            const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+            dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error in dynamic pricing logic:', error);
+      }
+    } else if (dynamicPricingInstance && 
+               dynamicPricingInstance.enabled && 
+               dynamicPricingInstance.isReady() &&
+               !learnerModeActive) {
+      // Log that dynamic pricing wanted to act but couldn't due to learner mode being inactive
+      console.log('Dynamic pricing: Would have evaluated charging decision, but learner mode is not active');
+    }
+  }
+  // ========= END OF DYNAMIC PRICING INTEGRATION =========
+
   // Batch changes to be processed together for better performance
   const settingsChanges = [];
 
@@ -1255,23 +1315,6 @@ async function handleMqttMessage(topic, message) {
           matchedSetting = setting;
           break;
         }
-      }
-    }
-
-    if (topic.includes('battery_state_of_charge') || 
-      topic.includes('grid_voltage') || 
-      topic.includes('pv_power')) {
-    
-      // Only run the dynamic pricing check if the feature is enabled and ready
-      if (dynamicPricingInstance && 
-          dynamicPricingInstance.enabled && 
-          dynamicPricingInstance.isReady()) {
-        
-        // Check if we should charge now based on price and battery state
-        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
-        
-        // Send the appropriate command
-        dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
       }
     }
     
@@ -1964,6 +2007,8 @@ app.get('/', async (req, res) => {
     res.status(500).render('error', { error: 'Error loading welcome page' });
   }
 });
+
+
 
 
 app.get('/analytics', async (req, res) => {
@@ -5477,13 +5522,25 @@ app.get('/api/learner/status', (req, res) => {
 app.post('/api/learner/toggle', (req, res) => {
   learnerModeActive = !learnerModeActive;
   
+  // Update the global variable as well
+  global.learnerModeActive = learnerModeActive;
+  
   console.log(`Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`);
+  
+  // Log the state change for dynamic pricing
+  if (dynamicPricingInstance && dynamicPricingInstance.enabled) {
+    const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+    const action = learnerModeActive 
+      ? 'Dynamic pricing commands now ENABLED (learner mode active)'
+      : 'Dynamic pricing commands now DISABLED (learner mode inactive)';
+    dynamicPricingIntegration.logAction(action);
+  }
   
   res.json({ 
     success: true, 
     active: learnerModeActive,
     message: `Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`,
-    note: "Setting changes are still detected and recorded, but commands will only be sent when learner mode is active."
+    note: "Dynamic pricing commands will only be sent when learner mode is active."
   });
 });
 
@@ -5832,9 +5889,21 @@ process.on('SIGTERM', gracefulShutdown)
 process.on('SIGINT', gracefulShutdown)
 
 
-let dynamicPricingInstance = null;
+
 // Initialize connections to external services
 async function initializeConnections() {
+  // Create data directory if it doesn't exist
+  const dataDir = path.join(__dirname, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  // Create logs directory if it doesn't exist
+  const logsDir = path.join(__dirname, 'logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  
   // Connect to MQTT broker
   connectToMqtt();
   
@@ -5850,11 +5919,28 @@ async function initializeConnections() {
   console.log('✅ Telegram notification service initialized');
   
   // Initialize dynamic pricing integration
-  const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-  dynamicPricingInstance = await dynamicPricingController.initialize(app, mqttClient, currentSystemState);
-
+  try {
+    const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+    dynamicPricingInstance = await dynamicPricingIntegration.initializeDynamicPricing(app, mqttClient, currentSystemState);
+    
     // Make it globally available for API routes
     global.dynamicPricingInstance = dynamicPricingInstance;
+    global.mqttClient = mqttClient;
+    global.currentSystemState = currentSystemState;
+    
+    console.log('✅ Dynamic pricing integration initialized');
+  } catch (error) {
+    console.error('❌ Error initializing dynamic pricing:', error);
+    
+    // Create fallback instance
+    dynamicPricingInstance = {
+      enabled: false,
+      isReady: () => false,
+      shouldChargeNow: () => false,
+      sendGridChargeCommand: () => false
+    };
+    global.dynamicPricingInstance = dynamicPricingInstance;
+  }
   
   // Connect to database
   try {

@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "country": "DE",
+  "market": "DE",
+  "apiKey": "",
+  "priceThreshold": 0.1,
+  "minimumSoC": 20,
+  "targetSoC": 80,
+  "scheduledCharging": true,
+  "chargingHours": [],
+  "lastUpdate": null,
+  "pricingData": [],
+  "timezone": "Europe/Berlin",
+  "preferAwattar": false,
+  "preferEpex": false,
+  "currency": "EUR",
+  "pricingSource": "auto"
+}

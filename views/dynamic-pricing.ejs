@@ -1774,675 +1774,790 @@ body.dark-mode .form-select:focus {
                    
         </div>
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // Initialize variables
-                let pricingData = [];
-                let lowPricePeriods = [];
-                let config = null;
-                let pricingChart = null;
-                let isLoading = false;
-    
-                // Initialize elements
-                const enableDynamicPricingToggle = document.getElementById('enableDynamicPricing');
-                const saveConfigBtn = document.getElementById('saveConfigBtn');
-                const refreshDataBtn = document.getElementById('refreshDataBtn');
-                const enableChargingBtn = document.getElementById('enableChargingBtn');
-                const disableChargingBtn = document.getElementById('disableChargingBtn');
-                const addPeriodBtn = document.getElementById('addPeriodBtn');
-                const scheduledChargingCheckbox = document.getElementById('scheduledCharging');
-                const schedulingOptions = document.getElementById('schedulingOptions');
-                const chargingPeriods = document.getElementById('chargingPeriods');
-                const notification = document.getElementById('notification');
-                const notificationMessage = document.getElementById('notificationMessage');
-                const statusContent = document.getElementById('statusContent');
-                const loadingStatus = document.getElementById('loadingStatus');
-                const statusDetails = document.getElementById('statusDetails');
-                const currentPrice = document.getElementById('currentPrice');
-                const avgPrice = document.getElementById('avgPrice');
-                const batterySoC = document.getElementById('batterySoC');
-                const chargingStatus = document.getElementById('chargingStatus');
-                const chargingReason = document.getElementById('chargingReason');
-                const recommendationAlert = document.getElementById('recommendationAlert');
-                const recommendationText = document.getElementById('recommendationText');
-                const lastUpdateTime = document.getElementById('lastUpdateTime');
-                const bestTimesList = document.getElementById('bestTimesList');
-                const actionsLog = document.getElementById('actionsLog');
-    
-                // Form elements
-                const countrySelect = document.getElementById('country');
-                const timezoneSelect = document.getElementById('timezone');
-                const apiKeyInput = document.getElementById('apiKey');
-                const priceThresholdInput = document.getElementById('priceThreshold');
-                const targetSoCInput = document.getElementById('targetSoC');
-                const minimumSoCInput = document.getElementById('minimumSoC');
-    
-                // Initialize the page
-                init();
-    
-                // Main initialization function
-                async function init() {
-                    // Load configuration
-                    await loadConfig();
-                    
-                    // Load pricing data
-                    await loadPricingData();
-                    
-                    // Initialize chart
-                    initializeChart();
-                    
-                    // Update UI with system state
-                    updateSystemState();
-                    
-                    // Set up event listeners
-                    setupEventListeners();
-                    
-                    // Set up periodic refreshes
-                    setInterval(updateSystemState, 60000); // Update system state every minute
-                    setInterval(loadPricingData, 300000); // Refresh pricing data every 5 minutes
-                }
-    
-                // Load configuration from API
-                async function loadConfig() {
-                    showNotification('Loading configuration...', 'info');
-                    
-                    try {
-                        const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings');
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to load configuration');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            config = data.config;
-                            updateConfigUI();
-                            showNotification('Configuration loaded successfully', 'success');
-                        } else {
-                            throw new Error(data.error || 'Failed to load configuration');
-                        }
-                    } catch (error) {
-                        console.error('Error loading configuration:', error);
-                        showNotification('Error loading configuration: ' + error.message, 'danger');
-                    }
-                }
-    
-                // Update UI with configuration
-                function updateConfigUI() {
-                    if (!config) return;
-                    
-                    // Update toggle state
-                    enableDynamicPricingToggle.checked = config.enabled;
-                    
-                    // Update form fields
-                    countrySelect.value = config.country || 'DE';
-                    timezoneSelect.value = config.timezone || 'Europe/Berlin';
-                    apiKeyInput.value = config.apiKey || '';
-                    priceThresholdInput.value = config.priceThreshold || 0.10;
-                    targetSoCInput.value = config.targetSoC || 80;
-                    minimumSoCInput.value = config.minimumSoC || 20;
-                    scheduledChargingCheckbox.checked = config.scheduledCharging || false;
-                    
-                    // Show/hide scheduling options
-                    schedulingOptions.classList.toggle('hidden', !config.scheduledCharging);
-                    
-                    // Render charging periods
-                    renderChargingPeriods();
-                }
-    
-                // Render charging time periods UI
-                function renderChargingPeriods() {
-                    chargingPeriods.innerHTML = '';
-                    
-                    if (!config || !config.chargingHours || !Array.isArray(config.chargingHours)) {
-                        return;
-                    }
-                    
-                    if (config.chargingHours.length === 0) {
-                        // Add a default period if none exist
-                        addTimePeriod('22:00', '06:00');
-                    } else {
-                        // Render existing periods
-                        config.chargingHours.forEach(period => {
-                            addTimePeriod(period.start, period.end);
-                        });
-                    }
-                }
-    
-                // Add time period UI element
-                function addTimePeriod(start = '22:00', end = '06:00') {
-                    const periodElement = document.createElement('div');
-                    periodElement.className = 'time-period';
-                    periodElement.innerHTML = `
-                        <label>From</label>
-                        <input type="time" class="form-control time-input period-start" value="${start}">
-                        <label>To</label>
-                        <input type="time" class="form-control time-input period-end" value="${end}">
-                        <button type="button" class="delete-time-btn"><i class="fas fa-trash"></i></button>
-                    `;
-                    
-                    // Add delete button functionality
-                    const deleteBtn = periodElement.querySelector('.delete-time-btn');
-                    deleteBtn.addEventListener('click', function() {
-                        periodElement.remove();
-                    });
-                    
-                    chargingPeriods.appendChild(periodElement);
-                }
-    
-                // Load pricing data from API
-                async function loadPricingData() {
-                    if (isLoading) return;
-                    isLoading = true;
-                    
-                    try {
-                        const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to load pricing data');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            pricingData = data.pricingData || [];
-                            lowPricePeriods = data.lowPricePeriods || [];
-                            
-                            if (data.lastUpdate) {
-                                lastUpdateTime.textContent = 'Last updated: ' + new Date(data.lastUpdate).toLocaleString();
-                            }
-                            
-                            updatePricingDisplay();
-                            updateBestTimesList();
-                        } else {
-                            throw new Error(data.error || 'Failed to load pricing data');
-                        }
-                    } catch (error) {
-                        console.error('Error loading pricing data:', error);
-                        showNotification('Error loading pricing data: ' + error.message, 'danger');
-                    } finally {
-                        isLoading = false;
-                    }
-                }
-    
-                // Initialize Chart.js chart
-                function initializeChart() {
-                    const ctx = document.getElementById('pricingChart').getContext('2d');
-                    
-                    pricingChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: [],
-                            datasets: [{
-                                label: 'Electricity Price (€/kWh)',
-                                data: [],
-                                backgroundColor: [],
-                                borderColor: [],
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return `${context.parsed.y.toFixed(4)} €/kWh`;
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Price (€/kWh)'
-                                    }
-                                },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Time'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-    
-                // Update pricing chart with current data
-                function updatePricingDisplay() {
-                    if (!pricingChart || !pricingData || pricingData.length === 0) return;
-                    
-                    // Get next 24 hours of prices
-                    const now = new Date();
-                    const next24Hours = pricingData.filter(p => {
-                        const priceTime = new Date(p.timestamp);
-                        return priceTime >= now || 
-                               (priceTime.getDate() === now.getDate() && 
-                                priceTime.getHours() === now.getHours());
-                    }).slice(0, 24);
-                    
-                    if (next24Hours.length === 0) return;
-                    
-                    // Calculate price thresholds for coloring
-                    const prices = next24Hours.map(p => p.price);
-                    const minPrice = Math.min(...prices);
-                    const maxPrice = Math.max(...prices);
-                    const priceRange = maxPrice - minPrice;
-                    const lowThreshold = minPrice + (priceRange * 0.33);
-                    const highThreshold = minPrice + (priceRange * 0.66);
-                    
-                    // Update chart data
-                    const labels = next24Hours.map(p => {
-                        const date = new Date(p.timestamp);
-                        return date.getHours() + ':00';
-                    });
-                    
-                    const data = next24Hours.map(p => p.price);
-                    
-                    const backgroundColor = next24Hours.map(p => {
-                        const price = p.price;
-                        const date = new Date(p.timestamp);
-                        const currentHour = now.getHours();
-                        
-                        // Highlight current hour
-                        if (date.getHours() === currentHour && 
-                            date.getDate() === now.getDate()) {
-                            return 'rgba(76, 111, 229, 0.7)'; // Primary color
-                        }
-                        
-                        // Color based on price thresholds
-                        if (price <= lowThreshold) {
-                            return 'rgba(46, 204, 113, 0.7)'; // Green for low prices
-                        } else if (price <= highThreshold) {
-                            return 'rgba(243, 156, 18, 0.7)'; // Orange for medium prices
-                        } else {
-                            return 'rgba(231, 76, 60, 0.7)'; // Red for high prices
-                        }
-                    });
-                    
-                    const borderColor = backgroundColor.map(color => color.replace('0.7', '1'));
-                    
-                    // Update chart
-                    pricingChart.data.labels = labels;
-                    pricingChart.data.datasets[0].data = data;
-                    pricingChart.data.datasets[0].backgroundColor = backgroundColor;
-                    pricingChart.data.datasets[0].borderColor = borderColor;
-                    pricingChart.update();
-                    
-                    // Update current price display
-                    const currentHourPrice = next24Hours.find(p => {
-                        const date = new Date(p.timestamp);
-                        return date.getHours() === now.getHours() && 
-                               date.getDate() === now.getDate();
-                    });
-                    
-                    if (currentHourPrice) {
-                        currentPrice.textContent = currentHourPrice.price.toFixed(4);
-                    }
-                    
-                    // Update average price
-                    const average = prices.reduce((acc, price) => acc + price, 0) / prices.length;
-                    avgPrice.textContent = average.toFixed(4);
-                }
-    
-                // Update best charging times list
-                function updateBestTimesList() {
-                    if (!pricingData || pricingData.length === 0) {
-                        bestTimesList.innerHTML = '<p>No pricing data available</p>';
-                        return;
-                    }
-                    
-                    // Sort prices from lowest to highest
-                    const sortedPrices = [...pricingData].sort((a, b) => a.price - b.price);
-                    
-                    // Take top 5 best times
-                    const bestTimes = sortedPrices.slice(0, 5);
-                    
-                    if (bestTimes.length === 0) {
-                        bestTimesList.innerHTML = '<p>No pricing data available</p>';
-                        return;
-                    }
-                    
-                    // Build the list
-                    let html = '';
-                    bestTimes.forEach((timeSlot, index) => {
-                        const date = new Date(timeSlot.timestamp);
-                        const formattedTime = date.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                        const formattedDate = date.toLocaleDateString([], {
-                            month: 'short',
-                            day: 'numeric'
-                        });
-                        
-                        html += `
-                            <div class="best-time-item">
-                                <div>
-                                    <span class="time-slot">${formattedTime}</span>
-                                    <small> ${formattedDate}</small>
-                                </div>
-                                <div class="price-value">${timeSlot.price.toFixed(4)} €/kWh</div>
-                            </div>
-                        `;
-                    });
-                    
-                    bestTimesList.innerHTML = html;
-                }
-    
-                // Update system state display
-                async function updateSystemState() {
-                    try {
-                        // Get battery state from API
-                        const response = await fetch('<%= ingress_path %>/api/system-state');
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to load system state');
-                        }
-                        
-                        const data = await response.json();
-                        const systemState = data.current_state;
-                        
-                        // Update battery SoC display
-                        if (systemState && systemState.battery_soc !== undefined) {
-                            batterySoC.textContent = Math.round(systemState.battery_soc);
-                        }
-                        
-                        // Determine charging status and recommendation
-                        updateChargingStatus();
-                        updateRecommendation(systemState);
-                        
-                        // Show status details
-                        loadingStatus.classList.add('hidden');
-                        statusDetails.classList.remove('hidden');
-                    } catch (error) {
-                        console.error('Error updating system state:', error);
-                    }
-                }
-    
-                // Update charging status display
-                function updateChargingStatus() {
-                    // This would ideally get the actual grid charging status from the backend
-                    // For now, this is just a placeholder that randomly determines status
-                    const charging = Math.random() > 0.5;
-                    
-                    if (charging) {
-                        chargingStatus.textContent = 'Yes';
-                        chargingStatus.style.color = 'var(--success)';
-                        chargingReason.textContent = 'Low electricity price';
-                    } else {
-                        chargingStatus.textContent = 'No';
-                        chargingStatus.style.color = 'var(--danger)';
-                        chargingReason.textContent = 'High electricity price';
-                    }
-                }
-    
-                // Update recommendation alert
-                function updateRecommendation(systemState) {
-                    if (!config || !systemState) return;
-                    
-                    const batterySoCValue = systemState.battery_soc || 0;
-                    
-                    // Calculate if now is a good time to charge
-                    const now = new Date();
-                    const currentHour = now.getHours();
-                    
-                    const currentHourPrice = pricingData.find(p => {
-                        const date = new Date(p.timestamp);
-                        return date.getHours() === currentHour && 
-                               date.getDate() === now.getDate();
-                    });
-                    
-                    if (!currentHourPrice) {
-                        recommendationAlert.className = 'alert alert-warning';
-                        recommendationText.innerHTML = 'Cannot determine recommendation - no price data for current hour';
-                        return;
-                    }
-                    
-                    const isLowPrice = lowPricePeriods.some(period => {
-                        const periodStart = new Date(period.start);
-                        const periodEnd = new Date(period.end);
-                        return now >= periodStart && now < periodEnd;
-                    });
-                    
-                    // Battery is full
-                    if (batterySoCValue >= config.targetSoC) {
-                        recommendationAlert.className = 'alert alert-success';
-                        recommendationText.innerHTML = `
-                            <strong>Keep Grid Charging OFF</strong><br>
-                            Battery SoC (${Math.round(batterySoCValue)}%) has reached target (${config.targetSoC}%)
-                        `;
-                        return;
-                    }
-                    
-                    // Battery is very low
-                    if (batterySoCValue < config.minimumSoC) {
-                        recommendationAlert.className = 'alert alert-danger';
-                        recommendationText.innerHTML = `
-                            <strong>Turn Grid Charging ON</strong><br>
-                            Battery SoC (${Math.round(batterySoCValue)}%) is below minimum (${config.minimumSoC}%)
-                        `;
-                        return;
-                    }
-                    
-                    // Check if price is low
-                    if (isLowPrice) {
-                        recommendationAlert.className = 'alert alert-success';
-                        recommendationText.innerHTML = `
-                            <strong>Turn Grid Charging ON</strong><br>
-                            Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is low and battery is not full
-                        `;
-                    } else {
-                        recommendationAlert.className = 'alert alert-warning';
-                        recommendationText.innerHTML = `
-                            <strong>Keep Grid Charging OFF</strong><br>
-                            Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is not optimal
-                        `;
-                    }
-                }
-    
-                // Show notification message
-                function showNotification(message, type = 'info') {
-                    notification.className = 'alert';
-                    notification.classList.add(`alert-${type}`);
-                    notificationMessage.textContent = message;
-                    notification.classList.remove('hidden');
-                    
-                    // Auto-hide after 5 seconds
-                    setTimeout(hideNotification, 5000);
-                }
-    
-                // Hide notification message
-                function hideNotification() {
-                    notification.classList.add('hidden');
-                }
-    
-                // Save configuration to API
-                async function saveConfiguration() {
-                    showNotification('Saving configuration...', 'info');
-                    
-                    // Read values from form
-                    const formData = {
-                        enabled: enableDynamicPricingToggle.checked,
-                        country: countrySelect.value,
-                        market: countrySelect.value, // Using same value for market
-                        timezone: timezoneSelect.value,
-                        apiKey: apiKeyInput.value,
-                        priceThreshold: parseFloat(priceThresholdInput.value),
-                        minimumSoC: parseInt(minimumSoCInput.value),
-                        targetSoC: parseInt(targetSoCInput.value),
-                        scheduledCharging: scheduledChargingCheckbox.checked,
-                        chargingHours: getChargingPeriods()
-                    };
-                    
-                    try {
-                        const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(formData)
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to save configuration');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            config = data.config;
-                            showNotification('Configuration saved successfully', 'success');
-                            
-                            // Reload pricing data
-                            await loadPricingData();
-                        } else {
-                            throw new Error(data.error || 'Failed to save configuration');
-                        }
-                    } catch (error) {
-                        console.error('Error saving configuration:', error);
-                        showNotification('Error saving configuration: ' + error.message, 'danger');
-                    }
-                }
-    
-                // Get charging periods from UI
-                function getChargingPeriods() {
-                    const periods = [];
-                    const periodElements = chargingPeriods.querySelectorAll('.time-period');
-                    
-                    periodElements.forEach(element => {
-                        const start = element.querySelector('.period-start').value;
-                        const end = element.querySelector('.period-end').value;
-                        
-                        if (start && end) {
-                            periods.push({ start, end });
-                        }
-                    });
-                    
-                    return periods;
-                }
-    
-                // Manually refresh price data
-                async function refreshPrices() {
-                    refreshDataBtn.innerHTML = '<span class="loading"></span> Refreshing...';
-                    refreshDataBtn.disabled = true;
-                    
-                    try {
-                        const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/update-prices', {
-                            method: 'POST'
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to refresh prices');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            showNotification('Price update initiated. It may take a moment to complete.', 'info');
-                            
-                            // Wait a moment and then reload pricing data
-                            setTimeout(async () => {
-                                await loadPricingData();
-                                refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
-                                refreshDataBtn.disabled = false;
-                            }, 5000);
-                        } else {
-                            throw new Error(data.error || 'Failed to refresh prices');
-                        }
-                    } catch (error) {
-                        console.error('Error refreshing prices:', error);
-                        showNotification('Error refreshing prices: ' + error.message, 'danger');
-                        refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
-                        refreshDataBtn.disabled = false;
-                    }
-                }
-    
-                // Send grid charging command
-                async function sendGridChargeCommand(enable) {
-                    const actionBtn = enable ? enableChargingBtn : disableChargingBtn;
-                    const originalText = actionBtn.innerHTML;
-                    
-                    actionBtn.innerHTML = '<span class="loading"></span> Sending...';
-                    actionBtn.disabled = true;
-                    
-                    try {
-                        const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                gridChargingOverride: enable
-                            })
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to send grid charge command');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            showNotification(`Grid charging ${enable ? 'enabled' : 'disabled'} successfully`, 'success');
-                            
-                            // Update UI
-                            updateChargingStatus();
-                        } else {
-                            throw new Error(data.error || 'Failed to send grid charge command');
-                        }
-                    } catch (error) {
-                        console.error('Error sending grid charge command:', error);
-                        showNotification('Error sending command: ' + error.message, 'danger');
-                    } finally {
-                        actionBtn.innerHTML = originalText;
-                        actionBtn.disabled = false;
-                    }
-                }
-    
-                // Set up event listeners
-                function setupEventListeners() {
-                    // Enable/disable dynamic pricing
-                    enableDynamicPricingToggle.addEventListener('change', function() {
-                        // Save configuration with new state
-                        saveConfiguration();
-                    });
-                    
-                    // Save configuration button
-                    saveConfigBtn.addEventListener('click', function() {
-                        saveConfiguration();
-                    });
-                    
-                    // Refresh data button
-                    refreshDataBtn.addEventListener('click', function() {
-                        refreshPrices();
-                    });
-                    
-                    // Enable charging button
-                    enableChargingBtn.addEventListener('click', function() {
-                        sendGridChargeCommand(true);
-                    });
-                    
-                    // Disable charging button
-                    disableChargingBtn.addEventListener('click', function() {
-                        sendGridChargeCommand(false);
-                    });
-                    
-                    // Toggle scheduled charging options
-                    scheduledChargingCheckbox.addEventListener('change', function() {
-                        schedulingOptions.classList.toggle('hidden', !this.checked);
-                    });
-                    
-                    // Add time period button
-                    addPeriodBtn.addEventListener('click', function() {
-                        addTimePeriod();
-                    });
-                }
+    // Fixed Dynamic Pricing Frontend JavaScript
+// This replaces the script section in your HTML file
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    let pricingData = [];
+    let lowPricePeriods = [];
+    let config = null;
+    let pricingChart = null;
+    let isLoading = false;
+    let currentTimezone = 'Europe/Berlin'; // Default timezone
+
+    // Initialize elements
+    const enableDynamicPricingToggle = document.getElementById('enableDynamicPricing');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const refreshDataBtn = document.getElementById('refreshDataBtn');
+    const enableChargingBtn = document.getElementById('enableChargingBtn');
+    const disableChargingBtn = document.getElementById('disableChargingBtn');
+    const addPeriodBtn = document.getElementById('addPeriodBtn');
+    const scheduledChargingCheckbox = document.getElementById('scheduledCharging');
+    const schedulingOptions = document.getElementById('schedulingOptions');
+    const chargingPeriods = document.getElementById('chargingPeriods');
+    const notification = document.getElementById('notification');
+    const notificationMessage = document.getElementById('notificationMessage');
+    const statusContent = document.getElementById('statusContent');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const statusDetails = document.getElementById('statusDetails');
+    const currentPrice = document.getElementById('currentPrice');
+    const avgPrice = document.getElementById('avgPrice');
+    const batterySoC = document.getElementById('batterySoC');
+    const chargingStatus = document.getElementById('chargingStatus');
+    const chargingReason = document.getElementById('chargingReason');
+    const recommendationAlert = document.getElementById('recommendationAlert');
+    const recommendationText = document.getElementById('recommendationText');
+    const lastUpdateTime = document.getElementById('lastUpdateTime');
+    const bestTimesList = document.getElementById('bestTimesList');
+    const actionsLog = document.getElementById('actionsLog');
+
+    // Form elements
+    const countrySelect = document.getElementById('country');
+    const timezoneSelect = document.getElementById('timezone');
+    const apiKeyInput = document.getElementById('apiKey');
+    const priceThresholdInput = document.getElementById('priceThreshold');
+    const targetSoCInput = document.getElementById('targetSoC');
+    const minimumSoCInput = document.getElementById('minimumSoC');
+
+    // Initialize the page
+    init();
+
+    // Main initialization function
+    async function init() {
+        // Load configuration
+        await loadConfig();
+        
+        // Load pricing data
+        await loadPricingData();
+        
+        // Initialize chart
+        initializeChart();
+        
+        // Update UI with system state
+        updateSystemState();
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Set up periodic refreshes
+        setInterval(updateSystemState, 60000); // Update system state every minute
+        setInterval(loadPricingData, 300000); // Refresh pricing data every 5 minutes
+    }
+
+    // Load configuration from API
+    async function loadConfig() {
+        showNotification('Loading configuration...', 'info');
+        
+        try {
+            const response = await fetch('/api/dynamic-pricing/settings');
+            
+            if (!response.ok) {
+                throw new Error('Failed to load configuration');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                config = data.config;
+                currentTimezone = config.timezone || 'Europe/Berlin';
+                updateConfigUI();
+                showNotification('Configuration loaded successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to load configuration');
+            }
+        } catch (error) {
+            console.error('Error loading configuration:', error);
+            showNotification('Error loading configuration: ' + error.message, 'danger');
+        }
+    }
+
+    // Update UI with configuration
+    function updateConfigUI() {
+        if (!config) return;
+        
+        // Update toggle state
+        enableDynamicPricingToggle.checked = config.enabled;
+        
+        // Update form fields
+        countrySelect.value = config.country || 'DE';
+        timezoneSelect.value = config.timezone || 'Europe/Berlin';
+        apiKeyInput.value = config.apiKey || '';
+        priceThresholdInput.value = config.priceThreshold || 0.10;
+        targetSoCInput.value = config.targetSoC || 80;
+        minimumSoCInput.value = config.minimumSoC || 20;
+        scheduledChargingCheckbox.checked = config.scheduledCharging || false;
+        
+        // Update current timezone
+        currentTimezone = config.timezone || 'Europe/Berlin';
+        
+        // Show/hide scheduling options
+        schedulingOptions.classList.toggle('hidden', !config.scheduledCharging);
+        
+        // Render charging periods
+        renderChargingPeriods();
+    }
+
+    // Render charging time periods UI
+    function renderChargingPeriods() {
+        chargingPeriods.innerHTML = '';
+        
+        if (!config || !config.chargingHours || !Array.isArray(config.chargingHours)) {
+            return;
+        }
+        
+        if (config.chargingHours.length === 0) {
+            // Add a default period if none exist
+            addTimePeriod('22:00', '06:00');
+        } else {
+            // Render existing periods
+            config.chargingHours.forEach(period => {
+                addTimePeriod(period.start, period.end);
             });
+        }
+    }
+
+    // Add time period UI element
+    function addTimePeriod(start = '22:00', end = '06:00') {
+        const periodElement = document.createElement('div');
+        periodElement.className = 'time-period';
+        periodElement.innerHTML = `
+            <label>From</label>
+            <input type="time" class="form-control time-input period-start" value="${start}">
+            <label>To</label>
+            <input type="time" class="form-control time-input period-end" value="${end}">
+            <button type="button" class="delete-time-btn"><i class="fas fa-trash"></i></button>
+        `;
+        
+        // Add delete button functionality
+        const deleteBtn = periodElement.querySelector('.delete-time-btn');
+        deleteBtn.addEventListener('click', function() {
+            periodElement.remove();
+        });
+        
+        chargingPeriods.appendChild(periodElement);
+    }
+
+    // Load pricing data from API - FIXED timezone handling
+    async function loadPricingData() {
+        if (isLoading) return;
+        isLoading = true;
+        
+        try {
+            const response = await fetch('/api/dynamic-pricing/pricing-data');
+            
+            if (!response.ok) {
+                throw new Error('Failed to load pricing data');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                pricingData = data.pricingData || [];
+                lowPricePeriods = data.lowPricePeriods || [];
+                
+                // Update timezone from response
+                if (data.timezone) {
+                    currentTimezone = data.timezone;
+                }
+                
+                if (data.lastUpdate) {
+                    const updateTime = new Date(data.lastUpdate);
+                    lastUpdateTime.textContent = 'Last updated: ' + updateTime.toLocaleString('en-US', {
+                        timeZone: currentTimezone,
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+                
+                updatePricingDisplay();
+                updateBestTimesList();
+            } else {
+                throw new Error(data.error || 'Failed to load pricing data');
+            }
+        } catch (error) {
+            console.error('Error loading pricing data:', error);
+            showNotification('Error loading pricing data: ' + error.message, 'danger');
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // Initialize Chart.js chart
+    function initializeChart() {
+        const ctx = document.getElementById('pricingChart').getContext('2d');
+        
+        pricingChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Electricity Price (€/kWh)',
+                    data: [],
+                    backgroundColor: [],
+                    borderColor: [],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.parsed.y.toFixed(4)} €/kWh`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Price (€/kWh)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time (' + currentTimezone + ')'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Update pricing chart with current data - FIXED timezone handling
+    function updatePricingDisplay() {
+        if (!pricingChart || !pricingData || pricingData.length === 0) return;
+        
+        // Get current time in the configured timezone
+        const now = new Date();
+        const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: currentTimezone}));
+        
+        // Get next 24 hours of prices starting from current hour
+        const next24Hours = pricingData.filter(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            return priceInTimezone >= nowInTimezone || 
+                   (priceInTimezone.getDate() === nowInTimezone.getDate() && 
+                    priceInTimezone.getHours() === nowInTimezone.getHours());
+        }).slice(0, 24);
+        
+        if (next24Hours.length === 0) return;
+        
+        // Calculate price thresholds for coloring
+        const prices = next24Hours.map(p => p.price);
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        const priceRange = maxPrice - minPrice;
+        const lowThreshold = minPrice + (priceRange * 0.33);
+        const highThreshold = minPrice + (priceRange * 0.66);
+        
+        // Update chart data with timezone-aware labels
+        const labels = next24Hours.map(p => {
+            const priceTime = new Date(p.timestamp);
+            return priceTime.toLocaleTimeString('en-US', {
+                timeZone: currentTimezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        });
+        
+        const data = next24Hours.map(p => p.price);
+        
+        const backgroundColor = next24Hours.map(p => {
+            const price = p.price;
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            const currentHour = nowInTimezone.getHours();
+            
+            // Highlight current hour
+            if (priceInTimezone.getHours() === currentHour && 
+                priceInTimezone.getDate() === nowInTimezone.getDate()) {
+                return 'rgba(76, 111, 229, 0.7)'; // Primary color
+            }
+            
+            // Color based on price thresholds
+            if (price <= lowThreshold) {
+                return 'rgba(46, 204, 113, 0.7)'; // Green for low prices
+            } else if (price <= highThreshold) {
+                return 'rgba(243, 156, 18, 0.7)'; // Orange for medium prices
+            } else {
+                return 'rgba(231, 76, 60, 0.7)'; // Red for high prices
+            }
+        });
+        
+        const borderColor = backgroundColor.map(color => color.replace('0.7', '1'));
+        
+        // Update chart
+        pricingChart.data.labels = labels;
+        pricingChart.data.datasets[0].data = data;
+        pricingChart.data.datasets[0].backgroundColor = backgroundColor;
+        pricingChart.data.datasets[0].borderColor = borderColor;
+        
+        // Update chart title with timezone
+        pricingChart.options.scales.x.title.text = 'Time (' + currentTimezone + ')';
+        pricingChart.update();
+        
+        // Update current price display with timezone awareness
+        const currentHourPrice = next24Hours.find(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            return priceInTimezone.getHours() === nowInTimezone.getHours() && 
+                   priceInTimezone.getDate() === nowInTimezone.getDate();
+        });
+        
+        if (currentHourPrice) {
+            currentPrice.textContent = currentHourPrice.price.toFixed(4);
+        }
+        
+        // Update average price
+        const average = prices.reduce((acc, price) => acc + price, 0) / prices.length;
+        avgPrice.textContent = average.toFixed(4);
+    }
+
+    // Update best charging times list - FIXED timezone handling
+    function updateBestTimesList() {
+        if (!pricingData || pricingData.length === 0) {
+            bestTimesList.innerHTML = '<p>No pricing data available</p>';
+            return;
+        }
+        
+        // Sort prices from lowest to highest
+        const sortedPrices = [...pricingData].sort((a, b) => a.price - b.price);
+        
+        // Take top 5 best times
+        const bestTimes = sortedPrices.slice(0, 5);
+        
+        if (bestTimes.length === 0) {
+            bestTimesList.innerHTML = '<p>No pricing data available</p>';
+            return;
+        }
+        
+        // Build the list with proper timezone handling
+        let html = '';
+        bestTimes.forEach((timeSlot, index) => {
+            const priceTime = new Date(timeSlot.timestamp);
+            
+            // Format time and date in the configured timezone
+            const formattedTime = priceTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: currentTimezone,
+                hour12: false
+            });
+            
+            const formattedDate = priceTime.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                timeZone: currentTimezone  // ← This ensures consistent timezone
+            });
+            
+            html += `
+                <div class="best-time-item">
+                    <div>
+                        <span class="time-slot">${formattedTime}</span>
+                        <small> ${formattedDate}</small>
+                    </div>
+                    <div class="price-value">${timeSlot.price.toFixed(4)} €/kWh</div>
+                </div>
+            `;
+        });
+        
+        bestTimesList.innerHTML = html;
+        
+        console.log('Best times updated with timezone:', currentTimezone);
+    }
+
+    // Update system state display
+    async function updateSystemState() {
+        try {
+            // Get battery state from API
+            const response = await fetch('/api/system-state');
+            
+            if (!response.ok) {
+                throw new Error('Failed to load system state');
+            }
+            
+            const data = await response.json();
+            const systemState = data.current_state;
+            
+            // Update battery SoC display
+            if (systemState && systemState.battery_soc !== undefined) {
+                batterySoC.textContent = Math.round(systemState.battery_soc);
+            }
+            
+            // Determine charging status and recommendation
+            updateChargingStatus();
+            updateRecommendation(systemState);
+            
+            // Show status details
+            loadingStatus.classList.add('hidden');
+            statusDetails.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error updating system state:', error);
+        }
+    }
+
+    // Update charging status display
+    function updateChargingStatus() {
+        // This would ideally get the actual grid charging status from the backend
+        // For now, this is just a placeholder that randomly determines status
+        const charging = Math.random() > 0.5;
+        
+        if (charging) {
+            chargingStatus.textContent = 'Yes';
+            chargingStatus.style.color = 'var(--success)';
+            chargingReason.textContent = 'Low electricity price';
+        } else {
+            chargingStatus.textContent = 'No';
+            chargingStatus.style.color = 'var(--danger)';
+            chargingReason.textContent = 'High electricity price';
+        }
+    }
+
+    // Update recommendation alert - FIXED timezone handling
+    function updateRecommendation(systemState) {
+        if (!config || !systemState) return;
+        
+        const batterySoCValue = systemState.battery_soc || 0;
+        
+        // Get current time in configured timezone
+        const now = new Date();
+        const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: currentTimezone}));
+        
+        const currentHourPrice = pricingData.find(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            return nowInTimezone.getHours() === priceInTimezone.getHours() && 
+                   nowInTimezone.getDate() === priceInTimezone.getDate();
+        });
+        
+        if (!currentHourPrice) {
+            recommendationAlert.className = 'alert alert-warning';
+            recommendationText.innerHTML = 'Cannot determine recommendation - no price data for current hour';
+            return;
+        }
+        
+        const isLowPrice = lowPricePeriods.some(period => {
+            const periodStart = new Date(period.start);
+            const periodEnd = new Date(period.end);
+            return now >= periodStart && now < periodEnd;
+        });
+        
+        // Battery is full
+        if (batterySoCValue >= config.targetSoC) {
+            recommendationAlert.className = 'alert alert-success';
+            recommendationText.innerHTML = `
+                <strong>Keep Grid Charging OFF</strong><br>
+                Battery SoC (${Math.round(batterySoCValue)}%) has reached target (${config.targetSoC}%)
+            `;
+            return;
+        }
+        
+        // Battery is very low
+        if (batterySoCValue < config.minimumSoC) {
+            recommendationAlert.className = 'alert alert-danger';
+            recommendationText.innerHTML = `
+                <strong>Turn Grid Charging ON</strong><br>
+                Battery SoC (${Math.round(batterySoCValue)}%) is below minimum (${config.minimumSoC}%)
+            `;
+            return;
+        }
+        
+        // Check if price is low
+        if (isLowPrice) {
+            recommendationAlert.className = 'alert alert-success';
+            recommendationText.innerHTML = `
+                <strong>Turn Grid Charging ON</strong><br>
+                Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is low and battery is not full
+            `;
+        } else {
+            recommendationAlert.className = 'alert alert-warning';
+            recommendationText.innerHTML = `
+                <strong>Keep Grid Charging OFF</strong><br>
+                Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is not optimal
+            `;
+        }
+    }
+
+    // Show notification message
+    function showNotification(message, type = 'info') {
+        notification.className = 'alert';
+        notification.classList.add(`alert-${type}`);
+        notificationMessage.textContent = message;
+        notification.classList.remove('hidden');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(hideNotification, 5000);
+    }
+
+    // Hide notification message
+    function hideNotification() {
+        notification.classList.add('hidden');
+    }
+
+    // Save configuration to API
+    async function saveConfiguration() {
+        showNotification('Saving configuration...', 'info');
+        
+        // Read values from form
+        const formData = {
+            enabled: enableDynamicPricingToggle.checked,
+            country: countrySelect.value,
+            market: countrySelect.value, // Using same value for market
+            timezone: timezoneSelect.value,
+            apiKey: apiKeyInput.value,
+            priceThreshold: parseFloat(priceThresholdInput.value),
+            minimumSoC: parseInt(minimumSoCInput.value),
+            targetSoC: parseInt(targetSoCInput.value),
+            scheduledCharging: scheduledChargingCheckbox.checked,
+            chargingHours: getChargingPeriods()
+        };
+        
+        try {
+            const response = await fetch('/api/dynamic-pricing/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save configuration');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                config = data.config;
+                
+                // Update current timezone if it changed
+                if (formData.timezone !== currentTimezone) {
+                    currentTimezone = formData.timezone;
+                    console.log('Timezone changed to:', currentTimezone);
+                    
+                    // Update chart title
+                    if (pricingChart) {
+                        pricingChart.options.scales.x.title.text = 'Time (' + currentTimezone + ')';
+                        pricingChart.update();
+                    }
+                }
+                
+                showNotification('Configuration saved successfully', 'success');
+                
+                // Reload pricing data to reflect timezone changes
+                await loadPricingData();
+            } else {
+                throw new Error(data.error || 'Failed to save configuration');
+            }
+        } catch (error) {
+            console.error('Error saving configuration:', error);
+            showNotification('Error saving configuration: ' + error.message, 'danger');
+        }
+    }
+
+    // Get charging periods from UI
+    function getChargingPeriods() {
+        const periods = [];
+        const periodElements = chargingPeriods.querySelectorAll('.time-period');
+        
+        periodElements.forEach(element => {
+            const start = element.querySelector('.period-start').value;
+            const end = element.querySelector('.period-end').value;
+            
+            if (start && end) {
+                periods.push({ start, end });
+            }
+        });
+        
+        return periods;
+    }
+
+    // Manually refresh price data
+    async function refreshPrices() {
+        refreshDataBtn.innerHTML = '<span class="loading"></span> Refreshing...';
+        refreshDataBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/dynamic-pricing/update-prices', {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to refresh prices');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Price update initiated. It may take a moment to complete.', 'info');
+                
+                // Wait a moment and then reload pricing data
+                setTimeout(async () => {
+                    await loadPricingData();
+                    refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
+                    refreshDataBtn.disabled = false;
+                }, 5000);
+            } else {
+                throw new Error(data.error || 'Failed to refresh prices');
+            }
+        } catch (error) {
+            console.error('Error refreshing prices:', error);
+            showNotification('Error refreshing prices: ' + error.message, 'danger');
+            refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
+            refreshDataBtn.disabled = false;
+        }
+    }
+
+    // Send grid charging command
+    async function sendGridChargeCommand(enable) {
+        const actionBtn = enable ? enableChargingBtn : disableChargingBtn;
+        const originalText = actionBtn.innerHTML;
+        
+        actionBtn.innerHTML = '<span class="loading"></span> Sending...';
+        actionBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/dynamic-pricing/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    gridChargingOverride: enable
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to send grid charge command');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification(`Grid charging ${enable ? 'enabled' : 'disabled'} successfully`, 'success');
+                
+                // Update UI
+                updateChargingStatus();
+                
+                // Load actions log to show the new action
+                loadActionsLog();
+            } else {
+                throw new Error(data.error || 'Failed to send grid charge command');
+            }
+        } catch (error) {
+            console.error('Error sending grid charge command:', error);
+            showNotification('Error sending command: ' + error.message, 'danger');
+        } finally {
+            actionBtn.innerHTML = originalText;
+            actionBtn.disabled = false;
+        }
+    }
+
+    // Load actions log
+    async function loadActionsLog() {
+        try {
+            const response = await fetch('/api/dynamic-pricing/actions-log?limit=5');
+            
+            if (!response.ok) {
+                throw new Error('Failed to load actions log');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.actions.length > 0) {
+                let html = '';
+                data.actions.forEach(action => {
+                    const actionTime = new Date(action.timestamp);
+                    const formattedTime = actionTime.toLocaleString('en-US', {
+                        timeZone: currentTimezone,
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    html += `
+                        <div style="margin-bottom: 10px; padding: 8px; background-color: var(--light); border-radius: 4px;">
+                            <div style="font-size: 12px; color: var(--gray); margin-bottom: 4px;">${formattedTime}</div>
+                            <div style="font-size: 14px;">${action.action}</div>
+                        </div>
+                    `;
+                });
+                actionsLog.innerHTML = html;
+            } else {
+                actionsLog.innerHTML = '<p>No recent actions recorded.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading actions log:', error);
+            actionsLog.innerHTML = '<p>Error loading actions log.</p>';
+        }
+    }
+
+    // Set up event listeners
+    function setupEventListeners() {
+        // Enable/disable dynamic pricing
+        enableDynamicPricingToggle.addEventListener('change', function() {
+            // Save configuration with new state
+            saveConfiguration();
+        });
+        
+        // Save configuration button
+        saveConfigBtn.addEventListener('click', function() {
+            saveConfiguration();
+        });
+        
+        // Refresh data button
+        refreshDataBtn.addEventListener('click', function() {
+            refreshPrices();
+        });
+        
+        // Enable charging button
+        enableChargingBtn.addEventListener('click', function() {
+            sendGridChargeCommand(true);
+        });
+        
+        // Disable charging button
+        disableChargingBtn.addEventListener('click', function() {
+            sendGridChargeCommand(false);
+        });
+        
+        // Toggle scheduled charging options
+        scheduledChargingCheckbox.addEventListener('change', function() {
+            schedulingOptions.classList.toggle('hidden', !this.checked);
+        });
+        
+        // Add time period button
+        addPeriodBtn.addEventListener('click', function() {
+            addTimePeriod();
+        });
+        
+        // Timezone change event
+        timezoneSelect.addEventListener('change', function() {
+            console.log('Timezone selection changed to:', this.value);
+            // The actual timezone update will happen when configuration is saved
+        });
+    }
+
+    // Load actions log on initialization
+    setTimeout(loadActionsLog, 2000);
+
+    // Make hideNotification available globally
+    window.hideNotification = hideNotification;
+});
         </script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>

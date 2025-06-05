@@ -1,20 +1,19 @@
-// dynamic-pricing-integration.js
+// services/dynamic-pricing-integration.js
 
 /**
  * Integration module for dynamic electricity pricing feature
  * This module connects the dynamic pricing UI with the backend services
  * and provides the necessary APIs for the Solar Autopilot application
+ * FIXED: Timezone handling issues resolved
  */
 
 const fs = require('fs');
 const path = require('path');
-const dynamicPricingService = require('./dynamicPricingService');
-const dynamicPricingController = require('./dynamicPricingController');
-const pricingApis = require('./pricingApis');
+const cron = require('node-cron');
 
 // Configuration file path
-const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-const LOG_FILE = path.join(__dirname, 'logs', 'dynamic_pricing.log');
+const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, '..', 'data', 'dynamic_pricing_config.json');
+const LOG_FILE = path.join(__dirname, '..', 'logs', 'dynamic_pricing.log');
 
 // Global instance of the controller
 let controllerInstance = null;
@@ -43,10 +42,10 @@ async function initializeDynamicPricing(app, mqttClient, currentSystemState) {
     }
     
     // Initialize the controller
-    controllerInstance = await dynamicPricingController.initialize(app, mqttClient, currentSystemState);
+    controllerInstance = await createDynamicPricingController(mqttClient, currentSystemState);
     
-    // Set up additional API endpoints
-    setupApiEndpoints(app, mqttClient, currentSystemState);
+    // Set up periodic tasks
+    setupPeriodicTasks(mqttClient, currentSystemState);
     
     console.log('✅ Dynamic pricing integration complete');
     
@@ -64,217 +63,364 @@ async function initializeDynamicPricing(app, mqttClient, currentSystemState) {
 }
 
 /**
- * Set up additional API endpoints for the dynamic pricing feature
- * @param {Object} app - Express application instance
- * @param {Object} mqttClient - MQTT client instance
- * @param {Object} currentSystemState - Current system state object
+ * Create the dynamic pricing controller
  */
-function setupApiEndpoints(app, mqttClient, currentSystemState) {
-  // API endpoint to manually trigger grid charging
-  app.post('/api/dynamic-pricing/manual-charge', async (req, res) => {
-    try {
-      const { enable } = req.body;
-      
-      if (enable === undefined) {
-        return res.status(400).json({
-          success: false, 
-          error: 'Missing enable parameter'
-        });
-      }
-      
-      if (!controllerInstance || !controllerInstance.enabled) {
-        return res.status(403).json({
-          success: false,
-          error: 'Dynamic pricing is not enabled'
-        });
-      }
-      
-      // Send the grid charge command
-      const result = controllerInstance.sendGridChargeCommand(enable);
-      
-      // Log the action
-      logAction(`Manual override: ${enable ? 'Enabled' : 'Disabled'} grid charging`);
-      
-      res.json({
-        success: result,
-        message: `Grid charging ${enable ? 'enabled' : 'disabled'} ${result ? 'successfully' : 'failed'}`
-      });
-    } catch (error) {
-      console.error('Error processing manual charge request:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      });
-    }
-  });
+async function createDynamicPricingController(mqttClient, currentSystemState) {
+  // Ensure config file exists
+  ensureConfigExists();
   
-  // API endpoint to get recent actions log
-  app.get('/api/dynamic-pricing/actions-log', (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit) || 10;
-      const recentActions = getRecentActions(limit);
-      
-      res.json({
-        success: true,
-        actions: recentActions
-      });
-    } catch (error) {
-      console.error('Error retrieving actions log:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve actions log'
-      });
-    }
-  });
-  
-  // API endpoint to get system recommendation
-  app.get('/api/dynamic-pricing/recommendation', (req, res) => {
-    try {
-      if (!controllerInstance) {
-        return res.status(503).json({
-          success: false,
-          error: 'Dynamic pricing controller not initialized'
-        });
-      }
-      
-      // Get the current configuration
-      const config = dynamicPricingService.loadConfig();
-      
-      if (!config || !config.enabled) {
-        return res.json({
-          success: true,
-          recommendation: {
-            shouldCharge: false,
-            reason: 'Dynamic pricing is disabled',
-            details: null
-          }
-        });
-      }
-      
-      // Check if battery SoC is within range
-      const batterySoC = currentSystemState?.battery_soc || 0;
-      let shouldCharge = false;
-      let reason = '';
-      let details = null;
-      
-      if (batterySoC >= config.targetSoC) {
-        // Battery already at target level
-        shouldCharge = false;
-        reason = 'Battery SoC has reached target level';
-        details = {
-          batterySoC: batterySoC,
-          targetSoC: config.targetSoC
-        };
-      } else if (batterySoC < config.minimumSoC) {
-        // Battery below minimum level - emergency charging
-        shouldCharge = true;
-        reason = 'Battery SoC below minimum level';
-        details = {
-          batterySoC: batterySoC,
-          minimumSoC: config.minimumSoC
-        };
-      } else {
-        // Check if current price is good for charging
-        const isGoodTimeToCharge = controllerInstance.isGoodTimeToCharge();
-        const isInScheduledTime = controllerInstance.isInScheduledChargingTime();
+  // Create controller instance
+  const controller = {
+    enabled: false,
+    config: null,
+    mqttClient: mqttClient,
+    currentSystemState: currentSystemState,
+    
+    // Initialize the controller
+    async init() {
+      try {
+        // Load the configuration
+        this.config = loadConfig();
         
-        if (isGoodTimeToCharge || isInScheduledTime) {
-          shouldCharge = true;
-          reason = isGoodTimeToCharge ? 'Current electricity price is low' : 'Within scheduled charging time';
-          details = {
-            batterySoC: batterySoC,
-            targetSoC: config.targetSoC,
-            isLowPrice: isGoodTimeToCharge,
-            isScheduled: isInScheduledTime
-          };
+        // Check if the feature is enabled
+        this.enabled = this.config && this.config.enabled;
+        
+        // Log initialization status
+        if (this.enabled) {
+          console.log('Dynamic pricing feature is ENABLED');
         } else {
-          shouldCharge = false;
-          reason = 'Current electricity price is not optimal';
-          details = {
-            batterySoC: batterySoC,
-            targetSoC: config.targetSoC
-          };
+          console.log('Dynamic pricing feature is DISABLED');
+        }
+        
+        return this;
+      } catch (error) {
+        console.error('Error initializing dynamic pricing controller:', error.message);
+        return this;
+      }
+    },
+    
+    // Check if the feature is ready to use
+    isReady() {
+      try {
+        if (!this.config) {
+          return false;
+        }
+        
+        // Check if all required settings are present
+        const hasCountry = !!this.config.country;
+        const hasTimezone = !!this.config.timezone;
+        const hasPricingData = this.config.pricingData && this.config.pricingData.length > 0;
+        
+        return hasCountry && hasTimezone && hasPricingData;
+      } catch (error) {
+        console.error('Error checking if dynamic pricing is ready:', error.message);
+        return false;
+      }
+    },
+    
+    // Get current pricing data
+    getPricingData() {
+      try {
+        if (!this.config) {
+          return [];
+        }
+        
+        return this.config.pricingData || [];
+      } catch (error) {
+        console.error('Error getting pricing data:', error.message);
+        return [];
+      }
+    },
+    
+    // Send a grid charge command
+    sendGridChargeCommand(enable) {
+      try {
+        // Only send if the feature is enabled
+        if (!this.enabled) {
+          console.log('Dynamic pricing is disabled, not sending grid charge command');
+          return false;
+        }
+        
+        const dynamicPricingMqtt = require('./dynamicPricingMqtt');
+        
+        // Check if learner mode is active
+        if (!dynamicPricingMqtt.isLearnerModeActive()) {
+          // Log what would have happened but don't send command
+          return dynamicPricingMqtt.simulateGridChargeCommand(enable, this.config);
+        }
+        
+        // Send the actual command since learner mode is active
+        return dynamicPricingMqtt.sendGridChargeCommand(this.mqttClient, enable, this.config);
+      } catch (error) {
+        console.error('Error sending grid charge command:', error.message);
+        return false;
+      }
+    },
+    
+    // Check if now is a good time to charge
+    isGoodTimeToCharge() {
+      try {
+        if (!this.enabled || !this.config || !this.config.pricingData) {
+          return false;
+        }
+        
+        // Get current time in the configured timezone
+        const timezone = this.config.timezone || 'Europe/Berlin';
+        const now = new Date();
+        
+        // Find the current price using timezone-aware comparison
+        const currentPrice = this.config.pricingData.find(p => {
+          const priceTime = new Date(p.timestamp);
+          
+          // Compare hours using the same timezone
+          const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+          const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: timezone}));
+          
+          return nowInTimezone.getHours() === priceInTimezone.getHours() && 
+                 nowInTimezone.getDate() === priceInTimezone.getDate() &&
+                 nowInTimezone.getMonth() === priceInTimezone.getMonth();
+        });
+        
+        if (!currentPrice) {
+          return false;
+        }
+        
+        // Calculate threshold
+        const threshold = this.config.priceThreshold > 0 
+          ? this.config.priceThreshold 
+          : this.calculateAveragePrice() * 0.75; // 25% below average
+        
+        // Check if current price is below threshold
+        return currentPrice.price <= threshold;
+      } catch (error) {
+        console.error('Error checking if now is a good time to charge:', error.message);
+        return false;
+      }
+    },
+    
+    // Check if we should charge based on all conditions
+    shouldChargeNow() {
+      try {
+        if (!this.enabled || !this.config) {
+          return false;
+        }
+        
+        // Check if battery SoC is within range
+        const batterySoC = this.currentSystemState?.battery_soc || 0;
+        if (batterySoC >= this.config.targetSoC) {
+          // Battery already at target level
+          return false;
+        }
+        
+        if (batterySoC < this.config.minimumSoC) {
+          // Battery below minimum level - let other systems handle this
+          return false;
+        }
+        
+        // Check if we're in a scheduled charging time
+        if (this.isInScheduledChargingTime()) {
+          return true;
+        }
+        
+        // Check if current price is good for charging
+        return this.isGoodTimeToCharge();
+      } catch (error) {
+        console.error('Error checking if we should charge now:', error.message);
+        return false;
+      }
+    },
+    
+    // Check if we're in a scheduled charging time
+    isInScheduledChargingTime() {
+      try {
+        if (!this.config || !this.config.scheduledCharging || !this.config.chargingHours) {
+          return false;
+        }
+        
+        // Get current time in the configured timezone
+        const timezone = this.config.timezone || 'Europe/Berlin';
+        const now = new Date();
+        const currentTimeStr = now.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: timezone
+        });
+        
+        // Check if current time is within any of the scheduled charging periods
+        return this.config.chargingHours.some(period => {
+          if (period.start > period.end) {
+            // Overnight period
+            return currentTimeStr >= period.start || currentTimeStr < period.end;
+          } else {
+            // Same-day period
+            return currentTimeStr >= period.start && currentTimeStr < period.end;
+          }
+        });
+      } catch (error) {
+        console.error('Error checking scheduled charging time:', error.message);
+        return false;
+      }
+    },
+    
+    // Calculate average price from available data
+    calculateAveragePrice() {
+      try {
+        if (!this.config || !this.config.pricingData || this.config.pricingData.length === 0) {
+          return 0;
+        }
+        
+        const sum = this.config.pricingData.reduce((total, item) => total + item.price, 0);
+        return sum / this.config.pricingData.length;
+      } catch (error) {
+        console.error('Error calculating average price:', error.message);
+        return 0;
+      }
+    }
+  };
+  
+  // Initialize and return the controller
+  return await controller.init();
+}
+
+/**
+ * Ensure config file exists with default values
+ */
+function ensureConfigExists() {
+  const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
+  
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  
+  if (!fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
+    const defaultConfig = {
+      enabled: false,
+      country: 'DE',
+      market: 'DE',
+      apiKey: '',
+      priceThreshold: 0.10,
+      minimumSoC: 20,
+      targetSoC: 80,
+      scheduledCharging: false,
+      chargingHours: [],
+      lastUpdate: null,
+      pricingData: generateSamplePricingData(),
+      timezone: 'Europe/Berlin'
+    };
+    
+    fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
+    console.log('Created default dynamic pricing configuration file with sample data');
+  }
+}
+
+/**
+ * Load configuration from file
+ */
+function loadConfig() {
+  try {
+    const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
+    return JSON.parse(configData);
+  } catch (error) {
+    console.error('Error loading dynamic pricing config:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Generate sample pricing data for testing - FIXED timezone handling
+ */
+function generateSamplePricingData() {
+  const prices = [];
+  const timezone = 'Europe/Berlin'; // Use consistent timezone
+  
+  // Get current time in the target timezone
+  const now = new Date();
+  const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+  
+  // Start from the beginning of current hour in target timezone
+  const startHour = new Date(nowInTimezone);
+  startHour.setMinutes(0, 0, 0);
+  
+  // Generate 48 hours of sample data
+  for (let i = 0; i < 48; i++) {
+    const timestamp = new Date(startHour);
+    timestamp.setHours(timestamp.getHours() + i);
+    
+    // Create realistic price pattern
+    const hour = timestamp.getHours();
+    let basePrice = 0.10;
+    
+    if (hour >= 7 && hour <= 9) {
+      basePrice = 0.18; // Morning peak
+    } else if (hour >= 17 && hour <= 21) {
+      basePrice = 0.20; // Evening peak
+    } else if (hour >= 1 && hour <= 5) {
+      basePrice = 0.06; // Night valley
+    } else if (hour >= 11 && hour <= 14) {
+      basePrice = 0.08; // Midday valley
+    }
+    
+    // Add randomness
+    const randomFactor = 0.85 + (Math.random() * 0.3);
+    const price = basePrice * randomFactor;
+    
+    // Convert back to UTC for storage but maintain timezone context
+    const utcTimestamp = new Date(timestamp.toLocaleString("en-US", {timeZone: "UTC"}));
+    
+    prices.push({
+      timestamp: utcTimestamp.toISOString(),
+      price: parseFloat(price.toFixed(4)),
+      currency: 'EUR',
+      unit: 'kWh',
+      timezone: timezone, // Add timezone info for reference
+      localHour: hour // Store the local hour for reference
+    });
+  }
+  
+  return prices;
+}
+
+/**
+ * Set up periodic tasks for dynamic pricing
+ */
+function setupPeriodicTasks(mqttClient, currentSystemState) {
+  // Check charging schedule every 15 minutes
+  cron.schedule('*/15 * * * *', () => {
+    try {
+      if (controllerInstance && controllerInstance.enabled) {
+        const shouldCharge = controllerInstance.shouldChargeNow();
+        
+        if (shouldCharge !== null) {
+          controllerInstance.sendGridChargeCommand(shouldCharge);
+          
+          // Log the action
+          const action = shouldCharge ? 'Enabled' : 'Disabled';
+          const reason = shouldCharge ? 'Low price or scheduled time' : 'High price or target SoC reached';
+          logAction(`Automatic grid charging ${action.toLowerCase()} - ${reason}`);
         }
       }
-      
-      res.json({
-        success: true,
-        recommendation: {
-          shouldCharge,
-          reason,
-          details
-        }
-      });
     } catch (error) {
-      console.error('Error generating recommendation:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to generate recommendation'
-      });
+      console.error('Error in periodic charging check:', error);
     }
   });
   
-  // API endpoint to get current pricing summary
-  app.get('/api/dynamic-pricing/pricing-summary', (req, res) => {
+  // Regenerate sample data every 6 hours (for testing)
+  cron.schedule('0 */6 * * *', () => {
     try {
-      if (!controllerInstance) {
-        return res.status(503).json({
-          success: false,
-          error: 'Dynamic pricing controller not initialized'
-        });
+      console.log('Regenerating sample pricing data...');
+      const config = loadConfig();
+      if (config) {
+        config.pricingData = generateSamplePricingData();
+        config.lastUpdate = new Date().toISOString();
+        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+        console.log('Sample pricing data regenerated with proper timezone handling');
       }
-      
-      // Get current pricing data
-      const pricingData = controllerInstance.getPricingData();
-      
-      if (!pricingData || pricingData.length === 0) {
-        return res.json({
-          success: true,
-          summary: {
-            currentPrice: null,
-            averagePrice: null,
-            lowestPrice: null,
-            highestPrice: null,
-            pricesAvailable: false
-          }
-        });
-      }
-      
-      // Get current hour price
-      const now = new Date();
-      const currentHour = now.getHours();
-      
-      const currentPrice = pricingData.find(p => {
-        const date = new Date(p.timestamp);
-        return date.getHours() === currentHour && 
-               date.getDate() === now.getDate();
-      });
-      
-      // Calculate statistics
-      const prices = pricingData.map(p => p.price);
-      const averagePrice = prices.reduce((acc, price) => acc + price, 0) / prices.length;
-      const lowestPrice = Math.min(...prices);
-      const highestPrice = Math.max(...prices);
-      
-      res.json({
-        success: true,
-        summary: {
-          currentPrice: currentPrice ? currentPrice.price : null,
-          averagePrice: averagePrice,
-          lowestPrice: lowestPrice,
-          highestPrice: highestPrice,
-          pricesAvailable: true,
-          timestamp: now.toISOString()
-        }
-      });
     } catch (error) {
-      console.error('Error generating pricing summary:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to generate pricing summary'
-      });
+      console.error('Error regenerating sample data:', error);
     }
   });
+  
+  console.log('✅ Dynamic pricing periodic tasks initialized');
 }
 
 /**
@@ -292,101 +438,7 @@ function logAction(action) {
   }
 }
 
-/**
- * Get recent actions from the log file
- * @param {Number} limit - Maximum number of actions to return
- * @returns {Array} Array of recent actions
- */
-function getRecentActions(limit = 10) {
-  try {
-    if (!fs.existsSync(LOG_FILE)) {
-      return [];
-    }
-    
-    const logContent = fs.readFileSync(LOG_FILE, 'utf8');
-    const logLines = logContent.split('\n').filter(line => line.trim() !== '');
-    
-    // Get the most recent entries
-    const recentLines = logLines.slice(-limit).reverse();
-    
-    // Parse each line into a structured object
-    return recentLines.map(line => {
-      const parts = line.split(' - ');
-      if (parts.length >= 2) {
-        return {
-          timestamp: parts[0],
-          action: parts.slice(1).join(' - ')
-        };
-      }
-      return {
-        timestamp: new Date().toISOString(),
-        action: line
-      };
-    });
-  } catch (error) {
-    console.error('Error reading actions log:', error);
-    return [];
-  }
-}
-
-/**
- * Trigger a manual price data update
- * This can be called from other parts of the application
- * @returns {Promise<Boolean>} Success status
- */
-async function updatePricingData() {
-  try {
-    if (!controllerInstance) {
-      console.error('Dynamic pricing controller not initialized');
-      return false;
-    }
-    
-    return await controllerInstance.updatePrices();
-  } catch (error) {
-    console.error('Error updating pricing data:', error);
-    return false;
-  }
-}
-
-/**
- * Get the current status of the dynamic pricing feature
- * @returns {Object} Current status object
- */
-function getStatus() {
-  try {
-    if (!controllerInstance) {
-      return {
-        enabled: false,
-        ready: false,
-        lastUpdate: null
-      };
-    }
-    
-    const config = dynamicPricingService.loadConfig() || {};
-    
-    return {
-      enabled: controllerInstance.enabled,
-      ready: controllerInstance.isReady(),
-      lastUpdate: config.lastUpdate || null,
-      pricing: {
-        dataAvailable: config.pricingData && config.pricingData.length > 0,
-        count: config.pricingData ? config.pricingData.length : 0
-      }
-    };
-  } catch (error) {
-    console.error('Error getting dynamic pricing status:', error);
-    return {
-      enabled: false,
-      ready: false,
-      lastUpdate: null,
-      error: error.message
-    };
-  }
-}
-
 module.exports = {
   initializeDynamicPricing,
-  updatePricingData,
-  getStatus,
   logAction
 };
