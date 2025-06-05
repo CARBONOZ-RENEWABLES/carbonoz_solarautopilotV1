@@ -30,7 +30,6 @@ const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
 const dynamicPricingController = require('./services/dynamicPricingController');
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
-app.use(bodyParser.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
@@ -4181,6 +4180,154 @@ async function createWeekendGridChargeRules() {
   }
 }
 
+
+async function initializeDynamicPricingData() {
+  try {
+    console.log('Initializing dynamic pricing data...');
+    
+    // Load the dynamic pricing configuration
+    const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+    
+    let config = null;
+    if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
+      const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
+      config = JSON.parse(configData);
+    }
+    
+    if (!config) {
+      console.log('No dynamic pricing config found, creating default...');
+      // Create default config with sample data
+      config = {
+        enabled: false,
+        country: 'DE',
+        market: 'DE', 
+        apiKey: '',
+        priceThreshold: 0.10,
+        minimumSoC: 20,
+        targetSoC: 80,
+        scheduledCharging: false,
+        chargingHours: [],
+        lastUpdate: null,
+        pricingData: [],
+        timezone: 'Europe/Berlin'
+      };
+    }
+    
+    // Check if pricing data exists and is recent
+    const hasData = config.pricingData && config.pricingData.length > 0;
+    const isRecent = config.lastUpdate && 
+      (Date.now() - new Date(config.lastUpdate).getTime()) < (6 * 60 * 60 * 1000); // 6 hours
+    
+    if (!hasData || !isRecent) {
+      console.log('Generating initial pricing data...');
+      
+      // Generate initial sample data
+      config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
+      config.lastUpdate = new Date().toISOString();
+      
+      // Ensure config directory exists
+      const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      
+      // Save the updated config
+      fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+      
+      console.log(`✅ Initial pricing data generated: ${config.pricingData.length} data points`);
+    } else {
+      console.log('✅ Existing pricing data is recent, no generation needed');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error initializing dynamic pricing data:', error);
+    return false;
+  }
+}
+
+
+function generateInitialSampleData(timezone = 'Europe/Berlin') {
+  const prices = [];
+  
+  // Get current time in the target timezone
+  const now = new Date();
+  const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+  
+  // Start from the beginning of current hour
+  const startHour = new Date(nowInTimezone);
+  startHour.setMinutes(0, 0, 0);
+  
+  // Generate 48 hours of data
+  for (let i = 0; i < 48; i++) {
+    const timestamp = new Date(startHour);
+    timestamp.setHours(timestamp.getHours() + i);
+    
+    const hour = timestamp.getHours();
+    const dayOfWeek = timestamp.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    let basePrice = 0.10;
+    
+    // Create realistic price patterns
+    if (hour >= 7 && hour <= 9) {
+      basePrice = 0.18; // Morning peak
+    } else if (hour >= 17 && hour <= 21) {
+      basePrice = 0.20; // Evening peak
+    } else if (hour >= 1 && hour <= 5) {
+      basePrice = 0.06; // Night valley
+    } else if (hour >= 11 && hour <= 14) {
+      basePrice = 0.08; // Midday valley
+    }
+    
+    if (isWeekend) {
+      basePrice *= 0.85;
+    }
+    
+    // Add randomness
+    const randomFactor = 0.85 + (Math.random() * 0.3);
+    const price = basePrice * randomFactor;
+    
+    prices.push({
+      timestamp: timestamp.toISOString(),
+      price: parseFloat(price.toFixed(4)),
+      currency: 'EUR',
+      unit: 'kWh',
+      timezone: timezone,
+      localHour: hour
+    });
+  }
+  
+  return prices;
+}
+
+// Function to refresh pricing data (for cron job)
+function refreshPricingData() {
+  try {
+    console.log('Running scheduled pricing data refresh...');
+    
+    const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+    
+    if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
+      const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
+      const config = JSON.parse(configData);
+      
+      if (config) {
+        // Generate fresh sample data
+        config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
+        config.lastUpdate = new Date().toISOString();
+        
+        // Save updated config
+        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+        
+        console.log(`✅ Scheduled pricing data refresh completed: ${config.pricingData.length} data points for timezone ${config.timezone}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error in scheduled pricing data refresh:', error);
+  }
+}
+
 // ================  ROUTES ================
 
 
@@ -5918,6 +6065,9 @@ async function initializeConnections() {
   const telegramService = require('./services/telegramService');
   console.log('✅ Telegram notification service initialized');
   
+  // Initialize dynamic pricing data BEFORE dynamic pricing integration
+  await initializeDynamicPricingData();
+  
   // Initialize dynamic pricing integration
   try {
     const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
@@ -6080,6 +6230,27 @@ async function initializeAutomationRules() {
 // Initialize connections when server starts
 initializeConnections()
 
+initializeConnections();
+
+// Also add this to ensure the directories exist on startup
+function ensureDirectoriesExist() {
+  const directories = [
+    path.join(__dirname, 'data'),
+    path.join(__dirname, 'logs'),
+    path.join(__dirname, 'grafana', 'provisioning', 'dashboards')
+  ];
+  
+  directories.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Created directory: ${dir}`);
+    }
+  });
+}
+
+// Call this early in your server startup
+ensureDirectoriesExist();
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)
@@ -6090,6 +6261,22 @@ app.use((err, req, res, next) => {
 app.use((req, res, next) => {
   res.status(404).send("Sorry, that route doesn't exist.")
 })
+
+// Refresh pricing data every 6 hours
+cron.schedule('0 */6 * * *', () => {
+  refreshPricingData();
+});
+
+// Refresh pricing data every hour during peak hours (7-9 AM and 5-9 PM)
+cron.schedule('0 7-9,17-21 * * *', () => {
+  console.log('Running peak-hour pricing data refresh...');
+  refreshPricingData();
+});
+
+// Clean up stale settings state every 4 hours
+cron.schedule('0 */4 * * *', cleanupCurrentSettingsState);
+
+console.log('✅ Dynamic pricing cron jobs initialized');
 
 // Start the server
 app.listen(port, () => {

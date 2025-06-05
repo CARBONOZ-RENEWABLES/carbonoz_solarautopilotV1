@@ -58,53 +58,6 @@
       "cooldownMinutes": 240
     }
   ],
-  "warningHistory": [
-    {
-      "id": "instance-1749122648619",
-      "warningTypeId": "pv-underperformance",
-      "timestamp": "2025-06-05T11:24:08.619Z",
-      "systemState": {
-        "battery_soc": 100,
-        "pv_power": 144,
-        "load": 104,
-        "grid_voltage": 227.2,
-        "grid_power": 0,
-        "inverter_state": "Solar/Battery",
-        "timestamp": "2025-06-05 13:24:03"
-      },
-      "title": "PV System Underperformance",
-      "description": "PV power generation is lower than expected",
-      "priority": "medium",
-      "triggered": {
-        "parameter": "pv_power",
-        "value": 144,
-        "threshold": 500,
-        "condition": "lt"
-      }
-    },
-    {
-      "id": "instance-1747649700904",
-      "warningTypeId": "high-load",
-      "timestamp": "2025-05-19T10:15:00.904Z",
-      "systemState": {
-        "battery_soc": 63,
-        "pv_power": 9498,
-        "load": 9602,
-        "grid_voltage": 224.1,
-        "grid_power": 0,
-        "inverter_state": "Solar/Battery",
-        "timestamp": "2025-05-19 12:15:00"
-      },
-      "title": "High Load",
-      "description": "System load is unusually high",
-      "priority": "medium",
-      "triggered": {
-        "parameter": "load",
-        "value": 9602,
-        "threshold": 8000,
-        "condition": "gt"
-      }
-    }
-  ],
+  "warningHistory": [],
   "maxHistoryItems": 100
 }

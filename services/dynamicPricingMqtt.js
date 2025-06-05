@@ -4,6 +4,7 @@
  * Specialized MQTT functions for dynamic pricing integration
  * This module extends the core dynamicPricingService with specific MQTT functionality
  * IMPORTANT: Commands will only be sent when Learner Mode is active
+ * UPDATED: Now reads configuration from Home Assistant add-on options
  * FIXED: Timezone handling issues resolved
  */
 
@@ -11,13 +12,55 @@ const fs = require('fs');
 const path = require('path');
 const mqtt = require('mqtt');
 
-// Load options to get MQTT configuration
+// Load options to get MQTT configuration from Home Assistant add-on
 function getMqttConfig() {
   try {
-    // Try to read from options.json in the root directory
+    // Read configuration from Home Assistant add-on options
+    const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+    
+    return {
+      host: options.mqtt_host || 'localhost',
+      port: options.mqtt_port || 1883,
+      username: options.mqtt_username || '',
+      password: options.mqtt_password || '',
+      mqttTopicPrefix: options.mqtt_topic_prefix || 'energy',
+      inverterNumber: options.inverter_number || 1
+    };
+  } catch (error) {
+    console.error('Error loading MQTT configuration from Home Assistant add-on:', error.message);
+    // Fallback to default configuration if options.json cannot be read
+    return {
+      host: 'localhost',
+      port: 1883,
+      username: '',
+      password: '',
+      mqttTopicPrefix: 'energy',
+      inverterNumber: 1
+    };
+  }
+}
+
+// Alternative function that checks if running in Home Assistant add-on environment
+function getMqttConfigWithFallback() {
+  try {
+    // First try Home Assistant add-on path
+    if (fs.existsSync('/data/options.json')) {
+      const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+      console.log('Using Home Assistant add-on configuration');
+      
+      return {
+        host: options.mqtt_host || 'localhost',
+        port: options.mqtt_port || 1883,
+        username: options.mqtt_username || '',
+        password: options.mqtt_password || '',
+        mqttTopicPrefix: options.mqtt_topic_prefix || 'energy',
+        inverterNumber: options.inverter_number || 1
+      };
+    }
+    
+    // Fallback to original paths if not in Home Assistant
     let optionsPath = path.join(__dirname, '..', 'options.json');
     
-    // If not found, try different paths
     if (!fs.existsSync(optionsPath)) {
       optionsPath = path.join(process.cwd(), 'options.json');
     }
@@ -35,6 +78,7 @@ function getMqttConfig() {
     }
     
     const options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
+    console.log('Using local configuration file');
     
     return {
       host: options.mqtt_host || 'localhost',
@@ -54,6 +98,23 @@ function getMqttConfig() {
       mqttTopicPrefix: 'energy',
       inverterNumber: 1
     };
+  }
+}
+
+// Function to check if running in Home Assistant add-on environment
+function isHomeAssistantAddon() {
+  return fs.existsSync('/data/options.json');
+}
+
+// Function to get all options (not just MQTT config)
+function getAllOptions() {
+  try {
+    // Read configuration from Home Assistant add-on options
+    const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+    return options;
+  } catch (error) {
+    console.error('Error loading options from Home Assistant add-on:', error.message);
+    return {};
   }
 }
 
@@ -408,14 +469,98 @@ function isValidTimezone(timezone) {
   }
 }
 
+/**
+ * Create MQTT client with Home Assistant add-on configuration
+ * @returns {Object|null} Connected MQTT client or null if failed
+ */
+function createMqttClient() {
+  try {
+    const config = getMqttConfig();
+    
+    const clientOptions = {
+      host: config.host,
+      port: config.port,
+      connectTimeout: 60 * 1000,
+      reconnectPeriod: 1000,
+    };
+    
+    // Add authentication if provided
+    if (config.username && config.password) {
+      clientOptions.username = config.username;
+      clientOptions.password = config.password;
+    }
+    
+    const client = mqtt.connect(`mqtt://${config.host}:${config.port}`, clientOptions);
+    
+    client.on('connect', () => {
+      console.log(`Connected to MQTT broker at ${config.host}:${config.port}`);
+    });
+    
+    client.on('error', (error) => {
+      console.error('MQTT connection error:', error);
+    });
+    
+    client.on('reconnect', () => {
+      console.log('Reconnecting to MQTT broker...');
+    });
+    
+    return client;
+  } catch (error) {
+    console.error('Error creating MQTT client:', error);
+    return null;
+  }
+}
+
+/**
+ * Get dynamic pricing configuration from Home Assistant options
+ * @returns {Object} Dynamic pricing configuration
+ */
+function getDynamicPricingConfig() {
+  try {
+    const options = getAllOptions();
+    
+    return {
+      enabled: options.dynamic_pricing_enabled || false,
+      priceThreshold: options.price_threshold || 0.10,
+      timezone: options.timezone || 'Europe/Berlin',
+      targetSoc: options.target_soc || 80,
+      minSoc: options.min_soc || 20,
+      maxChargingCurrent: options.max_charging_current || 32,
+      minChargingCurrent: options.min_charging_current || 16,
+      priceSource: options.price_source || 'awattar',
+      chargeSchedule: options.charge_schedule || [],
+      learnerMode: options.learner_mode || false
+    };
+  } catch (error) {
+    console.error('Error loading dynamic pricing configuration:', error);
+    return {
+      enabled: false,
+      priceThreshold: 0.10,
+      timezone: 'Europe/Berlin',
+      targetSoc: 80,
+      minSoc: 20,
+      maxChargingCurrent: 32,
+      minChargingCurrent: 16,
+      priceSource: 'awattar',
+      chargeSchedule: [],
+      learnerMode: false
+    };
+  }
+}
+
 module.exports = {
   sendGridChargeCommand,
   setBatteryChargingParameter,
   adjustChargingCurrent,
   getMqttConfig,
+  getMqttConfigWithFallback,
+  getAllOptions,
+  isHomeAssistantAddon,
   isLearnerModeActive,
   logPreventedAction,
   simulateGridChargeCommand,
   getCurrentTimeInTimezone,
-  isValidTimezone
+  isValidTimezone,
+  createMqttClient,
+  getDynamicPricingConfig
 };

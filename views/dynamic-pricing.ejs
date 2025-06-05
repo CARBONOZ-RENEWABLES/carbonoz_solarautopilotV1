@@ -1515,7 +1515,39 @@ body.dark-mode .form-select:focus {
     .pricing-chart-container {
         height: 200px;
     }
+
 }
+
+
+body.dark-mode .actions-log-item {
+            background-color: rgba(38, 41, 51, 1) !important;
+            border: 1px solid rgba(55, 60, 75, 1);
+            color: #f5f6fa;
+        }
+
+        body.dark-mode .actions-log-item .action-time {
+            color: #bdc3c7 !important;
+        }
+
+        body.dark-mode .actions-log-item .action-text {
+            color: #f5f6fa !important;
+        }
+
+
+        /* If you want to be more specific, you can also add this rule */
+        body.dark-mode #actionsLog > div {
+            background-color: rgba(38, 41, 51, 1) !important;
+            border: 1px solid rgba(55, 60, 75, 1);
+            color: #f5f6fa;
+        }
+
+        body.dark-mode #actionsLog > div > div:first-child {
+            color: #bdc3c7 !important; /* Time color */
+        }
+
+        body.dark-mode #actionsLog > div > div:last-child {
+            color: #f5f6fa !important; /* Action text color */
+        }
     </style>
 </head>
 <body>
@@ -1773,9 +1805,9 @@ body.dark-mode .form-select:focus {
            
                    
         </div>
-        <script>
-    // Fixed Dynamic Pricing Frontend JavaScript
-// This replaces the script section in your HTML file
+ <script>
+    // Complete Fixed Dynamic Pricing Frontend JavaScript
+// Replace the script section in your dynamic-pricing.ejs file with this
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize variables
@@ -1825,6 +1857,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Main initialization function
     async function init() {
+        // Load available countries and timezones first
+        await loadCountriesAndTimezones();
+        
         // Load configuration
         await loadConfig();
         
@@ -1843,6 +1878,80 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set up periodic refreshes
         setInterval(updateSystemState, 60000); // Update system state every minute
         setInterval(loadPricingData, 300000); // Refresh pricing data every 5 minutes
+        
+        // Initial automatic price refresh
+        setTimeout(() => refreshPrices(true), 2000); // Auto-refresh prices after 2 seconds
+        
+        // Load actions log
+        setTimeout(loadActionsLog, 3000);
+    }
+
+    // New function to load countries and timezones
+    async function loadCountriesAndTimezones() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/countries-timezones');
+            
+            if (!response.ok) {
+                throw new Error('Failed to load countries and timezones');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                populateCountrySelect(data.countries);
+                populateTimezoneSelect(data.timezones);
+                console.log(`Loaded ${data.countries.length} countries and ${data.timezones.length} timezones`);
+            } else {
+                throw new Error(data.error || 'Failed to load countries and timezones');
+            }
+        } catch (error) {
+            console.error('Error loading countries and timezones:', error);
+            showNotification('Error loading countries: ' + error.message, 'warning');
+        }
+    }
+
+    // Populate country dropdown
+    function populateCountrySelect(countries) {
+        const countrySelect = document.getElementById('country');
+        countrySelect.innerHTML = ''; // Clear existing options
+        
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country.code;
+            option.textContent = `${country.name} (${country.code})`;
+            option.dataset.timezone = country.timezone;
+            option.dataset.currency = country.currency;
+            countrySelect.appendChild(option);
+        });
+        
+        console.log(`Populated country dropdown with ${countries.length} countries`);
+        
+        // Add event listener to auto-update timezone when country changes
+        countrySelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const autoTimezone = selectedOption.dataset.timezone;
+            
+            if (autoTimezone) {
+                const timezoneSelect = document.getElementById('timezone');
+                timezoneSelect.value = autoTimezone;
+                console.log(`Auto-selected timezone: ${autoTimezone} for country: ${this.value}`);
+            }
+        });
+    }
+
+    // Populate timezone dropdown
+    function populateTimezoneSelect(timezones) {
+        const timezoneSelect = document.getElementById('timezone');
+        timezoneSelect.innerHTML = ''; // Clear existing options
+        
+        timezones.forEach(timezone => {
+            const option = document.createElement('option');
+            option.value = timezone;
+            option.textContent = timezone.replace('_', ' ');
+            timezoneSelect.appendChild(option);
+        });
+        
+        console.log(`Populated timezone dropdown with ${timezones.length} timezones`);
     }
 
     // Load configuration from API
@@ -1850,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showNotification('Loading configuration...', 'info');
         
         try {
-            const response = await fetch('/api/dynamic-pricing/settings');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings');
             
             if (!response.ok) {
                 throw new Error('Failed to load configuration');
@@ -1896,6 +2005,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Render charging periods
         renderChargingPeriods();
+        
+        console.log(`Configuration updated: Country=${config.country}, Timezone=${currentTimezone}, Enabled=${config.enabled}`);
     }
 
     // Render charging time periods UI
@@ -1944,7 +2055,7 @@ document.addEventListener('DOMContentLoaded', function() {
         isLoading = true;
         
         try {
-            const response = await fetch('/api/dynamic-pricing/pricing-data');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
             
             if (!response.ok) {
                 throw new Error('Failed to load pricing data');
@@ -1973,17 +2084,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
                 
+                // If data was auto-refreshed, show notification
+                if (data.autoRefreshed) {
+                    showNotification('Pricing data automatically refreshed', 'info');
+                }
+                
+                // If no pricing data or very old data, trigger automatic refresh
+                if (pricingData.length === 0 || isDataStale(data.lastUpdate)) {
+                    console.log('Pricing data is stale or missing, triggering automatic refresh...');
+                    setTimeout(() => refreshPrices(true), 1000);
+                }
+                
                 updatePricingDisplay();
                 updateBestTimesList();
+                
+                console.log(`Loaded ${pricingData.length} pricing data points for timezone ${currentTimezone}`);
             } else {
                 throw new Error(data.error || 'Failed to load pricing data');
             }
         } catch (error) {
             console.error('Error loading pricing data:', error);
             showNotification('Error loading pricing data: ' + error.message, 'danger');
+            
+            // Trigger automatic refresh if data loading fails
+            setTimeout(() => refreshPrices(true), 5000);
         } finally {
             isLoading = false;
         }
+    }
+
+    // Helper function to check if data is stale
+    function isDataStale(lastUpdateString) {
+        if (!lastUpdateString) return true;
+        
+        const lastUpdate = new Date(lastUpdateString);
+        const now = new Date();
+        const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+        
+        // Consider data stale if it's older than 6 hours
+        return hoursSinceUpdate > 6;
     }
 
     // Initialize Chart.js chart
@@ -2160,7 +2299,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattedDate = priceTime.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
-                timeZone: currentTimezone  // ← This ensures consistent timezone
+                timeZone: currentTimezone
             });
             
             html += `
@@ -2183,7 +2322,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function updateSystemState() {
         try {
             // Get battery state from API
-            const response = await fetch('/api/system-state');
+            const response = await fetch('<%= ingress_path %>/api/system-state');
             
             if (!response.ok) {
                 throw new Error('Failed to load system state');
@@ -2327,7 +2466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         try {
-            const response = await fetch('/api/dynamic-pricing/settings', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2386,13 +2525,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return periods;
     }
 
-    // Manually refresh price data
-    async function refreshPrices() {
-        refreshDataBtn.innerHTML = '<span class="loading"></span> Refreshing...';
-        refreshDataBtn.disabled = true;
+    // Enhanced refresh prices function with automatic retry
+    async function refreshPrices(isAutomatic = false) {
+        if (!isAutomatic) {
+            refreshDataBtn.innerHTML = '<span class="loading"></span> Refreshing...';
+            refreshDataBtn.disabled = true;
+        }
         
         try {
-            const response = await fetch('/api/dynamic-pricing/update-prices', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/update-prices', {
                 method: 'POST'
             });
             
@@ -2403,22 +2544,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                showNotification('Price update initiated. It may take a moment to complete.', 'info');
+                if (!isAutomatic) {
+                    showNotification('Price update initiated. Data refreshed successfully.', 'success');
+                }
                 
-                // Wait a moment and then reload pricing data
-                setTimeout(async () => {
-                    await loadPricingData();
-                    refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
-                    refreshDataBtn.disabled = false;
-                }, 5000);
+                // Reload pricing data immediately
+                await loadPricingData();
             } else {
                 throw new Error(data.error || 'Failed to refresh prices');
             }
         } catch (error) {
             console.error('Error refreshing prices:', error);
-            showNotification('Error refreshing prices: ' + error.message, 'danger');
-            refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
-            refreshDataBtn.disabled = false;
+            if (!isAutomatic) {
+                showNotification('Error refreshing prices: ' + error.message, 'danger');
+            }
+        } finally {
+            if (!isAutomatic) {
+                refreshDataBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Prices';
+                refreshDataBtn.disabled = false;
+            }
         }
     }
 
@@ -2431,7 +2575,7 @@ document.addEventListener('DOMContentLoaded', function() {
         actionBtn.disabled = true;
         
         try {
-            const response = await fetch('/api/dynamic-pricing/settings', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2470,7 +2614,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load actions log
     async function loadActionsLog() {
         try {
-            const response = await fetch('/api/dynamic-pricing/actions-log?limit=5');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/actions-log?limit=5');
             
             if (!response.ok) {
                 throw new Error('Failed to load actions log');
@@ -2522,7 +2666,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Refresh data button
         refreshDataBtn.addEventListener('click', function() {
-            refreshPrices();
+            refreshPrices(false); // Manual refresh
         });
         
         // Enable charging button
@@ -2550,15 +2694,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Timezone selection changed to:', this.value);
             // The actual timezone update will happen when configuration is saved
         });
+        
+        // Set up automatic price refresh every hour
+        setInterval(() => {
+            console.log('Automatic hourly price refresh...');
+            refreshPrices(true);
+        }, 3600000); // Every hour
     }
-
-    // Load actions log on initialization
-    setTimeout(loadActionsLog, 2000);
 
     // Make hideNotification available globally
     window.hideNotification = hideNotification;
 });
-        </script>
+ </script>
+
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
