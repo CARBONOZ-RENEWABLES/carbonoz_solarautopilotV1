@@ -1,4 +1,4 @@
-// routes/dynamicPricingRoutes.js - COMPLETE FIXED VERSION
+// routes/dynamicPricingRoutes.js - COMPLETE FIXED VERSION WITH REAL DATA SUPPORT
 
 const express = require('express');
 const router = express.Router();
@@ -8,7 +8,7 @@ const path = require('path');
 // Import the pricing APIs to get country data
 const pricingApis = require('../services/pricingApis');
 
-// Configuration file path - adjust to match your project structure
+// Configuration file path
 const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, '..', 'data', 'dynamic_pricing_config.json');
 
 // Ensure config directory exists
@@ -31,25 +31,23 @@ function ensureConfigExists() {
       scheduledCharging: false,
       chargingHours: [],
       lastUpdate: null,
-      pricingData: generateSamplePricingData(), // Add sample data for testing
+      pricingData: [], // Start with empty data, will fetch real or generate sample as needed
       timezone: 'Europe/Berlin'
     };
     
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default dynamic pricing configuration file with sample data');
+    console.log('Created default dynamic pricing configuration');
   }
 }
 
-// Generate sample pricing data for testing - FIXED timezone handling
+// Generate sample pricing data for testing when no API key - FIXED timezone handling
 function generateSamplePricingData() {
   const prices = [];
-  const timezone = 'Europe/Berlin'; // Use consistent timezone
+  const timezone = 'Europe/Berlin';
   
-  // Get current time in the target timezone
   const now = new Date();
   const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
   
-  // Start from the beginning of current hour in target timezone
   const startHour = new Date(nowInTimezone);
   startHour.setMinutes(0, 0, 0);
   
@@ -58,7 +56,6 @@ function generateSamplePricingData() {
     const timestamp = new Date(startHour);
     timestamp.setHours(timestamp.getHours() + i);
     
-    // Create realistic price pattern
     const hour = timestamp.getHours();
     let basePrice = 0.10;
     
@@ -72,18 +69,17 @@ function generateSamplePricingData() {
       basePrice = 0.08; // Midday valley
     }
     
-    // Add randomness
     const randomFactor = 0.85 + (Math.random() * 0.3);
     const price = basePrice * randomFactor;
     
-    // Store with timezone information for proper handling
     prices.push({
       timestamp: timestamp.toISOString(),
       price: parseFloat(price.toFixed(4)),
       currency: 'EUR',
       unit: 'kWh',
       timezone: timezone,
-      localHour: hour // Store the intended local hour
+      localHour: hour,
+      source: 'sample' // Mark as sample data
     });
   }
   
@@ -138,7 +134,7 @@ function calculateLowPricePeriods(pricingData, threshold, timezone = 'Europe/Ber
       if (!currentGroup) {
         currentGroup = {
           start: period.timestamp,
-          end: new Date(periodTime.getTime() + 3600000).toISOString(), // +1 hour
+          end: new Date(periodTime.getTime() + 3600000).toISOString(),
           avgPrice: period.price,
           timezone: timezone
         };
@@ -146,13 +142,9 @@ function calculateLowPricePeriods(pricingData, threshold, timezone = 'Europe/Ber
         const currentEnd = new Date(currentGroup.end);
         
         if (Math.abs(periodTime.getTime() - currentEnd.getTime()) <= 3600000) {
-          // Consecutive hour, extend the group
           currentGroup.end = new Date(periodTime.getTime() + 3600000).toISOString();
-          // Recalculate average price
-          const duration = (new Date(currentGroup.end).getTime() - new Date(currentGroup.start).getTime()) / 3600000;
-          currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2; // Simplified average
+          currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2;
         } else {
-          // New group
           groupedPeriods.push(currentGroup);
           currentGroup = {
             start: period.timestamp,
@@ -186,192 +178,13 @@ function isOlderThan(timestamp, hours) {
   return diffHours > hours;
 }
 
-// Enhanced sample data generation that ensures current hour is included
-function generateSamplePricingDataForTimezone(timezone) {
-  const prices = [];
-  
-  // Get current time in the target timezone
-  const now = new Date();
-  const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-  
-  // Start from the beginning of current hour in target timezone
-  const startHour = new Date(nowInTimezone);
-  startHour.setMinutes(0, 0, 0);
-  
-  // Generate 48 hours of sample data (current + next 47 hours)
-  for (let i = 0; i < 48; i++) {
-    const timestamp = new Date(startHour);
-    timestamp.setHours(timestamp.getHours() + i);
-    
-    // Create realistic price pattern
-    const hour = timestamp.getHours();
-    const dayOfWeek = timestamp.getDay(); // 0 = Sunday, 6 = Saturday
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    
-    let basePrice = 0.10;
-    
-    // Time-of-day pricing patterns
-    if (hour >= 7 && hour <= 9) {
-      basePrice = 0.18; // Morning peak
-    } else if (hour >= 17 && hour <= 21) {
-      basePrice = 0.20; // Evening peak
-    } else if (hour >= 1 && hour <= 5) {
-      basePrice = 0.06; // Night valley
-    } else if (hour >= 11 && hour <= 14) {
-      basePrice = 0.08; // Midday valley (solar abundant)
-    }
-    
-    // Weekend patterns (generally lower demand)
-    if (isWeekend) {
-      basePrice *= 0.85;
-    }
-    
-    // Add realistic randomness (-15% to +15%)
-    const randomFactor = 0.85 + (Math.random() * 0.3);
-    const price = basePrice * randomFactor;
-    
-    prices.push({
-      timestamp: timestamp.toISOString(),
-      price: parseFloat(price.toFixed(4)),
-      currency: 'EUR',
-      unit: 'kWh',
-      timezone: timezone,
-      localHour: hour,
-      isWeekend: isWeekend
-    });
-  }
-  
-  console.log(`Generated ${prices.length} price points starting from ${startHour.toISOString()} in timezone ${timezone}`);
-  
-  return prices;
-}
-
 // Helper function to get country names
 function getCountryName(countryCode) {
   const countryNames = {
-    // Europe
-    'DE': 'Germany',
-    'FR': 'France',
-    'ES': 'Spain',
-    'IT': 'Italy',
-    'UK': 'United Kingdom',
-    'NL': 'Netherlands',
-    'BE': 'Belgium',
-    'AT': 'Austria',
-    'CH': 'Switzerland',
-    'DK': 'Denmark',
-    'NO': 'Norway',
-    'SE': 'Sweden',
-    'FI': 'Finland',
-    'PL': 'Poland',
-    'CZ': 'Czech Republic',
-    'SK': 'Slovakia',
-    'HU': 'Hungary',
-    'RO': 'Romania',
-    'BG': 'Bulgaria',
-    'GR': 'Greece',
-    'PT': 'Portugal',
-    'IE': 'Ireland',
-    'LU': 'Luxembourg',
-    'IS': 'Iceland',
-    'MT': 'Malta',
-    'CY': 'Cyprus',
-    'EE': 'Estonia',
-    'LV': 'Latvia',
-    'LT': 'Lithuania',
-    'SI': 'Slovenia',
-    'HR': 'Croatia',
-    'RS': 'Serbia',
-    'ME': 'Montenegro',
-    'AL': 'Albania',
-    'MK': 'North Macedonia',
-    'BA': 'Bosnia and Herzegovina',
-    
-    // North America
-    'US': 'United States',
-    'CA': 'Canada',
-    'MX': 'Mexico',
-    
-    // South America
-    'BR': 'Brazil',
-    'AR': 'Argentina',
-    'CL': 'Chile',
-    'CO': 'Colombia',
-    'PE': 'Peru',
-    'UY': 'Uruguay',
-    'PY': 'Paraguay',
-    'BO': 'Bolivia',
-    'EC': 'Ecuador',
-    'VE': 'Venezuela',
-    
-    // Asia-Pacific
-    'AU': 'Australia',
-    'NZ': 'New Zealand',
-    'JP': 'Japan',
-    'KR': 'South Korea',
-    'CN': 'China',
-    'IN': 'India',
-    'SG': 'Singapore',
-    'MY': 'Malaysia',
-    'TH': 'Thailand',
-    'PH': 'Philippines',
-    'ID': 'Indonesia',
-    'VN': 'Vietnam',
-    'HK': 'Hong Kong',
-    'TW': 'Taiwan',
-    'PK': 'Pakistan',
-    'BD': 'Bangladesh',
-    'LK': 'Sri Lanka',
-    
-    // Middle East
-    'SA': 'Saudi Arabia',
-    'AE': 'United Arab Emirates',
-    'QA': 'Qatar',
-    'KW': 'Kuwait',
-    'BH': 'Bahrain',
-    'OM': 'Oman',
-    'IL': 'Israel',
-    'JO': 'Jordan',
-    'LB': 'Lebanon',
-    'TR': 'Turkey',
-    'IR': 'Iran',
-    
-    // Africa
-    'ZA': 'South Africa',
-    'EG': 'Egypt',
-    'NG': 'Nigeria',
-    'KE': 'Kenya',
-    'GH': 'Ghana',
-    'MA': 'Morocco',
-    'TN': 'Tunisia',
-    'DZ': 'Algeria',
-    'ET': 'Ethiopia',
-    'TZ': 'Tanzania',
-    'UG': 'Uganda',
-    'ZW': 'Zimbabwe',
-    'BW': 'Botswana',
-    'NA': 'Namibia',
-    'MU': 'Mauritius',
-    'SC': 'Seychelles',
-    'MG': 'Madagascar',
-    
-    // Caribbean
-    'KY': 'Cayman Islands',
-    'JM': 'Jamaica',
-    'BB': 'Barbados',
-    'TT': 'Trinidad and Tobago',
-    'BS': 'Bahamas',
-    'BM': 'Bermuda',
-    'CU': 'Cuba',
-    'DO': 'Dominican Republic',
-    'PR': 'Puerto Rico',
-    
-    // Pacific Islands
-    'FJ': 'Fiji',
-    'PG': 'Papua New Guinea',
-    'NC': 'New Caledonia',
-    'PF': 'French Polynesia',
-    'GU': 'Guam'
+    'DE': 'Germany', 'FR': 'France', 'ES': 'Spain', 'IT': 'Italy',
+    'UK': 'United Kingdom', 'NL': 'Netherlands', 'BE': 'Belgium',
+    'AT': 'Austria', 'CH': 'Switzerland', 'DK': 'Denmark',
+    'NO': 'Norway', 'SE': 'Sweden', 'FI': 'Finland', 'PL': 'Poland'
   };
   
   return countryNames[countryCode] || countryCode;
@@ -379,16 +192,12 @@ function getCountryName(countryCode) {
 
 // API Routes
 
-// NEW ROUTE: Get available countries and timezones
+// Get available countries and timezones
 router.get('/countries-timezones', (req, res) => {
   try {
-    // Get all supported countries from pricingApis
     const supportedCountries = pricingApis.getSupportedCountries();
-    
-    // Extract unique timezones
     const timezones = [...new Set(supportedCountries.map(country => country.timezone))].sort();
     
-    // Format countries for dropdown
     const countries = supportedCountries.map(country => ({
       code: country.code,
       name: getCountryName(country.code),
@@ -444,7 +253,7 @@ router.get('/settings', (req, res) => {
 });
 
 // Update dynamic pricing settings
-router.post('/settings', (req, res) => {
+router.post('/settings', async (req, res) => {
   try {
     const currentConfig = loadConfig();
     
@@ -473,7 +282,6 @@ router.post('/settings', (req, res) => {
     if (gridChargingOverride !== undefined) {
       console.log('Grid charging override command:', gridChargingOverride ? 'ENABLE' : 'DISABLE');
       
-      // Send MQTT command if available
       if (global.mqttClient && global.mqttClient.connected) {
         const dynamicPricingMqtt = require('../services/dynamicPricingMqtt');
         const success = dynamicPricingMqtt.sendGridChargeCommand(global.mqttClient, gridChargingOverride, currentConfig);
@@ -509,11 +317,11 @@ router.post('/settings', (req, res) => {
       updatedConfig.apiKey = apiKey;
     }
     
-    // Regenerate sample data with new timezone if timezone changed
-    if (timezone && timezone !== currentConfig.timezone) {
-      console.log(`Timezone changed to ${timezone}, regenerating sample data...`);
-      updatedConfig.pricingData = generateSamplePricingDataForTimezone(timezone);
-      updatedConfig.lastUpdate = new Date().toISOString();
+    // If country or timezone changed, clear old pricing data to force refresh with new settings
+    if ((country && country !== currentConfig.country) || (timezone && timezone !== currentConfig.timezone)) {
+      console.log(`Country/timezone changed, clearing old pricing data...`);
+      updatedConfig.pricingData = [];
+      updatedConfig.lastUpdate = null;
     }
     
     const saved = saveConfig(updatedConfig);
@@ -546,8 +354,8 @@ router.post('/settings', (req, res) => {
   }
 });
 
-// Get pricing data - ENHANCED with automatic refresh
-router.get('/pricing-data', (req, res) => {
+// Get pricing data - ENHANCED with real data support
+router.get('/pricing-data', async (req, res) => {
   try {
     const config = loadConfig();
     
@@ -563,15 +371,34 @@ router.get('/pricing-data', (req, res) => {
     const timezone = config.timezone || 'Europe/Berlin';
     
     // Check if data is stale or missing
-    const isDataStale = !lastUpdate || !pricingData.length || isOlderThan(lastUpdate, 6); // 6 hours
-    const isDataVeryOld = !lastUpdate || isOlderThan(lastUpdate, 24); // 24 hours
+    const isDataStale = !lastUpdate || !pricingData.length || isOlderThan(lastUpdate, 6);
+    const isDataVeryOld = !lastUpdate || isOlderThan(lastUpdate, 24);
     
-    // Automatically refresh stale data
+    // Automatically refresh stale data or fetch real data if API key is available
     if (isDataStale || isDataVeryOld) {
-      console.log(`Pricing data is ${isDataVeryOld ? 'very old' : 'stale'}, generating fresh sample data...`);
+      console.log(`Pricing data is ${isDataVeryOld ? 'very old' : 'stale'}, fetching fresh data...`);
       
-      // Generate fresh sample data
-      pricingData = generateSamplePricingDataForTimezone(timezone);
+      try {
+        // Try to fetch real data first if API key is available
+        if (config.apiKey && config.apiKey.trim() !== '') {
+          console.log(`Fetching real pricing data for ${config.country} using API key...`);
+          pricingData = await pricingApis.fetchElectricityPrices(config);
+          
+          if (pricingData && pricingData.length > 0) {
+            // Mark as real data
+            pricingData = pricingData.map(p => ({ ...p, source: 'real' }));
+            console.log(`✅ Retrieved ${pricingData.length} real price points for ${config.country}`);
+          } else {
+            throw new Error('No real data returned from API');
+          }
+        } else {
+          throw new Error('No API key provided');
+        }
+      } catch (realDataError) {
+        console.log(`❌ Real data fetch failed: ${realDataError.message}, generating sample data...`);
+        // Fallback to sample data
+        pricingData = generateSamplePricingData();
+      }
       
       // Update config with new data
       config.pricingData = pricingData;
@@ -579,14 +406,15 @@ router.get('/pricing-data', (req, res) => {
       
       // Save updated config
       saveConfig(config);
-      
-      console.log(`Fresh pricing data generated for ${config.country} in timezone ${timezone}`);
     }
     
     // Calculate low price periods with timezone awareness
     const lowPricePeriods = calculateLowPricePeriods(pricingData, config.priceThreshold, timezone);
     
-    console.log(`Pricing data served: ${pricingData.length} data points, ${lowPricePeriods.length} low price periods for timezone ${timezone}`);
+    // Determine data source
+    const isRealData = pricingData.length > 0 && pricingData[0].source === 'real';
+    
+    console.log(`Pricing data served: ${pricingData.length} ${isRealData ? 'REAL' : 'SAMPLE'} data points, ${lowPricePeriods.length} low price periods for timezone ${timezone}`);
     
     res.json({
       success: true,
@@ -594,7 +422,9 @@ router.get('/pricing-data', (req, res) => {
       lowPricePeriods,
       lastUpdate: config.lastUpdate,
       timezone: timezone,
-      autoRefreshed: isDataStale || isDataVeryOld
+      autoRefreshed: isDataStale || isDataVeryOld,
+      dataSource: isRealData ? 'real' : 'sample',
+      hasApiKey: !!(config.apiKey && config.apiKey.trim() !== '')
     });
   } catch (error) {
     console.error('Error retrieving pricing data:', error);
@@ -605,31 +435,63 @@ router.get('/pricing-data', (req, res) => {
   }
 });
 
-// Enhanced manual price update with forced refresh
+// Enhanced manual price update with real data support
 router.post('/update-prices', async (req, res) => {
   try {
+    const config = loadConfig();
+    if (!config) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to load configuration'
+      });
+    }
+    
+    const timezone = config.timezone || 'Europe/Berlin';
+    
+    console.log(`Manual price update requested for country: ${config.country}, timezone: ${timezone}`);
+    
+    let pricingData = [];
+    let dataSource = 'sample';
+    
+    try {
+      // Try to fetch real data first if API key is available
+      if (config.apiKey && config.apiKey.trim() !== '') {
+        console.log(`Fetching real pricing data using API key...`);
+        pricingData = await pricingApis.fetchElectricityPrices(config);
+        
+        if (pricingData && pricingData.length > 0) {
+          dataSource = 'real';
+          pricingData = pricingData.map(p => ({ ...p, source: 'real' }));
+          console.log(`✅ Manual update: Retrieved ${pricingData.length} real price points`);
+        } else {
+          throw new Error('No real data returned from API');
+        }
+      } else {
+        throw new Error('No API key provided');
+      }
+    } catch (realDataError) {
+      console.log(`❌ Real data fetch failed: ${realDataError.message}, generating sample data...`);
+      // Fallback to sample data
+      pricingData = generateSamplePricingData();
+      dataSource = 'sample';
+    }
+    
+    // Update config
+    config.pricingData = pricingData;
+    config.lastUpdate = new Date().toISOString();
+    
+    // Save updated config
+    saveConfig(config);
+    
+    console.log(`Manual pricing data update completed for timezone ${timezone} with ${pricingData.length} ${dataSource} data points`);
+    
     // Respond immediately
     res.json({
       success: true,
-      message: 'Price update initiated. Fresh data generated.'
+      message: `Price update completed. ${dataSource === 'real' ? 'Real data retrieved' : 'Sample data generated'}.`,
+      dataSource: dataSource,
+      dataPoints: pricingData.length
     });
-    
-    // Generate new sample data with proper timezone handling
-    const config = loadConfig();
-    if (config) {
-      const timezone = config.timezone || 'Europe/Berlin';
-      
-      console.log(`Manual price update requested for country: ${config.country}, timezone: ${timezone}`);
-      
-      // Generate fresh data
-      config.pricingData = generateSamplePricingDataForTimezone(timezone);
-      config.lastUpdate = new Date().toISOString();
-      
-      // Save updated config
-      saveConfig(config);
-      
-      console.log(`Manual pricing data update completed for timezone ${timezone} with ${config.pricingData.length} data points`);
-    }
   } catch (error) {
     console.error('Error updating prices:', error);
     res.status(500).json({ 
@@ -653,7 +515,6 @@ router.post('/manual-charge', (req, res) => {
     
     console.log('Manual charging command:', enable ? 'ENABLE' : 'DISABLE');
     
-    // Send MQTT command if available
     if (global.mqttClient && global.mqttClient.connected) {
       const dynamicPricingMqtt = require('../services/dynamicPricingMqtt');
       const config = loadConfig();
@@ -694,7 +555,6 @@ router.get('/recommendation', (req, res) => {
       });
     }
     
-    // Get current system state
     const batterySoC = global.currentSystemState?.battery_soc || 0;
     const pricingData = config.pricingData || [];
     const timezone = config.timezone || 'Europe/Berlin';
@@ -712,7 +572,6 @@ router.get('/recommendation', (req, res) => {
       reason = 'Battery SoC below minimum level';
       details = { batterySoC, minimumSoC: config.minimumSoC };
     } else if (pricingData.length > 0) {
-      // Check current price with timezone awareness
       const now = new Date();
       const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
       
@@ -736,11 +595,11 @@ router.get('/recommendation', (req, res) => {
         if (isInLowPricePeriod) {
           shouldCharge = true;
           reason = 'Current electricity price is low';
-          details = { batterySoC, currentPrice: currentPrice.price, timezone };
+          details = { batterySoC, currentPrice: currentPrice.price, timezone, dataSource: currentPrice.source };
         } else {
           shouldCharge = false;
           reason = 'Current electricity price is not optimal';
-          details = { batterySoC, currentPrice: currentPrice.price, timezone };
+          details = { batterySoC, currentPrice: currentPrice.price, timezone, dataSource: currentPrice.source };
         }
       } else {
         shouldCharge = false;
@@ -794,12 +653,12 @@ router.get('/pricing-summary', (req, res) => {
           lowestPrice: null,
           highestPrice: null,
           pricesAvailable: false,
-          timezone: timezone
+          timezone: timezone,
+          dataSource: 'none'
         }
       });
     }
     
-    // Get current hour price with timezone awareness
     const now = new Date();
     const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
     
@@ -812,11 +671,13 @@ router.get('/pricing-summary', (req, res) => {
              nowInTimezone.getMonth() === priceInTimezone.getMonth();
     });
     
-    // Calculate statistics
     const prices = pricingData.map(p => p.price);
     const averagePrice = prices.reduce((acc, price) => acc + price, 0) / prices.length;
     const lowestPrice = Math.min(...prices);
     const highestPrice = Math.max(...prices);
+    
+    // Determine data source
+    const dataSource = pricingData.length > 0 && pricingData[0].source === 'real' ? 'real' : 'sample';
     
     res.json({
       success: true,
@@ -827,7 +688,8 @@ router.get('/pricing-summary', (req, res) => {
         highestPrice: highestPrice,
         pricesAvailable: true,
         timezone: timezone,
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
+        dataSource: dataSource
       }
     });
   } catch (error) {
@@ -839,10 +701,10 @@ router.get('/pricing-summary', (req, res) => {
   }
 });
 
-// Get actions log
+// Get actions log - MINIMAL logging to prevent HA crashes
 router.get('/actions-log', (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = Math.min(parseInt(req.query.limit) || 5, 10); // Max 10 entries
     const logFile = path.join(__dirname, '..', 'logs', 'dynamic_pricing.log');
     
     if (!fs.existsSync(logFile)) {
@@ -855,6 +717,7 @@ router.get('/actions-log', (req, res) => {
     const logContent = fs.readFileSync(logFile, 'utf8');
     const logLines = logContent.split('\n').filter(line => line.trim() !== '');
     
+    // Only keep recent lines to prevent file from growing too large
     const recentLines = logLines.slice(-limit).reverse();
     
     const actions = recentLines.map(line => {
