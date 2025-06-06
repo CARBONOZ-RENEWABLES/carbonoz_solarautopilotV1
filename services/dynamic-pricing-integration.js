@@ -1,11 +1,4 @@
-// services/dynamic-pricing-integration.js
-
-/**
- * Integration module for dynamic electricity pricing feature
- * This module connects the dynamic pricing UI with the backend services
- * and provides the necessary APIs for the Solar Autopilot application
- * FIXED: Timezone handling issues resolved
- */
+// services/dynamic-pricing-integration.js - REAL DATA SUPPORT WITH MINIMAL LOGGING
 
 const fs = require('fs');
 const path = require('path');
@@ -19,11 +12,7 @@ const LOG_FILE = path.join(__dirname, '..', 'logs', 'dynamic_pricing.log');
 let controllerInstance = null;
 
 /**
- * Initialize dynamic pricing integration in the main server.js file
- * @param {Object} app - Express application instance
- * @param {Object} mqttClient - MQTT client instance
- * @param {Object} currentSystemState - Current system state object
- * @returns {Object} Controller instance for dynamic pricing
+ * Initialize dynamic pricing integration with real data support
  */
 async function initializeDynamicPricing(app, mqttClient, currentSystemState) {
   try {
@@ -44,12 +33,11 @@ async function initializeDynamicPricing(app, mqttClient, currentSystemState) {
     // Initialize the controller
     controllerInstance = await createDynamicPricingController(mqttClient, currentSystemState);
     
-    // Set up periodic tasks
+    // Set up periodic tasks with reduced frequency
     setupPeriodicTasks(mqttClient, currentSystemState);
     
     console.log('✅ Dynamic pricing integration complete');
     
-    // Return the controller instance for use in server.js
     return controllerInstance;
   } catch (error) {
     console.error('❌ Error initializing dynamic pricing integration:', error);
@@ -63,13 +51,12 @@ async function initializeDynamicPricing(app, mqttClient, currentSystemState) {
 }
 
 /**
- * Create the dynamic pricing controller
+ * Create the dynamic pricing controller with real data support
  */
 async function createDynamicPricingController(mqttClient, currentSystemState) {
   // Ensure config file exists
   ensureConfigExists();
   
-  // Create controller instance
   const controller = {
     enabled: false,
     config: null,
@@ -79,15 +66,18 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
     // Initialize the controller
     async init() {
       try {
-        // Load the configuration
         this.config = loadConfig();
-        
-        // Check if the feature is enabled
         this.enabled = this.config && this.config.enabled;
         
-        // Log initialization status
         if (this.enabled) {
           console.log('Dynamic pricing feature is ENABLED');
+          
+          // Try to fetch real data if API key is available
+          if (this.config.apiKey && this.config.apiKey.trim() !== '') {
+            console.log('API key found, will attempt to fetch real data');
+          } else {
+            console.log('No API key found, will use sample data');
+          }
         } else {
           console.log('Dynamic pricing feature is DISABLED');
         }
@@ -106,7 +96,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
           return false;
         }
         
-        // Check if all required settings are present
         const hasCountry = !!this.config.country;
         const hasTimezone = !!this.config.timezone;
         const hasPricingData = this.config.pricingData && this.config.pricingData.length > 0;
@@ -135,7 +124,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
     // Send a grid charge command
     sendGridChargeCommand(enable) {
       try {
-        // Only send if the feature is enabled
         if (!this.enabled) {
           console.log('Dynamic pricing is disabled, not sending grid charge command');
           return false;
@@ -145,7 +133,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
         
         // Check if learner mode is active
         if (!dynamicPricingMqtt.isLearnerModeActive()) {
-          // Log what would have happened but don't send command
           return dynamicPricingMqtt.simulateGridChargeCommand(enable, this.config);
         }
         
@@ -157,14 +144,13 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
       }
     },
     
-    // Check if now is a good time to charge
+    // Check if now is a good time to charge with real/sample data awareness
     isGoodTimeToCharge() {
       try {
         if (!this.enabled || !this.config || !this.config.pricingData) {
           return false;
         }
         
-        // Get current time in the configured timezone
         const timezone = this.config.timezone || 'Europe/Berlin';
         const now = new Date();
         
@@ -172,7 +158,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
         const currentPrice = this.config.pricingData.find(p => {
           const priceTime = new Date(p.timestamp);
           
-          // Compare hours using the same timezone
           const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
           const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: timezone}));
           
@@ -188,10 +173,17 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
         // Calculate threshold
         const threshold = this.config.priceThreshold > 0 
           ? this.config.priceThreshold 
-          : this.calculateAveragePrice() * 0.75; // 25% below average
+          : this.calculateAveragePrice() * 0.75;
         
         // Check if current price is below threshold
-        return currentPrice.price <= threshold;
+        const isLowPrice = currentPrice.price <= threshold;
+        
+        // Log data source for debugging (minimal logging)
+        if (currentPrice.source === 'real') {
+          console.log(`Dynamic pricing: Using REAL data - Current price: ${currentPrice.price}, Threshold: ${threshold.toFixed(4)}`);
+        }
+        
+        return isLowPrice;
       } catch (error) {
         console.error('Error checking if now is a good time to charge:', error.message);
         return false;
@@ -205,15 +197,12 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
           return false;
         }
         
-        // Check if battery SoC is within range
         const batterySoC = this.currentSystemState?.battery_soc || 0;
         if (batterySoC >= this.config.targetSoC) {
-          // Battery already at target level
           return false;
         }
         
         if (batterySoC < this.config.minimumSoC) {
-          // Battery below minimum level - let other systems handle this
           return false;
         }
         
@@ -237,7 +226,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
           return false;
         }
         
-        // Get current time in the configured timezone
         const timezone = this.config.timezone || 'Europe/Berlin';
         const now = new Date();
         const currentTimeStr = now.toLocaleTimeString([], { 
@@ -246,7 +234,6 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
           timeZone: timezone
         });
         
-        // Check if current time is within any of the scheduled charging periods
         return this.config.chargingHours.some(period => {
           if (period.start > period.end) {
             // Overnight period
@@ -274,6 +261,41 @@ async function createDynamicPricingController(mqttClient, currentSystemState) {
       } catch (error) {
         console.error('Error calculating average price:', error.message);
         return 0;
+      }
+    },
+    
+    // Check if current data is real or sample
+    isUsingRealData() {
+      try {
+        if (!this.config || !this.config.pricingData || this.config.pricingData.length === 0) {
+          return false;
+        }
+        
+        return this.config.pricingData[0].source === 'real';
+      } catch (error) {
+        return false;
+      }
+    },
+    
+    // Get data source information
+    getDataSourceInfo() {
+      try {
+        const isReal = this.isUsingRealData();
+        const hasApiKey = !!(this.config?.apiKey && this.config.apiKey.trim() !== '');
+        
+        return {
+          dataSource: isReal ? 'real' : 'sample',
+          hasApiKey: hasApiKey,
+          dataPoints: this.config?.pricingData?.length || 0,
+          lastUpdate: this.config?.lastUpdate || null
+        };
+      } catch (error) {
+        return {
+          dataSource: 'unknown',
+          hasApiKey: false,
+          dataPoints: 0,
+          lastUpdate: null
+        };
       }
     }
   };
@@ -304,12 +326,12 @@ function ensureConfigExists() {
       scheduledCharging: false,
       chargingHours: [],
       lastUpdate: null,
-      pricingData: generateSamplePricingData(),
+      pricingData: [], // Start with empty data
       timezone: 'Europe/Berlin'
     };
     
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default dynamic pricing configuration file with sample data');
+    console.log('Created default dynamic pricing configuration');
   }
 }
 
@@ -327,76 +349,25 @@ function loadConfig() {
 }
 
 /**
- * Generate sample pricing data for testing - FIXED timezone handling
- */
-function generateSamplePricingData() {
-  const prices = [];
-  const timezone = 'Europe/Berlin'; // Use consistent timezone
-  
-  // Get current time in the target timezone
-  const now = new Date();
-  const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-  
-  // Start from the beginning of current hour in target timezone
-  const startHour = new Date(nowInTimezone);
-  startHour.setMinutes(0, 0, 0);
-  
-  // Generate 48 hours of sample data
-  for (let i = 0; i < 48; i++) {
-    const timestamp = new Date(startHour);
-    timestamp.setHours(timestamp.getHours() + i);
-    
-    // Create realistic price pattern
-    const hour = timestamp.getHours();
-    let basePrice = 0.10;
-    
-    if (hour >= 7 && hour <= 9) {
-      basePrice = 0.18; // Morning peak
-    } else if (hour >= 17 && hour <= 21) {
-      basePrice = 0.20; // Evening peak
-    } else if (hour >= 1 && hour <= 5) {
-      basePrice = 0.06; // Night valley
-    } else if (hour >= 11 && hour <= 14) {
-      basePrice = 0.08; // Midday valley
-    }
-    
-    // Add randomness
-    const randomFactor = 0.85 + (Math.random() * 0.3);
-    const price = basePrice * randomFactor;
-    
-    // Convert back to UTC for storage but maintain timezone context
-    const utcTimestamp = new Date(timestamp.toLocaleString("en-US", {timeZone: "UTC"}));
-    
-    prices.push({
-      timestamp: utcTimestamp.toISOString(),
-      price: parseFloat(price.toFixed(4)),
-      currency: 'EUR',
-      unit: 'kWh',
-      timezone: timezone, // Add timezone info for reference
-      localHour: hour // Store the local hour for reference
-    });
-  }
-  
-  return prices;
-}
-
-/**
- * Set up periodic tasks for dynamic pricing
+ * Set up periodic tasks for dynamic pricing - REDUCED FREQUENCY
  */
 function setupPeriodicTasks(mqttClient, currentSystemState) {
-  // Check charging schedule every 15 minutes
-  cron.schedule('*/15 * * * *', () => {
+  // Check charging schedule every 30 minutes (reduced from 15)
+  cron.schedule('*/30 * * * *', () => {
     try {
       if (controllerInstance && controllerInstance.enabled) {
         const shouldCharge = controllerInstance.shouldChargeNow();
         
         if (shouldCharge !== null) {
-          controllerInstance.sendGridChargeCommand(shouldCharge);
+          const commandSent = controllerInstance.sendGridChargeCommand(shouldCharge);
           
-          // Log the action
-          const action = shouldCharge ? 'Enabled' : 'Disabled';
-          const reason = shouldCharge ? 'Low price or scheduled time' : 'High price or target SoC reached';
-          logAction(`Automatic grid charging ${action.toLowerCase()} - ${reason}`);
+          if (commandSent) {
+            const action = shouldCharge ? 'Enabled' : 'Disabled';
+            const reason = shouldCharge ? 'Low price or scheduled time' : 'High price or target SoC reached';
+            
+            // MINIMAL logging - only for successful commands
+            logMinimalAction(`Automatic grid charging ${action.toLowerCase()} - ${reason}`);
+          }
         }
       }
     } catch (error) {
@@ -404,41 +375,82 @@ function setupPeriodicTasks(mqttClient, currentSystemState) {
     }
   });
   
-  // Regenerate sample data every 6 hours (for testing)
-  cron.schedule('0 */6 * * *', () => {
+  // Fetch fresh pricing data every 6 hours (instead of every hour)
+  cron.schedule('0 */6 * * *', async () => {
     try {
-      console.log('Regenerating sample pricing data...');
+      console.log('Scheduled pricing data refresh...');
       const config = loadConfig();
-      if (config) {
-        config.pricingData = generateSamplePricingData();
-        config.lastUpdate = new Date().toISOString();
-        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-        console.log('Sample pricing data regenerated with proper timezone handling');
+      if (config && config.enabled) {
+        
+        // Try to fetch real data if API key is available
+        if (config.apiKey && config.apiKey.trim() !== '') {
+          try {
+            const pricingApis = require('./pricingApis');
+            const realData = await pricingApis.fetchElectricityPrices(config);
+            
+            if (realData && realData.length > 0) {
+              // Mark as real data and save
+              config.pricingData = realData.map(p => ({ ...p, source: 'real' }));
+              config.lastUpdate = new Date().toISOString();
+              
+              fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+              console.log(`✅ Scheduled refresh: Retrieved ${realData.length} real price points for ${config.country}`);
+              
+              // Update controller instance
+              if (controllerInstance) {
+                controllerInstance.config = config;
+              }
+            } else {
+              console.log('❌ Scheduled refresh: No real data returned, keeping existing data');
+            }
+          } catch (realDataError) {
+            console.log(`❌ Scheduled refresh failed: ${realDataError.message}, keeping existing data`);
+          }
+        } else {
+          console.log('No API key configured, skipping scheduled refresh');
+        }
       }
     } catch (error) {
-      console.error('Error regenerating sample data:', error);
+      console.error('Error in scheduled pricing refresh:', error);
     }
   });
   
-  console.log('✅ Dynamic pricing periodic tasks initialized');
+  console.log('✅ Dynamic pricing periodic tasks initialized with reduced frequency');
 }
 
 /**
- * Log an action to the dynamic pricing log file
- * @param {String} action - Description of the action
+ * Log an action to the dynamic pricing log file - MINIMAL LOGGING WITH ROTATION
  */
-function logAction(action) {
+function logMinimalAction(action) {
   try {
     const timestamp = new Date().toISOString();
     const logEntry = `${timestamp} - ${action}\n`;
     
+    // Check if log file exists and manage size
+    if (fs.existsSync(LOG_FILE)) {
+      const stats = fs.statSync(LOG_FILE);
+      const fileSizeInKB = stats.size / 1024;
+      
+      // If file is larger than 50KB, rotate it
+      if (fileSizeInKB > 50) {
+        const content = fs.readFileSync(LOG_FILE, 'utf8');
+        const lines = content.split('\n').filter(line => line.trim() !== '');
+        
+        // Keep only last 25 lines
+        const recentLines = lines.slice(-25);
+        fs.writeFileSync(LOG_FILE, recentLines.join('\n') + '\n');
+      }
+    }
+    
+    // Append new log entry
     fs.appendFileSync(LOG_FILE, logEntry);
   } catch (error) {
+    // Silently fail to prevent crashes
     console.error('Error logging action:', error);
   }
 }
 
 module.exports = {
   initializeDynamicPricing,
-  logAction
+  logAction: logMinimalAction
 };
