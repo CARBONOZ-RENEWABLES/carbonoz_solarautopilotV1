@@ -141,7 +141,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 1000000
+const MAX_MESSAGES = 500
 
 // Learner mode configuration
 let learnerModeActive = false

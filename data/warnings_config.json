@@ -60,6 +60,52 @@
   ],
   "warningHistory": [
     {
+      "id": "instance-1749236844918",
+      "warningTypeId": "grid-outage",
+      "timestamp": "2025-06-06T19:07:24.918Z",
+      "systemState": {
+        "battery_soc": 96,
+        "pv_power": 89,
+        "load": 516,
+        "grid_voltage": 0,
+        "grid_power": 0,
+        "inverter_state": "Solar/Battery",
+        "timestamp": "2025-06-06 21:07:24"
+      },
+      "title": "Grid Outage",
+      "description": "Grid voltage is too low or unstable",
+      "priority": "high",
+      "triggered": {
+        "parameter": "grid_voltage",
+        "value": 0,
+        "threshold": 190,
+        "condition": "lt"
+      }
+    },
+    {
+      "id": "instance-1749235940112",
+      "warningTypeId": "grid-outage",
+      "timestamp": "2025-06-06T18:52:20.112Z",
+      "systemState": {
+        "battery_soc": 97,
+        "pv_power": 165,
+        "load": 693,
+        "grid_voltage": 0,
+        "grid_power": 0,
+        "inverter_state": "Solar/Battery",
+        "timestamp": "2025-06-06 20:52:16"
+      },
+      "title": "Grid Outage",
+      "description": "Grid voltage is too low or unstable",
+      "priority": "high",
+      "triggered": {
+        "parameter": "grid_voltage",
+        "value": 0,
+        "threshold": 190,
+        "condition": "lt"
+      }
+    },
+    {
       "id": "instance-1749235036723",
       "warningTypeId": "grid-outage",
       "timestamp": "2025-06-06T18:37:16.723Z",
