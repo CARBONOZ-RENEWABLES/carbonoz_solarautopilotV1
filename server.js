@@ -141,7 +141,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 500
+const MAX_MESSAGES = 200
 
 // Learner mode configuration
 let learnerModeActive = false
@@ -1645,12 +1645,10 @@ function sendWorkModeNotification(changeData) {
 function generateCategoryOptions(inverterNumber, batteryNumber) {
   const categories = ['all', 'loadPower', 'gridPower', 'pvPower', 'total']
 
-  // Generate inverter categories with underscore to match MQTT topics
   for (let i = 1; i <= inverterNumber; i++) {
-    categories.push(`inverter_${i}`)  // Changed from inverter${i} to inverter_${i}
+    categories.push(`inverter${i}`)
   }
 
-  // Generate battery categories
   for (let i = 1; i <= batteryNumber; i++) {
     categories.push(`battery${i}`)
   }
@@ -1687,64 +1685,56 @@ function getSelectedZone(req) {
 
 // Function to filter messages by category
 function filterMessagesByCategory(category) {
-  if (category === 'all') {
-    return incomingMessages
+    if (category === 'all') {
+      return incomingMessages
+    }
+  
+    return incomingMessages.filter((message) => {
+      const topic = message.split(':')[0]
+      const topicParts = topic.split('/')
+  
+      if (category.startsWith('inverter')) {
+        const inverterNum = category.match(/\d+$/)[0]
+        return topicParts[1] === `inverter_${inverterNum}`
+      }
+  
+      if (category.startsWith('battery')) {
+        const batteryNum = category.match(/\d+$/)[0]
+        return topicParts[1] === `battery_${batteryNum}`
+      }
+  
+      const categoryKeywords = {
+        loadPower: ['load_power'],
+        gridPower: ['grid_power'],
+        pvPower: ['pv_power'],
+        total: ['total'],
+      }
+  
+      return categoryKeywords[category]
+        ? topicParts.some((part) => categoryKeywords[category].includes(part))
+        : false
+    })
   }
-
-  return incomingMessages.filter((message) => {
-    const topic = message.split(':')[0]
-    const topicParts = topic.split('/')
-
-    // Handle inverter categories (now matches the generated category names)
-    if (category.startsWith('inverter_')) {
-      const inverterNum = category.match(/\d+$/)[0]
-      return topicParts[1] === `inverter_${inverterNum}`
-    }
-
-    // Handle battery categories
-    if (category.startsWith('battery')) {
-      const batteryNum = category.match(/\d+$/)[0]
-      return topicParts[1] === `battery_${batteryNum}`
-    }
-
-    // Handle other categories
-    const categoryKeywords = {
-      loadPower: ['load_power'],
-      gridPower: ['grid_power'],
-      pvPower: ['pv_power'],
-      total: ['total'],
-    }
-
-    return categoryKeywords[category]
-      ? topicParts.some((part) => categoryKeywords[category].includes(part))
-      : false
-  })
-}
 
 
 // ================ INVERTER AND BATTERY CHECKING================
 
 function checkInverterMessages(messages, expectedInverters) {
-  const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`)
-  const foundInverters = new Set()
-
-  console.log(`Checking for ${expectedInverters} inverters with pattern: ${mqttTopicPrefix}/inverter_(\\d+)/`)
+    const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`)
+    const foundInverters = new Set()
   
-  messages.forEach((message) => {
-    const match = message.match(inverterPattern)
-    if (match) {
-      foundInverters.add(parseInt(match[1]))
-      console.log(`Found inverter ${match[1]} in message: ${message.substring(0, 100)}...`)
+    messages.forEach((message) => {
+      const match = message.match(inverterPattern)
+      if (match) {
+        foundInverters.add(parseInt(match[1]))
+      }
+    })
+  
+    if (foundInverters.size !== expectedInverters) {
+      return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s).`
     }
-  })
-
-  console.log(`Expected inverters: ${expectedInverters}, Found inverters: [${Array.from(foundInverters).sort().join(', ')}]`)
-
-  if (foundInverters.size !== expectedInverters) {
-    return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s): [${Array.from(foundInverters).sort().join(', ')}].`
+    return null
   }
-  return null
-}
   
   function checkBatteryInformation(messages) {
     // More flexible battery pattern that matches various battery topic formats
@@ -2330,14 +2320,12 @@ app.get('/api/messages', (req, res) => {
   })
   
   
-  app.get('/messages', (req, res) => {
-    res.render('messages', {
-      ingress_path: process.env.INGRESS_PATH || '',
-      categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
-      inverterNumber: inverterNumber,  // Add this line
-      batteryNumber: batteryNumber     // Add this line
-    })
+app.get('/messages', (req, res) => {
+  res.render('messages', {
+    ingress_path: process.env.INGRESS_PATH || '',
+    categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
   })
+})
 
 
 app.get('/chart', (req, res) => {
@@ -6240,8 +6228,7 @@ async function initializeAutomationRules() {
 }
 
 // Initialize connections when server starts
-
-initializeConnections();
+initializeConnections()
 
 // Also add this to ensure the directories exist on startup
 function ensureDirectoriesExist() {
