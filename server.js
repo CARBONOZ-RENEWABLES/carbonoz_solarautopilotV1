@@ -103,7 +103,7 @@ app.use('/api/', limiter);
 
 // InfluxDB configuration
 const influxConfig = {
-  host: options.influxdb_host || 'localhost',
+  host: options.influxdb_host || '172.20.10.4',
   port: options.influxdb_port || 8086,
   database: options.influxdb_database || 'home_assistant',
   username: options.influxdb_username || 'admin',
@@ -141,7 +141,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 200
+const MAX_MESSAGES = 1000000
 
 // Learner mode configuration
 let learnerModeActive = false
