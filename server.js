@@ -38,12 +38,7 @@ app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
-}
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
 
 // Extract configuration values with defaults
@@ -103,7 +98,7 @@ app.use('/api/', limiter);
 
 // InfluxDB configuration
 const influxConfig = {
-  host: options.influxdb_host || '172.20.10.4',
+  host: options.influxdb_host || 'localhost',
   port: options.influxdb_port || 8086,
   database: options.influxdb_database || 'home_assistant',
   username: options.influxdb_username || 'admin',
@@ -130,7 +125,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'core-mosquitto',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
