@@ -38,7 +38,12 @@ app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 
 // Extract configuration values with defaults
@@ -125,7 +130,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -136,7 +141,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 200
+const MAX_MESSAGES = 500
 
 // Learner mode configuration
 let learnerModeActive = false
@@ -301,15 +306,9 @@ async function connectToDatabase() {
     if (!dbConnected) {
       await initializeDatabase();
       
-      // Add delay before pruning to ensure everything is initialized
+      // Since we just connected to the database, prune old records
       if (dbConnected) {
-        setTimeout(async () => {
-          try {
-            await pruneOldSettingsChanges();
-          } catch (error) {
-            console.error('Error in delayed database maintenance:', error);
-          }
-        }, 10000); // Wait 10 seconds before pruning
+        await pruneOldSettingsChanges();
       }
     }
     return dbConnected;
@@ -960,27 +959,26 @@ function parseJsonOrValue(value) {
 }
 
 // Handle incoming MQTT messages
+// Handle incoming MQTT messages
 async function handleMqttMessage(topic, message) {
-  // More aggressive buffer management
-  const bufferSize = learnerModeActive ? 25 : 50; // Reduced significantly
+  // Keep circular buffer of messages but with reduced size in learner mode
+  const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
   
-  // Limit message size more aggressively
+  // Limit message size to prevent memory issues
   const messageStr = message.toString();
-  const maxMessageSize = 500; // Reduced from 10000
+  const maxMessageSize = 10000; // Limit to 10KB
   
-  // Truncate large messages more aggressively
+  // Truncate extremely large messages
   const truncatedMessage = messageStr.length > maxMessageSize 
-    ? messageStr.substring(0, maxMessageSize) + '...[truncated]' 
+    ? messageStr.substring(0, maxMessageSize) + '... [truncated]' 
     : messageStr;
   
   const formattedMessage = `${topic}: ${truncatedMessage}`;
   
-  // More aggressive circular buffer management
+  // Add to the circular buffer of messages with proper size control
   incomingMessages.push(formattedMessage);
-  if (incomingMessages.length > bufferSize) {
-    // Remove multiple messages when limit exceeded
-    const excessMessages = Math.max(1, incomingMessages.length - bufferSize + 5);
-    incomingMessages.splice(0, excessMessages);
+  while (incomingMessages.length > bufferSize) {
+    incomingMessages.shift();
   }
 
   // Parse message content with size limits
@@ -988,19 +986,20 @@ async function handleMqttMessage(topic, message) {
   try {
     messageContent = messageStr;
     
-    // Only parse JSON for reasonable sized messages
-    if (messageStr.length < 200 && messageStr.startsWith('{') && messageStr.endsWith('}')) {
+    // Try to parse as JSON if it looks like JSON and isn't too large
+    if (messageStr.length < maxMessageSize && messageStr.startsWith('{') && messageStr.endsWith('}')) {
       messageContent = JSON.parse(messageStr);
     }
   } catch (error) {
-    messageContent = messageStr.substring(0, 100); // Limit to first 100 chars on error
+    // If not JSON, keep as string
+    messageContent = messageStr;
   }
 
   // Extract the specific topic part after the prefix
   const topicPrefix = options.mqtt_topic_prefix || '';
   let specificTopic = topic;
   if (topic.startsWith(topicPrefix)) {
-    specificTopic = topic.substring(topicPrefix.length + 1);
+    specificTopic = topic.substring(topicPrefix.length + 1); // +1 for the slash
   }
 
   // Track if this message should trigger rule processing
@@ -1014,7 +1013,7 @@ async function handleMqttMessage(topic, message) {
     inverterId = `inverter_${inverterMatch[1]}`;
   }
   
-  // Update settings based on topic patterns (no inverter limiting)
+  // Update settings based on topic patterns
   if (specificTopic.includes('/grid_charge/')) {
     if (!currentSettingsState.grid_charge[inverterId]) {
       currentSettingsState.grid_charge[inverterId] = {};
@@ -1189,7 +1188,7 @@ async function handleMqttMessage(topic, message) {
   // Update system state for key metrics - always do this regardless of learner mode
   if (specificTopic.includes('total/battery_state_of_charge')) {
     currentSystemState.battery_soc = parseFloat(messageContent);
-    currentSystemState.timestamp = new Date().toISOString(); // Use ISO string instead of moment
+    currentSystemState.timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     shouldProcessRules = true;
   } else if (specificTopic.includes('total/pv_power')) {
     currentSystemState.pv_power = parseFloat(messageContent);
@@ -1326,16 +1325,7 @@ async function handleMqttMessage(topic, message) {
         topic: specificTopic,
         old_value: previousSettings[specificTopic],
         new_value: messageContent,
-        system_state: { 
-          // Create a limited copy to prevent memory issues
-          battery_soc: currentSystemState.battery_soc,
-          pv_power: currentSystemState.pv_power,
-          load: currentSystemState.load,
-          grid_power: currentSystemState.grid_power,
-          grid_voltage: currentSystemState.grid_voltage,
-          inverter_state: currentSystemState.inverter_state,
-          timestamp: currentSystemState.timestamp
-        },
+        system_state: { ...currentSystemState },
         change_type: matchedSetting,
         user_id: USER_ID,
         mqtt_username: mqttConfig.username
@@ -1354,8 +1344,8 @@ async function handleMqttMessage(topic, message) {
     console.error('Error handling MQTT message:', error.message);
   }
 
-  // Batch save all changes to database (only if not too many)
-  if (settingsChanges.length > 0 && settingsChanges.length <= 5 && dbConnected) {
+  // Batch save all changes to database
+  if (settingsChanges.length > 0 && dbConnected) {
     try {
       // Queue the batch save operation through our rate limiter
       queueSettingsChanges(settingsChanges);
@@ -1364,8 +1354,6 @@ async function handleMqttMessage(topic, message) {
       // Try to reconnect to database in background
       retryDatabaseConnection();
     }
-  } else if (settingsChanges.length > 5) {
-    console.warn(`Dropping ${settingsChanges.length} changes - too many at once to prevent memory issues`);
   }
 
   // Only process rules if something changed that could trigger a rule
@@ -1381,16 +1369,21 @@ async function handleMqttMessage(topic, message) {
 
 // Create a settings changes queue with rate limiting
 const settingsChangesQueue = [];
+const MAX_QUEUE_SIZE = 500;
 let processingQueue = false;
 const PROCESSING_INTERVAL = 1000; // Process at most once per second
 
 function queueSettingsChanges(changes) {
-  // Prevent queue from growing too large - more aggressive limits
-  const MAX_QUEUE_SIZE = 50; // Reduced from 500
-  
+  // Prevent queue from growing too large
   if (settingsChangesQueue.length + changes.length > MAX_QUEUE_SIZE) {
-    console.warn(`Settings changes queue exceeding limit (${MAX_QUEUE_SIZE}). Clearing entire queue.`);
-    settingsChangesQueue.length = 0; // Clear entire queue when full
+    console.warn(`Settings changes queue exceeding limit (${MAX_QUEUE_SIZE}). Dropping oldest items.`);
+    // Keep only the newest changes
+    const totalToKeep = MAX_QUEUE_SIZE - changes.length;
+    if (totalToKeep > 0) {
+      settingsChangesQueue.splice(0, settingsChangesQueue.length - totalToKeep);
+    } else {
+      settingsChangesQueue.length = 0; // Clear the entire queue if necessary
+    }
   }
   
   // Add all changes to the queue
@@ -1399,7 +1392,7 @@ function queueSettingsChanges(changes) {
   // Start processing if not already running
   if (!processingQueue) {
     processingQueue = true;
-    setTimeout(processSettingsChangesQueue, 100); // Process faster
+    setTimeout(processSettingsChangesQueue, 50); // Start soon but not immediately
   }
 }
 
@@ -1409,41 +1402,23 @@ class Mutex {
   constructor() {
     this.locked = false;
     this.queue = [];
-    this.timeout = 30000; // 30 second timeout
   }
 
   async acquire() {
-    return new Promise((resolve, reject) => {
-      // Add timeout to prevent infinite waiting
-      const timeoutId = setTimeout(() => {
-        const index = this.queue.findIndex(item => item.resolve === resolve);
-        if (index >= 0) {
-          this.queue.splice(index, 1);
-          reject(new Error('Mutex acquire timeout'));
-        }
-      }, this.timeout);
-
-      const queueItem = { 
-        resolve: (value) => {
-          clearTimeout(timeoutId);
-          resolve(value);
-        }, 
-        reject 
-      };
-
+    return new Promise(resolve => {
       if (!this.locked) {
         this.locked = true;
-        queueItem.resolve();
+        resolve();
       } else {
-        this.queue.push(queueItem);
+        this.queue.push(resolve);
       }
     });
   }
 
   release() {
     if (this.queue.length > 0) {
-      const nextItem = this.queue.shift();
-      nextItem.resolve();
+      const nextResolve = this.queue.shift();
+      nextResolve();
     } else {
       this.locked = false;
     }
@@ -1501,80 +1476,71 @@ async function processSettingsChangesQueue() {
 async function batchSaveSettingsChanges(changes) {
   if (!dbConnected || changes.length === 0) return;
   
-  const maxRetries = 3;
-  let attempt = 0;
-  
-  while (attempt < maxRetries) {
+  // Use the mutex pattern for transaction control
+  return executeWithDbMutex(async () => {
+    let transactionStarted = false;
+    
     try {
-      return await executeWithDbMutex(async () => {
-        // Use immediate transaction mode to prevent deadlocks
-        await db.run('BEGIN IMMEDIATE');
-        
-        try {
-          // Process in smaller batches to prevent memory issues
-          const batchSize = 5; // Reduced from processing all at once
-          
-          for (let i = 0; i < changes.length; i += batchSize) {
-            const batch = changes.slice(i, i + batchSize);
-            
-            for (const change of batch) {
-              // Limit the size of stored data
-              const systemStateJson = JSON.stringify({
-                battery_soc: change.system_state?.battery_soc,
-                pv_power: change.system_state?.pv_power,
-                load: change.system_state?.load,
-                grid_power: change.system_state?.grid_power,
-                timestamp: change.system_state?.timestamp
-              });
-              
-              // Convert values to strings for SQLite with size limits
-              const oldValueStr = typeof change.old_value === 'object' ? 
-                JSON.stringify(change.old_value).substring(0, 500) : 
-                String(change.old_value || '').substring(0, 500);
-              
-              const newValueStr = typeof change.new_value === 'object' ? 
-                JSON.stringify(change.new_value).substring(0, 500) : 
-                String(change.new_value || '').substring(0, 500);
-              
-              await db.run(`
-                INSERT INTO settings_changes 
-                (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-              `, [
-                change.timestamp.toISOString(),
-                change.topic.substring(0, 200), // Limit topic length
-                oldValueStr,
-                newValueStr,
-                systemStateJson,
-                change.change_type,
-                change.user_id,
-                change.mqtt_username
-              ]);
-            }
-          }
-          
-          await db.run('COMMIT');
-          return true;
-        } catch (insertError) {
-          await db.run('ROLLBACK');
-          throw insertError;
-        }
-      });
-    } catch (error) {
-      attempt++;
-      console.error(`Batch save attempt ${attempt} failed:`, error.message);
+      // Begin a transaction
+      await db.run('BEGIN TRANSACTION');
+      transactionStarted = true;
       
-      if (attempt >= maxRetries) {
-        console.error('Max retries reached for batch save');
-        return false;
+      for (const change of changes) {
+        // Convert system_state object to JSON string
+        const systemStateJson = JSON.stringify(change.system_state || {});
+        
+        // Convert values to strings for SQLite
+        const oldValueStr = typeof change.old_value === 'object' ? 
+          JSON.stringify(change.old_value) : 
+          String(change.old_value || '');
+        
+        const newValueStr = typeof change.new_value === 'object' ? 
+          JSON.stringify(change.new_value) : 
+          String(change.new_value || '');
+        
+        // Insert into SQLite with retry on error
+        try {
+          await db.run(`
+            INSERT INTO settings_changes 
+            (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            change.timestamp.toISOString(),
+            change.topic,
+            oldValueStr,
+            newValueStr,
+            systemStateJson,
+            change.change_type,
+            change.user_id,
+            change.mqtt_username
+          ]);
+        } catch (insertError) {
+          console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
+          // Continue with other changes
+        }
       }
       
-      // Wait before retrying with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+      // Commit the transaction
+      await db.run('COMMIT');
+      transactionStarted = false;
+      return true;
+    } catch (error) {
+      // Rollback on error, but only if we started a transaction
+      if (transactionStarted) {
+        try {
+          await db.run('ROLLBACK');
+        } catch (rollbackError) {
+          // Only log the error if it's not "no transaction is active"
+          if (!rollbackError.message.includes('no transaction is active')) {
+            console.error('Error rolling back transaction:', rollbackError.message);
+          }
+        }
+      }
+      
+      console.error('Error batch saving settings changes to SQLite:', error.message);
+      return false;
     }
-  }
-  
-  return false;
+  });
 }
 
 // Rate-limited API for fetching settings changes
@@ -1679,10 +1645,12 @@ function sendWorkModeNotification(changeData) {
 function generateCategoryOptions(inverterNumber, batteryNumber) {
   const categories = ['all', 'loadPower', 'gridPower', 'pvPower', 'total']
 
+  // Generate inverter categories with underscore to match MQTT topics
   for (let i = 1; i <= inverterNumber; i++) {
-    categories.push(`inverter${i}`)
+    categories.push(`inverter_${i}`)  // Changed from inverter${i} to inverter_${i}
   }
 
+  // Generate battery categories
   for (let i = 1; i <= batteryNumber; i++) {
     categories.push(`battery${i}`)
   }
@@ -1719,56 +1687,64 @@ function getSelectedZone(req) {
 
 // Function to filter messages by category
 function filterMessagesByCategory(category) {
-    if (category === 'all') {
-      return incomingMessages
-    }
-  
-    return incomingMessages.filter((message) => {
-      const topic = message.split(':')[0]
-      const topicParts = topic.split('/')
-  
-      if (category.startsWith('inverter')) {
-        const inverterNum = category.match(/\d+$/)[0]
-        return topicParts[1] === `inverter_${inverterNum}`
-      }
-  
-      if (category.startsWith('battery')) {
-        const batteryNum = category.match(/\d+$/)[0]
-        return topicParts[1] === `battery_${batteryNum}`
-      }
-  
-      const categoryKeywords = {
-        loadPower: ['load_power'],
-        gridPower: ['grid_power'],
-        pvPower: ['pv_power'],
-        total: ['total'],
-      }
-  
-      return categoryKeywords[category]
-        ? topicParts.some((part) => categoryKeywords[category].includes(part))
-        : false
-    })
+  if (category === 'all') {
+    return incomingMessages
   }
+
+  return incomingMessages.filter((message) => {
+    const topic = message.split(':')[0]
+    const topicParts = topic.split('/')
+
+    // Handle inverter categories (now matches the generated category names)
+    if (category.startsWith('inverter_')) {
+      const inverterNum = category.match(/\d+$/)[0]
+      return topicParts[1] === `inverter_${inverterNum}`
+    }
+
+    // Handle battery categories
+    if (category.startsWith('battery')) {
+      const batteryNum = category.match(/\d+$/)[0]
+      return topicParts[1] === `battery_${batteryNum}`
+    }
+
+    // Handle other categories
+    const categoryKeywords = {
+      loadPower: ['load_power'],
+      gridPower: ['grid_power'],
+      pvPower: ['pv_power'],
+      total: ['total'],
+    }
+
+    return categoryKeywords[category]
+      ? topicParts.some((part) => categoryKeywords[category].includes(part))
+      : false
+  })
+}
 
 
 // ================ INVERTER AND BATTERY CHECKING================
 
 function checkInverterMessages(messages, expectedInverters) {
-    const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`)
-    const foundInverters = new Set()
+  const inverterPattern = new RegExp(`${mqttTopicPrefix}/inverter_(\\d+)/`)
+  const foundInverters = new Set()
+
+  console.log(`Checking for ${expectedInverters} inverters with pattern: ${mqttTopicPrefix}/inverter_(\\d+)/`)
   
-    messages.forEach((message) => {
-      const match = message.match(inverterPattern)
-      if (match) {
-        foundInverters.add(parseInt(match[1]))
-      }
-    })
-  
-    if (foundInverters.size !== expectedInverters) {
-      return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s).`
+  messages.forEach((message) => {
+    const match = message.match(inverterPattern)
+    if (match) {
+      foundInverters.add(parseInt(match[1]))
+      console.log(`Found inverter ${match[1]} in message: ${message.substring(0, 100)}...`)
     }
-    return null
+  })
+
+  console.log(`Expected inverters: ${expectedInverters}, Found inverters: [${Array.from(foundInverters).sort().join(', ')}]`)
+
+  if (foundInverters.size !== expectedInverters) {
+    return `Warning: Expected ${expectedInverters} inverter(s), but found messages from ${foundInverters.size} inverter(s): [${Array.from(foundInverters).sort().join(', ')}].`
   }
+  return null
+}
   
   function checkBatteryInformation(messages) {
     // More flexible battery pattern that matches various battery topic formats
@@ -2354,12 +2330,14 @@ app.get('/api/messages', (req, res) => {
   })
   
   
-app.get('/messages', (req, res) => {
-  res.render('messages', {
-    ingress_path: process.env.INGRESS_PATH || '',
-    categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
+  app.get('/messages', (req, res) => {
+    res.render('messages', {
+      ingress_path: process.env.INGRESS_PATH || '',
+      categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
+      inverterNumber: inverterNumber,  // Add this line
+      batteryNumber: batteryNumber     // Add this line
+    })
   })
-})
 
 
 app.get('/chart', (req, res) => {
@@ -6262,6 +6240,7 @@ async function initializeAutomationRules() {
 }
 
 // Initialize connections when server starts
+
 initializeConnections();
 
 // Also add this to ensure the directories exist on startup
