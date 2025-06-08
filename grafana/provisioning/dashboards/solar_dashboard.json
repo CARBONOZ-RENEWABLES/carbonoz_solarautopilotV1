@@ -35,309 +35,6 @@
         "x": 0,
         "y": 0
       },
-      "id": 16,
-      "panels": [],
-      "title": "current values and power values",
-      "type": "row"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "unit": "volt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 7,
-        "x": 0,
-        "y": 1
-      },
-      "id": 62,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "value",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/pv_voltage_1\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "PV Voltage",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/pv_voltage_2\\/state",
-            "replace": "Inverter $1"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "light-green"
-              }
-            ]
-          },
-          "unit": "Watts"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 7,
-        "y": 1
-      },
-      "id": 141,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "$tag_topic",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "\nSELECT last(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/load_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Load power ",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/load_power_essential\\/state",
-            "replace": "Inverter $1"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "light-green"
-              }
-            ]
-          },
-          "unit": "Watts"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 13,
-        "y": 1
-      },
-      "id": 240,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "$tag_topic",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/load_power_non-essential\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Load power non-essential",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/load_power_essential\\/state",
-            "replace": "Inverter $1"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "datasource": "InfluxDB",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 2,
-          "min": -2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "#EAB839",
-                "value": 0
-              },
-              {
-                "color": "#6ED0E0",
-                "value": 10
-              }
-            ]
-          },
-          "unit": "Watts"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 5,
-        "x": 19,
-        "y": 1
-      },
-      "id": 142,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "same_as_value",
-        "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "$tag_topic",
-          "datasource": "InfluxDB",
-          "hide": false,
-          "query": "SELECT MEAN(\"value\") FROM \"state\" WHERE $timeFilter AND \"topic\" =~ /.+\\/inverter_\\d+\\/generator_power\\/state/ GROUP BY time($__interval), \"topic\" fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Generator Power",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "solar_assistant_DEYE\\/inverter_(\\d+)\\/generator_power\\/state",
-            "replace": "Inverter $1"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 4
-      },
       "id": 151,
       "panels": [],
       "title": "Detail Graph General",
@@ -604,7 +301,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 1
       },
       "id": 2,
       "options": {
@@ -679,7 +376,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 15
       },
       "id": 118,
       "panels": [],
@@ -789,7 +486,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 16
       },
       "id": 194,
       "options": {
@@ -928,7 +625,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 16
       },
       "id": 132,
       "options": {
@@ -1083,7 +780,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 28
+        "y": 24
       },
       "id": 122,
       "options": {
@@ -1219,7 +916,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 28
+        "y": 24
       },
       "id": 239,
       "options": {
@@ -1368,7 +1065,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 36
+        "y": 32
       },
       "id": 243,
       "options": {
@@ -1518,7 +1215,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 36
+        "y": 32
       },
       "id": 235,
       "options": {
@@ -1656,7 +1353,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 40
       },
       "id": 189,
       "options": {
@@ -1786,7 +1483,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 40
       },
       "id": 205,
       "options": {
@@ -1823,7 +1520,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 48
       },
       "id": 124,
       "panels": [],
@@ -1907,7 +1604,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 49
       },
       "id": 234,
       "options": {
@@ -1948,7 +1645,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 57
       },
       "id": 4,
       "panels": [],
@@ -2032,7 +1729,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 62
+        "y": 58
       },
       "id": 5,
       "options": {
@@ -2184,7 +1881,7 @@
         "h": 9,
         "w": 8,
         "x": 8,
-        "y": 62
+        "y": 58
       },
       "id": 228,
       "options": {
@@ -2336,7 +2033,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 62
+        "y": 58
       },
       "id": 223,
       "options": {
@@ -2458,7 +2155,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 67
       },
       "id": 227,
       "panels": [],
@@ -2516,7 +2213,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 68
       },
       "id": 135,
       "options": {
@@ -2650,7 +2347,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 78
       },
       "id": 232,
       "options": {
@@ -2842,7 +2539,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 90
+        "y": 86
       },
       "id": 188,
       "options": {
@@ -2975,7 +2672,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 90
+        "y": 86
       },
       "id": 242,
       "options": {
@@ -3154,7 +2851,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 98
+        "y": 94
       },
       "id": 241,
       "options": {
@@ -3330,7 +3027,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 98
+        "y": 94
       },
       "id": 139,
       "options": {
@@ -3488,7 +3185,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 102
       },
       "id": 116,
       "options": {
@@ -3670,5 +3367,5 @@
   "timezone": "",
   "title": "Charts",
   "uid": "solar_dashboard",
-  "version": 6
+  "version": 7
 }
