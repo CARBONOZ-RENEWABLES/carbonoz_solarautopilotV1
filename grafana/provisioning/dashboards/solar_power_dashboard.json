@@ -552,7 +552,7 @@
     }
   ],
   "preload": false,
-  "refresh": "auto",
+  "refresh": "1s",
   "schemaVersion": 40,
   "tags": [],
   "templating": {
