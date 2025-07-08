@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbonoz SolarAutopilot</title>
+    <title>Tibber Dynamic Pricing - Carbonoz SolarAutopilot</title>
    <!-- Font Awesome for icons -->
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
    <!-- Chart.js for price charts -->
    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-   
    <style>  
  
        
@@ -1551,8 +1550,8 @@ body.dark-mode .actions-log-item {
     </style>
 </head>
 <body>
-      <!-- Add hamburger menu button -->
-      <button class="mobile-toggle" id="mobileToggle">
+    <!-- Add hamburger menu button -->
+    <button class="mobile-toggle" id="mobileToggle">
         <span></span>
         <span></span>
         <span></span>
@@ -1560,23 +1559,27 @@ body.dark-mode .actions-log-item {
     <div class="container">
         <div id="loadingOverlay" class="loading-overlay">
             <div class="loading-spinner"></div>
-          </div>
-          <div id="pageContent"> </div>
+        </div>
+        <div id="pageContent"></div>
 
-    
-          <%- include('partials/sidebar') %>
+        <%- include('partials/sidebar') %>
 
-          <div class="main-content">
+        <div class="main-content">
             <div class="container">
                 <div class="page-header">
-                    <h1 class="page-title"><i class="fas fa-bolt"></i> Dynamic Electricity Pricing</h1>
+                    <h1 class="page-title">
+                        <i class="fas fa-bolt"></i> Tibber Dynamic Pricing
+                        <small style="color: var(--gray); font-size: 0.6em; margin-left: 10px;">
+                            <i class="fas fa-leaf"></i> Smart electricity pricing
+                        </small>
+                    </h1>
                     <div class="btn-group" id="headerButtons">
                         <button class="btn btn-primary" id="refreshDataBtn">
                             <i class="fas fa-sync-alt"></i> Refresh Prices
                         </button>
                     </div>
                 </div>
-        
+
                 <div class="alert alert-info hidden" id="notification">
                     <i class="fas fa-info-circle"></i>
                     <span id="notificationMessage"></span>
@@ -1584,7 +1587,7 @@ body.dark-mode .actions-log-item {
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-        
+
                 <div class="grid-2">
                     <!-- Current Status Card -->
                     <div class="card">
@@ -1595,23 +1598,23 @@ body.dark-mode .actions-log-item {
                                     <input type="checkbox" id="enableDynamicPricing">
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">Enable Dynamic Pricing</span>
+                                <span class="toggle-label">Enable Tibber Dynamic Pricing</span>
                             </div>
                         </div>
                         <div class="card-body">
                             <div id="statusContent">
-                                <p id="loadingStatus">Loading dynamic pricing status...</p>
+                                <p id="loadingStatus">Loading Tibber status...</p>
                                 <div id="statusDetails" class="hidden">
                                     <div class="pricing-stats">
                                         <div class="stat-card">
                                             <div class="stat-label">Current Price</div>
                                             <div class="stat-value" id="currentPrice">0.00</div>
-                                            <small>€/kWh</small>
+                                            <small id="priceCurrency">EUR/kWh</small>
                                         </div>
                                         <div class="stat-card">
-                                            <div class="stat-label">Average Price</div>
-                                            <div class="stat-value" id="avgPrice">0.00</div>
-                                            <small>€/kWh</small>
+                                            <div class="stat-label">Price Level</div>
+                                            <div class="stat-value" id="priceLevel">NORMAL</div>
+                                            <small>Tibber Level</small>
                                         </div>
                                         <div class="stat-card">
                                             <div class="stat-label">Battery SoC</div>
@@ -1624,15 +1627,15 @@ body.dark-mode .actions-log-item {
                                             <small id="chargingReason">N/A</small>
                                         </div>
                                     </div>
-        
+
                                     <div class="form-group" style="margin-top: 20px;">
-                                        <label class="form-label">Current Recommendation:</label>
+                                        <label class="form-label">Tibber Recommendation:</label>
                                         <div class="alert" id="recommendationAlert">
                                             <i class="fas fa-lightbulb"></i>
                                             <span id="recommendationText">Calculating recommendation...</span>
                                         </div>
                                     </div>
-        
+
                                     <div class="btn-group" style="margin-top: 20px;">
                                         <button class="btn btn-success" id="enableChargingBtn">
                                             <i class="fas fa-charging-station"></i> Enable Grid Charging
@@ -1645,11 +1648,11 @@ body.dark-mode .actions-log-item {
                             </div>
                         </div>
                     </div>
-        
+
                     <!-- Configuration Card -->
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Configuration</h2>
+                            <h2 class="card-title">Tibber Configuration</h2>
                             <button class="btn btn-sm btn-secondary" id="saveConfigBtn">
                                 <i class="fas fa-save"></i> Save Changes
                             </button>
@@ -1661,11 +1664,10 @@ body.dark-mode .actions-log-item {
                                         <label class="form-label">Country</label>
                                         <select class="form-select" id="country">
                                             <option value="DE">Germany</option>
-                                            <option value="AT">Austria</option>
-                                            <option value="FR">France</option>
-                                            <option value="ES">Spain</option>
-                                            <option value="IT">Italy</option>
-                                            <option value="UK">United Kingdom</option>
+                                            <option value="NO">Norway</option>
+                                            <option value="SE">Sweden</option>
+                                            <option value="DK">Denmark</option>
+                                            <option value="FI">Finland</option>
                                             <option value="NL">Netherlands</option>
                                         </select>
                                     </div>
@@ -1673,34 +1675,28 @@ body.dark-mode .actions-log-item {
                                         <label class="form-label">Timezone</label>
                                         <select class="form-select" id="timezone">
                                             <option value="Europe/Berlin">Europe/Berlin</option>
-                                            <option value="Europe/London">Europe/London</option>
-                                            <option value="Europe/Paris">Europe/Paris</option>
-                                            <option value="Europe/Madrid">Europe/Madrid</option>
-                                            <option value="Europe/Rome">Europe/Rome</option>
-                                            <option value="Europe/Vienna">Europe/Vienna</option>
+                                            <option value="Europe/Oslo">Europe/Oslo</option>
+                                            <option value="Europe/Stockholm">Europe/Stockholm</option>
+                                            <option value="Europe/Copenhagen">Europe/Copenhagen</option>
+                                            <option value="Europe/Helsinki">Europe/Helsinki</option>
                                             <option value="Europe/Amsterdam">Europe/Amsterdam</option>
                                         </select>
                                     </div>
                                 </div>
-        
+
                                 <div class="form-group">
-                                    <label class="form-label">API Key (for ENTSO-E API)</label>
+                                    <label class="form-label">Tibber API Token</label>
                                     <div class="tooltip">
                                         <i class="fas fa-info-circle"></i>
-                                        <span class="tooltip-text">Required for ENTSO-E markets (all countries except Germany and Austria).</span>
+                                        <span class="tooltip-text">Get your API token from the Tibber app: Settings → Account → API Token</span>
                                     </div>
-                                    <input type="password" class="form-control" id="apiKey" placeholder="Enter API key for ENTSO-E">
+                                    <input type="password" class="form-control" id="apiKey" placeholder="Enter your Tibber API token">
+                                    <small style="color: var(--gray); font-size: 12px;">
+                                        <i class="fas fa-mobile-alt"></i> Available in Tibber mobile app → Settings → Account → API Token
+                                    </small>
                                 </div>
-        
+
                                 <div class="grid-2">
-                                    <div class="form-group">
-                                        <label class="form-label">Price Threshold (€/kWh)</label>
-                                        <div class="tooltip">
-                                            <i class="fas fa-info-circle"></i>
-                                            <span class="tooltip-text">Only charge when price is below this threshold. Set to 0 to use automatic calculation (25% lowest prices).</span>
-                                        </div>
-                                        <input type="number" class="form-control" id="priceThreshold" min="0" max="1" step="0.01" placeholder="e.g. 0.10">
-                                    </div>
                                     <div class="form-group">
                                         <label class="form-label">Target SoC (%)</label>
                                         <div class="tooltip">
@@ -1709,28 +1705,87 @@ body.dark-mode .actions-log-item {
                                         </div>
                                         <input type="number" class="form-control" id="targetSoC" min="0" max="100" step="1" placeholder="e.g. 80">
                                     </div>
-                                </div>
-        
-                                <div class="grid-2">
                                     <div class="form-group">
                                         <label class="form-label">Minimum SoC (%)</label>
                                         <div class="tooltip">
                                             <i class="fas fa-info-circle"></i>
-                                            <span class="tooltip-text">Only use dynamic pricing when battery is above this level.</span>
+                                            <span class="tooltip-text">Emergency charging when battery falls below this level.</span>
                                         </div>
                                         <input type="number" class="form-control" id="minimumSoC" min="0" max="100" step="1" placeholder="e.g. 20">
                                     </div>
                                 </div>
-        
+
+                                <!-- Tibber-specific settings -->
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="useTibberLevels" checked>
+                                        <label class="form-check-label">Use Tibber Price Level Intelligence</label>
+                                        <div class="tooltip">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span class="tooltip-text">Use Tibber's intelligent price levels (VERY_CHEAP, CHEAP, etc.) instead of manual thresholds</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="tibberLevelOptions">
+                                    <label class="form-label">Charge During These Price Levels</label>
+                                    <div class="checkbox-group">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input price-level-checkbox" id="level_very_cheap" value="VERY_CHEAP" checked>
+                                            <label class="form-check-label" style="color: #27ae60;">
+                                                <i class="fas fa-circle"></i> VERY CHEAP
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input price-level-checkbox" id="level_cheap" value="CHEAP" checked>
+                                            <label class="form-check-label" style="color: #2ecc71;">
+                                                <i class="fas fa-circle"></i> CHEAP
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input price-level-checkbox" id="level_normal" value="NORMAL">
+                                            <label class="form-check-label" style="color: #f39c12;">
+                                                <i class="fas fa-circle"></i> NORMAL
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input price-level-checkbox" id="level_expensive" value="EXPENSIVE">
+                                            <label class="form-check-label" style="color: #e67e22;">
+                                                <i class="fas fa-circle"></i> EXPENSIVE
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input price-level-checkbox" id="level_very_expensive" value="VERY_EXPENSIVE">
+                                            <label class="form-check-label" style="color: #e74c3c;">
+                                                <i class="fas fa-circle"></i> VERY EXPENSIVE
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="manualThresholdOptions" class="hidden">
+                                    <div class="form-group">
+                                        <label class="form-label">Manual Price Threshold</label>
+                                        <div class="tooltip">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span class="tooltip-text">Only charge when price is below this threshold. Set to 0 to use automatic calculation.</span>
+                                        </div>
+                                        <input type="number" class="form-control" id="priceThreshold" min="0" max="1" step="0.01" placeholder="e.g. 0.10">
+                                    </div>
+                                </div>
+
                                 <div class="form-group">
                                     <div class="form-check">
                                         <input type="checkbox" class="form-check-input" id="scheduledCharging">
-                                        <label class="form-check-label">Enable Scheduled Charging</label>
+                                        <label class="form-check-label">Enable Additional Scheduled Charging</label>
                                     </div>
                                 </div>
-        
+
                                 <div id="schedulingOptions" class="hidden">
-                                    <label class="form-label">Charging Time Periods</label>
+                                    <label class="form-label">Additional Charging Time Periods</label>
+                                    <small style="color: var(--gray); display: block; margin-bottom: 10px;">
+                                        These periods will charge regardless of Tibber price levels
+                                    </small>
                                     <div id="chargingPeriods">
                                         <!-- Time periods will be dynamically added here -->
                                     </div>
@@ -1742,38 +1797,46 @@ body.dark-mode .actions-log-item {
                         </div>
                     </div>
                 </div>
-        
+
                 <!-- Pricing Chart Card -->
                 <div class="card">
                     <div class="card-header">
-                        <h2 class="card-title">Electricity Prices (24 Hours)</h2>
+                        <h2 class="card-title">Tibber Electricity Prices (24 Hours)</h2>
                         <span id="lastUpdateTime">Last updated: Never</span>
                     </div>
                     <div class="card-body">
                         <div class="pricing-chart-container">
                             <canvas id="pricingChart"></canvas>
                         </div>
-                        <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px;">
+                        <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px; flex-wrap: wrap;">
                             <div class="price-indicator">
-                                <div class="price-dot price-low"></div>
-                                <span>Low Price</span>
+                                <div class="price-dot" style="background-color: #27ae60;"></div>
+                                <span>VERY CHEAP</span>
                             </div>
                             <div class="price-indicator">
-                                <div class="price-dot price-medium"></div>
-                                <span>Medium Price</span>
+                                <div class="price-dot" style="background-color: #2ecc71;"></div>
+                                <span>CHEAP</span>
                             </div>
                             <div class="price-indicator">
-                                <div class="price-dot price-high"></div>
-                                <span>High Price</span>
+                                <div class="price-dot" style="background-color: #f39c12;"></div>
+                                <span>NORMAL</span>
                             </div>
                             <div class="price-indicator">
-                                <div class="price-dot price-now"></div>
+                                <div class="price-dot" style="background-color: #e67e22;"></div>
+                                <span>EXPENSIVE</span>
+                            </div>
+                            <div class="price-indicator">
+                                <div class="price-dot" style="background-color: #e74c3c;"></div>
+                                <span>VERY EXPENSIVE</span>
+                            </div>
+                            <div class="price-indicator">
+                                <div class="price-dot" style="background-color: #3498db; border: 2px solid #2c3e50;"></div>
                                 <span>Current Hour</span>
                             </div>
                         </div>
                     </div>
                 </div>
-        
+
                 <div class="grid-2">
                     <!-- Best Charging Times Card -->
                     <div class="card">
@@ -1781,33 +1844,69 @@ body.dark-mode .actions-log-item {
                             <h2 class="card-title">Best Charging Times</h2>
                         </div>
                         <div class="card-body">
-                            <p>Based on current price data, these are the most economical times to charge your battery:</p>
+                            <p>Based on Tibber's price intelligence, these are the most economical times to charge your battery:</p>
                             <div class="best-times-list" id="bestTimesList">
                                 <p>Loading best charging times...</p>
                             </div>
                         </div>
                     </div>
-        
+
                     <!-- Automated Actions Card -->
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">Recent Actions</h2>
                         </div>
                         <div class="card-body">
-                            <p>List of recent automated actions taken by the dynamic pricing system:</p>
+                            <p>List of recent automated actions taken by the Tibber pricing system:</p>
                             <div id="actionsLog">
                                 <p>No recent actions recorded.</p>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Tibber Info Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">About Tibber Integration</h2>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                            <div style="background: linear-gradient(135deg, #5ee05c, #39c13b); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-leaf" style="color: white; font-size: 24px;"></i>
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; color: var(--primary);">Smart Electricity Pricing</h3>
+                                <p style="margin: 5px 0; color: var(--gray);">Optimize your battery charging with Tibber's intelligent price levels</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                            <div class="info-box">
+                                <h4><i class="fas fa-brain"></i> Intelligent Price Levels</h4>
+                                <p>Tibber categorizes electricity prices into 5 levels: VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, and VERY_EXPENSIVE. The system automatically charges during favorable price levels.</p>
+                            </div>
+                            <div class="info-box">
+                                <h4><i class="fas fa-clock"></i> Real-time Updates</h4>
+                                <p>Pricing data is updated multiple times daily, with tomorrow's prices typically available around 13:00. The system automatically fetches the latest prices.</p>
+                            </div>
+                            <div class="info-box">
+                                <h4><i class="fas fa-shield-alt"></i> Learner Mode Protection</h4>
+                                <p>Commands are only sent when Learner Mode is active, ensuring you maintain full control over your system while testing the automation.</p>
+                            </div>
+                            <div class="info-box">
+                                <h4><i class="fas fa-mobile-alt"></i> Easy Setup</h4>
+                                <p>Get your API token from the Tibber mobile app: Settings → Account → API Token. No additional registration required if you're already a Tibber customer.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-           
-                   
         </div>
- <script>
-    // Complete Fixed Dynamic Pricing Frontend JavaScript
-// Replace the script section in your dynamic-pricing.ejs file with this
+    </div>
+
+<script>
+// Tibber Dynamic Pricing Frontend JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize variables
@@ -1816,7 +1915,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let config = null;
     let pricingChart = null;
     let isLoading = false;
-    let currentTimezone = 'Europe/Berlin'; // Default timezone
+    let currentTimezone = 'Europe/Berlin';
+    let currentCurrency = 'EUR';
 
     // Initialize elements
     const enableDynamicPricingToggle = document.getElementById('enableDynamicPricing');
@@ -1828,13 +1928,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const scheduledChargingCheckbox = document.getElementById('scheduledCharging');
     const schedulingOptions = document.getElementById('schedulingOptions');
     const chargingPeriods = document.getElementById('chargingPeriods');
+    const useTibberLevelsCheckbox = document.getElementById('useTibberLevels');
+    const tibberLevelOptions = document.getElementById('tibberLevelOptions');
+    const manualThresholdOptions = document.getElementById('manualThresholdOptions');
     const notification = document.getElementById('notification');
     const notificationMessage = document.getElementById('notificationMessage');
     const statusContent = document.getElementById('statusContent');
     const loadingStatus = document.getElementById('loadingStatus');
     const statusDetails = document.getElementById('statusDetails');
     const currentPrice = document.getElementById('currentPrice');
-    const avgPrice = document.getElementById('avgPrice');
+    const priceLevel = document.getElementById('priceLevel');
+    const priceCurrency = document.getElementById('priceCurrency');
     const batterySoC = document.getElementById('batterySoC');
     const chargingStatus = document.getElementById('chargingStatus');
     const chargingReason = document.getElementById('chargingReason');
@@ -1857,7 +1961,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Main initialization function
     async function init() {
-        // Load available countries and timezones first
+        // Load available countries and timezones
         await loadCountriesAndTimezones();
         
         // Load configuration
@@ -1879,20 +1983,22 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(updateSystemState, 60000); // Update system state every minute
         setInterval(loadPricingData, 300000); // Refresh pricing data every 5 minutes
         
-        // Initial automatic price refresh
-        setTimeout(() => refreshPrices(true), 2000); // Auto-refresh prices after 2 seconds
+        // Initial automatic price refresh only if API key is configured
+        if (config && config.apiKey && config.apiKey.trim() !== '') {
+            setTimeout(() => refreshPrices(true), 2000);
+        }
         
         // Load actions log
         setTimeout(loadActionsLog, 3000);
     }
 
-    // New function to load countries and timezones
+    // Load countries and timezones for Tibber
     async function loadCountriesAndTimezones() {
         try {
             const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/countries-timezones');
             
             if (!response.ok) {
-                throw new Error('Failed to load countries and timezones');
+                throw new Error('Failed to load Tibber countries and timezones');
             }
             
             const data = await response.json();
@@ -1900,20 +2006,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 populateCountrySelect(data.countries);
                 populateTimezoneSelect(data.timezones);
-                console.log(`Loaded ${data.countries.length} countries and ${data.timezones.length} timezones`);
+                console.log(`Loaded ${data.countries.length} Tibber-supported countries`);
             } else {
                 throw new Error(data.error || 'Failed to load countries and timezones');
             }
         } catch (error) {
-            console.error('Error loading countries and timezones:', error);
-            showNotification('Error loading countries: ' + error.message, 'warning');
+            console.error('Error loading Tibber countries and timezones:', error);
+            showNotification('Error loading Tibber countries: ' + error.message, 'warning');
         }
     }
 
     // Populate country dropdown
     function populateCountrySelect(countries) {
-        const countrySelect = document.getElementById('country');
-        countrySelect.innerHTML = ''; // Clear existing options
+        countrySelect.innerHTML = '';
         
         countries.forEach(country => {
             const option = document.createElement('option');
@@ -1924,25 +2029,26 @@ document.addEventListener('DOMContentLoaded', function() {
             countrySelect.appendChild(option);
         });
         
-        console.log(`Populated country dropdown with ${countries.length} countries`);
-        
-        // Add event listener to auto-update timezone when country changes
+        // Auto-update timezone when country changes
         countrySelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const autoTimezone = selectedOption.dataset.timezone;
+            const autoCurrency = selectedOption.dataset.currency;
             
             if (autoTimezone) {
-                const timezoneSelect = document.getElementById('timezone');
                 timezoneSelect.value = autoTimezone;
-                console.log(`Auto-selected timezone: ${autoTimezone} for country: ${this.value}`);
+                currentTimezone = autoTimezone;
+            }
+            
+            if (autoCurrency) {
+                currentCurrency = autoCurrency;
             }
         });
     }
 
     // Populate timezone dropdown
     function populateTimezoneSelect(timezones) {
-        const timezoneSelect = document.getElementById('timezone');
-        timezoneSelect.innerHTML = ''; // Clear existing options
+        timezoneSelect.innerHTML = '';
         
         timezones.forEach(timezone => {
             const option = document.createElement('option');
@@ -1950,19 +2056,17 @@ document.addEventListener('DOMContentLoaded', function() {
             option.textContent = timezone.replace('_', ' ');
             timezoneSelect.appendChild(option);
         });
-        
-        console.log(`Populated timezone dropdown with ${timezones.length} timezones`);
     }
 
     // Load configuration from API
     async function loadConfig() {
-        showNotification('Loading configuration...', 'info');
+        showNotification('Loading Tibber configuration...', 'info');
         
         try {
             const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings');
             
             if (!response.ok) {
-                throw new Error('Failed to load configuration');
+                throw new Error('Failed to load Tibber configuration');
             }
             
             const data = await response.json();
@@ -1970,13 +2074,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 config = data.config;
                 currentTimezone = config.timezone || 'Europe/Berlin';
+                currentCurrency = config.currency || 'EUR';
                 updateConfigUI();
-                showNotification('Configuration loaded successfully', 'success');
+                showNotification('Tibber configuration loaded successfully', 'success');
             } else {
                 throw new Error(data.error || 'Failed to load configuration');
             }
         } catch (error) {
-            console.error('Error loading configuration:', error);
+            console.error('Error loading Tibber configuration:', error);
             showNotification('Error loading configuration: ' + error.message, 'danger');
         }
     }
@@ -1992,21 +2097,37 @@ document.addEventListener('DOMContentLoaded', function() {
         countrySelect.value = config.country || 'DE';
         timezoneSelect.value = config.timezone || 'Europe/Berlin';
         apiKeyInput.value = config.apiKey || '';
-        priceThresholdInput.value = config.priceThreshold || 0.10;
+        priceThresholdInput.value = config.priceThreshold || 0;
         targetSoCInput.value = config.targetSoC || 80;
         minimumSoCInput.value = config.minimumSoC || 20;
         scheduledChargingCheckbox.checked = config.scheduledCharging || false;
+        useTibberLevelsCheckbox.checked = config.useTibberLevels !== false; // Default to true
         
-        // Update current timezone
+        // Update price level checkboxes
+        const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
+        document.querySelectorAll('.price-level-checkbox').forEach(checkbox => {
+            checkbox.checked = lowPriceLevels.includes(checkbox.value);
+        });
+        
+        // Update current timezone and currency
         currentTimezone = config.timezone || 'Europe/Berlin';
+        currentCurrency = config.currency || 'EUR';
+        
+        // Update currency display
+        priceCurrency.textContent = currentCurrency + '/kWh';
         
         // Show/hide scheduling options
         schedulingOptions.classList.toggle('hidden', !config.scheduledCharging);
         
+        // Show/hide Tibber level vs manual threshold options
+        const useLevels = useTibberLevelsCheckbox.checked;
+        tibberLevelOptions.classList.toggle('hidden', !useLevels);
+        manualThresholdOptions.classList.toggle('hidden', useLevels);
+        
         // Render charging periods
         renderChargingPeriods();
         
-        console.log(`Configuration updated: Country=${config.country}, Timezone=${currentTimezone}, Enabled=${config.enabled}`);
+        console.log(`Tibber configuration updated: Country=${config.country}, Currency=${currentCurrency}, Use Levels=${useLevels}`);
     }
 
     // Render charging time periods UI
@@ -2018,10 +2139,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (config.chargingHours.length === 0) {
-            // Add a default period if none exist
             addTimePeriod('22:00', '06:00');
         } else {
-            // Render existing periods
             config.chargingHours.forEach(period => {
                 addTimePeriod(period.start, period.end);
             });
@@ -2049,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         chargingPeriods.appendChild(periodElement);
     }
 
-    // Load pricing data from API - FIXED timezone handling
+    // Load pricing data from Tibber API
     async function loadPricingData() {
         if (isLoading) return;
         isLoading = true;
@@ -2058,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
             
             if (!response.ok) {
-                throw new Error('Failed to load pricing data');
+                throw new Error('Failed to load Tibber pricing data');
             }
             
             const data = await response.json();
@@ -2067,9 +2186,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 pricingData = data.pricingData || [];
                 lowPricePeriods = data.lowPricePeriods || [];
                 
-                // Update timezone from response
+                // Update timezone and currency from response
                 if (data.timezone) {
                     currentTimezone = data.timezone;
+                }
+                
+                if (data.currency) {
+                    currentCurrency = data.currency;
+                    priceCurrency.textContent = currentCurrency + '/kWh';
                 }
                 
                 if (data.lastUpdate) {
@@ -2084,48 +2208,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
                 
-                // If data was auto-refreshed, show notification
-                if (data.autoRefreshed) {
-                    showNotification('Pricing data automatically refreshed', 'info');
-                }
-                
-                // If no pricing data or very old data, trigger automatic refresh
-                if (pricingData.length === 0 || isDataStale(data.lastUpdate)) {
-                    console.log('Pricing data is stale or missing, triggering automatic refresh...');
-                    setTimeout(() => refreshPrices(true), 1000);
+                // Show data source information only for real data
+                if (data.dataSource === 'real') {
+                    showNotification('✅ Using real Tibber pricing data', 'success');
                 }
                 
                 updatePricingDisplay();
                 updateBestTimesList();
                 
-                console.log(`Loaded ${pricingData.length} pricing data points for timezone ${currentTimezone}`);
+                console.log(`Loaded ${pricingData.length} Tibber pricing data points for timezone ${currentTimezone}`);
             } else {
-                throw new Error(data.error || 'Failed to load pricing data');
+                // Handle specific error cases
+                if (data.needsApiKey) {
+                    showNotification('⚠️ Configure your Tibber API token to fetch real pricing data', 'warning');
+                    
+                    // Clear existing data if no API key
+                    pricingData = [];
+                    lowPricePeriods = [];
+                    updatePricingDisplay();
+                    updateBestTimesList();
+                } else {
+                    throw new Error(data.error || 'Failed to load Tibber pricing data');
+                }
             }
         } catch (error) {
-            console.error('Error loading pricing data:', error);
-            showNotification('Error loading pricing data: ' + error.message, 'danger');
+            console.error('Error loading Tibber pricing data:', error);
             
-            // Trigger automatic refresh if data loading fails
-            setTimeout(() => refreshPrices(true), 5000);
+            // Don't show error notification if it's just missing API key on first load
+            if (!error.message.includes('API token')) {
+                showNotification('Error loading pricing data: ' + error.message, 'danger');
+                
+                // Only trigger automatic refresh if we have config and API key
+                if (config && config.apiKey && config.apiKey.trim() !== '') {
+                    setTimeout(() => refreshPrices(true), 5000);
+                }
+            }
         } finally {
             isLoading = false;
         }
     }
 
-    // Helper function to check if data is stale
-    function isDataStale(lastUpdateString) {
-        if (!lastUpdateString) return true;
-        
-        const lastUpdate = new Date(lastUpdateString);
-        const now = new Date();
-        const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
-        
-        // Consider data stale if it's older than 6 hours
-        return hoursSinceUpdate > 6;
-    }
-
-    // Initialize Chart.js chart
+    // Initialize Chart.js chart for Tibber data
     function initializeChart() {
         const ctx = document.getElementById('pricingChart').getContext('2d');
         
@@ -2134,7 +2257,7 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: [],
                 datasets: [{
-                    label: 'Electricity Price (€/kWh)',
+                    label: 'Electricity Price',
                     data: [],
                     backgroundColor: [],
                     borderColor: [],
@@ -2148,7 +2271,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return `${context.parsed.y.toFixed(4)} €/kWh`;
+                                const price = context.parsed.y.toFixed(4);
+                                const level = pricingData[context.dataIndex]?.level || 'UNKNOWN';
+                                return `${price} ${currentCurrency}/kWh (${level})`;
                             }
                         }
                     }
@@ -2158,7 +2283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Price (€/kWh)'
+                            text: `Price (${currentCurrency}/kWh)`
                         }
                     },
                     x: {
@@ -2172,15 +2297,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Update pricing chart with current data - FIXED timezone handling
+    // Update pricing chart with Tibber data and price levels
     function updatePricingDisplay() {
-        if (!pricingChart || !pricingData || pricingData.length === 0) return;
+        if (!pricingChart) return;
         
-        // Get current time in the configured timezone
+        if (!pricingData || pricingData.length === 0) {
+            // Clear chart when no data
+            pricingChart.data.labels = [];
+            pricingChart.data.datasets[0].data = [];
+            pricingChart.data.datasets[0].backgroundColor = [];
+            pricingChart.data.datasets[0].borderColor = [];
+            pricingChart.update();
+            
+            // Clear current price display
+            currentPrice.textContent = '0.00';
+            priceLevel.textContent = 'NO DATA';
+            priceLevel.style.color = 'var(--gray)';
+            
+            return;
+        }
+        
         const now = new Date();
         const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: currentTimezone}));
         
-        // Get next 24 hours of prices starting from current hour
+        // Get next 24 hours of prices
         const next24Hours = pricingData.filter(p => {
             const priceTime = new Date(p.timestamp);
             const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
@@ -2192,15 +2332,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (next24Hours.length === 0) return;
         
-        // Calculate price thresholds for coloring
-        const prices = next24Hours.map(p => p.price);
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        const priceRange = maxPrice - minPrice;
-        const lowThreshold = minPrice + (priceRange * 0.33);
-        const highThreshold = minPrice + (priceRange * 0.66);
+        // Create Tibber-specific color mapping
+        const tibberLevelColors = {
+            'VERY_CHEAP': '#27ae60',
+            'CHEAP': '#2ecc71',
+            'NORMAL': '#f39c12',
+            'EXPENSIVE': '#e67e22',
+            'VERY_EXPENSIVE': '#e74c3c'
+        };
         
-        // Update chart data with timezone-aware labels
+        // Update chart data
         const labels = next24Hours.map(p => {
             const priceTime = new Date(p.timestamp);
             return priceTime.toLocaleTimeString('en-US', {
@@ -2214,7 +2355,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = next24Hours.map(p => p.price);
         
         const backgroundColor = next24Hours.map(p => {
-            const price = p.price;
             const priceTime = new Date(p.timestamp);
             const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
             const currentHour = nowInTimezone.getHours();
@@ -2222,32 +2362,33 @@ document.addEventListener('DOMContentLoaded', function() {
             // Highlight current hour
             if (priceInTimezone.getHours() === currentHour && 
                 priceInTimezone.getDate() === nowInTimezone.getDate()) {
-                return 'rgba(76, 111, 229, 0.7)'; // Primary color
+                return '#3498db'; // Blue for current hour
             }
             
-            // Color based on price thresholds
-            if (price <= lowThreshold) {
-                return 'rgba(46, 204, 113, 0.7)'; // Green for low prices
-            } else if (price <= highThreshold) {
-                return 'rgba(243, 156, 18, 0.7)'; // Orange for medium prices
-            } else {
-                return 'rgba(231, 76, 60, 0.7)'; // Red for high prices
+            // Use Tibber level colors if available
+            if (p.level && tibberLevelColors[p.level]) {
+                return tibberLevelColors[p.level];
             }
+            
+            // Fallback to generic coloring
+            return '#95a5a6';
         });
         
-        const borderColor = backgroundColor.map(color => color.replace('0.7', '1'));
+        const borderColor = backgroundColor.map(color => color);
         
         // Update chart
         pricingChart.data.labels = labels;
         pricingChart.data.datasets[0].data = data;
         pricingChart.data.datasets[0].backgroundColor = backgroundColor;
         pricingChart.data.datasets[0].borderColor = borderColor;
+        pricingChart.data.datasets[0].label = `Electricity Price (${currentCurrency}/kWh)`;
         
-        // Update chart title with timezone
+        // Update chart title and axis labels
         pricingChart.options.scales.x.title.text = 'Time (' + currentTimezone + ')';
+        pricingChart.options.scales.y.title.text = `Price (${currentCurrency}/kWh)`;
         pricingChart.update();
         
-        // Update current price display with timezone awareness
+        // Update current price display
         const currentHourPrice = next24Hours.find(p => {
             const priceTime = new Date(p.timestamp);
             const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
@@ -2258,37 +2399,56 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (currentHourPrice) {
             currentPrice.textContent = currentHourPrice.price.toFixed(4);
+            priceLevel.textContent = currentHourPrice.level || 'UNKNOWN';
+            
+            // Color the price level indicator
+            if (currentHourPrice.level && tibberLevelColors[currentHourPrice.level]) {
+                priceLevel.style.color = tibberLevelColors[currentHourPrice.level];
+            }
         }
-        
-        // Update average price
-        const average = prices.reduce((acc, price) => acc + price, 0) / prices.length;
-        avgPrice.textContent = average.toFixed(4);
     }
 
-    // Update best charging times list - FIXED timezone handling
+    // Update best charging times list using Tibber intelligence
     function updateBestTimesList() {
         if (!pricingData || pricingData.length === 0) {
-            bestTimesList.innerHTML = '<p>No pricing data available</p>';
+            bestTimesList.innerHTML = '<p style="color: var(--gray); font-style: italic;">Configure Tibber API token to see best charging times</p>';
             return;
         }
         
-        // Sort prices from lowest to highest
-        const sortedPrices = [...pricingData].sort((a, b) => a.price - b.price);
+        const now = new Date();
+        const futurePrices = pricingData.filter(p => new Date(p.timestamp) > now);
         
-        // Take top 5 best times
+        if (futurePrices.length === 0) {
+            bestTimesList.innerHTML = '<p>No future pricing data available</p>';
+            return;
+        }
+        
+        // Sort by Tibber levels first, then by price
+        const tibberLevelPriority = {
+            'VERY_CHEAP': 1,
+            'CHEAP': 2,
+            'NORMAL': 3,
+            'EXPENSIVE': 4,
+            'VERY_EXPENSIVE': 5
+        };
+        
+        const sortedPrices = futurePrices.sort((a, b) => {
+            const priorityA = tibberLevelPriority[a.level] || 3;
+            const priorityB = tibberLevelPriority[b.level] || 3;
+            
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+            
+            return a.price - b.price;
+        });
+        
         const bestTimes = sortedPrices.slice(0, 5);
         
-        if (bestTimes.length === 0) {
-            bestTimesList.innerHTML = '<p>No pricing data available</p>';
-            return;
-        }
-        
-        // Build the list with proper timezone handling
         let html = '';
         bestTimes.forEach((timeSlot, index) => {
             const priceTime = new Date(timeSlot.timestamp);
             
-            // Format time and date in the configured timezone
             const formattedTime = priceTime.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -2302,26 +2462,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 timeZone: currentTimezone
             });
             
+            const levelColor = {
+                'VERY_CHEAP': '#27ae60',
+                'CHEAP': '#2ecc71',
+                'NORMAL': '#f39c12',
+                'EXPENSIVE': '#e67e22',
+                'VERY_EXPENSIVE': '#e74c3c'
+            }[timeSlot.level] || '#95a5a6';
+            
             html += `
                 <div class="best-time-item">
                     <div>
                         <span class="time-slot">${formattedTime}</span>
                         <small> ${formattedDate}</small>
+                        <div style="color: ${levelColor}; font-size: 12px; font-weight: bold;">
+                            ${timeSlot.level || 'UNKNOWN'}
+                        </div>
                     </div>
-                    <div class="price-value">${timeSlot.price.toFixed(4)} €/kWh</div>
+                    <div class="price-value">${timeSlot.price.toFixed(4)} ${currentCurrency}/kWh</div>
                 </div>
             `;
         });
         
         bestTimesList.innerHTML = html;
-        
-        console.log('Best times updated with timezone:', currentTimezone);
     }
 
     // Update system state display
     async function updateSystemState() {
         try {
-            // Get battery state from API
             const response = await fetch('<%= ingress_path %>/api/system-state');
             
             if (!response.ok) {
@@ -2336,7 +2504,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 batterySoC.textContent = Math.round(systemState.battery_soc);
             }
             
-            // Determine charging status and recommendation
+            // Update charging status and recommendation
             updateChargingStatus();
             updateRecommendation(systemState);
             
@@ -2351,27 +2519,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update charging status display
     function updateChargingStatus() {
         // This would ideally get the actual grid charging status from the backend
-        // For now, this is just a placeholder that randomly determines status
         const charging = Math.random() > 0.5;
         
         if (charging) {
             chargingStatus.textContent = 'Yes';
             chargingStatus.style.color = 'var(--success)';
-            chargingReason.textContent = 'Low electricity price';
+            chargingReason.textContent = 'Tibber price favorable';
         } else {
             chargingStatus.textContent = 'No';
             chargingStatus.style.color = 'var(--danger)';
-            chargingReason.textContent = 'High electricity price';
+            chargingReason.textContent = 'Tibber price unfavorable';
         }
     }
 
-    // Update recommendation alert - FIXED timezone handling
+    // Update recommendation using Tibber intelligence
     function updateRecommendation(systemState) {
         if (!config || !systemState) return;
         
         const batterySoCValue = systemState.battery_soc || 0;
         
-        // Get current time in configured timezone
         const now = new Date();
         const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: currentTimezone}));
         
@@ -2385,15 +2551,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!currentHourPrice) {
             recommendationAlert.className = 'alert alert-warning';
-            recommendationText.innerHTML = 'Cannot determine recommendation - no price data for current hour';
+            recommendationText.innerHTML = 'Cannot determine recommendation - no Tibber price data for current hour';
             return;
         }
-        
-        const isLowPrice = lowPricePeriods.some(period => {
-            const periodStart = new Date(period.start);
-            const periodEnd = new Date(period.end);
-            return now >= periodStart && now < periodEnd;
-        });
         
         // Battery is full
         if (batterySoCValue >= config.targetSoC) {
@@ -2409,60 +2569,80 @@ document.addEventListener('DOMContentLoaded', function() {
         if (batterySoCValue < config.minimumSoC) {
             recommendationAlert.className = 'alert alert-danger';
             recommendationText.innerHTML = `
-                <strong>Turn Grid Charging ON</strong><br>
+                <strong>Turn Grid Charging ON (Emergency)</strong><br>
                 Battery SoC (${Math.round(batterySoCValue)}%) is below minimum (${config.minimumSoC}%)
             `;
             return;
         }
         
-        // Check if price is low
-        if (isLowPrice) {
-            recommendationAlert.className = 'alert alert-success';
-            recommendationText.innerHTML = `
-                <strong>Turn Grid Charging ON</strong><br>
-                Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is low and battery is not full
-            `;
+        // Use Tibber price level intelligence
+        if (currentHourPrice.level && config.useTibberLevels) {
+            const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
+            const isLowPrice = lowPriceLevels.includes(currentHourPrice.level);
+            
+            if (isLowPrice) {
+                recommendationAlert.className = 'alert alert-success';
+                recommendationText.innerHTML = `
+                    <strong>Turn Grid Charging ON</strong><br>
+                    Tibber price level is favorable (${currentHourPrice.level})<br>
+                    Current price: ${currentHourPrice.price.toFixed(4)} ${currentCurrency}/kWh
+                `;
+            } else {
+                recommendationAlert.className = 'alert alert-warning';
+                recommendationText.innerHTML = `
+                    <strong>Keep Grid Charging OFF</strong><br>
+                    Tibber price level is not optimal (${currentHourPrice.level})<br>
+                    Current price: ${currentHourPrice.price.toFixed(4)} ${currentCurrency}/kWh
+                `;
+            }
         } else {
-            recommendationAlert.className = 'alert alert-warning';
+            // Fallback to threshold-based recommendation
+            recommendationAlert.className = 'alert alert-info';
             recommendationText.innerHTML = `
-                <strong>Keep Grid Charging OFF</strong><br>
-                Current price (${currentHourPrice.price.toFixed(4)} €/kWh) is not optimal
+                <strong>Price-based recommendation</strong><br>
+                Current price: ${currentHourPrice.price.toFixed(4)} ${currentCurrency}/kWh<br>
+                Enable Tibber price levels for intelligent recommendations
             `;
         }
     }
 
-    // Show notification message
+    // Show notification
     function showNotification(message, type = 'info') {
         notification.className = 'alert';
         notification.classList.add(`alert-${type}`);
         notificationMessage.textContent = message;
         notification.classList.remove('hidden');
         
-        // Auto-hide after 5 seconds
         setTimeout(hideNotification, 5000);
     }
 
-    // Hide notification message
+    // Hide notification
     function hideNotification() {
         notification.classList.add('hidden');
     }
 
-    // Save configuration to API
+    // Save configuration
     async function saveConfiguration() {
-        showNotification('Saving configuration...', 'info');
+        showNotification('Saving Tibber configuration...', 'info');
         
-        // Read values from form
+        // Get selected price levels
+        const lowPriceLevels = [];
+        document.querySelectorAll('.price-level-checkbox:checked').forEach(checkbox => {
+            lowPriceLevels.push(checkbox.value);
+        });
+        
         const formData = {
             enabled: enableDynamicPricingToggle.checked,
             country: countrySelect.value,
-            market: countrySelect.value, // Using same value for market
             timezone: timezoneSelect.value,
             apiKey: apiKeyInput.value,
-            priceThreshold: parseFloat(priceThresholdInput.value),
+            priceThreshold: parseFloat(priceThresholdInput.value) || 0,
             minimumSoC: parseInt(minimumSoCInput.value),
             targetSoC: parseInt(targetSoCInput.value),
             scheduledCharging: scheduledChargingCheckbox.checked,
-            chargingHours: getChargingPeriods()
+            chargingHours: getChargingPeriods(),
+            useTibberLevels: useTibberLevelsCheckbox.checked,
+            lowPriceLevels: lowPriceLevels
         };
         
         try {
@@ -2475,7 +2655,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to save configuration');
+                throw new Error('Failed to save Tibber configuration');
             }
             
             const data = await response.json();
@@ -2483,27 +2663,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 config = data.config;
                 
-                // Update current timezone if it changed
+                // Update current timezone and currency if changed
                 if (formData.timezone !== currentTimezone) {
                     currentTimezone = formData.timezone;
                     console.log('Timezone changed to:', currentTimezone);
-                    
-                    // Update chart title
-                    if (pricingChart) {
-                        pricingChart.options.scales.x.title.text = 'Time (' + currentTimezone + ')';
-                        pricingChart.update();
-                    }
                 }
                 
-                showNotification('Configuration saved successfully', 'success');
+                showNotification('Tibber configuration saved successfully', 'success');
                 
-                // Reload pricing data to reflect timezone changes
-                await loadPricingData();
+                // Automatically refresh pricing data if API key was provided
+                if (formData.apiKey && formData.apiKey.trim() !== '' && !formData.apiKey.includes('...')) {
+                    console.log('API key provided, automatically refreshing Tibber prices...');
+                    setTimeout(() => refreshPrices(true), 1000);
+                } else {
+                    // Just reload pricing data to reflect timezone changes
+                    await loadPricingData();
+                }
             } else {
                 throw new Error(data.error || 'Failed to save configuration');
             }
         } catch (error) {
-            console.error('Error saving configuration:', error);
+            console.error('Error saving Tibber configuration:', error);
             showNotification('Error saving configuration: ' + error.message, 'danger');
         }
     }
@@ -2525,7 +2705,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return periods;
     }
 
-    // Enhanced refresh prices function with automatic retry
+    // Refresh Tibber prices
     async function refreshPrices(isAutomatic = false) {
         if (!isAutomatic) {
             refreshDataBtn.innerHTML = '<span class="loading"></span> Refreshing...';
@@ -2538,23 +2718,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to refresh prices');
+                throw new Error('Failed to refresh Tibber prices');
             }
             
             const data = await response.json();
             
             if (data.success) {
                 if (!isAutomatic) {
-                    showNotification('Price update initiated. Data refreshed successfully.', 'success');
+                    showNotification('Tibber price update completed successfully.', 'success');
                 }
                 
-                // Reload pricing data immediately
                 await loadPricingData();
             } else {
-                throw new Error(data.error || 'Failed to refresh prices');
+                // Handle specific error cases
+                if (data.needsApiKey) {
+                    if (!isAutomatic) {
+                        showNotification('⚠️ Tibber API token required for fetching real pricing data', 'warning');
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to refresh prices');
+                }
             }
         } catch (error) {
-            console.error('Error refreshing prices:', error);
+            console.error('Error refreshing Tibber prices:', error);
             if (!isAutomatic) {
                 showNotification('Error refreshing prices: ' + error.message, 'danger');
             }
@@ -2586,24 +2772,20 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to send grid charge command');
+                throw new Error('Failed to send Tibber grid charge command');
             }
             
             const data = await response.json();
             
             if (data.success) {
-                showNotification(`Grid charging ${enable ? 'enabled' : 'disabled'} successfully`, 'success');
-                
-                // Update UI
+                showNotification(`Tibber grid charging ${enable ? 'enabled' : 'disabled'} successfully`, 'success');
                 updateChargingStatus();
-                
-                // Load actions log to show the new action
                 loadActionsLog();
             } else {
                 throw new Error(data.error || 'Failed to send grid charge command');
             }
         } catch (error) {
-            console.error('Error sending grid charge command:', error);
+            console.error('Error sending Tibber grid charge command:', error);
             showNotification('Error sending command: ' + error.message, 'danger');
         } finally {
             actionBtn.innerHTML = originalText;
@@ -2617,7 +2799,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/actions-log?limit=5');
             
             if (!response.ok) {
-                throw new Error('Failed to load actions log');
+                throw new Error('Failed to load Tibber actions log');
             }
             
             const data = await response.json();
@@ -2643,19 +2825,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 actionsLog.innerHTML = html;
             } else {
-                actionsLog.innerHTML = '<p>No recent actions recorded.</p>';
+                actionsLog.innerHTML = '<p>No recent Tibber actions recorded.</p>';
             }
         } catch (error) {
-            console.error('Error loading actions log:', error);
+            console.error('Error loading Tibber actions log:', error);
             actionsLog.innerHTML = '<p>Error loading actions log.</p>';
         }
     }
 
     // Set up event listeners
     function setupEventListeners() {
-        // Enable/disable dynamic pricing
+        // Enable/disable Tibber dynamic pricing
         enableDynamicPricingToggle.addEventListener('change', function() {
-            // Save configuration with new state
             saveConfiguration();
         });
         
@@ -2666,15 +2847,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Refresh data button
         refreshDataBtn.addEventListener('click', function() {
-            refreshPrices(false); // Manual refresh
+            refreshPrices(false);
         });
         
-        // Enable charging button
+        // Enable/disable charging buttons
         enableChargingBtn.addEventListener('click', function() {
             sendGridChargeCommand(true);
         });
         
-        // Disable charging button
         disableChargingBtn.addEventListener('click', function() {
             sendGridChargeCommand(false);
         });
@@ -2684,29 +2864,31 @@ document.addEventListener('DOMContentLoaded', function() {
             schedulingOptions.classList.toggle('hidden', !this.checked);
         });
         
+        // Toggle Tibber levels vs manual threshold
+        useTibberLevelsCheckbox.addEventListener('change', function() {
+            const useLevels = this.checked;
+            tibberLevelOptions.classList.toggle('hidden', !useLevels);
+            manualThresholdOptions.classList.toggle('hidden', useLevels);
+        });
+        
         // Add time period button
         addPeriodBtn.addEventListener('click', function() {
             addTimePeriod();
         });
         
-        // Timezone change event
-        timezoneSelect.addEventListener('change', function() {
-            console.log('Timezone selection changed to:', this.value);
-            // The actual timezone update will happen when configuration is saved
-        });
-        
-        // Set up automatic price refresh every hour
+        // Set up automatic refresh every hour - only if API key is configured
         setInterval(() => {
-            console.log('Automatic hourly price refresh...');
-            refreshPrices(true);
-        }, 3600000); // Every hour
+            if (config && config.apiKey && config.apiKey.trim() !== '') {
+                console.log('Automatic hourly Tibber price refresh...');
+                refreshPrices(true);
+            }
+        }, 3600000);
     }
 
     // Make hideNotification available globally
     window.hideNotification = hideNotification;
 });
- </script>
-
+</script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>

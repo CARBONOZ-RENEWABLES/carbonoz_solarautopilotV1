@@ -1,253 +1,213 @@
-// pricingApis.js - ENHANCED WITH REAL DATA FETCHING
+// pricingApis.js - TIBBER API INTEGRATION
 
 const axios = require('axios');
 const moment = require('moment-timezone');
 
 /**
- * Global country configuration with timezones and market operators
+ * Tibber supported countries with their configurations
  */
-const COUNTRY_CONFIG = {
-  // Europe
-  'DE': { timezone: 'Europe/Berlin', market: 'AWATTAR', currency: 'EUR', operator: 'aWATTar' },
-  'FR': { timezone: 'Europe/Paris', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'ES': { timezone: 'Europe/Madrid', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'IT': { timezone: 'Europe/Rome', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'UK': { timezone: 'Europe/London', market: 'ENTSO-E', currency: 'GBP', operator: 'National Grid ESO' },
-  'NL': { timezone: 'Europe/Amsterdam', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'BE': { timezone: 'Europe/Brussels', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'AT': { timezone: 'Europe/Vienna', market: 'AWATTAR', currency: 'EUR', operator: 'aWATTar' },
-  'CH': { timezone: 'Europe/Zurich', market: 'ENTSO-E', currency: 'CHF', operator: 'Swissgrid' },
-  'DK': { timezone: 'Europe/Copenhagen', market: 'NORDPOOL', currency: 'DKK', operator: 'Nordpool' },
-  'NO': { timezone: 'Europe/Oslo', market: 'NORDPOOL', currency: 'NOK', operator: 'Nordpool' },
-  'SE': { timezone: 'Europe/Stockholm', market: 'NORDPOOL', currency: 'SEK', operator: 'Nordpool' },
-  'FI': { timezone: 'Europe/Helsinki', market: 'NORDPOOL', currency: 'EUR', operator: 'Nordpool' },
-  'PL': { timezone: 'Europe/Warsaw', market: 'ENTSO-E', currency: 'PLN', operator: 'ENTSO-E' },
-  'CZ': { timezone: 'Europe/Prague', market: 'ENTSO-E', currency: 'CZK', operator: 'ENTSO-E' },
-  'SK': { timezone: 'Europe/Bratislava', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'HU': { timezone: 'Europe/Budapest', market: 'ENTSO-E', currency: 'HUF', operator: 'ENTSO-E' },
-  'RO': { timezone: 'Europe/Bucharest', market: 'ENTSO-E', currency: 'RON', operator: 'ENTSO-E' },
-  'BG': { timezone: 'Europe/Sofia', market: 'ENTSO-E', currency: 'BGN', operator: 'ENTSO-E' },
-  'GR': { timezone: 'Europe/Athens', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'PT': { timezone: 'Europe/Lisbon', market: 'ENTSO-E', currency: 'EUR', operator: 'ENTSO-E' },
-  'IE': { timezone: 'Europe/Dublin', market: 'SEMO', currency: 'EUR', operator: 'SEMO' },
-  'EE': { timezone: 'Europe/Tallinn', market: 'NORDPOOL', currency: 'EUR', operator: 'Nordpool' },
-  'LV': { timezone: 'Europe/Riga', market: 'NORDPOOL', currency: 'EUR', operator: 'Nordpool' },
-  'LT': { timezone: 'Europe/Vilnius', market: 'NORDPOOL', currency: 'EUR', operator: 'Nordpool' },
-  
-  // Additional countries
-  'US': { timezone: 'America/New_York', market: 'PJM', currency: 'USD', operator: 'PJM/CAISO/ERCOT' },
-  'CA': { timezone: 'America/Toronto', market: 'IESO', currency: 'CAD', operator: 'IESO/AESO' },
-  'AU': { timezone: 'Australia/Sydney', market: 'AEMO', currency: 'AUD', operator: 'AEMO' },
-  'NZ': { timezone: 'Pacific/Auckland', market: 'EA', currency: 'NZD', operator: 'Electricity Authority' },
-  'JP': { timezone: 'Asia/Tokyo', market: 'JEPX', currency: 'JPY', operator: 'JEPX' }
+const TIBBER_COUNTRIES = {
+  'NO': { timezone: 'Europe/Oslo', currency: 'NOK', market: 'TIBBER' },
+  'SE': { timezone: 'Europe/Stockholm', currency: 'SEK', market: 'TIBBER' },
+  'DK': { timezone: 'Europe/Copenhagen', currency: 'DKK', market: 'TIBBER' },
+  'FI': { timezone: 'Europe/Helsinki', currency: 'EUR', market: 'TIBBER' },
+  'DE': { timezone: 'Europe/Berlin', currency: 'EUR', market: 'TIBBER' },
+  'NL': { timezone: 'Europe/Amsterdam', currency: 'EUR', market: 'TIBBER' }
 };
 
 /**
- * ENTSO-E area codes for European countries
+ * Tibber GraphQL API endpoint
  */
-const ENTSO_E_AREA_CODES = {
-  'DE': '10Y1001A1001A83F', // Germany
-  'FR': '10Y1001A1001A39I', // France
-  'ES': '10YES-REE------0', // Spain
-  'IT': '10Y1001A1001A73I', // Italy
-  'UK': '10Y1001A1001A92E', // UK
-  'NL': '10Y1001A1001A16H', // Netherlands
-  'BE': '10YBE----------2', // Belgium
-  'AT': '10YAT-APG------L', // Austria
-  'CH': '10YCH-SWISSGRIDZ', // Switzerland
-  'DK': '10Y1001A1001A65H', // Denmark
-  'NO': '10YNO-0--------C', // Norway
-  'SE': '10YSE-1--------K', // Sweden
-  'FI': '10YFI-1--------U', // Finland
-  'PL': '10YPL-AREA-----S', // Poland
-  'CZ': '10YCZ-CEPS-----N', // Czech Republic
-  'SK': '10YSK-SEPS-----K', // Slovakia
-  'HU': '10YHU-MAVIR----U', // Hungary
-  'RO': '10YRO-TEL------P', // Romania
-  'BG': '10YCA-BULGARIA-R', // Bulgaria
-  'GR': '10YGR-HTSO-----Y', // Greece
-  'PT': '10YPT-REN------W', // Portugal
-  'IE': '10Y1001A1001A59C', // Ireland
-  'EE': '10Y1001A1001A39I', // Estonia
-  'LV': '10YLV-1001A00074', // Latvia
-  'LT': '10YLT-1001A0008Q', // Lithuania
-};
+const TIBBER_API_URL = 'https://api.tibber.com/v1-beta/gql';
 
 /**
- * Fetch electricity prices from ENTSO-E API - REAL DATA
+ * GraphQL query for getting current and forecasted prices
  */
-async function fetchEntsoeElectricityPrices(config) {
+const TIBBER_PRICE_QUERY = `
+  query {
+    viewer {
+      homes {
+        currentSubscription {
+          priceInfo {
+            current {
+              total
+              energy
+              tax
+              startsAt
+              level
+            }
+            today {
+              total
+              energy
+              tax
+              startsAt
+              level
+            }
+            tomorrow {
+              total
+              energy
+              tax
+              startsAt
+              level
+            }
+          }
+        }
+        address {
+          address1
+          postalCode
+          city
+          country
+        }
+        timeZone
+      }
+    }
+  }
+`;
+
+/**
+ * Fetch electricity prices from Tibber API
+ */
+async function fetchTibberElectricityPrices(config) {
   if (!config.apiKey) {
-    throw new Error('API key for ENTSO-E is missing');
+    throw new Error('Tibber API token is required');
   }
   
   try {
-    const countryConfig = COUNTRY_CONFIG[config.country] || COUNTRY_CONFIG['DE'];
-    const timezone = countryConfig.timezone;
+    console.log(`Fetching Tibber pricing data for ${config.country}...`);
     
-    // Get today and tomorrow in the target timezone
-    const today = moment().tz(timezone).format('YYYYMMDD');
-    const tomorrow = moment().tz(timezone).add(1, 'day').format('YYYYMMDD');
-    
-    const areaCode = ENTSO_E_AREA_CODES[config.country];
-    if (!areaCode) {
-      throw new Error(`No ENTSO-E area code found for country: ${config.country}`);
-    }
-    
-    const url = `https://web-api.tp.entsoe.eu/api`;
-    const params = {
-      documentType: 'A44',
-      in_Domain: areaCode,
-      out_Domain: areaCode,
-      periodStart: today + '0000',
-      periodEnd: tomorrow + '2300',
-      securityToken: config.apiKey
-    };
-    
-    console.log(`Fetching ENTSO-E data for ${config.country} from ${today} to ${tomorrow}`);
-    
-    const response = await axios.get(url, { 
-      params: params,
-      headers: { 
-        'Content-Type': 'application/xml',
+    const response = await axios.post(TIBBER_API_URL, {
+      query: TIBBER_PRICE_QUERY
+    }, {
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
         'User-Agent': 'SolarAutopilot/1.0'
       },
       timeout: 30000
     });
     
     if (response.status !== 200) {
-      throw new Error(`ENTSO-E API returned status ${response.status}`);
+      throw new Error(`Tibber API returned status ${response.status}`);
     }
     
-    const parsedData = parseEntsoeXmlResponse(response.data, timezone, countryConfig.currency);
+    const data = response.data;
     
-    if (parsedData.length === 0) {
-      throw new Error('No pricing data returned from ENTSO-E API');
+    if (data.errors && data.errors.length > 0) {
+      throw new Error(`Tibber API error: ${data.errors[0].message}`);
     }
     
-    console.log(`✅ ENTSO-E: Retrieved ${parsedData.length} real price points for ${config.country}`);
-    return parsedData;
+    if (!data.data || !data.data.viewer || !data.data.viewer.homes || data.data.viewer.homes.length === 0) {
+      throw new Error('No homes found in Tibber account or invalid API token');
+    }
     
-  } catch (error) {
-    console.error('Error fetching ENTSO-E electricity prices:', error.message);
-    throw error; // Re-throw to allow fallback to sample data
-  }
-}
-
-/**
- * Parse ENTSO-E XML response with timezone support
- */
-function parseEntsoeXmlResponse(xmlData, timezone, currency) {
-  try {
+    const home = data.data.viewer.homes[0]; // Use first home
+    const priceInfo = home.currentSubscription?.priceInfo;
+    
+    if (!priceInfo) {
+      throw new Error('No price information available for this home');
+    }
+    
+    // Get timezone from home data or use config
+    const homeTimezone = home.timeZone || config.timezone;
+    const countryConfig = TIBBER_COUNTRIES[config.country] || TIBBER_COUNTRIES['DE'];
+    const timezone = homeTimezone || countryConfig.timezone;
+    
+    // Determine currency from home location
+    const homeCurrency = determineCurrencyFromCountry(home.address?.country || config.country);
+    
     const prices = [];
     
-    // Extract time period
-    const timePeriodPattern = /<time_Period>\s*<timeInterval>\s*<start>(.*?)<\/start>\s*<end>(.*?)<\/end>\s*<\/timeInterval>/s;
-    const timePeriodMatch = xmlData.match(timePeriodPattern);
-    
-    if (!timePeriodMatch) {
-      throw new Error('Failed to extract time period from ENTSO-E response');
+    // Process current price
+    if (priceInfo.current) {
+      prices.push(formatTibberPrice(priceInfo.current, timezone, homeCurrency));
     }
     
-    const startTime = moment.tz(timePeriodMatch[1], timezone);
-    
-    // Extract price points
-    const pointPattern = /<Point>\s*<position>(.*?)<\/position>\s*<price\.amount>(.*?)<\/price\.amount>\s*<\/Point>/g;
-    let pointMatch;
-    
-    while ((pointMatch = pointPattern.exec(xmlData)) !== null) {
-      const position = parseInt(pointMatch[1]);
-      const priceAmount = parseFloat(pointMatch[2]);
-      
-      // Convert from EUR/MWh to local currency per kWh
-      const pricePerKwh = priceAmount / 1000;
-      
-      const timestamp = moment(startTime).add(position - 1, 'hours');
-      
-      prices.push({
-        timestamp: timestamp.toISOString(),
-        price: parseFloat(pricePerKwh.toFixed(4)),
-        currency: currency,
-        unit: 'kWh',
-        timezone: timezone,
-        source: 'real',
-        market: 'ENTSO-E'
+    // Process today's prices
+    if (priceInfo.today && Array.isArray(priceInfo.today)) {
+      priceInfo.today.forEach(price => {
+        prices.push(formatTibberPrice(price, timezone, homeCurrency));
       });
     }
     
-    return prices;
+    // Process tomorrow's prices (if available)
+    if (priceInfo.tomorrow && Array.isArray(priceInfo.tomorrow)) {
+      priceInfo.tomorrow.forEach(price => {
+        prices.push(formatTibberPrice(price, timezone, homeCurrency));
+      });
+    }
+    
+    // Remove duplicates and sort by timestamp
+    const uniquePrices = prices
+      .filter((price, index, self) => 
+        index === self.findIndex(p => p.timestamp === price.timestamp)
+      )
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    console.log(`✅ Tibber: Retrieved ${uniquePrices.length} real price points`);
+    console.log(`Home location: ${home.address?.city}, ${home.address?.country}`);
+    console.log(`Timezone: ${timezone}, Currency: ${homeCurrency}`);
+    
+    return uniquePrices;
+    
   } catch (error) {
-    console.error('Error parsing ENTSO-E XML response:', error.message);
+    console.error('Error fetching Tibber prices:', error.message);
     throw error;
   }
 }
 
 /**
- * Fetch prices from AWATTAR API (Germany and Austria) - REAL DATA
+ * Format Tibber price data to our standard format
  */
-async function fetchAwattarPrices(config) {
-  try {
-    const countryConfig = COUNTRY_CONFIG[config.country];
-    const countryDomain = config.country.toLowerCase() === 'at' ? 'at' : 'de';
-    const url = `https://api.awattar.${countryDomain}/v1/marketdata`;
-    
-    console.log(`Fetching aWATTar data for ${config.country} from ${url}`);
-    
-    const response = await axios.get(url, { 
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'SolarAutopilot/1.0'
-      }
-    });
-    
-    if (!response.data || !response.data.data) {
-      throw new Error('Invalid response from aWATTar API');
-    }
-    
-    const prices = response.data.data.map(item => ({
-      timestamp: moment(item.start_timestamp).tz(countryConfig.timezone).toISOString(),
-      price: parseFloat((item.marketprice / 1000).toFixed(4)), // Convert from EUR/MWh to EUR/kWh
-      currency: countryConfig.currency,
-      unit: 'kWh',
-      timezone: countryConfig.timezone,
-      source: 'real',
-      market: 'aWATTar'
-    }));
-    
-    console.log(`✅ aWATTar: Retrieved ${prices.length} real price points for ${config.country}`);
-    return prices;
-    
-  } catch (error) {
-    console.error('Error fetching aWATTar prices:', error.message);
-    throw error; // Re-throw to allow fallback to sample data
-  }
+function formatTibberPrice(tibberPrice, timezone, currency) {
+  return {
+    timestamp: tibberPrice.startsAt,
+    price: parseFloat((tibberPrice.total || 0).toFixed(4)),
+    energy: parseFloat((tibberPrice.energy || 0).toFixed(4)),
+    tax: parseFloat((tibberPrice.tax || 0).toFixed(4)),
+    level: tibberPrice.level || 'NORMAL', // VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE
+    currency: currency,
+    unit: 'kWh',
+    timezone: timezone,
+    source: 'real',
+    market: 'TIBBER'
+  };
 }
 
 /**
- * Generate sample price data for testing or fallback
+ * Determine currency based on country
  */
-function generateSamplePriceData(countryCode = 'DE') {
+function determineCurrencyFromCountry(country) {
+  const currencyMap = {
+    'NO': 'NOK',
+    'SE': 'SEK', 
+    'DK': 'DKK',
+    'FI': 'EUR',
+    'DE': 'EUR',
+    'NL': 'EUR'
+  };
+  
+  return currencyMap[country] || 'EUR';
+}
+
+/**
+ * Generate sample price data for testing (Tibber-style)
+ */
+function generateTibberSampleData(countryCode = 'DE') {
   const prices = [];
-  const countryConfig = COUNTRY_CONFIG[countryCode] || COUNTRY_CONFIG['DE'];
+  const countryConfig = TIBBER_COUNTRIES[countryCode] || TIBBER_COUNTRIES['DE'];
   const timezone = countryConfig.timezone;
   const currency = countryConfig.currency;
   
   const now = moment().tz(timezone).startOf('hour');
   
-  // Country-specific price patterns
+  // Country-specific price patterns (in local currency)
   const pricePatterns = {
-    'DE': { base: 0.30, peak: 0.45, valley: 0.20 },
-    'AT': { base: 0.28, peak: 0.42, valley: 0.18 },
-    'FR': { base: 0.25, peak: 0.35, valley: 0.15 },
-    'UK': { base: 0.22, peak: 0.32, valley: 0.14 },
-    'NL': { base: 0.26, peak: 0.38, valley: 0.16 },
-    'BE': { base: 0.24, peak: 0.36, valley: 0.14 },
-    'ES': { base: 0.20, peak: 0.28, valley: 0.12 },
-    'IT': { base: 0.22, peak: 0.30, valley: 0.14 },
-    'NO': { base: 0.15, peak: 0.20, valley: 0.08 },
-    'SE': { base: 0.18, peak: 0.25, valley: 0.10 },
-    'FI': { base: 0.16, peak: 0.22, valley: 0.12 },
-    'DK': { base: 0.28, peak: 0.42, valley: 0.18 }
+    'NO': { base: 1.20, peak: 2.00, valley: 0.60 }, // NOK/kWh
+    'SE': { base: 1.80, peak: 2.80, valley: 0.90 }, // SEK/kWh
+    'DK': { base: 2.20, peak: 3.50, valley: 1.20 }, // DKK/kWh
+    'FI': { base: 0.18, peak: 0.28, valley: 0.12 }, // EUR/kWh
+    'DE': { base: 0.30, peak: 0.45, valley: 0.20 }, // EUR/kWh
+    'NL': { base: 0.26, peak: 0.38, valley: 0.16 }  // EUR/kWh
   };
   
   const pattern = pricePatterns[countryCode] || pricePatterns['DE'];
@@ -260,21 +220,28 @@ function generateSamplePriceData(countryCode = 'DE') {
     const isWeekend = timestamp.day() === 0 || timestamp.day() === 6;
     
     let basePrice = pattern.base;
+    let level = 'NORMAL';
     
-    // Time-of-day pricing
+    // Time-of-day pricing with Tibber-style levels
     if (hour >= 7 && hour <= 9) {
-      basePrice = pattern.peak; // Morning peak
+      basePrice = pattern.peak;
+      level = 'EXPENSIVE';
     } else if (hour >= 17 && hour <= 21) {
-      basePrice = pattern.peak; // Evening peak  
+      basePrice = pattern.peak;
+      level = 'VERY_EXPENSIVE';
     } else if (hour >= 1 && hour <= 5) {
-      basePrice = pattern.valley; // Night valley
+      basePrice = pattern.valley;
+      level = 'VERY_CHEAP';
     } else if (hour >= 11 && hour <= 14) {
-      basePrice = pattern.valley; // Midday valley
+      basePrice = pattern.valley;
+      level = 'CHEAP';
     }
     
     // Weekend patterns
     if (isWeekend) {
       basePrice *= 0.85;
+      if (level === 'VERY_EXPENSIVE') level = 'EXPENSIVE';
+      if (level === 'EXPENSIVE') level = 'NORMAL';
     }
     
     // Add market volatility
@@ -284,11 +251,15 @@ function generateSamplePriceData(countryCode = 'DE') {
     prices.push({
       timestamp: timestamp.toISOString(),
       price: parseFloat(finalPrice.toFixed(4)),
+      energy: parseFloat((finalPrice * 0.7).toFixed(4)),
+      tax: parseFloat((finalPrice * 0.3).toFixed(4)),
+      level: level,
       currency: currency,
       unit: 'kWh',
       timezone: timezone,
       source: 'sample',
-      market: countryConfig.operator
+      market: 'TIBBER',
+      country: countryCode
     });
   }
   
@@ -296,120 +267,187 @@ function generateSamplePriceData(countryCode = 'DE') {
 }
 
 /**
- * Main function to fetch electricity prices - ENHANCED WITH REAL DATA SUPPORT
+ * Main function to fetch electricity prices - TIBBER FOCUSED (Real data only)
  */
 async function fetchElectricityPrices(config) {
   const countryCode = config.country || 'DE';
-  const countryConfig = COUNTRY_CONFIG[countryCode];
   
-  if (!countryConfig) {
-    console.warn(`Country ${countryCode} not supported, using sample data`);
-    return generateSamplePriceData(countryCode);
+  // Check if country is supported by Tibber
+  if (!TIBBER_COUNTRIES[countryCode]) {
+    throw new Error(`Country ${countryCode} not supported by Tibber`);
   }
   
-  let prices = [];
+  // Require API key for real data
+  if (!config.apiKey || config.apiKey.trim() === '') {
+    throw new Error('Tibber API token is required');
+  }
   
   try {
-    console.log(`Attempting to fetch REAL pricing data for ${countryCode} using ${countryConfig.market}`);
+    console.log(`Attempting to fetch REAL Tibber pricing data for ${countryCode}`);
     
-    // Route to appropriate market API based on country configuration
-    switch (countryConfig.market) {
-      case 'AWATTAR':
-        // aWATTar doesn't require API key for basic access
-        prices = await fetchAwattarPrices(config);
-        break;
-        
-      case 'ENTSO-E':
-        // ENTSO-E requires API key
-        if (!config.apiKey || config.apiKey.trim() === '') {
-          throw new Error('ENTSO-E requires API key');
-        }
-        prices = await fetchEntsoeElectricityPrices(config);
-        break;
-        
-      case 'NORDPOOL':
-        // For now, use sample data (could implement Nordpool API)
-        throw new Error('Nordpool API not implemented yet');
-        
-      default:
-        throw new Error(`Market ${countryConfig.market} not implemented yet`);
-    }
+    const prices = await fetchTibberElectricityPrices(config);
     
     // Validate we got data
     if (!prices || prices.length === 0) {
-      throw new Error('No pricing data returned from API');
+      throw new Error('No pricing data returned from Tibber API');
     }
     
     // Add metadata
-    prices = prices.map(price => ({
+    const enhancedPrices = prices.map(price => ({
       ...price,
       country: countryCode,
-      market: countryConfig.market,
-      operator: countryConfig.operator
+      operator: 'Tibber'
     }));
     
-    console.log(`✅ Successfully fetched ${prices.length} REAL price points for ${countryCode} from ${countryConfig.market}`);
-    return prices;
+    console.log(`✅ Successfully fetched ${enhancedPrices.length} REAL price points from Tibber for ${countryCode}`);
+    return enhancedPrices;
     
   } catch (error) {
-    console.log(`❌ Real data fetch failed for ${countryCode}: ${error.message}`);
-    console.log(`Falling back to sample data for ${countryCode}`);
-    
-    // Fallback to sample data
-    const samplePrices = generateSamplePriceData(countryCode);
-    
-    // Add metadata to sample data
-    return samplePrices.map(price => ({
-      ...price,
-      country: countryCode,
-      market: countryConfig.market,
-      operator: countryConfig.operator
-    }));
+    console.log(`❌ Tibber data fetch failed for ${countryCode}: ${error.message}`);
+    throw error; // Don't fall back to sample data, throw the error
   }
 }
 
 /**
- * Get supported countries and their market information
+ * Determine low price periods using Tibber's price levels
+ */
+function determineLowPricePeriods(pricingData, config) {
+  if (!pricingData || pricingData.length === 0) {
+    return [];
+  }
+  
+  try {
+    // If Tibber data, use their price levels
+    const hasTibberLevels = pricingData.some(p => p.level);
+    
+    if (hasTibberLevels) {
+      // Use Tibber's built-in price levels
+      const lowPricePeriods = pricingData.filter(p => 
+        p.level === 'VERY_CHEAP' || p.level === 'CHEAP'
+      );
+      
+      // Group consecutive periods
+      return groupConsecutivePeriods(lowPricePeriods, config.timezone);
+    }
+    
+    // Fallback to threshold-based calculation
+    const threshold = config.priceThreshold > 0 
+      ? config.priceThreshold 
+      : calculateAutoThreshold(pricingData);
+    
+    const lowPricePeriods = pricingData.filter(p => p.price <= threshold);
+    return groupConsecutivePeriods(lowPricePeriods, config.timezone);
+    
+  } catch (error) {
+    console.error('Error determining low price periods:', error);
+    return [];
+  }
+}
+
+/**
+ * Group consecutive price periods
+ */
+function groupConsecutivePeriods(periods, timezone = 'Europe/Berlin') {
+  if (periods.length === 0) return [];
+  
+  const groupedPeriods = [];
+  let currentGroup = null;
+  
+  periods.forEach(period => {
+    const periodTime = moment(period.timestamp).tz(timezone);
+    
+    if (!currentGroup) {
+      currentGroup = {
+        start: period.timestamp,
+        end: moment(periodTime).add(1, 'hour').toISOString(),
+        avgPrice: period.price,
+        level: period.level || 'LOW',
+        timezone: timezone
+      };
+    } else {
+      const currentEnd = moment(currentGroup.end).tz(timezone);
+      
+      if (periodTime.diff(currentEnd, 'hours') <= 1) {
+        currentGroup.end = moment(periodTime).add(1, 'hour').toISOString();
+        currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2;
+      } else {
+        groupedPeriods.push(currentGroup);
+        currentGroup = {
+          start: period.timestamp,
+          end: moment(periodTime).add(1, 'hour').toISOString(),
+          avgPrice: period.price,
+          level: period.level || 'LOW',
+          timezone: timezone
+        };
+      }
+    }
+  });
+  
+  if (currentGroup) {
+    groupedPeriods.push(currentGroup);
+  }
+  
+  return groupedPeriods;
+}
+
+/**
+ * Calculate automatic threshold (25% lowest prices)
+ */
+function calculateAutoThreshold(pricingData) {
+  const prices = pricingData.map(p => p.price).sort((a, b) => a - b);
+  const index = Math.floor(prices.length * 0.25);
+  return prices[index] || 0.1;
+}
+
+/**
+ * Get supported countries
  */
 function getSupportedCountries() {
-  return Object.keys(COUNTRY_CONFIG).map(countryCode => ({
+  return Object.keys(TIBBER_COUNTRIES).map(countryCode => ({
     code: countryCode,
-    ...COUNTRY_CONFIG[countryCode]
+    ...TIBBER_COUNTRIES[countryCode],
+    name: getCountryName(countryCode)
   }));
 }
 
 /**
- * Validate country code and configuration
+ * Get country name
+ */
+function getCountryName(countryCode) {
+  const countryNames = {
+    'NO': 'Norway',
+    'SE': 'Sweden', 
+    'DK': 'Denmark',
+    'FI': 'Finland',
+    'DE': 'Germany',
+    'NL': 'Netherlands'
+  };
+  
+  return countryNames[countryCode] || countryCode;
+}
+
+/**
+ * Validate if country is supported by Tibber
  */
 function isCountrySupported(countryCode) {
-  return COUNTRY_CONFIG.hasOwnProperty(countryCode);
+  return TIBBER_COUNTRIES.hasOwnProperty(countryCode);
 }
 
 /**
  * Get timezone for a country
  */
 function getCountryTimezone(countryCode) {
-  const config = COUNTRY_CONFIG[countryCode];
+  const config = TIBBER_COUNTRIES[countryCode];
   return config ? config.timezone : 'UTC';
-}
-
-/**
- * Get market operator for a country
- */
-function getMarketOperator(countryCode) {
-  const config = COUNTRY_CONFIG[countryCode];
-  return config ? config.operator : 'Unknown';
 }
 
 module.exports = {
   fetchElectricityPrices,
-  fetchEntsoeElectricityPrices,
-  fetchAwattarPrices,
-  generateSamplePriceData,
+  fetchTibberElectricityPrices,
+  generateTibberSampleData,
+  determineLowPricePeriods,
   getSupportedCountries,
   isCountrySupported,
   getCountryTimezone,
-  getMarketOperator,
-  COUNTRY_CONFIG,
-  ENTSO_E_AREA_CODES
+  TIBBER_COUNTRIES
 };

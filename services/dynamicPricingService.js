@@ -1,7 +1,7 @@
-// dynamicPricingService.js
+// dynamicPricingService.js - TIBBER INTEGRATION
+
 const axios = require('axios');
 const moment = require('moment-timezone');
-const mqtt = require('mqtt');
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
@@ -22,24 +22,22 @@ function ensureConfigExists() {
     const defaultConfig = {
       enabled: false,
       country: 'DE', // Default to Germany
-      market: 'DE', // Default to German market
-      apiKey: '',
-      priceThreshold: 0.10, // Default threshold in EUR/kWh
+      apiKey: '', // Tibber API token
+      priceThreshold: 0, // Use automatic threshold based on Tibber levels
       minimumSoC: 20, // Minimum battery SoC to allow grid charging
       targetSoC: 80, // Target battery SoC for charging
-      scheduledCharging: true,
-      chargingHours: [], // Will contain objects with start and end times
+      scheduledCharging: false,
+      chargingHours: [], // Additional manual time periods
       lastUpdate: null,
       pricingData: [],
       timezone: 'Europe/Berlin',
-      preferAwattar: false, // Preference for aWATTar API (DE, AT)
-      preferEpex: false, // Preference for EPEX Spot
-      currency: 'EUR', // Default currency
-      pricingSource: 'auto' // 'auto', 'entso-e', 'awattar', 'nordpool', 'epex', etc.
+      useTibberLevels: true, // Use Tibber's price level classification
+      lowPriceLevels: ['VERY_CHEAP', 'CHEAP'], // Which Tibber levels to consider as low
+      currency: 'EUR'
     };
     
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default dynamic pricing configuration file');
+    console.log('Created default Tibber dynamic pricing configuration');
   }
 }
 
@@ -65,138 +63,125 @@ function saveConfig(config) {
   }
 }
 
-// Determine charging periods based on price thresholds
+// Determine low price periods using Tibber's intelligent price levels
 function determineLowPricePeriods(prices, config) {
   if (!prices || prices.length === 0) {
     return [];
   }
   
-  // Sort prices ascending
-  const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
-  
-  // Determine threshold - either use the configured threshold or
-  // use the lowest 25% of prices if no specific threshold is set
-  const threshold = config.priceThreshold > 0 
-    ? config.priceThreshold 
-    : sortedPrices[Math.floor(sortedPrices.length * 0.25)].price;
-  
-  // Filter for periods below threshold
-  const lowPricePeriods = prices.filter(p => p.price <= threshold);
-  
-  // Group consecutive periods
-  const chargingPeriods = [];
-  let currentPeriod = null;
-  
-  for (const period of lowPricePeriods) {
-    const periodTime = moment(period.timestamp);
+  try {
+    // If we have Tibber data with price levels, use them
+    const hasTibberLevels = prices.some(p => p.level);
     
-    if (!currentPeriod) {
-      currentPeriod = {
-        start: periodTime.toISOString(),
+    if (hasTibberLevels && config.useTibberLevels) {
+      console.log('Using Tibber price levels for low price detection');
+      
+      const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
+      const lowPricePeriods = prices.filter(p => 
+        lowPriceLevels.includes(p.level)
+      );
+      
+      return groupConsecutivePeriods(lowPricePeriods, config.timezone);
+    }
+    
+    // Fallback to manual threshold
+    let threshold = config.priceThreshold;
+    
+    if (!threshold || threshold <= 0) {
+      // Use automatic threshold - 25% lowest prices
+      const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
+      threshold = sortedPrices[Math.floor(sortedPrices.length * 0.25)]?.price || 0.1;
+      console.log(`Using automatic threshold: ${threshold} ${config.currency || 'EUR'}/kWh`);
+    }
+    
+    const lowPricePeriods = prices.filter(p => p.price <= threshold);
+    return groupConsecutivePeriods(lowPricePeriods, config.timezone);
+    
+  } catch (error) {
+    console.error('Error determining low price periods:', error);
+    return [];
+  }
+}
+
+// Group consecutive price periods
+function groupConsecutivePeriods(periods, timezone = 'Europe/Berlin') {
+  if (periods.length === 0) return [];
+  
+  const groupedPeriods = [];
+  let currentGroup = null;
+  
+  periods.forEach(period => {
+    const periodTime = moment(period.timestamp).tz(timezone);
+    
+    if (!currentGroup) {
+      currentGroup = {
+        start: period.timestamp,
         end: moment(periodTime).add(1, 'hour').toISOString(),
-        avgPrice: period.price
+        avgPrice: period.price,
+        level: period.level || 'LOW',
+        timezone: timezone
       };
     } else {
-      // If this period starts at the end of the current period, extend it
-      const currentEnd = moment(currentPeriod.end);
+      const currentEnd = moment(currentGroup.end).tz(timezone);
       
-      if (periodTime.isSame(currentEnd)) {
-        currentPeriod.end = moment(periodTime).add(1, 'hour').toISOString();
-        // Update average price
-        const currentDuration = moment.duration(moment(currentPeriod.end).diff(moment(currentPeriod.start))).asHours();
-        const previousDuration = currentDuration - 1;
-        currentPeriod.avgPrice = (currentPeriod.avgPrice * previousDuration + period.price) / currentDuration;
+      // If this period starts within 1 hour of current group end, extend it
+      if (Math.abs(periodTime.diff(currentEnd, 'hours')) <= 1) {
+        currentGroup.end = moment(periodTime).add(1, 'hour').toISOString();
+        currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2;
       } else {
-        // This is a new period
-        chargingPeriods.push(currentPeriod);
-        currentPeriod = {
-          start: periodTime.toISOString(),
+        // Start a new group
+        groupedPeriods.push(currentGroup);
+        currentGroup = {
+          start: period.timestamp,
           end: moment(periodTime).add(1, 'hour').toISOString(),
-          avgPrice: period.price
+          avgPrice: period.price,
+          level: period.level || 'LOW',
+          timezone: timezone
         };
       }
     }
+  });
+  
+  if (currentGroup) {
+    groupedPeriods.push(currentGroup);
   }
   
-  // Add the last period if it exists
-  if (currentPeriod) {
-    chargingPeriods.push(currentPeriod);
-  }
-  
-  return chargingPeriods;
+  return groupedPeriods;
 }
 
-// Schedule charging based on pricing
-function scheduleCharging(config, mqttClient, currentSystemState) {
-  if (!config.enabled) {
+// Check if current time is within a low price period
+function isCurrentlyLowPrice(config, currentSystemState) {
+  if (!config.enabled || !config.pricingData) {
     return false;
   }
   
-  // Get current electricity prices
-  const currentPrices = config.pricingData;
+  const timezone = config.timezone || 'Europe/Berlin';
+  const now = moment().tz(timezone);
   
-  if (!currentPrices || currentPrices.length === 0) {
-    console.log('No pricing data available for dynamic charging decision');
-    return false;
-  }
-  
-  // Get the current time and find the current price
-  const now = moment().tz(config.timezone);
-  const currentPrice = currentPrices.find(p => {
-    const priceTime = moment(p.timestamp).tz(config.timezone);
+  // Find current hour price
+  const currentPrice = config.pricingData.find(p => {
+    const priceTime = moment(p.timestamp).tz(timezone);
     return now.isSame(priceTime, 'hour');
   });
   
   if (!currentPrice) {
-    console.log('No price data available for current hour');
     return false;
   }
   
-  // Determine if we should charge now based on pricing
-  const lowPricePeriods = determineLowPricePeriods(currentPrices, config);
-  
-  // Check if current time is within a low price period
-  const isLowPriceNow = lowPricePeriods.some(period => {
-    const periodStart = moment(period.start).tz(config.timezone);
-    const periodEnd = moment(period.end).tz(config.timezone);
-    return now.isBetween(periodStart, periodEnd, null, '[)');
-  });
-  
-  // Check battery state
-  const batterySoC = currentSystemState?.battery_soc || 0;
-  
-  // Only charge if:
-  // 1. Current price is low OR we're in a specifically scheduled charging period
-  // 2. Battery is below target level
-  // 3. Battery is above minimum level (to prevent over-discharging)
-  const shouldCharge = (
-    isLowPriceNow || 
-    isWithinScheduledChargingTime(config, now)
-  ) && 
-  batterySoC < config.targetSoC && 
-  batterySoC >= config.minimumSoC;
-  
-  if (shouldCharge) {
-    // Send command to enable grid charging
-    sendGridChargeCommand(mqttClient, true, config);
-    
-    console.log(`Dynamic pricing: Enabling grid charging at price ${currentPrice.price} ${currentPrice.currency}/${currentPrice.unit}`);
-    return true;
-  } else if (batterySoC >= config.targetSoC) {
-    // Battery is fully charged, disable grid charging
-    sendGridChargeCommand(mqttClient, false, config);
-    
-    console.log(`Dynamic pricing: Disabling grid charging as battery SoC (${batterySoC}%) is at or above target (${config.targetSoC}%)`);
-    return true;
-  } else if (!isLowPriceNow && !isWithinScheduledChargingTime(config, now)) {
-    // Not in a low price period, disable grid charging
-    sendGridChargeCommand(mqttClient, false, config);
-    
-    console.log(`Dynamic pricing: Disabling grid charging as current price (${currentPrice.price}) is not low enough`);
-    return true;
+  // If we have Tibber levels, use them
+  if (currentPrice.level && config.useTibberLevels) {
+    const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
+    return lowPriceLevels.includes(currentPrice.level);
   }
   
-  return false;
+  // Fallback to threshold check
+  const lowPricePeriods = determineLowPricePeriods(config.pricingData, config);
+  
+  return lowPricePeriods.some(period => {
+    const periodStart = moment(period.start).tz(timezone);
+    const periodEnd = moment(period.end).tz(timezone);
+    return now.isBetween(periodStart, periodEnd, null, '[)');
+  });
 }
 
 // Check if current time is within a scheduled charging period
@@ -218,6 +203,62 @@ function isWithinScheduledChargingTime(config, currentTime) {
   });
 }
 
+// Main scheduling logic for battery charging
+function scheduleCharging(config, mqttClient, currentSystemState) {
+  if (!config.enabled) {
+    return false;
+  }
+  
+  const timezone = config.timezone || 'Europe/Berlin';
+  const now = moment().tz(timezone);
+  const batterySoC = currentSystemState?.battery_soc || 0;
+  
+  console.log(`Tibber charging evaluation: SoC=${batterySoC}%, Target=${config.targetSoC}%, Min=${config.minimumSoC}%`);
+  
+  // Battery is already at target level
+  if (batterySoC >= config.targetSoC) {
+    sendGridChargeCommand(mqttClient, false, config);
+    console.log(`Battery full (${batterySoC}% >= ${config.targetSoC}%), disabling grid charging`);
+    return true;
+  }
+  
+  // Battery is below minimum level - emergency charging
+  if (batterySoC < config.minimumSoC) {
+    sendGridChargeCommand(mqttClient, true, config);
+    console.log(`Emergency charging: Battery low (${batterySoC}% < ${config.minimumSoC}%)`);
+    return true;
+  }
+  
+  // Check if we're in a scheduled charging time
+  if (isWithinScheduledChargingTime(config, now)) {
+    sendGridChargeCommand(mqttClient, true, config);
+    console.log('Charging due to scheduled time period');
+    return true;
+  }
+  
+  // Check if current price is low (using Tibber intelligence)
+  if (isCurrentlyLowPrice(config, currentSystemState)) {
+    sendGridChargeCommand(mqttClient, true, config);
+    
+    // Get current price info for logging
+    const currentPrice = config.pricingData.find(p => {
+      const priceTime = moment(p.timestamp).tz(timezone);
+      return now.isSame(priceTime, 'hour');
+    });
+    
+    if (currentPrice) {
+      console.log(`Charging due to low price: ${currentPrice.price} ${config.currency}/kWh (Level: ${currentPrice.level || 'N/A'})`);
+    }
+    
+    return true;
+  }
+  
+  // Price is not favorable, disable charging
+  sendGridChargeCommand(mqttClient, false, config);
+  console.log('Current price not favorable for charging');
+  return true;
+}
+
 // Send a command to enable or disable grid charging
 function sendGridChargeCommand(mqttClient, enable, config) {
   if (!mqttClient || !mqttClient.connected) {
@@ -227,11 +268,17 @@ function sendGridChargeCommand(mqttClient, enable, config) {
   
   try {
     // Read the global options to get the MQTT topic prefix
-    const optionsPath = path.join(__dirname, 'options.json');
-    const options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
-    const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy';
+    const optionsPath = path.join(__dirname, '..', 'data', 'options.json');
+    let options;
     
-    // Determine which inverters to send the command to
+    try {
+      options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
+    } catch (error) {
+      // Fallback to /data/options.json for Home Assistant add-on
+      options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+    }
+    
+    const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy';
     const inverterNumber = options.inverter_number || 1;
     
     // Send command to each inverter
@@ -242,16 +289,23 @@ function sendGridChargeCommand(mqttClient, enable, config) {
       mqttClient.publish(topic, value, { qos: 1, retain: false }, (err) => {
         if (err) {
           console.error(`Error publishing to ${topic}: ${err.message}`);
-          return false;
+        } else {
+          console.log(`Tibber grid charge command sent: ${topic} = ${value}`);
         }
-        
-        console.log(`Dynamic pricing grid charge command sent: ${topic} = ${value}`);
       });
     }
     
-    // Log the action to a dedicated log file
-    const logMessage = `${new Date().toISOString()} - Dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging`;
-    fs.appendFileSync(path.join(__dirname, 'logs', 'dynamic_pricing.log'), logMessage + '\n');
+    // Log the action
+    const logMessage = `${new Date().toISOString()} - Tibber dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging`;
+    const logFile = path.join(__dirname, 'logs', 'dynamic_pricing.log');
+    
+    // Ensure logs directory exists
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    
+    fs.appendFileSync(logFile, logMessage + '\n');
     
     return true;
   } catch (error) {
@@ -260,20 +314,24 @@ function sendGridChargeCommand(mqttClient, enable, config) {
   }
 }
 
-// Update the pricing data on a schedule
+// Update pricing data from Tibber API
 async function updatePricingData(mqttClient, currentSystemState) {
-  console.log('Updating electricity pricing data...');
+  console.log('Updating Tibber electricity pricing data...');
   
   try {
-    // Load current config
     const config = loadConfig();
     
     if (!config || !config.enabled) {
-      console.log('Dynamic pricing is disabled, skipping price update');
+      console.log('Tibber dynamic pricing is disabled, skipping price update');
       return false;
     }
     
-    // Fetch latest pricing data using the pricingApis module
+    if (!config.apiKey || config.apiKey.trim() === '') {
+      console.error('Tibber API token not configured');
+      return false;
+    }
+    
+    // Fetch latest pricing data from Tibber
     const prices = await pricingApis.fetchElectricityPrices(config);
     
     if (prices && prices.length > 0) {
@@ -281,215 +339,147 @@ async function updatePricingData(mqttClient, currentSystemState) {
       config.pricingData = prices;
       config.lastUpdate = new Date().toISOString();
       
+      // Update currency if we got it from Tibber data
+      if (prices[0].currency) {
+        config.currency = prices[0].currency;
+      }
+      
+      // Update timezone if we got it from Tibber data
+      if (prices[0].timezone) {
+        config.timezone = prices[0].timezone;
+      }
+      
       // Save the updated config
       saveConfig(config);
       
-      console.log(`Updated electricity pricing data with ${prices.length} price points for ${config.country}`);
+      console.log(`Updated Tibber pricing data: ${prices.length} price points for ${config.country}`);
+      console.log(`Currency: ${config.currency}, Timezone: ${config.timezone}`);
       
-      // Determine if we should charge based on new data
+      // Immediately evaluate charging decision with new data
       scheduleCharging(config, mqttClient, currentSystemState);
       
       return true;
     } else {
-      console.error('Failed to fetch pricing data or no price points received');
+      console.error('Failed to fetch Tibber pricing data or no price points received');
       return false;
     }
   } catch (error) {
-    console.error('Error updating pricing data:', error.message);
+    console.error('Error updating Tibber pricing data:', error.message);
     return false;
   }
 }
 
-// Get available pricing sources for a country
-function getAvailablePricingSources(country) {
-  // Define country groups based on available APIs
-  const awattarCountries = ['DE', 'AT']; // AWATTAR is available in Germany and Austria
-  const nordpoolCountries = ['NO', 'SE', 'FI', 'DK', 'EE', 'LV', 'LT']; // Nordic and Baltic countries
-  const epexSpotCountries = ['DE', 'FR', 'AT', 'CH', 'BE', 'NL', 'UK']; // EPEX spot market countries
-  const entsoeCountries = [
-    'DE', 'FR', 'ES', 'IT', 'UK', 'NL', 'BE', 'AT', 'CH', 'DK', 'NO', 'SE', 'FI', 'PL', 'CZ', 'SK', 'HU', 
-    'RO', 'BG', 'GR', 'PT', 'IE', 'LU', 'EE', 'LV', 'LT', 'SI', 'HR', 'RS', 'ME', 'AL', 'MK', 'BA', 'XK'
-  ]; // European countries in ENTSO-E
+// Get the next best charging times based on Tibber data
+function getNextBestChargingTimes(config, hours = 4) {
+  if (!config || !config.pricingData || config.pricingData.length === 0) {
+    return [];
+  }
   
-  // African countries with specific implementations
-  const africanCountries = ['ZA', 'KE', 'EG', 'NG', 'MA', 'MU'];
+  const timezone = config.timezone || 'Europe/Berlin';
+  const now = moment().tz(timezone);
   
-  // Define other countries with specific implementations
-  const specificCountries = ['US', 'CA', 'AU', 'NZ', 'JP', 'CN', 'IN', 'BR', 'KY'];
+  // Get future prices only
+  const futurePrices = config.pricingData.filter(p => {
+    const priceTime = moment(p.timestamp).tz(timezone);
+    return priceTime.isAfter(now);
+  });
   
-  // Build the list of available sources
-  const sources = ['auto'];
+  if (futurePrices.length === 0) {
+    return [];
+  }
   
-  if (entsoeCountries.includes(country)) sources.push('entso-e');
-  if (awattarCountries.includes(country)) sources.push('awattar');
-  if (nordpoolCountries.includes(country)) sources.push('nordpool');
-  if (epexSpotCountries.includes(country)) sources.push('epex');
-  
-  // Add specific sources for certain countries
-  if (africanCountries.includes(country)) {
-    const africanSourcesMap = {
-      'ZA': 'eskom',
-      'KE': 'kplc',
-      'EG': 'egypt',
-      'NG': 'nigeria',
-      'MA': 'morocco',
-      'MU': 'mauritius'
+  // If we have Tibber levels, prioritize by level
+  if (futurePrices.some(p => p.level) && config.useTibberLevels) {
+    const levelPriority = {
+      'VERY_CHEAP': 1,
+      'CHEAP': 2,
+      'NORMAL': 3,
+      'EXPENSIVE': 4,
+      'VERY_EXPENSIVE': 5
     };
-    if (africanSourcesMap[country]) sources.push(africanSourcesMap[country]);
+    
+    const sortedByLevel = futurePrices.sort((a, b) => {
+      const priorityA = levelPriority[a.level] || 3;
+      const priorityB = levelPriority[b.level] || 3;
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // If same level, sort by price
+      return a.price - b.price;
+    });
+    
+    return sortedByLevel.slice(0, hours).map(p => ({
+      time: moment(p.timestamp).tz(timezone).format('HH:mm'),
+      date: moment(p.timestamp).tz(timezone).format('MMM D'),
+      price: p.price,
+      currency: p.currency || config.currency,
+      level: p.level
+    }));
   }
   
-  if (specificCountries.includes(country)) {
-    sources.push('country-specific');
-  }
+  // Fallback to price-based sorting
+  const sortedByPrice = futurePrices.sort((a, b) => a.price - b.price);
   
-  // Add the fallback source
-  sources.push('sample');
-  
-  return sources;
+  return sortedByPrice.slice(0, hours).map(p => ({
+    time: moment(p.timestamp).tz(timezone).format('HH:mm'),
+    date: moment(p.timestamp).tz(timezone).format('MMM D'),
+    price: p.price,
+    currency: p.currency || config.currency,
+    level: p.level || 'UNKNOWN'
+  }));
 }
 
-// Set up predefined timezones based on country
-function getTimezoneForCountry(country) {
-  const timezonesMap = {
-    // Europe
-    'DE': 'Europe/Berlin',
-    'FR': 'Europe/Paris',
-    'ES': 'Europe/Madrid',
-    'IT': 'Europe/Rome',
-    'GB': 'Europe/London',
-    'UK': 'Europe/London',
-    'NL': 'Europe/Amsterdam',
-    'BE': 'Europe/Brussels',
-    'AT': 'Europe/Vienna',
-    'CH': 'Europe/Zurich',
-    'DK': 'Europe/Copenhagen',
-    'NO': 'Europe/Oslo',
-    'SE': 'Europe/Stockholm',
-    'FI': 'Europe/Helsinki',
-    'PL': 'Europe/Warsaw',
-    'CZ': 'Europe/Prague',
-    'SK': 'Europe/Bratislava',
-    'HU': 'Europe/Budapest',
-    'RO': 'Europe/Bucharest',
-    'BG': 'Europe/Sofia',
-    'GR': 'Europe/Athens',
-    'PT': 'Europe/Lisbon',
-    'IE': 'Europe/Dublin',
-    'LU': 'Europe/Luxembourg',
-    'IS': 'Atlantic/Reykjavik',
-    'MT': 'Europe/Malta',
-    'CY': 'Asia/Nicosia',
-    'EE': 'Europe/Tallinn',
-    'LV': 'Europe/Riga',
-    'LT': 'Europe/Vilnius',
-    'SI': 'Europe/Ljubljana',
-    'HR': 'Europe/Zagreb',
-    'RS': 'Europe/Belgrade',
-    'ME': 'Europe/Podgorica',
-    'AL': 'Europe/Tirane',
-    'MK': 'Europe/Skopje',
-    'BA': 'Europe/Sarajevo',
-    
-    // Africa
-    'ZA': 'Africa/Johannesburg',
-    'EG': 'Africa/Cairo',
-    'MA': 'Africa/Casablanca',
-    'DZ': 'Africa/Algiers',
-    'TN': 'Africa/Tunis',
-    'NG': 'Africa/Lagos',
-    'KE': 'Africa/Nairobi',
-    'ET': 'Africa/Addis_Ababa',
-    'GH': 'Africa/Accra',
-    'CI': 'Africa/Abidjan',
-    'TZ': 'Africa/Dar_es_Salaam',
-    'CD': 'Africa/Kinshasa',
-    'MU': 'Indian/Mauritius',
-    'SN': 'Africa/Dakar',
-    'CM': 'Africa/Douala',
-    'UG': 'Africa/Kampala',
-    'ZM': 'Africa/Lusaka',
-    'ZW': 'Africa/Harare',
-    'AO': 'Africa/Luanda',
-    'NA': 'Africa/Windhoek',
-    'BW': 'Africa/Gaborone',
-    'MZ': 'Africa/Maputo',
-    'RW': 'Africa/Kigali',
-    'MG': 'Indian/Antananarivo',
-    
-    // Americas
-    'US': 'America/New_York', // Default to Eastern Time, should be adjusted based on state
-    'CA': 'America/Toronto',  // Default to Eastern Time, should be adjusted based on province
-    'MX': 'America/Mexico_City',
-    'BR': 'America/Sao_Paulo',
-    'AR': 'America/Argentina/Buenos_Aires',
-    'CO': 'America/Bogota',
-    'CL': 'America/Santiago',
-    'PE': 'America/Lima',
-    'KY': 'America/Cayman',
-    'JM': 'America/Jamaica',
-    'BS': 'America/Nassau',
-    'BB': 'America/Barbados',
-    'TT': 'America/Port_of_Spain',
-    
-    // Asia
-    'CN': 'Asia/Shanghai',
-    'JP': 'Asia/Tokyo',
-    'KR': 'Asia/Seoul',
-    'IN': 'Asia/Kolkata',
-    'ID': 'Asia/Jakarta',
-    'MY': 'Asia/Kuala_Lumpur',
-    'SG': 'Asia/Singapore',
-    'TH': 'Asia/Bangkok',
-    'VN': 'Asia/Ho_Chi_Minh',
-    'PH': 'Asia/Manila',
-    
-    // Oceania
-    'AU': 'Australia/Sydney', // Default to Sydney, should be adjusted based on state
-    'NZ': 'Pacific/Auckland'
-  };
-  
-  return timezonesMap[country] || 'UTC';
-}
-
-// Initialize dynamic pricing module
+// Initialize dynamic pricing module with Tibber
 function initializeDynamicPricing(mqttClient, currentSystemState) {
   try {
     // Ensure config file exists
     ensureConfigExists();
     
-    // Set up scheduled jobs
+    console.log('🔋 Initializing Tibber dynamic pricing module...');
     
-    // Update pricing data every 6 hours
-    cron.schedule('0 */6 * * *', async () => {
+    // Set up scheduled jobs - less frequent to avoid API limits
+    
+    // Update pricing data every 4 hours (Tibber updates prices daily around 13:00)
+    cron.schedule('0 */4 * * *', async () => {
       await updatePricingData(mqttClient, currentSystemState);
     });
     
-    // Check charging schedule every 15 minutes
-    cron.schedule('*/15 * * * *', () => {
+    // Check charging schedule every 30 minutes
+    cron.schedule('*/30 * * * *', () => {
       const config = loadConfig();
       if (config && config.enabled) {
         scheduleCharging(config, mqttClient, currentSystemState);
       }
     });
     
-    // Do an initial update
-    updatePricingData(mqttClient, currentSystemState);
+    // Special schedule at 13:30 when Tibber typically updates next day prices
+    cron.schedule('30 13 * * *', async () => {
+      console.log('Tibber daily price update time - fetching latest prices');
+      await updatePricingData(mqttClient, currentSystemState);
+    });
     
-    // Make the functions available globally for the web interface
-    global.dynamicPricingService = {
+    // Do an initial update
+    setTimeout(() => {
+      updatePricingData(mqttClient, currentSystemState);
+    }, 5000);
+    
+    // Make functions available globally
+    global.tibberDynamicPricing = {
       loadConfig,
       saveConfig,
       updatePricingData,
       scheduleCharging,
       determineLowPricePeriods,
-      getAvailablePricingSources,
-      getTimezoneForCountry
+      getNextBestChargingTimes,
+      isCurrentlyLowPrice
     };
     
-    console.log('✅ Dynamic electricity pricing module initialized with support for multiple countries');
+    console.log('✅ Tibber dynamic electricity pricing module initialized');
     return true;
   } catch (error) {
-    console.error('❌ Error initializing dynamic pricing module:', error.message);
+    console.error('❌ Error initializing Tibber dynamic pricing module:', error.message);
     return false;
   }
 }
@@ -501,7 +491,7 @@ module.exports = {
   determineLowPricePeriods,
   loadConfig,
   saveConfig,
-  getAvailablePricingSources,
-  getTimezoneForCountry,
-  ensureConfigExists  // Add this line to export the function
+  ensureConfigExists,
+  getNextBestChargingTimes,
+  isCurrentlyLowPrice
 };
