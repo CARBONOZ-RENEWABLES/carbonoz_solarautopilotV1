@@ -3170,20 +3170,20 @@ async function processRules() {
       return;
     }
     
-    // Check for warnings based on current system state
+    // Check for warnings based on current system state - BUT DON'T SEND NOTIFICATIONS
     const triggeredWarnings = warningService.checkWarnings(currentSystemState);
     
-    // Send notifications for any triggered warnings
+    // Only send notifications if user has explicitly configured them
     for (const warning of triggeredWarnings) {
       try {
-        // Check if this warning type should trigger a notification
+        // Check if this warning type should trigger a notification (user-configured)
         if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
           const message = telegramService.formatWarningMessage(warning, currentSystemState);
           await telegramService.broadcastMessage(message);
-          console.log(`Warning notification sent: ${warning.title}`);
+          console.log(`User-configured warning notification sent: ${warning.title}`);
         }
       } catch (notifyError) {
-        console.error(`Error sending warning notification for ${warning.title}:`, notifyError);
+        console.error(`Error sending user-configured warning notification for ${warning.title}:`, notifyError);
       }
     }
     
@@ -3255,15 +3255,15 @@ async function processRules() {
         rule.triggerCount = (rule.triggerCount || 0) + 1;
         rulesToUpdate.push(rule);
         
-        // Send notification if configured for this rule
+        // Only send notification if user has explicitly configured it
         try {
           if (telegramService.shouldNotifyForRule(rule.id)) {
             const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
             await telegramService.broadcastMessage(message);
-            console.log(`Rule notification sent: ${rule.name}`);
+            console.log(`User-configured rule notification sent: ${rule.name}`);
           }
         } catch (notifyError) {
-          console.error(`Error sending rule notification for ${rule.name}:`, notifyError);
+          console.error(`Error sending user-configured rule notification for ${rule.name}:`, notifyError);
         }
       }
     }
@@ -3277,7 +3277,6 @@ async function processRules() {
     console.error('Error processing rules:', error);
   }
 }
-
 
 // Function to check and prune old settings changes
 async function pruneOldSettingsChanges() {
@@ -4795,7 +4794,7 @@ function setupWarningChecks() {
         console.log(`Found ${triggeredWarnings.length} warning(s) to process`);
       }
       
-      // Send notifications for warnings
+      // Only send notifications if user has explicitly configured them
       for (const warning of triggeredWarnings) {
         try {
           if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
@@ -4803,15 +4802,15 @@ function setupWarningChecks() {
             const sent = await telegramService.broadcastMessage(message);
             
             if (sent) {
-              console.log(`Warning notification sent: ${warning.title}`);
+              console.log(`User-configured warning notification sent: ${warning.title}`);
             } else {
-              console.error(`Failed to send notification for warning: ${warning.title}`);
+              console.error(`Failed to send user-configured notification for warning: ${warning.title}`);
             }
           } else {
-            console.log(`Skipping notification for warning (${warning.title}) - notifications not enabled for this warning type`);
+            console.log(`Skipping notification for warning (${warning.title}) - not configured by user`);
           }
         } catch (notifyError) {
-          console.error(`Error in warning notification process:`, notifyError);
+          console.error(`Error in user-configured warning notification process:`, notifyError);
         }
       }
     } catch (error) {
@@ -4819,9 +4818,8 @@ function setupWarningChecks() {
     }
   });
   
-  console.log('✅ Warning check scheduler initialized');
+  console.log('✅ Warning check scheduler initialized (user-controlled notifications)');
 }
-
 
 
 
@@ -6215,7 +6213,7 @@ async function initializeConnections() {
 
 async function initializeNotificationSystem() {
   try {
-    // Create a default Telegram config if it doesn't exist
+    // Create a default Telegram config if it doesn't exist (NO DEFAULT NOTIFICATION RULES)
     ensureTelegramConfigExists();
     
     // Set up warning check schedule
@@ -6224,7 +6222,7 @@ async function initializeNotificationSystem() {
     // Make sure global processRules function is updated
     global.processRules = processRules;
     
-    console.log('✅ Enhanced notification system initialized');
+    console.log('✅ User-controlled notification system initialized');
     return true;
   } catch (error) {
     console.error('❌ Error initializing notification system:', error);
@@ -6241,71 +6239,16 @@ function ensureTelegramConfigExists() {
   }
   
   if (!fs.existsSync(TELEGRAM_CONFIG_FILE)) {
-    // Create initial notification rules for common events
+    // Create initial config with NO notification rules - user must add them manually
     const defaultConfig = {
       enabled: false,
       botToken: '',
       chatIds: [],
-      notificationRules: [
-        {
-          id: 'rule_night_charging',
-          type: 'rule',
-          name: 'Night Charging Rule',
-          description: 'Get notified when night charging rules are triggered',
-          enabled: true,
-          ruleId: 'night-battery-charging',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'rule_grid_charge',
-          type: 'rule',
-          name: 'Grid Charge Rules',
-          description: 'Get notified when grid charge rules are triggered',
-          enabled: true,
-          ruleId: 'grid-charge',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'rule_energy_pattern',
-          type: 'rule',
-          name: 'Energy Pattern Rules',
-          description: 'Get notified when energy pattern rules are triggered',
-          enabled: true,
-          ruleId: 'energy-pattern',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'warning_battery',
-          type: 'warning',
-          name: 'Battery Warnings',
-          description: 'Get notified about battery warnings',
-          enabled: true,
-          warningType: 'low-battery',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'warning_grid',
-          type: 'warning',
-          name: 'Grid Warnings',
-          description: 'Get notified about grid warnings',
-          enabled: true,
-          warningType: 'grid-outage',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'warning_pv',
-          type: 'warning',
-          name: 'PV System Warnings',
-          description: 'Get notified about PV system warnings',
-          enabled: true,
-          warningType: 'pv-underperformance',
-          createdAt: new Date().toISOString()
-        }
-      ]
+      notificationRules: [] // EMPTY - user must configure manually
     };
     
     fs.writeFileSync(TELEGRAM_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default Telegram configuration file with notification rules');
+    console.log('Created default Telegram configuration file (no automatic notifications)');
   }
 }
 
