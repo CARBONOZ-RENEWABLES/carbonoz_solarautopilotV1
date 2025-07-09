@@ -1568,7 +1568,7 @@ body.dark-mode .actions-log-item {
             <div class="container">
                 <div class="page-header">
                     <h1 class="page-title">
-                        <i class="fas fa-bolt"></i> Tibber Dynamic Pricing
+                        <i class="fas fa-bolt"></i>Dynamic Pricing
                         <small style="color: var(--gray); font-size: 0.6em; margin-left: 10px;">
                             <i class="fas fa-leaf"></i> Smart electricity pricing
                         </small>
@@ -1598,12 +1598,12 @@ body.dark-mode .actions-log-item {
                                     <input type="checkbox" id="enableDynamicPricing">
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">Enable Tibber Dynamic Pricing</span>
+                                <span class="toggle-label">Enable  Dynamic Pricing</span>
                             </div>
                         </div>
                         <div class="card-body">
                             <div id="statusContent">
-                                <p id="loadingStatus">Loading Tibber status...</p>
+                                <p id="loadingStatus">Loading  status...</p>
                                 <div id="statusDetails" class="hidden">
                                     <div class="pricing-stats">
                                         <div class="stat-card">
@@ -1629,7 +1629,7 @@ body.dark-mode .actions-log-item {
                                     </div>
 
                                     <div class="form-group" style="margin-top: 20px;">
-                                        <label class="form-label">Tibber Recommendation:</label>
+                                        <label class="form-label">Recommendation:</label>
                                         <div class="alert" id="recommendationAlert">
                                             <i class="fas fa-lightbulb"></i>
                                             <span id="recommendationText">Calculating recommendation...</span>
@@ -1652,7 +1652,7 @@ body.dark-mode .actions-log-item {
                     <!-- Configuration Card -->
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Tibber Configuration</h2>
+                            <h2 class="card-title">Configuration</h2>
                             <button class="btn btn-sm btn-secondary" id="saveConfigBtn">
                                 <i class="fas fa-save"></i> Save Changes
                             </button>
@@ -2076,12 +2076,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentTimezone = config.timezone || 'Europe/Berlin';
                 currentCurrency = config.currency || 'EUR';
                 updateConfigUI();
-                showNotification('Tibber configuration loaded successfully', 'success');
+                showNotification(' configuration loaded successfully', 'success');
             } else {
                 throw new Error(data.error || 'Failed to load configuration');
             }
         } catch (error) {
-            console.error('Error loading Tibber configuration:', error);
+            console.error('Error loading  configuration:', error);
             showNotification('Error loading configuration: ' + error.message, 'danger');
         }
     }
@@ -2228,11 +2228,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     updatePricingDisplay();
                     updateBestTimesList();
                 } else {
-                    throw new Error(data.error || 'Failed to load Tibber pricing data');
+                    throw new Error(data.error || 'Failed to load  pricing data');
                 }
             }
         } catch (error) {
-            console.error('Error loading Tibber pricing data:', error);
+            console.error('Error loading  pricing data:', error);
             
             // Don't show error notification if it's just missing API key on first load
             if (!error.message.includes('API token')) {
@@ -2317,6 +2317,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Get current time in the configured timezone
         const now = new Date();
         const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: currentTimezone}));
         
@@ -2325,12 +2326,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const priceTime = new Date(p.timestamp);
             const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
             
-            return priceInTimezone >= nowInTimezone || 
+            // Include current hour and future hours
+            return priceInTimezone.getTime() >= nowInTimezone.getTime() - (60 * 60 * 1000) || // Include current hour
                    (priceInTimezone.getDate() === nowInTimezone.getDate() && 
-                    priceInTimezone.getHours() === nowInTimezone.getHours());
+                    priceInTimezone.getHours() >= nowInTimezone.getHours());
         }).slice(0, 24);
         
         if (next24Hours.length === 0) return;
+        
+        // Find current hour price for consistent level determination
+        const currentHourPrice = next24Hours.find(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            return priceInTimezone.getHours() === nowInTimezone.getHours() && 
+                   priceInTimezone.getDate() === nowInTimezone.getDate() &&
+                   priceInTimezone.getMonth() === nowInTimezone.getMonth();
+        });
         
         // Create Tibber-specific color mapping
         const tibberLevelColors = {
@@ -2357,13 +2369,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const backgroundColor = next24Hours.map(p => {
             const priceTime = new Date(p.timestamp);
             const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
-            const currentHour = nowInTimezone.getHours();
             
-            // Highlight current hour
-            if (priceInTimezone.getHours() === currentHour && 
-                priceInTimezone.getDate() === nowInTimezone.getDate()) {
-                return '#3498db'; // Blue for current hour
-            }
+            // Highlight current hour with blue border, but keep level color
+            const isCurrentHour = priceInTimezone.getHours() === nowInTimezone.getHours() && 
+                                 priceInTimezone.getDate() === nowInTimezone.getDate() &&
+                                 priceInTimezone.getMonth() === nowInTimezone.getMonth();
             
             // Use Tibber level colors if available
             if (p.level && tibberLevelColors[p.level]) {
@@ -2374,36 +2384,70 @@ document.addEventListener('DOMContentLoaded', function() {
             return '#95a5a6';
         });
         
-        const borderColor = backgroundColor.map(color => color);
+        // Create border colors with current hour highlighted
+        const borderColor = next24Hours.map(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            const isCurrentHour = priceInTimezone.getHours() === nowInTimezone.getHours() && 
+                                 priceInTimezone.getDate() === nowInTimezone.getDate() &&
+                                 priceInTimezone.getMonth() === nowInTimezone.getMonth();
+            
+            return isCurrentHour ? '#2c3e50' : backgroundColor[next24Hours.indexOf(p)];
+        });
+        
+        // Create border width with current hour highlighted
+        const borderWidth = next24Hours.map(p => {
+            const priceTime = new Date(p.timestamp);
+            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
+            
+            const isCurrentHour = priceInTimezone.getHours() === nowInTimezone.getHours() && 
+                                 priceInTimezone.getDate() === nowInTimezone.getDate() &&
+                                 priceInTimezone.getMonth() === nowInTimezone.getMonth();
+            
+            return isCurrentHour ? 4 : 1;
+        });
         
         // Update chart
         pricingChart.data.labels = labels;
         pricingChart.data.datasets[0].data = data;
         pricingChart.data.datasets[0].backgroundColor = backgroundColor;
         pricingChart.data.datasets[0].borderColor = borderColor;
+        pricingChart.data.datasets[0].borderWidth = borderWidth;
         pricingChart.data.datasets[0].label = `Electricity Price (${currentCurrency}/kWh)`;
         
         // Update chart title and axis labels
         pricingChart.options.scales.x.title.text = 'Time (' + currentTimezone + ')';
         pricingChart.options.scales.y.title.text = `Price (${currentCurrency}/kWh)`;
+        
+        // Update tooltip to show level information
+        pricingChart.options.plugins.tooltip.callbacks.label = function(context) {
+            const price = context.parsed.y.toFixed(4);
+            const level = next24Hours[context.dataIndex]?.level || 'UNKNOWN';
+            return `${price} ${currentCurrency}/kWh (${level})`;
+        };
+        
         pricingChart.update();
         
-        // Update current price display
-        const currentHourPrice = next24Hours.find(p => {
-            const priceTime = new Date(p.timestamp);
-            const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: currentTimezone}));
-            
-            return priceInTimezone.getHours() === nowInTimezone.getHours() && 
-                   priceInTimezone.getDate() === nowInTimezone.getDate();
-        });
-        
+        // Update current price display with the same data used in chart
         if (currentHourPrice) {
             currentPrice.textContent = currentHourPrice.price.toFixed(4);
             priceLevel.textContent = currentHourPrice.level || 'UNKNOWN';
             
-            // Color the price level indicator
+            // Color the price level indicator consistently
             if (currentHourPrice.level && tibberLevelColors[currentHourPrice.level]) {
                 priceLevel.style.color = tibberLevelColors[currentHourPrice.level];
+            }
+        } else {
+            // If no current hour price found, use the first price as fallback
+            const fallbackPrice = next24Hours[0];
+            if (fallbackPrice) {
+                currentPrice.textContent = fallbackPrice.price.toFixed(4);
+                priceLevel.textContent = fallbackPrice.level || 'UNKNOWN';
+                
+                if (fallbackPrice.level && tibberLevelColors[fallbackPrice.level]) {
+                    priceLevel.style.color = tibberLevelColors[fallbackPrice.level];
+                }
             }
         }
     }
