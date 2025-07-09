@@ -1818,33 +1818,44 @@
 
         /* Dark mode for Setup Instructions info-box */
 .dark-mode .info-box {
-    background: rgba(33, 150, 243, 0.08) !important;
-    border-left: 4px solid #64b5f6 !important;
+    background-color: rgb(32, 36, 41);
+    border-left: 4px solid #DEAF0B !important;
     border-radius: 8px !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
+.info-box {
+    background-color: rgb(32, 36, 41);
+    border-left: 4px solid #DEAF0B !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.info-box h4 {
+    color: #DEAF0B !important;
+}
+
 .dark-mode .info-box h4 {
-    color: #90caf9 !important;
+    color: #DEAF0B !important;
 }
 
 .dark-mode .info-box ol {
-    color: #b3d4fc !important;
+    color: #000 !important;
 }
 
 .dark-mode .info-box li {
-    color: #b3d4fc !important;
-    margin-bottom: 0.5rem;
+    color: #000 !important;
+   
 }
 
 .dark-mode .info-box a {
-    color: #64b5f6 !important;
+    color: #DEAF0B !important;
     text-decoration: none;
     font-weight: 500;
 }
 
 .dark-mode .info-box a:hover {
-    color: #90caf9 !important;
+    color: #DEAF0E !important;
     text-decoration: underline;
 }
          </style>
@@ -1868,11 +1879,7 @@
             <div class="container" style="padding-top: 2rem;">
                 <div class="page-title">
                     <h1>Notifications</h1>
-                    <br>
-                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                        <i class="fas fa-info-circle"></i> 
-                        Configure which notifications you want to receive. No notifications are sent by default - you must manually enable them.
-                    </p>
+            
                 </div>
                 
                 <div class="tabs">
