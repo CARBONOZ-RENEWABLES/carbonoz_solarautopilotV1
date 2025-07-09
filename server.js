@@ -1895,23 +1895,20 @@ app.post('/api/update-panel-config', (req, res) => {
 // ================ ROUTERS ================
 
 app.get('/', async (req, res) => {
-
   const expectedInverters = parseInt(options.inverter_number) || 1
-  const inverterWarning = checkInverterMessages(
-    incomingMessages,
-    expectedInverters)
-
+  const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters)
   const batteryWarning = checkBatteryInformation(incomingMessages)
+  
   try {
     const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
     const selectedZone = settings.selectedZone;
     
     if (!selectedZone) {
-      // Redirect to settings page if zone is not configured
       return res.redirect('/settings?message=Please configure your zone first');
     }
     
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+    let loadData = [], batteryChargedData = [], batteryDischargedData = [], gridExportedData = [];
     let isLoading = false;
     let error = null;
     
@@ -1924,15 +1921,18 @@ app.get('/', async (req, res) => {
       if (isCached) {
         historyData = carbonIntensityCacheByZone.get(cacheKey).data;
       } else {
-        // Set loading state
         isLoading = true;
       }
       
-      // Fetch energy data from InfluxDB
-      [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
+      // Fetch ALL energy data from InfluxDB
+      [gridEnergyIn, pvEnergy, gridVoltage, loadData, batteryChargedData, batteryDischargedData, gridExportedData] = await Promise.all([
         queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
         queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-        queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
+        queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/load_energy/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/battery_energy_in/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/battery_energy_out/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_out/state`, '365d')
       ]);
       
       // If not cached, fetch carbon intensity data
@@ -1944,11 +1944,19 @@ app.get('/', async (req, res) => {
       console.error('Error fetching data:', e);
       error = 'Error fetching data. Please try again later.';
       isLoading = false;
-      
     }
     
-    // Calculate emissions data for the period
-    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+    // Calculate emissions data with ALL parameters
+    const emissionsData = calculateEmissionsForPeriod(
+      historyData, 
+      gridEnergyIn, 
+      pvEnergy, 
+      gridVoltage,
+      loadData,
+      batteryChargedData,
+      batteryDischargedData,
+      gridExportedData
+    );
     
     // Get today's data (last item in the array) using current date
     const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
@@ -1984,16 +1992,16 @@ app.get('/', async (req, res) => {
       selectedZone,
       todayData: {
         ...todayData,
-        date: moment().format('YYYY-MM-DD') // Explicitly set to current date
+        date: moment().format('YYYY-MM-DD')
       },
       summaryData,
       isLoading,
       error,
       ingress_path: process.env.INGRESS_PATH || '',
-      mqtt_host: options.mqtt_host, // Include mqtt_host here
+      mqtt_host: options.mqtt_host,
       inverterWarning,
       batteryWarning,
-      batteryMessages: debugBatteryMessages(incomingMessages), // Add this for debugging in the view
+      batteryMessages: debugBatteryMessages(incomingMessages),
       username: options.mqtt_username || 'User'
     });
   } catch (error) {
@@ -2058,7 +2066,6 @@ app.get('/analytics', async (req, res) => {
       queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
     ]);
 
-    // Get the list of zones to pass to the template
     const zones = await getZones();
 
     const data = {
@@ -2070,7 +2077,7 @@ app.get('/analytics', async (req, res) => {
       gridVoltageData,
       carbonIntensityData,
       selectedZone,
-      zones, // Add zones to the data object
+      zones,
       loadPowerYear,
       pvPowerYear,
       batteryStateOfChargeYear,
@@ -2088,7 +2095,7 @@ app.get('/analytics', async (req, res) => {
     res.render('analytics', {
       data,
       ingress_path: process.env.INGRESS_PATH || '',
-      selectedZone // Pass selectedZone to the template for pre-selecting in dropdowns
+      selectedZone
     })
   } catch (error) {
     console.error('Error fetching analytics data:', error);
@@ -2107,34 +2114,38 @@ app.get('/results', async (req, res) => {
     const zones = await getZones();
 
     let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+    let loadData = [], batteryChargedData = [], batteryDischargedData = [], gridExportedData = [];
     let error = null;
     let isLoading = false;
 
     if (selectedZone) {
       try {
         // Check if we have cached data
-        const cacheKey = `${selectedZone}`; // Corrected template literal
+        const cacheKey = selectedZone;
         const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
                          (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
 
         if (isCached) {
           historyData = carbonIntensityCacheByZone.get(cacheKey).data;
         } else {
-          // Set loading state
           isLoading = true;
         }
 
-        // Fetch InfluxDB data in parallel
-        [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
+        // Fetch ALL InfluxDB data in parallel
+        [gridEnergyIn, pvEnergy, gridVoltage, loadData, batteryChargedData, batteryDischargedData, gridExportedData] = await Promise.all([
           queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
+          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/load_energy/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/battery_energy_in/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/battery_energy_out/state`, '365d'),
+          queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_out/state`, '365d')
         ]);
 
         // If not cached, fetch carbon intensity data
         if (!isCached) {
           historyData = await fetchCarbonIntensityHistory(selectedZone);
-          carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() }); // Update cache
+          carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() });
           isLoading = false;
         }
       } catch (e) {
@@ -2147,8 +2158,17 @@ app.get('/results', async (req, res) => {
     // Today's date in YYYY-MM-DD format
     const currentDate = moment().format('YYYY-MM-DD');
 
-    // Process the data
-    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+    // Process the data with ALL parameters
+    const emissionsData = calculateEmissionsForPeriod(
+      historyData, 
+      gridEnergyIn, 
+      pvEnergy, 
+      gridVoltage,
+      loadData,
+      batteryChargedData,
+      batteryDischargedData,
+      gridExportedData
+    );
 
     // Update the last entry with today's date if it exists
     if (emissionsData.length > 0) {
@@ -2169,7 +2189,7 @@ app.get('/results', async (req, res) => {
 
     // Create periods including today as its own period
     const periods = {
-      today: [todayData], // Today's data as a single-item array
+      today: [todayData],
       week: emissionsData.slice(-7),
       month: emissionsData.slice(-30),
       quarter: emissionsData.slice(-90),
@@ -2193,7 +2213,7 @@ app.get('/results', async (req, res) => {
       ingress_path: process.env.INGRESS_PATH || '',
     });
   } catch (error) {
-    console.error('Server error:', error); // Log the error for debugging
+    console.error('Server error:', error);
     res.status(500).render('error', { error: 'Error loading results' });
   }
 });
@@ -2526,94 +2546,183 @@ app.get('/api/grid-voltage', async (req, res) => {
   }
 
 
-  // More efficient emissions calculation
+// Comprehensive emissions calculation matching analytics page exactly
 function calculateEmissionsForPeriod(
-    historyData,
-    gridEnergyIn,
-    pvEnergy,
-    gridVoltage
-  ) {
-    if (!historyData || !historyData.length || !gridEnergyIn || !pvEnergy) {
-      console.log("Missing required data arrays for emissions calculation");
-      return [];
-    }
-  
-    console.log(`History data length: ${historyData.length}, Grid data length: ${gridEnergyIn.length}, PV data length: ${pvEnergy.length}`);
-    if (gridEnergyIn.length > 0) {
-      console.log(`Grid energy sample: ${JSON.stringify(gridEnergyIn[0])}`);
-    }
-    if (pvEnergy.length > 0) {
-      console.log(`PV energy sample: ${JSON.stringify(pvEnergy[0])}`);
-    }
-  
-    return historyData.map((dayData, index) => {
-      const carbonIntensity = dayData.carbonIntensity || 0;
-      const currentGridVoltage = gridVoltage[index]?.value || 0;
-  
-      const historyDate = new Date(dayData.date).toISOString().split('T')[0];
-  
-      let gridEnergyForDay = null,
-        pvEnergyForDay = null,
-        previousGridEnergy = null,
-        previousPvEnergy = null;
-  
-      gridEnergyIn.forEach((entry, i) => {
-        const entryDate = new Date(entry.time).toISOString().split('T')[0];
-        if (entryDate === historyDate) {
-          gridEnergyForDay = entry.value;
-          if (i > 0) previousGridEnergy = gridEnergyIn[i - 1].value;
-        }
-      });
-  
-      pvEnergy.forEach((entry, i) => {
-        const entryDate = new Date(entry.time).toISOString().split('T')[0];
-        if (entryDate === historyDate) {
-          pvEnergyForDay = entry.value;
-          if (i > 0) previousPvEnergy = pvEnergy[i - 1].value;
-        }
-      });
-  
-      if (gridEnergyForDay === null && index < gridEnergyIn.length) {
-        gridEnergyForDay = gridEnergyIn[index]?.value || 0;
-        previousGridEnergy = index > 0 ? gridEnergyIn[index - 1]?.value || 0 : null;
-      }
-  
-      if (pvEnergyForDay === null && index < pvEnergy.length) {
-        pvEnergyForDay = pvEnergy[index]?.value || 0;
-        previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
-      }
-  
-      let dailyGridEnergy = gridEnergyForDay;
-      let dailyPvEnergy = pvEnergyForDay;
-  
-      // Apply your conditions
-      if (
-        previousGridEnergy !== null &&
-        previousPvEnergy !== null &&
-        gridEnergyForDay > previousGridEnergy &&
-        pvEnergyForDay > previousPvEnergy
-      ) {
-        dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
-        dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
-      }
-  
-      const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
-      const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
-      const totalEnergy = dailyGridEnergy + dailyPvEnergy;
-      const selfSufficiencyScore = totalEnergy > 0 ? (dailyPvEnergy / totalEnergy) * 100 : 0;
-  
-      return {
-        date: dayData.date,
-        carbonIntensity: carbonIntensity,
-        gridVoltage: currentGridVoltage,
-        gridEnergy: dailyGridEnergy,
-        solarEnergy: dailyPvEnergy,
-        unavoidableEmissions: unavoidableEmissions,
-        avoidedEmissions: avoidedEmissions,
-        selfSufficiencyScore: selfSufficiencyScore,
-      };
-    });
+  historyData,
+  gridEnergyIn,
+  pvEnergy,
+  gridVoltage,
+  loadData,
+  batteryChargedData,
+  batteryDischargedData,
+  gridExportedData
+) {
+  if (!historyData || !historyData.length || !gridEnergyIn || !pvEnergy) {
+    console.log("Missing required data arrays for emissions calculation");
+    return [];
   }
+
+  console.log(`History data length: ${historyData.length}, Grid data length: ${gridEnergyIn.length}, PV data length: ${pvEnergy.length}`);
+  if (gridEnergyIn.length > 0) {
+    console.log(`Grid energy sample: ${JSON.stringify(gridEnergyIn[0])}`);
+  }
+  if (pvEnergy.length > 0) {
+    console.log(`PV energy sample: ${JSON.stringify(pvEnergy[0])}`);
+  }
+
+  return historyData.map((dayData, index) => {
+    const carbonIntensity = dayData.carbonIntensity || 0;
+    const currentGridVoltage = gridVoltage[index]?.value || 0;
+
+    const historyDate = new Date(dayData.date).toISOString().split('T')[0];
+
+    // Initialize all metrics
+    let gridEnergyForDay = null, pvEnergyForDay = null;
+    let loadForDay = null, batteryChargedForDay = null;
+    let batteryDischargedForDay = null, gridExportedForDay = null;
+    
+    let previousGridEnergy = null, previousPvEnergy = null;
+    let previousLoad = null, previousBatteryCharged = null;
+    let previousBatteryDischarged = null, previousGridExported = null;
+
+    // Find matching date data for grid energy
+    gridEnergyIn.forEach((entry, i) => {
+      const entryDate = new Date(entry.time).toISOString().split('T')[0];
+      if (entryDate === historyDate) {
+        gridEnergyForDay = entry.value;
+        if (i > 0) previousGridEnergy = gridEnergyIn[i - 1].value;
+      }
+    });
+
+    // Find matching date data for PV energy
+    pvEnergy.forEach((entry, i) => {
+      const entryDate = new Date(entry.time).toISOString().split('T')[0];
+      if (entryDate === historyDate) {
+        pvEnergyForDay = entry.value;
+        if (i > 0) previousPvEnergy = pvEnergy[i - 1].value;
+      }
+    });
+
+    // Find matching date data for load
+    if (loadData && loadData.length > 0) {
+      loadData.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          loadForDay = entry.value;
+          if (i > 0) previousLoad = loadData[i - 1].value;
+        }
+      });
+    }
+
+    // Find matching date data for battery charged
+    if (batteryChargedData && batteryChargedData.length > 0) {
+      batteryChargedData.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          batteryChargedForDay = entry.value;
+          if (i > 0) previousBatteryCharged = batteryChargedData[i - 1].value;
+        }
+      });
+    }
+
+    // Find matching date data for battery discharged
+    if (batteryDischargedData && batteryDischargedData.length > 0) {
+      batteryDischargedData.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          batteryDischargedForDay = entry.value;
+          if (i > 0) previousBatteryDischarged = batteryDischargedData[i - 1].value;
+        }
+      });
+    }
+
+    // Find matching date data for grid exported
+    if (gridExportedData && gridExportedData.length > 0) {
+      gridExportedData.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          gridExportedForDay = entry.value;
+          if (i > 0) previousGridExported = gridExportedData[i - 1].value;
+        }
+      });
+    }
+
+    // Fallback to index-based lookup if date matching fails
+    if (gridEnergyForDay === null && index < gridEnergyIn.length) {
+      gridEnergyForDay = gridEnergyIn[index]?.value || 0;
+      previousGridEnergy = index > 0 ? gridEnergyIn[index - 1]?.value || 0 : null;
+    }
+
+    if (pvEnergyForDay === null && index < pvEnergy.length) {
+      pvEnergyForDay = pvEnergy[index]?.value || 0;
+      previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
+    }
+
+    if (loadForDay === null && loadData && index < loadData.length) {
+      loadForDay = loadData[index]?.value || 0;
+      previousLoad = index > 0 ? loadData[index - 1]?.value || 0 : null;
+    }
+
+    if (batteryChargedForDay === null && batteryChargedData && index < batteryChargedData.length) {
+      batteryChargedForDay = batteryChargedData[index]?.value || 0;
+      previousBatteryCharged = index > 0 ? batteryChargedData[index - 1]?.value || 0 : null;
+    }
+
+    if (batteryDischargedForDay === null && batteryDischargedData && index < batteryDischargedData.length) {
+      batteryDischargedForDay = batteryDischargedData[index]?.value || 0;
+      previousBatteryDischarged = index > 0 ? batteryDischargedData[index - 1]?.value || 0 : null;
+    }
+
+    if (gridExportedForDay === null && gridExportedData && index < gridExportedData.length) {
+      gridExportedForDay = gridExportedData[index]?.value || 0;
+      previousGridExported = index > 0 ? gridExportedData[index - 1]?.value || 0 : null;
+    }
+
+    let dailyGridEnergy = gridEnergyForDay || 0;
+    let dailyPvEnergy = pvEnergyForDay || 0;
+
+    // EXACT SAME LOGIC AS ANALYTICS PAGE:
+    // Check if ALL available metrics have increased from previous day
+    const allGreaterThanPrevious = 
+      // Core required metrics
+      previousGridEnergy !== null &&
+      previousPvEnergy !== null &&
+      previousGridEnergy > 0 && gridEnergyForDay > previousGridEnergy &&
+      previousPvEnergy > 0 && pvEnergyForDay > previousPvEnergy &&
+      
+      // Additional metrics (only check if data is available)
+      (!loadData || !previousLoad || previousLoad === 0 || loadForDay > previousLoad) &&
+      (!batteryChargedData || !previousBatteryCharged || previousBatteryCharged === 0 || batteryChargedForDay > previousBatteryCharged) &&
+      (!batteryDischargedData || !previousBatteryDischarged || previousBatteryDischarged === 0 || batteryDischargedForDay > previousBatteryDischarged) &&
+      (!gridExportedData || !previousGridExported || previousGridExported === 0 || gridExportedForDay > previousGridExported);
+
+    if (allGreaterThanPrevious) {
+      // If all metrics increased, calculate differences
+      dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
+      dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
+    } else {
+      // Otherwise, use current values as is
+      dailyGridEnergy = gridEnergyForDay || 0;
+      dailyPvEnergy = pvEnergyForDay || 0;
+    }
+
+    const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
+    const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
+    const totalEnergy = dailyGridEnergy + dailyPvEnergy;
+    const selfSufficiencyScore = totalEnergy > 0 ? (dailyPvEnergy / totalEnergy) * 100 : 0;
+
+    return {
+      date: dayData.date,
+      carbonIntensity: carbonIntensity,
+      gridVoltage: currentGridVoltage,
+      gridEnergy: dailyGridEnergy,
+      solarEnergy: dailyPvEnergy,
+      unavoidableEmissions: unavoidableEmissions,
+      avoidedEmissions: avoidedEmissions,
+      selfSufficiencyScore: selfSufficiencyScore,
+    };
+  });
+}
 
 
   // Function to prefetch data in the background after server start
