@@ -7,12 +7,12 @@ const path = require('path');
 // Configuration file path
 const TELEGRAM_CONFIG_FILE = path.join(__dirname, '..', 'data', 'telegram_config.json');
 
-// Default configuration structure
+// Default configuration structure - NO DEFAULT NOTIFICATION RULES
 const defaultConfig = {
   enabled: false,
   botToken: '',
   chatIds: [],
-  notificationRules: []
+  notificationRules: [] // Empty by default - user must add manually
 };
 
 // Ensure configuration file exists
@@ -124,7 +124,7 @@ async function broadcastMessage(message) {
 
 // Format message for a rule trigger
 function formatRuleTriggerMessage(rule, systemState) {
-  let message = `<b>🔔 Energy Rule Triggered!</b>\n\n`;
+  let message = `<b>🔔 SolarAutopilot Rule Triggered!</b>\n\n`;
   message += `<b>Rule:</b> ${rule.name}\n`;
   
   if (rule.description) {
@@ -161,9 +161,9 @@ function formatRuleTriggerMessage(rule, systemState) {
   return message;
 }
 
-// Format warning message
+// Format warning message - UPDATED TEXT
 function formatWarningMessage(warning, systemState) {
-  let message = `<b>⚠️ Energy System Warning!</b>\n\n`;
+  let message = `<b>⚠️ SolarAutopilot Add-on Warning!</b>\n\n`;
   message += `<b>Warning:</b> ${warning.title}\n`;
   
   if (warning.description) {
@@ -182,7 +182,7 @@ function formatWarningMessage(warning, systemState) {
   return message;
 }
 
-// Should notification be sent for this rule?
+// Should notification be sent for this rule? - STRICT USER CONTROL
 function shouldNotifyForRule(ruleId) {
   const config = getConfig();
   
@@ -196,16 +196,18 @@ function shouldNotifyForRule(ruleId) {
     return false;
   }
   
-  // Check if we have a notification rule for this rule ID
-  const hasRule = config.notificationRules.some(rule => 
-    rule.enabled && rule.type === 'rule' && rule.ruleId === ruleId
+  // Check if we have a notification rule for this rule ID that is explicitly enabled
+  const hasEnabledRule = config.notificationRules.some(rule => 
+    rule.enabled === true && 
+    rule.type === 'rule' && 
+    rule.ruleId === ruleId
   );
   
-  console.log(`Notification for rule ${ruleId} ${hasRule ? 'enabled' : 'disabled'}`);
-  return hasRule;
+  console.log(`Notification for rule ${ruleId} ${hasEnabledRule ? 'enabled' : 'disabled'} (user-configured)`);
+  return hasEnabledRule;
 }
 
-// Should notification be sent for this warning type?
+// Should notification be sent for this warning type? - STRICT USER CONTROL
 function shouldNotifyForWarning(warningType) {
   const config = getConfig();
   
@@ -219,13 +221,15 @@ function shouldNotifyForWarning(warningType) {
     return false;
   }
   
-  // Check if we have a notification rule for this warning type
-  const hasRule = config.notificationRules.some(rule => 
-    rule.enabled && rule.type === 'warning' && rule.warningType === warningType
+  // Check if we have a notification rule for this warning type that is explicitly enabled
+  const hasEnabledRule = config.notificationRules.some(rule => 
+    rule.enabled === true && 
+    rule.type === 'warning' && 
+    rule.warningType === warningType
   );
   
-  console.log(`Notification for warning ${warningType} ${hasRule ? 'enabled' : 'disabled'}`);
-  return hasRule;
+  console.log(`Notification for warning ${warningType} ${hasEnabledRule ? 'enabled' : 'disabled'} (user-configured)`);
+  return hasEnabledRule;
 }
 
 // Add chat ID to configuration
