@@ -6,8 +6,8 @@ const path = require('path');
 // Configuration file path
 const WARNINGS_CONFIG_FILE = path.join(__dirname, '..', 'data', 'warnings_config.json');
 
-// Default warning types with thresholds
-const defaultWarningTypes = [
+// Available warning types that users can choose from - ALL DISABLED BY DEFAULT
+const availableWarningTypes = [
   {
     id: 'low-battery',
     name: 'Low Battery',
@@ -15,7 +15,7 @@ const defaultWarningTypes = [
     parameter: 'battery_soc',
     condition: 'lt', // less than
     threshold: 15,
-    enabled: true,
+    enabled: false, // DISABLED BY DEFAULT
     priority: 'high',
     cooldownMinutes: 60 // How long to wait before sending the same warning again
   },
@@ -26,7 +26,7 @@ const defaultWarningTypes = [
     parameter: 'load',
     condition: 'gt', // greater than
     threshold: 8000,
-    enabled: true,
+    enabled: false, // DISABLED BY DEFAULT
     priority: 'medium',
     cooldownMinutes: 30
   },
@@ -37,7 +37,7 @@ const defaultWarningTypes = [
     parameter: 'grid_voltage',
     condition: 'lt',
     threshold: 190,
-    enabled: true,
+    enabled: false, // DISABLED BY DEFAULT
     priority: 'high',
     cooldownMinutes: 15
   },
@@ -48,7 +48,7 @@ const defaultWarningTypes = [
     parameter: 'battery_soc',
     condition: 'lt',
     threshold: 10,
-    enabled: true,
+    enabled: false, // DISABLED BY DEFAULT
     priority: 'high',
     cooldownMinutes: 120
   },
@@ -60,16 +60,16 @@ const defaultWarningTypes = [
     condition: 'lt',
     threshold: 500, // Adjust based on system size
     timeCondition: 'daytime', // Only check during daylight hours
-    enabled: true,
+    enabled: false, // DISABLED BY DEFAULT
     priority: 'medium',
     cooldownMinutes: 240
   }
 ];
 
-// Default configuration structure
+// Default configuration structure - NO WARNINGS ENABLED BY DEFAULT
 const defaultConfig = {
-  enabled: true,
-  warningTypes: defaultWarningTypes,
+  enabled: true, // Warning system enabled, but individual warnings disabled
+  warningTypes: availableWarningTypes, // All warnings disabled by default
   warningHistory: [],
   maxHistoryItems: 100
 };
@@ -90,7 +90,17 @@ function ensureConfigFile() {
 function getConfig() {
   ensureConfigFile();
   try {
-    return JSON.parse(fs.readFileSync(WARNINGS_CONFIG_FILE, 'utf8'));
+    const config = JSON.parse(fs.readFileSync(WARNINGS_CONFIG_FILE, 'utf8'));
+    
+    // Ensure all available warning types are present but disabled by default
+    const existingIds = config.warningTypes.map(w => w.id);
+    availableWarningTypes.forEach(availableType => {
+      if (!existingIds.includes(availableType.id)) {
+        config.warningTypes.push({ ...availableType, enabled: false });
+      }
+    });
+    
+    return config;
   } catch (error) {
     console.error('Error reading Warnings config:', error);
     return { ...defaultConfig };
@@ -129,6 +139,9 @@ function addWarningType(warningType) {
   if (!warningType.id) {
     warningType.id = `warning-${Date.now()}`;
   }
+  
+  // New warning types are disabled by default
+  warningType.enabled = warningType.enabled || false;
   
   config.warningTypes.push(warningType);
   return saveConfig(config) ? warningType : null;
@@ -201,16 +214,22 @@ function evaluateCondition(condition, currentValue, thresholdValue) {
   }
 }
 
-// Check system state against all warning types
+// Check system state against all warning types - ONLY ENABLED WARNINGS
 function checkWarnings(systemState) {
   const config = getConfig();
   const triggeredWarnings = [];
   
   if (!config.enabled) return triggeredWarnings;
   
-  config.warningTypes.forEach(warningType => {
-    if (!warningType.enabled) return;
-    
+  // Only check warnings that are explicitly enabled by the user
+  const enabledWarnings = config.warningTypes.filter(w => w.enabled === true);
+  
+  if (enabledWarnings.length === 0) {
+    console.log('No warning types enabled by user');
+    return triggeredWarnings;
+  }
+  
+  enabledWarnings.forEach(warningType => {
     // Skip if on cooldown
     if (isWarningOnCooldown(warningType.id)) return;
     
@@ -314,6 +333,19 @@ function clearWarningHistory() {
   return saveConfig(config);
 }
 
+// Enable/disable warning system globally
+function setWarningSystemEnabled(enabled) {
+  const config = getConfig();
+  config.enabled = enabled;
+  return saveConfig(config);
+}
+
+// Get count of enabled warnings
+function getEnabledWarningsCount() {
+  const config = getConfig();
+  return config.warningTypes.filter(w => w.enabled === true).length;
+}
+
 module.exports = {
   getConfig,
   saveConfig,
@@ -324,5 +356,7 @@ module.exports = {
   deleteWarningType,
   checkWarnings,
   getWarningHistory,
-  clearWarningHistory
+  clearWarningHistory,
+  setWarningSystemEnabled,
+  getEnabledWarningsCount
 };
