@@ -1,4 +1,4 @@
-// Enhanced notificationRoutes.js implementation
+// Enhanced notificationRoutes.js implementation - USER CONTROLLED NOTIFICATIONS
 
 const express = require('express');
 const router = express.Router();
@@ -46,7 +46,7 @@ router.post('/telegram/config', async (req, res) => {
       
       res.json({ 
         success,
-        message: success ? 'Telegram configuration updated' : 'Failed to update configuration',
+        message: success ? 'Telegram configuration updated. Remember to configure individual notification rules.' : 'Failed to update configuration',
         botInfo: testResult.botInfo
       });
     } else {
@@ -57,7 +57,7 @@ router.post('/telegram/config', async (req, res) => {
       
       res.json({ 
         success,
-        message: success ? 'Telegram configuration updated' : 'Failed to update configuration'
+        message: success ? 'Telegram configuration updated. Remember to configure individual notification rules.' : 'Failed to update configuration'
       });
     }
   } catch (error) {
@@ -175,7 +175,8 @@ router.get('/rules', (req, res) => {
     
     res.json({
       success: true,
-      rules: config.notificationRules || []
+      rules: config.notificationRules || [],
+      note: 'Notification rules must be manually configured by the user'
     });
   } catch (error) {
     console.error('Error fetching notification rules:', error);
@@ -213,7 +214,7 @@ router.post('/rules', (req, res) => {
     
     res.json({
       success,
-      message: success ? 'Notification rule added successfully' : 'Failed to add notification rule',
+      message: success ? 'Notification rule added successfully. Only user-configured notifications will be sent.' : 'Failed to add notification rule',
       rule: success ? rule : undefined
     });
   } catch (error) {
@@ -322,7 +323,7 @@ router.post('/rules/batch', (req, res) => {
     
     res.json({
       success: successCount > 0,
-      message: `Updated ${successCount}/${rules.length} rules`,
+      message: `Updated ${successCount}/${rules.length} notification rules`,
       results
     });
   } catch (error) {
@@ -363,7 +364,8 @@ router.get('/warnings/types', (req, res) => {
     
     res.json({
       success: true,
-      warningTypes
+      warningTypes,
+      note: 'Warning types are disabled by default. Users must manually enable them.'
     });
   } catch (error) {
     console.error('Error fetching warning types:', error);
@@ -413,7 +415,7 @@ router.post('/warnings/types', (req, res) => {
       parameter,
       condition,
       threshold,
-      enabled: enabled !== undefined ? enabled : true,
+      enabled: enabled !== undefined ? enabled : false, // DISABLED BY DEFAULT
       priority: priority || 'medium',
       cooldownMinutes: cooldownMinutes || 30,
       timeCondition
@@ -423,7 +425,7 @@ router.post('/warnings/types', (req, res) => {
     
     res.json({
       success: !!result,
-      message: result ? 'Warning type added successfully' : 'Failed to add warning type',
+      message: result ? 'Warning type added successfully (disabled by default)' : 'Failed to add warning type',
       warningType: result
     });
   } catch (error) {
@@ -460,7 +462,7 @@ router.put('/warnings/types/:id', (req, res) => {
       parameter,
       condition,
       threshold,
-      enabled: enabled !== undefined ? enabled : true,
+      enabled: enabled !== undefined ? enabled : false, // Respect user's choice
       priority: priority || 'medium',
       cooldownMinutes: cooldownMinutes || 30,
       timeCondition
@@ -571,12 +573,15 @@ router.post('/warnings/test', async (req, res) => {
       });
     }
     
+    // Get current system state from global variable
+    const currentSystemState = global.currentSystemState || {};
+    
     // Create a test warning instance
     const warningInstance = {
       id: `test-${Date.now()}`,
       warningTypeId: warningType,
       timestamp: new Date().toISOString(),
-      systemState: { ...currentSystemState }, // Use global current system state
+      systemState: { ...currentSystemState },
       title: `TEST: ${warningTypeObj.name}`,
       description: warningTypeObj.description,
       priority: warningTypeObj.priority,
@@ -617,7 +622,17 @@ router.post('/rules/test', async (req, res) => {
       });
     }
     
-    // Get the rule
+    // Get the rule - need to use the global function
+    const getRuleById = global.getRuleById;
+    const USER_ID = global.USER_ID;
+    
+    if (!getRuleById || !USER_ID) {
+      return res.status(500).json({
+        success: false,
+        error: 'Rule retrieval function not available'
+      });
+    }
+    
     const rule = await getRuleById(ruleId, USER_ID);
     if (!rule) {
       return res.status(404).json({
@@ -625,6 +640,9 @@ router.post('/rules/test', async (req, res) => {
         error: 'Rule not found'
       });
     }
+    
+    // Get current system state from global variable
+    const currentSystemState = global.currentSystemState || {};
     
     // Format test message
     const message = telegramService.formatRuleTriggerMessage({
