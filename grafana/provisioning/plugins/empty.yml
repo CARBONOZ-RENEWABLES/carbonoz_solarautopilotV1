@@ -1,0 +1,5 @@
+# Empty plugin provisioning configuration
+# This file prevents Grafana from showing provisioning errors
+apiVersion: 1
+
+plugins: []

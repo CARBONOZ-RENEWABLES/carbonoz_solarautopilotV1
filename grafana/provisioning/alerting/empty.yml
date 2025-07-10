@@ -1,0 +1,5 @@
+# Empty alerting provisioning configuration
+# This file prevents Grafana from showing provisioning errors
+apiVersion: 1
+
+groups: []

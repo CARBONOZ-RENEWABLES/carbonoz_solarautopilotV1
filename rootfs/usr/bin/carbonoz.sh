@@ -15,42 +15,81 @@ export INVERTER_NUMBER=$(bashio::config 'inverter_number')
 export CLIENT_USERNAME=$(bashio::config 'client_username')
 export CLIENT_PASSWORD=$(bashio::config 'client_password')
 
-# Update Grafana configuration
+bashio::log.info "Starting Carbonoz SolarAutopilot services..."
+
+# Ensure data directories exist with correct permissions
+bashio::log.info "Setting up data directories..."
+mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal
+mkdir -p /data/grafana/data /data/grafana/logs /data/grafana/plugins
+chown -R nobody:nobody /data/influxdb
+chown -R grafana:grafana /data/grafana
+
+# Start InfluxDB first
+bashio::log.info "Starting InfluxDB..."
+influxd -config /etc/influxdb/influxdb.conf &
+INFLUXDB_PID=$!
+
+# Wait for InfluxDB to be ready
+bashio::log.info "Waiting for InfluxDB to be ready..."
+RETRY_COUNT=0
+MAX_RETRIES=30
+until curl -s http://localhost:8086/ping > /dev/null 2>&1; do
+  sleep 2
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    bashio::log.error "InfluxDB failed to start within timeout"
+    exit 1
+  fi
+done
+bashio::log.info "InfluxDB is ready"
+
+# Initialize InfluxDB database if needed
+bashio::log.info "Checking InfluxDB database setup..."
+if ! influx -execute "SHOW DATABASES" | grep -q "home_assistant"; then
+  bashio::log.info "Creating InfluxDB database and user..."
+  influx -execute "CREATE DATABASE home_assistant" || bashio::log.warning "Database might already exist"
+  influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'" || bashio::log.warning "User might already exist"
+  influx -execute "GRANT ALL ON home_assistant TO admin" || bashio::log.warning "Privileges might already be granted"
+  bashio::log.info "InfluxDB setup completed"
+fi
+
+# Update Grafana configuration with ingress path
+bashio::log.info "Configuring Grafana..."
 sed -i "s|^root_url = .*|root_url = ${INGRESS_PATH}|g" /etc/grafana/grafana.ini
 
-# Start Grafana
-grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana &
+# Start Grafana with proper user and wait for it to be ready
+bashio::log.info "Starting Grafana..."
+s6-setuidgid grafana grafana-server --config /etc/grafana/grafana.ini --homepath /usr/share/grafana &
+GRAFANA_PID=$!
 
-# Check if InfluxDB data directories exist
-if [ ! -d "/data/influxdb/meta" ] || [ ! -d "/data/influxdb/data" ] || [ ! -d "/data/influxdb/wal" ]; then
-  # Create required directories
-  mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal
-  chown -R nobody:nobody /data/influxdb
-fi
-
-# Start InfluxDB with proper configuration
-influxd -config /etc/influxdb/influxdb.conf &
-
-# Wait for InfluxDB to start
-bashio::log.info "Waiting for InfluxDB to start..."
-until curl -s http://localhost:8086/ping > /dev/null 2>&1; do
-  sleep 1
+# Wait for Grafana to be ready
+bashio::log.info "Waiting for Grafana to be ready..."
+RETRY_COUNT=0
+MAX_RETRIES=30
+until curl -s http://localhost:3001/api/health > /dev/null 2>&1; do
+  sleep 2
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    bashio::log.error "Grafana failed to start within timeout"
+    exit 1
+  fi
 done
-bashio::log.info "InfluxDB started successfully"
+bashio::log.info "Grafana is ready"
 
-# Check if database exists, create it if not
-DB_EXISTS=$(influx -execute "SHOW DATABASES" | grep -c "home_assistant")
-if [ "$DB_EXISTS" -eq "0" ]; then
-  # Create the InfluxDB database
-  influx -execute "CREATE DATABASE home_assistant"
-  # Create a user with a password and grant privileges
-  influx -execute "CREATE USER admin WITH PASSWORD 'adminpassword'"
-  influx -execute "GRANT ALL ON home_assistant TO admin"
-  bashio::log.info "InfluxDB database and user created"
-fi
-
-# Run the Node.js application
+# Start the Node.js application
+bashio::log.info "Starting Node.js application..."
 cd /usr/src/app
 
-# Start the Node.js application with increased heap size
+# Function to cleanup on exit
+cleanup() {
+  bashio::log.info "Shutting down services..."
+  kill $GRAFANA_PID 2>/dev/null || true
+  kill $INFLUXDB_PID 2>/dev/null || true
+  wait
+}
+
+# Set up signal handlers
+trap cleanup SIGTERM SIGINT
+
+# Start the Node.js application
 exec node --max-old-space-size=256 server.js
