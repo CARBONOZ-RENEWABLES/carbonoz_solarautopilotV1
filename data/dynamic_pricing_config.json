@@ -7,7 +7,12 @@
   "minimumSoC": 20,
   "targetSoC": 80,
   "scheduledCharging": false,
-  "chargingHours": [],
+  "chargingHours": [
+    {
+      "start": "22:00",
+      "end": "06:00"
+    }
+  ],
   "lastUpdate": "",
   "pricingData": [],
   "timezone": "Europe/Berlin",

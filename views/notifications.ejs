@@ -6,8 +6,8 @@
     <title>Carbonoz SolarAutopilot - Notifications</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-  
-        body {
+
+body {
           font-family: 'Inter', sans-serif;
           background: var(--bg-color);
         }
@@ -1858,7 +1858,346 @@
     color: #DEAF0E !important;
     text-decoration: underline;
 }
-         </style>
+        /* Add custom styles for warning type management */
+        .warning-types-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .warning-types-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .warning-types-header h3 {
+            margin: 0;
+            color: #343a40;
+        }
+        
+        .warning-type-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        
+        .warning-type-item:hover {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .warning-type-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+        
+        .warning-type-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .warning-type-title svg {
+            width: 16px;
+            height: 16px;
+            fill: #6c757d;
+        }
+        
+        .warning-type-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .warning-type-meta {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .warning-type-tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .warning-type-tag.enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .warning-type-tag.disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .warning-type-tag.priority-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .warning-type-tag.priority-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .warning-type-tag.priority-low {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .condition-select {
+            min-width: 120px;
+        }
+        
+        .threshold-input {
+            min-width: 100px;
+        }
+        
+        .priority-select {
+            min-width: 100px;
+        }
+        
+        .time-condition-select {
+            min-width: 120px;
+        }
+        
+        .cooldown-input {
+            min-width: 80px;
+        }
+
+        /* Dark Mode for Warning Types Management */
+.dark-mode .warning-types-section {
+    background: rgba(32, 35, 41, 1);
+    border: 1px solid rgba(54, 60, 70, 1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .warning-types-header h3 {
+    color: #f5f6fa;
+}
+
+.dark-mode .warning-type-item {
+    background: rgba(45, 50, 58, 1);
+    border: 1px solid rgba(54, 60, 70, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .warning-type-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: rgba(48, 54, 61, 1);
+}
+
+.dark-mode .warning-type-title {
+    color: #f5f6fa;
+}
+
+.dark-mode .warning-type-title svg {
+    fill: #a3a9b5;
+}
+
+.dark-mode .warning-type-title strong {
+    color: #f5f6fa;
+}
+
+/* Dark mode for warning type tags */
+.dark-mode .warning-type-tag {
+    background: rgba(54, 60, 70, 1);
+    color: #d2d6db;
+}
+
+.dark-mode .warning-type-tag.enabled {
+    background: rgba(46, 125, 50, 0.3);
+    color: #81c784;
+}
+
+.dark-mode .warning-type-tag.disabled {
+    background: rgba(211, 47, 47, 0.3);
+    color: #e57373;
+}
+
+.dark-mode .warning-type-tag.priority-high {
+    background: rgba(211, 47, 47, 0.3);
+    color: #e57373;
+}
+
+.dark-mode .warning-type-tag.priority-medium {
+    background: rgba(237, 108, 2, 0.3);
+    color: #ffb74d;
+}
+
+.dark-mode .warning-type-tag.priority-low {
+    background: rgba(22, 92, 143, 0.3);
+    color: #64b5f6;
+}
+
+/* Dark mode for warning type actions */
+.dark-mode .warning-type-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.dark-mode .warning-type-actions .btn-secondary {
+    background-color: rgba(54, 60, 70, 1);
+    color: #f5f6fa;
+    border: 1px solid rgba(74, 82, 94, 1);
+}
+
+.dark-mode .warning-type-actions .btn-secondary:hover {
+    background-color: rgba(64, 70, 80, 1);
+    border-color: rgba(84, 92, 104, 1);
+}
+
+.dark-mode .warning-type-actions .btn-danger {
+    background-color: rgba(211, 47, 47, 0.8);
+    color: #fff;
+    border: 1px solid rgba(211, 47, 47, 1);
+}
+
+.dark-mode .warning-type-actions .btn-danger:hover {
+    background-color: rgba(231, 67, 67, 0.9);
+    border-color: rgba(231, 67, 67, 1);
+}
+
+/* Dark mode for warning type form elements */
+.dark-mode .form-row .form-group label {
+    color: #f5f6fa;
+}
+
+.dark-mode .condition-select,
+.dark-mode .threshold-input,
+.dark-mode .priority-select,
+.dark-mode .time-condition-select,
+.dark-mode .cooldown-input {
+    background-color: rgba(45, 50, 58, 1);
+    border-color: rgba(54, 60, 70, 1);
+    color: #f5f6fa;
+}
+
+.dark-mode .condition-select:focus,
+.dark-mode .threshold-input:focus,
+.dark-mode .priority-select:focus,
+.dark-mode .time-condition-select:focus,
+.dark-mode .cooldown-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(222, 175, 11, 0.25);
+}
+
+/* Dark mode for warning type modal */
+.dark-mode .modal-content {
+    background-color: rgba(32, 35, 41, 1);
+}
+
+.dark-mode .modal-content .form-row {
+    border-color: rgba(54, 60, 70, 1);
+}
+
+/* Dark mode for warning type empty state */
+.dark-mode .warning-types-section .empty-state {
+    color: #a3a9b5;
+}
+
+.dark-mode .warning-types-section .empty-state svg {
+    fill: #515962;
+}
+
+.dark-mode .warning-types-section .empty-state-text {
+    color: #a3a9b5;
+}
+
+/* Dark mode for warning type loader */
+.dark-mode .warning-types-section .loader-spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-left-color: var(--primary-color);
+}
+
+/* Dark mode for warning type notification description */
+.dark-mode .notification-description {
+    color: #c8cdd4;
+}
+
+/* Dark mode responsive adjustments */
+@media (max-width: 576px) {
+    .dark-mode .warning-types-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .dark-mode .warning-type-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .dark-mode .warning-type-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .dark-mode .warning-type-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .dark-mode .warning-type-meta {
+        margin-top: 0.75rem;
+    }
+    
+    .dark-mode .form-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+
+/* Dark mode for warning type toggle in notification items */
+.dark-mode .notification-item .notification-toggle {
+    border-color: rgba(54, 60, 70, 1);
+}
+
+.dark-mode .notification-item .notification-toggle .switch input:checked + .slider {
+    background-color: var(--primary-color);
+}
+
+.dark-mode .notification-item .notification-toggle .switch .slider {
+    background-color: rgba(54, 60, 70, 1);
+    border: 1px solid rgba(74, 82, 94, 1);
+}
+
+/* Dark mode for warning type info boxes */
+.dark-mode .warning-types-section .info-box {
+    background-color: rgba(22, 92, 143, 0.1);
+    border-left: 4px solid #64b5f6;
+    color: #f5f6fa;
+}
+
+.dark-mode .warning-types-section .info-box h4 {
+    color: #64b5f6;
+}
+
+.dark-mode .warning-types-section .info-box p {
+    color: #f5f6fa;
+}
+    </style>
 </head>
 <body>
     <!-- Add hamburger menu button -->
@@ -1879,7 +2218,6 @@
             <div class="container" style="padding-top: 2rem;">
                 <div class="page-title">
                     <h1>Notifications</h1>
-            
                 </div>
                 
                 <div class="tabs">
@@ -1985,6 +2323,44 @@
                 </div>
                 
                 <div class="tab-content" id="warnings-tab">
+                    <!-- Warning Types Management Section -->
+                    <div class="warning-types-section">
+                        <div class="warning-types-header">
+                            <h3>Warning Types Management</h3>
+                            <button id="add-warning-type" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Warning Type
+                            </button>
+                        </div>
+                        
+                        <div class="info-box" style="margin-bottom: 1rem; padding: 1rem; background: #e8f4fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: #1976D2;">
+                                <i class="fas fa-info-circle"></i> Warning Types
+                            </h4>
+                            <p style="margin: 0; color: #1976D2;">
+                                Configure warning types to monitor your system. Each warning type can be enabled/disabled and has configurable thresholds.
+                            </p>
+                        </div>
+                        
+                        <div class="loader" id="warning-types-loader">
+                            <div class="loader-spinner"></div>
+                            <p>Loading warning types...</p>
+                        </div>
+                        
+                        <div id="warning-types-list">
+                            <!-- Warning types will be dynamically added here -->
+                        </div>
+                        
+                        <div class="empty-state" id="warning-types-empty" style="display: none;">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                            </svg>
+                            <div class="empty-state-text">No warning types configured</div>
+                            <p style="color: #666; margin: 0.5rem 0;">Add warning types to monitor your system for specific conditions.</p>
+                            <button id="add-warning-type-empty" class="btn btn-primary">Add Warning Type</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Warning Notifications Section -->
                     <div class="panel">
                         <div class="panel-header">
                             <h2>Warning Notifications</h2>
@@ -2043,6 +2419,99 @@
                             <div class="empty-state-text">No notification history available</div>
                             <p style="color: #666; margin: 0.5rem 0;">History will appear here once you start receiving notifications.</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add Warning Type Modal -->
+            <div class="modal" id="warning-type-modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3 id="warning-type-modal-title">Add Warning Type</h3>
+                        <button class="modal-close" id="close-warning-type-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="warning-type-form">
+                            <input type="hidden" id="warning-type-id">
+                            
+                            <div class="form-group">
+                                <label for="warning-type-name">Name *</label>
+                                <input type="text" id="warning-type-name" class="form-control" placeholder="E.g., Low Battery Alert" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="warning-type-description">Description</label>
+                                <textarea id="warning-type-description" class="form-control" rows="2" placeholder="Describe what this warning monitors"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="warning-type-parameter">Parameter *</label>
+                                    <select id="warning-type-parameter" class="form-control" required>
+                                        <option value="">Select Parameter</option>
+                                        <option value="battery_soc">Battery SOC (%)</option>
+                                        <option value="pv_power">PV Power (W)</option>
+                                        <option value="load">Load Power (W)</option>
+                                        <option value="grid_voltage">Grid Voltage (V)</option>
+                                        <option value="grid_power">Grid Power (W)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="warning-type-condition">Condition *</label>
+                                    <select id="warning-type-condition" class="form-control condition-select" required>
+                                        <option value="">Select Condition</option>
+                                        <option value="lt">Less Than (&lt;)</option>
+                                        <option value="lte">Less Than or Equal (&lt;=)</option>
+                                        <option value="gt">Greater Than (&gt;)</option>
+                                        <option value="gte">Greater Than or Equal (&gt;=)</option>
+                                        <option value="eq">Equal To (=)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="warning-type-threshold">Threshold *</label>
+                                    <input type="number" id="warning-type-threshold" class="form-control threshold-input" placeholder="0" step="0.1" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="warning-type-priority">Priority</label>
+                                    <select id="warning-type-priority" class="form-control priority-select">
+                                        <option value="low">Low</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="warning-type-time-condition">Time Condition</label>
+                                    <select id="warning-type-time-condition" class="form-control time-condition-select">
+                                        <option value="">Always</option>
+                                        <option value="daytime">Daytime Only (8AM-6PM)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="warning-type-cooldown">Cooldown (min)</label>
+                                    <input type="number" id="warning-type-cooldown" class="form-control cooldown-input" placeholder="30" min="1" max="1440" value="30">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="switch">
+                                    <input type="checkbox" id="warning-type-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                                <label for="warning-type-enabled" style="display: inline-block; margin-left: 10px;">Enable this warning type</label>
+                                <small style="color: #888; display: block; margin-top: 0.5rem;">Warning types are disabled by default. Enable only the ones you want to monitor.</small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" id="cancel-warning-type">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="save-warning-type">Save</button>
                     </div>
                 </div>
             </div>
@@ -2224,6 +2693,10 @@
             document.getElementById('close-test-modal').addEventListener('click', () => closeModal('test-notification-modal'));
             document.getElementById('cancel-test').addEventListener('click', () => closeModal('test-notification-modal'));
             
+            // Warning Type Modal
+            document.getElementById('close-warning-type-modal').addEventListener('click', () => closeModal('warning-type-modal'));
+            document.getElementById('cancel-warning-type').addEventListener('click', () => closeModal('warning-type-modal'));
+            
             // Test Telegram connection
             document.getElementById('test-telegram').addEventListener('click', () => {
                 openModal('test-notification-modal');
@@ -2260,6 +2733,285 @@
                     console.error('Error:', error);
                 }
             });
+            
+            // =================== WARNING TYPE MANAGEMENT ===================
+            
+            // Add warning type button
+            document.getElementById('add-warning-type').addEventListener('click', () => {
+                document.getElementById('warning-type-modal-title').textContent = 'Add Warning Type';
+                document.getElementById('warning-type-id').value = '';
+                document.getElementById('warning-type-name').value = '';
+                document.getElementById('warning-type-description').value = '';
+                document.getElementById('warning-type-parameter').value = '';
+                document.getElementById('warning-type-condition').value = '';
+                document.getElementById('warning-type-threshold').value = '';
+                document.getElementById('warning-type-priority').value = 'medium';
+                document.getElementById('warning-type-time-condition').value = '';
+                document.getElementById('warning-type-cooldown').value = '30';
+                document.getElementById('warning-type-enabled').checked = false;
+                
+                openModal('warning-type-modal');
+            });
+            
+            document.getElementById('add-warning-type-empty').addEventListener('click', () => {
+                document.getElementById('add-warning-type').click();
+            });
+            
+            // Save warning type
+            document.getElementById('save-warning-type').addEventListener('click', async () => {
+                const id = document.getElementById('warning-type-id').value;
+                const name = document.getElementById('warning-type-name').value;
+                const description = document.getElementById('warning-type-description').value;
+                const parameter = document.getElementById('warning-type-parameter').value;
+                const condition = document.getElementById('warning-type-condition').value;
+                const threshold = parseFloat(document.getElementById('warning-type-threshold').value);
+                const priority = document.getElementById('warning-type-priority').value;
+                const timeCondition = document.getElementById('warning-type-time-condition').value;
+                const cooldownMinutes = parseInt(document.getElementById('warning-type-cooldown').value);
+                const enabled = document.getElementById('warning-type-enabled').checked;
+                
+                if (!name || !parameter || !condition || isNaN(threshold)) {
+                    showToast('Please fill in all required fields', true);
+                    return;
+                }
+                
+                const warningType = {
+                    name,
+                    description,
+                    parameter,
+                    condition,
+                    threshold,
+                    priority,
+                    timeCondition: timeCondition || undefined,
+                    cooldownMinutes,
+                    enabled
+                };
+                
+                try {
+                    let url = '<%= ingress_path %>/api/notifications/warnings/types';
+                    let method = 'POST';
+                    
+                    if (id) {
+                        url = `<%= ingress_path %>/api/notifications/warnings/types/${id}`;
+                        method = 'PUT';
+                    }
+                    
+                    const response = await fetch(url, {
+                        method,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(warningType)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast(`Warning type ${id ? 'updated' : 'added'} successfully!`);
+                        closeModal('warning-type-modal');
+                        loadWarningTypes();
+                    } else {
+                        showToast(result.error || 'Failed to save warning type', true);
+                    }
+                } catch (error) {
+                    showToast('Error saving warning type', true);
+                    console.error('Error:', error);
+                }
+            });
+            
+            // Load warning types
+            async function loadWarningTypes() {
+                const loader = document.getElementById('warning-types-loader');
+                const list = document.getElementById('warning-types-list');
+                const empty = document.getElementById('warning-types-empty');
+                
+                loader.classList.add('show');
+                list.innerHTML = '';
+                empty.style.display = 'none';
+                
+                try {
+                    const response = await fetch('<%= ingress_path %>/api/notifications/warnings/types');
+                    const result = await response.json();
+                    
+                    loader.classList.remove('show');
+                    
+                    if (!result.success || !result.warningTypes || result.warningTypes.length === 0) {
+                        empty.style.display = 'block';
+                        return;
+                    }
+                    
+                    result.warningTypes.forEach(warningType => {
+                        const item = document.createElement('div');
+                        item.className = 'warning-type-item';
+                        item.innerHTML = `
+                            <div class="warning-type-header">
+                                <div class="warning-type-title">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                    </svg>
+                                    <strong>${warningType.name}</strong>
+                                </div>
+                                <div class="warning-type-actions">
+                                    <button class="btn btn-secondary btn-sm edit-warning-type" data-id="${warningType.id}">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-danger btn-sm delete-warning-type" data-id="${warningType.id}">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                            ${warningType.description ? `<div class="notification-description">${warningType.description}</div>` : ''}
+                            <div class="warning-type-meta">
+                                <span class="warning-type-tag ${warningType.enabled ? 'enabled' : 'disabled'}">
+                                    ${warningType.enabled ? 'Enabled' : 'Disabled'}
+                                </span>
+                                <span class="warning-type-tag priority-${warningType.priority}">
+                                    Priority: ${warningType.priority}
+                                </span>
+                                <span class="warning-type-tag">
+                                    ${warningType.parameter} ${warningType.condition} ${warningType.threshold}
+                                </span>
+                                <span class="warning-type-tag">
+                                    Cooldown: ${warningType.cooldownMinutes}min
+                                </span>
+                                ${warningType.timeCondition ? `<span class="warning-type-tag">${warningType.timeCondition}</span>` : ''}
+                            </div>
+                            <div class="notification-toggle">
+                                <label class="switch">
+                                    <input type="checkbox" class="toggle-warning-type" data-id="${warningType.id}" ${warningType.enabled ? 'checked' : ''}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        `;
+                        
+                        list.appendChild(item);
+                    });
+                    
+                    // Add event listeners
+                    document.querySelectorAll('.edit-warning-type').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const id = e.target.closest('.edit-warning-type').getAttribute('data-id');
+                            editWarningType(id);
+                        });
+                    });
+                    
+                    document.querySelectorAll('.delete-warning-type').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const id = e.target.closest('.delete-warning-type').getAttribute('data-id');
+                            deleteWarningType(id);
+                        });
+                    });
+                    
+                    document.querySelectorAll('.toggle-warning-type').forEach(checkbox => {
+                        checkbox.addEventListener('change', (e) => {
+                            const id = e.target.getAttribute('data-id');
+                            toggleWarningType(id, e.target.checked);
+                        });
+                    });
+                } catch (error) {
+                    loader.classList.remove('show');
+                    empty.style.display = 'block';
+                    empty.querySelector('.empty-state-text').textContent = 'Error loading warning types';
+                    console.error('Error loading warning types:', error);
+                }
+            }
+            
+            // Edit warning type
+            async function editWarningType(id) {
+                try {
+                    const response = await fetch(`<%= ingress_path %>/api/notifications/warnings/types/${id}`);
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        showToast('Failed to load warning type', true);
+                        return;
+                    }
+                    
+                    const warningType = result.warningType;
+                    
+                    document.getElementById('warning-type-modal-title').textContent = 'Edit Warning Type';
+                    document.getElementById('warning-type-id').value = warningType.id;
+                    document.getElementById('warning-type-name').value = warningType.name;
+                    document.getElementById('warning-type-description').value = warningType.description || '';
+                    document.getElementById('warning-type-parameter').value = warningType.parameter;
+                    document.getElementById('warning-type-condition').value = warningType.condition;
+                    document.getElementById('warning-type-threshold').value = warningType.threshold;
+                    document.getElementById('warning-type-priority').value = warningType.priority;
+                    document.getElementById('warning-type-time-condition').value = warningType.timeCondition || '';
+                    document.getElementById('warning-type-cooldown').value = warningType.cooldownMinutes;
+                    document.getElementById('warning-type-enabled').checked = warningType.enabled;
+                    
+                    openModal('warning-type-modal');
+                } catch (error) {
+                    showToast('Error loading warning type', true);
+                    console.error('Error:', error);
+                }
+            }
+            
+            // Delete warning type
+            async function deleteWarningType(id) {
+                if (!confirm('Are you sure you want to delete this warning type? This action cannot be undone.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`<%= ingress_path %>/api/notifications/warnings/types/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast('Warning type deleted successfully!');
+                        loadWarningTypes();
+                    } else {
+                        showToast(result.error || 'Failed to delete warning type', true);
+                    }
+                } catch (error) {
+                    showToast('Error deleting warning type', true);
+                    console.error('Error:', error);
+                }
+            }
+            
+            // Toggle warning type enabled state
+            async function toggleWarningType(id, enabled) {
+                try {
+                    const response = await fetch(`<%= ingress_path %>/api/notifications/warnings/types/${id}`);
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        showToast('Failed to load warning type', true);
+                        return;
+                    }
+                    
+                    const warningType = result.warningType;
+                    warningType.enabled = enabled;
+                    
+                    const updateResponse = await fetch(`<%= ingress_path %>/api/notifications/warnings/types/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(warningType)
+                    });
+                    
+                    const updateResult = await updateResponse.json();
+                    
+                    if (updateResult.success) {
+                        showToast(`Warning type ${enabled ? 'enabled' : 'disabled'} successfully!`);
+                        loadWarningTypes();
+                    } else {
+                        showToast(updateResult.error || 'Failed to update warning type', true);
+                        loadWarningTypes();
+                    }
+                } catch (error) {
+                    showToast('Error updating warning type', true);
+                    console.error('Error:', error);
+                    loadWarningTypes();
+                }
+            }
+            
+            // =================== TELEGRAM CONFIGURATION ===================
             
             // Telegram configuration form
             const telegramConfigForm = document.getElementById('telegram-config-form');
@@ -2409,7 +3161,7 @@
                 }
             });
             
-            // Rule Notifications
+            // =================== RULE NOTIFICATIONS ===================
             
             // Add rule notification button
             document.getElementById('add-rule-notification').addEventListener('click', () => {
@@ -2747,7 +3499,7 @@
                 }
             }
             
-            // Warning Notifications
+            // =================== WARNING NOTIFICATIONS ===================
             
             // Add warning notification button
             document.getElementById('add-warning-notification').addEventListener('click', () => {
@@ -2758,7 +3510,7 @@
                 document.getElementById('warning-notification-enabled').checked = true;
                 
                 // Load warning types
-                loadWarningTypes();
+                loadWarningTypesForSelect();
                 
                 openModal('warning-notification-modal');
             });
@@ -2767,8 +3519,8 @@
                 document.getElementById('add-warning-notification').click();
             });
             
-            // Load warning types
-            async function loadWarningTypes() {
+            // Load warning types for select dropdown
+            async function loadWarningTypesForSelect() {
                 try {
                     const response = await fetch('<%= ingress_path %>/api/notifications/warnings/types');
                     const result = await response.json();
@@ -2965,7 +3717,7 @@
                     document.getElementById('warning-notification-enabled').checked = warning.enabled;
                     
                     // Load warning types and select the current one
-                    await loadWarningTypes();
+                    await loadWarningTypesForSelect();
                     
                     // Select the current warning type
                     setTimeout(() => {
@@ -3052,7 +3804,7 @@
                 }
             }
             
-            // Notification History
+            // =================== NOTIFICATION HISTORY ===================
             
             // Load notification history
             async function loadNotificationHistory() {
@@ -3133,10 +3885,15 @@
                 }
             });
             
+            // =================== INITIALIZATION ===================
+            
             // Initialize the page
             function initPage() {
                 // Load Telegram configuration
                 loadTelegramConfig();
+                
+                // Load warning types
+                loadWarningTypes();
                 
                 // Load rule notifications
                 loadRuleNotifications();
