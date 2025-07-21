@@ -986,8 +986,9 @@ async function handleMqttMessage(topic, message) {
   const formattedMessage = `${topic}: ${truncatedMessage}`;
   
   incomingMessages.push(formattedMessage);
-  while (incomingMessages.length > bufferSize) {
-    incomingMessages.shift();
+  if (incomingMessages.length > bufferSize) {
+    const excess = incomingMessages.length - bufferSize;
+    incomingMessages.splice(0, excess); // ✅ Remove multiple items at once
   }
 
   let messageContent;
@@ -1500,7 +1501,10 @@ async function processSettingsChangesQueue() {
     }
   } catch (error) {
     console.error('Error processing settings changes queue:', error.message);
-    setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL * 2);
+    processingQueue = false; // ✅ Reset the flag
+    setTimeout(() => {
+      processSettingsChangesQueue(); // ✅ Retry after delay
+    }, PROCESSING_INTERVAL * 2);
   }
 }
 
@@ -1565,24 +1569,34 @@ async function batchSaveSettingsChanges(changes) {
   });
 }
 
-const API_REQUEST_LIMIT = {};
-const API_REQUEST_INTERVAL = 2000;
+const API_REQUEST_LIMIT = new Map();
+const MAX_RATE_LIMIT_ENTRIES = 1000;
 
 function canMakeRequest(endpoint, userId) {
   const key = `${endpoint}:${userId}`;
   const now = Date.now();
   
-  if (!API_REQUEST_LIMIT[key]) {
-    API_REQUEST_LIMIT[key] = now;
+  // Clean old entries periodically
+  if (API_REQUEST_LIMIT.size > MAX_RATE_LIMIT_ENTRIES) {
+    const cutoff = now - (API_REQUEST_INTERVAL * 10);
+    for (const [k, v] of API_REQUEST_LIMIT.entries()) {
+      if (v < cutoff) {
+        API_REQUEST_LIMIT.delete(k);
+      }
+    }
+  }
+  
+  if (!API_REQUEST_LIMIT.has(key)) {
+    API_REQUEST_LIMIT.set(key, now);
     return true;
   }
   
-  const timeSinceLastRequest = now - API_REQUEST_LIMIT[key];
+  const timeSinceLastRequest = now - API_REQUEST_LIMIT.get(key);
   if (timeSinceLastRequest < API_REQUEST_INTERVAL) {
     return false;
   }
   
-  API_REQUEST_LIMIT[key] = now;
+  API_REQUEST_LIMIT.set(key, now);
   return true;
 }
 
@@ -2622,22 +2636,30 @@ app.get('/', async (req, res) => {
         reconnectTimeout * Math.pow(2, Math.min(reconnectAttempts - 3, 5)) : 
         reconnectTimeout;
       
-      if (wsClient) {
-        try {
-          stopHeartbeat();
-          
+        if (wsClient) {
           try {
+            stopHeartbeat();
+            
+            // Set ready state to closing to prevent new messages
+            if (wsClient.readyState === WebSocket.OPEN) {
+              wsClient.close(1000, 'Normal closure');
+            }
+            
+            // Remove all listeners
             wsClient.removeAllListeners();
-            wsClient.terminate();
+            
+            // Give it a moment to close gracefully, then terminate
+            setTimeout(() => {
+              if (wsClient.readyState !== WebSocket.CLOSED) {
+                wsClient.terminate();
+              }
+            }, 1000);
+            
+            wsClient = null;
           } catch (e) {
-            console.error('Error during WebSocket cleanup (expected if connection failed):', e.message);
+            console.error('Error cleaning up WebSocket connection:', e);
           }
-          
-          wsClient = null;
-        } catch (e) {
-          console.error('Error cleaning up WebSocket connection:', e);
         }
-      }
       
       try {
         console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
@@ -3823,64 +3845,7 @@ async function createDefaultRules() {
     }
   }
   
-  async function initializeDynamicPricingData() {
-    try {
-      console.log('Initializing dynamic pricing data...');
-      
-      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-      
-      let config = null;
-      if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-        const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-        config = JSON.parse(configData);
-      }
-      
-      if (!config) {
-        console.log('No dynamic pricing config found, creating default...');
-        config = {
-          enabled: false,
-          country: 'DE',
-          market: 'DE', 
-          apiKey: '',
-          priceThreshold: 0.10,
-          minimumSoC: 20,
-          targetSoC: 80,
-          scheduledCharging: false,
-          chargingHours: [],
-          lastUpdate: null,
-          pricingData: [],
-          timezone: 'Europe/Berlin'
-        };
-      }
-      
-      const hasData = config.pricingData && config.pricingData.length > 0;
-      const isRecent = config.lastUpdate && 
-        (Date.now() - new Date(config.lastUpdate).getTime()) < (6 * 60 * 60 * 1000);
-      
-      if (!hasData || !isRecent) {
-        console.log('Generating initial pricing data...');
-        
-        config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
-        config.lastUpdate = new Date().toISOString();
-        
-        const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
-        if (!fs.existsSync(configDir)) {
-          fs.mkdirSync(configDir, { recursive: true });
-        }
-        
-        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-        
-        console.log(`✅ Initial pricing data generated: ${config.pricingData.length} data points`);
-      } else {
-        console.log('✅ Existing pricing data is recent, no generation needed');
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Error initializing dynamic pricing data:', error);
-      return false;
-    }
-  }
+
   
   function generateInitialSampleData(timezone = 'Europe/Berlin') {
     const prices = [];
@@ -4269,47 +4234,6 @@ async function createDefaultRules() {
   app.use('/api/notifications', notificationRoutes);
   
   global.processRules = processRules;
-  
- 
-  
-  function setupWarningChecks() {
-    cron.schedule('*/5 * * * *', async () => {
-      try {
-        console.log('Running scheduled warning check...');
-        
-        const triggeredWarnings = warningService.checkWarnings(currentSystemState);
-        
-        if (triggeredWarnings.length > 0) {
-          console.log(`Found ${triggeredWarnings.length} warning(s) to process`);
-        }
-        
-        for (const warning of triggeredWarnings) {
-          try {
-            if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
-              const message = telegramService.formatWarningMessage(warning, currentSystemState);
-              const sent = await telegramService.broadcastMessage(message);
-              
-              if (sent) {
-                console.log(`User-configured warning notification sent: ${warning.title}`);
-              } else {
-                console.error(`Failed to send user-configured notification for warning: ${warning.title}`);
-              }
-            } else {
-              console.log(`Skipping notification for warning (${warning.title}) - not configured by user`);
-            }
-          } catch (notifyError) {
-            console.error(`Error in user-configured warning notification process:`, notifyError);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking for warnings:', error);
-      }
-    });
-    
-    console.log('✅ Warning check scheduler initialized (user-controlled notifications)');
-  }
-  
-  // Continue with remaining parts in next artifact...
 
   // ================ ENHANCED INVERTER SETTINGS PAGE ================
 
@@ -4649,72 +4573,65 @@ app.get('/inverter-settings', async (req, res) => {
     });
   });
   
-  app.get('/wizard', async (req, res) => {
-    try {
-      const editParam = req.query.edit;
-      
-      const systemState = { ...currentSystemState };
-      
-      const numInverters = inverterNumber || 1;
-      
-      res.render('wizard', { 
-        editParam,
-        systemState,
-        numInverters,
-        db_connected: dbConnected,
-        ingress_path: process.env.INGRESS_PATH || '',
-        user_id: USER_ID,
-        // Enhanced wizard with inverter type support
-        inverterTypes: inverterTypes,
-        supportsLegacySettings: true,
-        supportsNewSettings: true,
-        autoMapping: true
-      });
-    } catch (error) {
-      console.error('Error rendering wizard page:', error);
-      res.status(500).send('Error loading wizard page');
-    }
-  });
   
   // ================ RULES MANAGEMENT API ================
   
-  app.post('/api/rules', async (req, res) => {
+  app.get('/wizard', async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
-      const { name, description, active, conditions, timeRestrictions, actions } = req.body;
-      
-      if (!name) {
-        return res.status(400).json({ error: 'Rule name is required' });
-      }
-      
-      if (!actions || actions.length === 0) {
-        return res.status(400).json({ error: 'At least one action is required' });
-      }
-      
-      const rule = {
-        name,
-        description,
-        active: active !== undefined ? active : true,
-        conditions: conditions || [],
-        timeRestrictions: timeRestrictions || {},
-        actions,
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      const savedRule = await saveRule(rule);
-      
-      console.log(`Rule "${name}" created successfully`);
-      
-      res.status(201).json(savedRule);
+        const editParam = req.query.edit;
+        
+        // Get enhanced system state
+        const systemState = { ...currentSystemState };
+        
+        // Get detailed inverter information
+        const detailedInverterTypes = {};
+        Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+            detailedInverterTypes[inverterId] = {
+                ...info,
+                capabilities: getInverterCapabilities(info.type),
+                supportedSettings: getSupportedSettings(info.type),
+                lastSeen: getLastSeenTimestamp(inverterId),
+                confidenceScore: calculateConfidenceScore(info),
+                mappingInfo: getMappingInfo(info.type)
+            };
+        });
+        
+        res.render('wizard', { 
+            editParam,
+            systemState,
+            numInverters: inverterNumber,
+            db_connected: dbConnected,
+            ingress_path: process.env.INGRESS_PATH || '',
+            user_id: USER_ID,
+            
+            // Enhanced wizard data
+            inverterTypes: detailedInverterTypes,
+            inverterTypesJson: JSON.stringify(detailedInverterTypes),
+            totalInverters: inverterNumber,
+            detectionSummary: {
+                legacy: Object.values(detailedInverterTypes).filter(inv => inv.type === 'legacy').length,
+                new: Object.values(detailedInverterTypes).filter(inv => inv.type === 'new').length,
+                hybrid: Object.values(detailedInverterTypes).filter(inv => inv.type === 'hybrid').length,
+                unknown: Object.values(detailedInverterTypes).filter(inv => inv.type === 'unknown').length
+            },
+            
+            // Feature flags
+            supportsLegacySettings: true,
+            supportsNewSettings: true,
+            autoMapping: true,
+            smartTemplates: true,
+            
+            // Available settings based on detected inverters
+            availableSettings: getAllAvailableSettings(),
+            
+            // Smart rule templates
+            ruleTemplates: generateSmartRuleTemplates()
+        });
     } catch (error) {
-      console.error('Error creating rule:', error);
-      res.status(400).json({ error: error.message });
+        console.error('Error rendering dynamic wizard page:', error);
+        res.status(500).send('Error loading dynamic wizard page');
     }
-  });
+});
   
   app.put('/api/rules/:id', async (req, res) => {
     try {
@@ -5595,7 +5512,1148 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  // Continue with MQTT, CRON, and initialization functions...
+  app.get('/api/inverter-types/detailed', async (req, res) => {
+    try {
+        // Get current inverter types with additional metadata
+        const detailedTypes = {};
+        
+        Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+            detailedTypes[inverterId] = {
+                ...info,
+                // Add capability information
+                capabilities: getInverterCapabilities(info.type),
+                // Add supported settings
+                supportedSettings: getSupportedSettings(info.type),
+                // Add last seen timestamp from current settings
+                lastSeen: getLastSeenTimestamp(inverterId),
+                // Add confidence score
+                confidenceScore: calculateConfidenceScore(info),
+                // Add mapping information
+                mappingInfo: getMappingInfo(info.type)
+            };
+        });
+        
+        res.json({
+            success: true,
+            inverterTypes: detailedTypes,
+            totalInverters: inverterNumber,
+            detectionSummary: {
+                legacy: Object.values(detailedTypes).filter(inv => inv.type === 'legacy').length,
+                new: Object.values(detailedTypes).filter(inv => inv.type === 'new').length,
+                hybrid: Object.values(detailedTypes).filter(inv => inv.type === 'hybrid').length,
+                unknown: Object.values(detailedTypes).filter(inv => inv.type === 'unknown').length
+            },
+            recommendations: generateInverterRecommendations(detailedTypes)
+        });
+    } catch (error) {
+        console.error('Error getting detailed inverter types:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve detailed inverter information',
+            fallback: {
+                inverterTypes: {},
+                totalInverters: inverterNumber,
+                detectionSummary: { legacy: 0, new: 0, hybrid: 0, unknown: inverterNumber }
+            }
+        });
+    }
+});
+
+// Dynamic settings API based on inverter types
+app.get('/api/settings/available/:inverterId?', async (req, res) => {
+    try {
+        const inverterId = req.params.inverterId;
+        let availableSettings = {};
+        
+        if (inverterId && inverterTypes[inverterId]) {
+            // Get settings for specific inverter
+            availableSettings = getAvailableSettingsForInverter(inverterId);
+        } else {
+            // Get combined settings for all inverters
+            availableSettings = getAllAvailableSettings();
+        }
+        
+        res.json({
+            success: true,
+            settings: availableSettings,
+            inverterId: inverterId || 'all',
+            mappingInfo: getMappingInfoForSettings(availableSettings)
+        });
+    } catch (error) {
+        console.error('Error getting available settings:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve available settings' 
+        });
+    }
+});
+
+// Smart rule templates API
+app.get('/api/rules/templates', async (req, res) => {
+    try {
+        const templates = generateSmartRuleTemplates();
+        
+        res.json({
+            success: true,
+            templates: templates,
+            categories: {
+                'charging': templates.filter(t => t.category === 'charging'),
+                'energy_management': templates.filter(t => t.category === 'energy_management'),
+                'protection': templates.filter(t => t.category === 'protection'),
+                'optimization': templates.filter(t => t.category === 'optimization')
+            }
+        });
+    } catch (error) {
+        console.error('Error getting rule templates:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve rule templates' 
+        });
+    }
+});
+
+// Rule validation API for dynamic wizard
+app.post('/api/rules/validate', async (req, res) => {
+    try {
+        const { rule } = req.body;
+        const validationResult = validateRuleForInverterTypes(rule);
+        
+        res.json({
+            success: true,
+            validation: validationResult,
+            warnings: validationResult.warnings || [],
+            suggestions: validationResult.suggestions || [],
+            compatibility: validationResult.compatibility || {}
+        });
+    } catch (error) {
+        console.error('Error validating rule:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to validate rule' 
+        });
+    }
+});
+
+// Enhanced rule preview API
+app.post('/api/rules/preview', async (req, res) => {
+    try {
+        const { rule } = req.body;
+        const preview = generateRulePreview(rule);
+        
+        res.json({
+            success: true,
+            preview: preview,
+            mappingDetails: preview.mappingDetails,
+            estimatedImpact: preview.estimatedImpact
+        });
+    } catch (error) {
+        console.error('Error generating rule preview:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to generate rule preview' 
+        });
+    }
+});
+
+app.post('/api/rules', async (req, res) => {
+  try {
+    console.log('Creating new rule with data:', req.body);
+    
+    if (!dbConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database not connected', 
+        status: 'disconnected' 
+      });
+    }
+    
+    const { name, description, active, conditions, timeRestrictions, actions } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Rule name is required' 
+      });
+    }
+    
+    if (!actions || actions.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least one action is required' 
+      });
+    }
+    
+    const newRule = {
+      name: name.trim(),
+      description: description || '',
+      active: active !== undefined ? !!active : true,
+      conditions: conditions || [],
+      timeRestrictions: timeRestrictions || { enabled: false },
+      actions: actions,
+      user_id: USER_ID,
+      mqtt_username: mqttConfig.username
+    };
+    
+    console.log(`Creating new rule "${newRule.name}" with ${newRule.actions.length} action(s) and ${newRule.conditions.length} condition(s)`);
+    
+    const savedRule = await saveRule(newRule);
+    
+    if (!savedRule) {
+      console.log(`Failed to create new rule "${newRule.name}"`);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create rule' 
+      });
+    }
+    
+    console.log(`Successfully created new rule with ID ${savedRule.id}`);
+    return res.status(201).json({
+      success: true,
+      message: 'Rule created successfully',
+      rule: savedRule
+    });
+  } catch (error) {
+    console.error('Error in create rule endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// ================ HELPER FUNCTIONS FOR DYNAMIC WIZARD ================
+
+function getInverterCapabilities(inverterType) {
+  const capabilities = {
+      legacy: {
+          gridCharging: true,
+          energyPattern: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true
+      },
+      new: {
+          chargerSourcePriority: true,
+          outputSourcePriority: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true,
+          advancedControl: true
+      },
+      hybrid: {
+          gridCharging: true,
+          energyPattern: true,
+          chargerSourcePriority: true,
+          outputSourcePriority: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true,
+          advancedControl: true,
+          dualMode: true
+      },
+      unknown: {
+          basicControl: true,
+          batterySettings: true,
+          remoteSwitch: true
+      }
+  };
+  
+  return capabilities[inverterType] || capabilities.unknown;
+}
+
+function getSupportedSettings(inverterType) {
+  const settingsMap = {
+      legacy: [
+          'grid_charge',
+          'energy_pattern',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      new: [
+          'charger_source_priority',
+          'output_source_priority',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      hybrid: [
+          'grid_charge',
+          'energy_pattern',
+          'charger_source_priority',
+          'output_source_priority',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      unknown: [
+          'work_mode',
+          'remote_switch',
+          'max_discharge_current',
+          'max_charge_current'
+      ]
+  };
+  
+  return settingsMap[inverterType] || settingsMap.unknown;
+}
+
+function getLastSeenTimestamp(inverterId) {
+  let lastSeen = null;
+  
+  // Check all setting categories for the most recent timestamp
+  Object.keys(currentSettingsState).forEach(category => {
+      if (typeof currentSettingsState[category] === 'object' && 
+          currentSettingsState[category][inverterId] &&
+          currentSettingsState[category][inverterId].lastUpdated) {
+          
+          const timestamp = new Date(currentSettingsState[category][inverterId].lastUpdated);
+          if (!lastSeen || timestamp > lastSeen) {
+              lastSeen = timestamp;
+          }
+      }
+  });
+  
+  return lastSeen;
+}
+
+function calculateConfidenceScore(inverterInfo) {
+  let score = inverterInfo.detectionConfidence || 0;
+  
+  // Boost confidence for consistent detection
+  if (inverterInfo.type !== 'unknown') {
+      score += 20;
+  }
+  
+  // Boost for hybrid detection (requires seeing both types)
+  if (inverterInfo.type === 'hybrid') {
+      score += 10;
+  }
+  
+  return Math.min(score, 100);
+}
+
+function getMappingInfo(inverterType) {
+  const mappingInfo = {
+      legacy: {
+          canReceive: ['charger_source_priority', 'output_source_priority'],
+          canSend: ['grid_charge', 'energy_pattern'],
+          autoMapping: true,
+          mappingRules: {
+              'charger_source_priority': 'Maps to grid_charge with intelligent translation',
+              'output_source_priority': 'Maps to energy_pattern with intelligent translation'
+          }
+      },
+      new: {
+          canReceive: ['grid_charge', 'energy_pattern'],
+          canSend: ['charger_source_priority', 'output_source_priority'],
+          autoMapping: true,
+          mappingRules: {
+              'grid_charge': 'Maps to charger_source_priority with intelligent translation',
+              'energy_pattern': 'Maps to output_source_priority with intelligent translation'
+          }
+      },
+      hybrid: {
+          canReceive: ['grid_charge', 'energy_pattern', 'charger_source_priority', 'output_source_priority'],
+          canSend: ['grid_charge', 'energy_pattern', 'charger_source_priority', 'output_source_priority'],
+          autoMapping: true,
+          nativeSupport: true,
+          mappingRules: {
+              'grid_charge': 'Native support with fallback to charger_source_priority',
+              'energy_pattern': 'Native support with fallback to output_source_priority',
+              'charger_source_priority': 'Native support with fallback to grid_charge',
+              'output_source_priority': 'Native support with fallback to energy_pattern'
+          }
+      },
+      unknown: {
+          canReceive: ['work_mode', 'remote_switch'],
+          canSend: ['work_mode', 'remote_switch'],
+          autoMapping: false,
+          limitedSupport: true,
+          mappingRules: {}
+      }
+  };
+  
+  return mappingInfo[inverterType] || mappingInfo.unknown;
+}
+
+function generateInverterRecommendations(detailedTypes) {
+  const recommendations = [];
+  
+  // Check for mixed environments
+  const types = Object.values(detailedTypes).map(inv => inv.type);
+  const uniqueTypes = [...new Set(types)];
+  
+  if (uniqueTypes.length > 1 && uniqueTypes.includes('legacy') && uniqueTypes.includes('new')) {
+      recommendations.push({
+          type: 'compatibility',
+          level: 'info',
+          title: 'Mixed Inverter Environment Detected',
+          message: 'You have both legacy and new inverters. Commands will be automatically translated for compatibility.',
+          action: 'Use universal settings when possible for consistent behavior.'
+      });
+  }
+  
+  // Check for unknown types
+  const unknownCount = types.filter(t => t === 'unknown').length;
+  if (unknownCount > 0) {
+      recommendations.push({
+          type: 'detection',
+          level: 'warning',
+          title: `${unknownCount} Inverter(s) Not Yet Detected`,
+          message: 'Some inverters haven\'t been fully identified yet. Detection improves with MQTT activity.',
+          action: 'Monitor system activity or manually send test commands to improve detection.'
+      });
+  }
+  
+  // Check for low confidence
+  const lowConfidence = Object.values(detailedTypes)
+      .filter(inv => inv.confidenceScore < 50).length;
+  
+  if (lowConfidence > 0) {
+      recommendations.push({
+          type: 'confidence',
+          level: 'info',
+          title: 'Low Detection Confidence',
+          message: `${lowConfidence} inverter(s) have low detection confidence.`,
+          action: 'Increase MQTT activity or verify inverter responses to improve confidence.'
+      });
+  }
+  
+  return recommendations;
+}
+
+function getAvailableSettingsForInverter(inverterId) {
+  const inverterInfo = inverterTypes[inverterId];
+  if (!inverterInfo) {
+      return getDefaultAvailableSettings();
+  }
+  
+  const supportedSettings = getSupportedSettings(inverterInfo.type);
+  const capabilities = getInverterCapabilities(inverterInfo.type);
+  const mappingInfo = getMappingInfo(inverterInfo.type);
+  
+  return {
+      supported: supportedSettings,
+      capabilities: capabilities,
+      mapping: mappingInfo,
+      type: inverterInfo.type,
+      confidence: calculateConfidenceScore(inverterInfo)
+  };
+}
+
+function getAllAvailableSettings() {
+  const allSettings = {
+      universal: [],
+      legacy: [],
+      new: [],
+      mapping: {}
+  };
+  
+  // Collect all unique settings from all inverters
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      const supported = getSupportedSettings(info.type);
+      
+      supported.forEach(setting => {
+          if (info.type === 'legacy' && !allSettings.legacy.includes(setting)) {
+              allSettings.legacy.push(setting);
+          } else if (info.type === 'new' && !allSettings.new.includes(setting)) {
+              allSettings.new.push(setting);
+          }
+          
+          // Add to universal if supported by multiple types
+          if (!allSettings.universal.includes(setting)) {
+              const supportCount = Object.values(inverterTypes)
+                  .filter(inv => getSupportedSettings(inv.type).includes(setting)).length;
+              
+              if (supportCount >= Object.keys(inverterTypes).length * 0.5) {
+                  allSettings.universal.push(setting);
+              }
+          }
+      });
+      
+      // Add mapping information
+      const mappingInfo = getMappingInfo(info.type);
+      allSettings.mapping[inverterId] = mappingInfo;
+  });
+  
+  return allSettings;
+}
+
+function getDefaultAvailableSettings() {
+  return {
+      supported: [
+          'work_mode',
+          'remote_switch',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current'
+      ],
+      capabilities: getInverterCapabilities('unknown'),
+      mapping: getMappingInfo('unknown'),
+      type: 'unknown',
+      confidence: 0
+  };
+}
+
+function getMappingInfoForSettings(availableSettings) {
+  const mappingInfo = {};
+  
+  if (availableSettings.mapping) {
+      Object.entries(availableSettings.mapping).forEach(([inverterId, info]) => {
+          mappingInfo[inverterId] = {
+              autoMapping: info.autoMapping,
+              mappingRules: info.mappingRules,
+              canReceive: info.canReceive,
+              canSend: info.canSend
+          };
+      });
+  }
+  
+  return mappingInfo;
+}
+
+function generateSmartRuleTemplates() {
+  const templates = [
+      // Charging Templates
+      {
+          id: 'nighttime_grid_charging',
+          name: 'Nighttime Grid Charging',
+          description: 'Enable grid charging during off-peak hours (10PM-6AM)',
+          category: 'charging',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 80 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '22:00',
+              endTime: '06:00',
+              days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+          },
+          actions: [
+              { setting: 'grid_charge', value: 'Enabled', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'solar_priority_charging',
+          name: 'Solar Priority Charging',
+          description: 'Prioritize solar charging when PV production is high',
+          category: 'charging',
+          inverterCompatibility: ['new', 'hybrid'],
+          conditions: [
+              { parameter: 'pv_power', operator: 'gt', value: 5000 },
+              { parameter: 'battery_soc', operator: 'lt', value: 90 }
+          ],
+          actions: [
+              { setting: 'charger_source_priority', value: 'Solar first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'grid_charge', value: 'Disabled', inverter: 'all' }
+          ]
+      },
+      
+      // Energy Management Templates
+      {
+          id: 'load_first_pattern',
+          name: 'Load First Energy Pattern',
+          description: 'Prioritize direct solar consumption during peak production',
+          category: 'energy_management',
+          inverterCompatibility: ['legacy', 'hybrid'],
+          conditions: [
+              { parameter: 'pv_power', operator: 'gt', value: 8000 },
+              { parameter: 'battery_soc', operator: 'gt', value: 60 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '10:00',
+              endTime: '16:00'
+          },
+          actions: [
+              { setting: 'energy_pattern', value: 'Load first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'output_source_priority', value: 'Solar first', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'battery_first_evening',
+          name: 'Battery First Evening Mode',
+          description: 'Use battery power during evening hours to save on grid costs',
+          category: 'energy_management',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'gt', value: 40 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '18:00',
+              endTime: '22:00'
+          },
+          actions: [
+              { setting: 'energy_pattern', value: 'Battery first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'output_source_priority', value: 'Solar/Battery/Utility', inverter: 'all' }
+          ]
+      },
+      
+      // Protection Templates
+      {
+          id: 'low_battery_protection',
+          name: 'Low Battery Protection',
+          description: 'Reduce discharge current when battery is low to extend life',
+          category: 'protection',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 30 }
+          ],
+          actions: [
+              { setting: 'max_discharge_current', value: '30', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'emergency_grid_charging',
+          name: 'Emergency Grid Charging',
+          description: 'Enable aggressive grid charging when battery is critically low',
+          category: 'protection',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 15 }
+          ],
+          actions: [
+              { setting: 'grid_charge', value: 'Enabled', inverter: 'all' },
+              { setting: 'max_grid_charge_current', value: '80', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'charger_source_priority', value: 'Utility first', inverter: 'all' }
+          ]
+      },
+      
+      // Optimization Templates
+      {
+          id: 'high_load_optimization',
+          name: 'High Load Optimization',
+          description: 'Optimize energy distribution during high load periods',
+          category: 'optimization',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'load', operator: 'gt', value: 12000 }
+          ],
+          actions: [
+              { setting: 'max_sell_power', value: '0', inverter: 'all' },
+              { setting: 'solar_export_when_battery_full', value: 'Disabled', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'weekend_eco_mode',
+          name: 'Weekend Eco Mode',
+          description: 'Optimize for maximum solar utilization on weekends',
+          category: 'optimization',
+          inverterCompatibility: ['all'],
+          timeRestrictions: {
+              enabled: true,
+              days: ['saturday', 'sunday']
+          },
+          actions: [
+              { setting: 'solar_export_when_battery_full', value: 'Enabled', inverter: 'all' },
+              { setting: 'max_charge_current', value: '100', inverter: 'all' }
+          ]
+      }
+  ];
+  
+  // Filter templates based on current inverter types
+  return templates.map(template => {
+      // Add compatibility information
+      template.compatibleInverters = getCompatibleInverters(template.inverterCompatibility);
+      template.mappingRequired = checkMappingRequired(template.actions);
+      template.estimatedEffectiveness = calculateTemplateEffectiveness(template);
+      
+      return template;
+  });
+}
+
+function getCompatibleInverters(compatibility) {
+  const compatibleList = [];
+  
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      if (compatibility.includes('all') || 
+          compatibility.includes(info.type)) {
+          compatibleList.push({
+              id: inverterId,
+              type: info.type,
+              confidence: calculateConfidenceScore(info)
+          });
+      }
+  });
+  
+  return compatibleList;
+}
+
+function checkMappingRequired(actions) {
+  const mappingRequired = {};
+  
+  actions.forEach(action => {
+      if (action.inverter === 'all') {
+          Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+              const needsMapping = willRequireMapping(action.setting, info.type);
+              if (needsMapping) {
+                  mappingRequired[inverterId] = {
+                      from: action.setting,
+                      to: getMappedSetting(action.setting, info.type),
+                      type: info.type
+                  };
+              }
+          });
+      } else {
+          const inverterInfo = inverterTypes[action.inverter];
+          if (inverterInfo) {
+              const needsMapping = willRequireMapping(action.setting, inverterInfo.type);
+              if (needsMapping) {
+                  mappingRequired[action.inverter] = {
+                      from: action.setting,
+                      to: getMappedSetting(action.setting, inverterInfo.type),
+                      type: inverterInfo.type
+                  };
+              }
+          }
+      }
+  });
+  
+  return Object.keys(mappingRequired).length > 0 ? mappingRequired : null;
+}
+
+function willRequireMapping(setting, inverterType) {
+  const legacySettings = ['grid_charge', 'energy_pattern'];
+  const newSettings = ['charger_source_priority', 'output_source_priority'];
+  
+  return (legacySettings.includes(setting) && (inverterType === 'new')) ||
+         (newSettings.includes(setting) && (inverterType === 'legacy'));
+}
+
+function getMappedSetting(setting, inverterType) {
+  const mappings = {
+      'grid_charge': {
+          'new': 'charger_source_priority',
+          'hybrid': 'charger_source_priority'
+      },
+      'energy_pattern': {
+          'new': 'output_source_priority', 
+          'hybrid': 'output_source_priority'
+      },
+      'charger_source_priority': {
+          'legacy': 'grid_charge'
+      },
+      'output_source_priority': {
+          'legacy': 'energy_pattern'
+      }
+  };
+  
+  return mappings[setting] && mappings[setting][inverterType] || setting;
+}
+
+function calculateTemplateEffectiveness(template) {
+  let score = 50; // Base score
+  
+  // Boost for time restrictions (more targeted)
+  if (template.timeRestrictions && template.timeRestrictions.enabled) {
+      score += 20;
+  }
+  
+  // Boost for multiple conditions (more precise)
+  if (template.conditions && template.conditions.length > 1) {
+      score += 15;
+  }
+  
+  // Boost for universal compatibility
+  if (template.inverterCompatibility.includes('all')) {
+      score += 10;
+  }
+  
+  // Reduce for mapping requirements (slight overhead)
+  if (template.mappingRequired) {
+      score -= 5;
+  }
+  
+  return Math.min(Math.max(score, 0), 100);
+}
+
+function validateRuleForInverterTypes(rule) {
+  const validation = {
+      valid: true,
+      warnings: [],
+      suggestions: [],
+      compatibility: {},
+      mappingInfo: {}
+  };
+  
+  // Validate actions against inverter types
+  rule.actions.forEach((action, index) => {
+      const actionValidation = validateActionForInverters(action);
+      
+      if (!actionValidation.valid) {
+          validation.valid = false;
+          validation.warnings.push(`Action ${index + 1}: ${actionValidation.error}`);
+      }
+      
+      if (actionValidation.mappingRequired) {
+          validation.mappingInfo[`action_${index}`] = actionValidation.mappingRequired;
+      }
+      
+      if (actionValidation.suggestions) {
+          validation.suggestions.push(...actionValidation.suggestions);
+      }
+  });
+  
+  // Check compatibility across all targeted inverters
+  const compatibilityCheck = checkRuleCompatibility(rule);
+  validation.compatibility = compatibilityCheck;
+  
+  return validation;
+}
+
+function validateActionForInverters(action) {
+  const validation = {
+      valid: true,
+      warnings: [],
+      suggestions: [],
+      mappingRequired: null
+  };
+  
+  const targetInverters = action.inverter === 'all' ? 
+      Object.keys(inverterTypes) : [action.inverter];
+  
+  targetInverters.forEach(inverterId => {
+      const inverterInfo = inverterTypes[inverterId];
+      if (!inverterInfo) {
+          validation.warnings.push(`Inverter ${inverterId} not found`);
+          return;
+      }
+      
+      const supportedSettings = getSupportedSettings(inverterInfo.type);
+      
+      if (!supportedSettings.includes(action.setting)) {
+          // Check if mapping is possible
+          const mappedSetting = getMappedSetting(action.setting, inverterInfo.type);
+          
+          if (supportedSettings.includes(mappedSetting)) {
+              if (!validation.mappingRequired) {
+                  validation.mappingRequired = {};
+              }
+              validation.mappingRequired[inverterId] = {
+                  from: action.setting,
+                  to: mappedSetting,
+                  inverterType: inverterInfo.type
+              };
+          } else {
+              validation.valid = false;
+              validation.warnings.push(`Setting ${action.setting} not supported by ${inverterId} (${inverterInfo.type})`);
+          }
+      }
+  });
+  
+  return validation;
+}
+
+function checkRuleCompatibility(rule) {
+  const compatibility = {
+      universal: true,
+      inverterSpecific: {},
+      mixedEnvironment: false,
+      recommendedApproach: 'universal'
+  };
+  
+  const detectedTypes = [...new Set(Object.values(inverterTypes).map(inv => inv.type))];
+  compatibility.mixedEnvironment = detectedTypes.length > 1;
+  
+  if (compatibility.mixedEnvironment) {
+      compatibility.recommendedApproach = 'adaptive';
+      compatibility.universal = false;
+  }
+  
+  // Check each inverter's compatibility
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      const inverterCompatibility = {
+          supported: true,
+          mappingRequired: false,
+          confidence: calculateConfidenceScore(info),
+          recommendations: []
+      };
+      
+      rule.actions.forEach(action => {
+          if (action.inverter === 'all' || action.inverter === inverterId) {
+              const supportedSettings = getSupportedSettings(info.type);
+              
+              if (!supportedSettings.includes(action.setting)) {
+                  const mappedSetting = getMappedSetting(action.setting, info.type);
+                  
+                  if (supportedSettings.includes(mappedSetting)) {
+                      inverterCompatibility.mappingRequired = true;
+                      inverterCompatibility.recommendations.push(
+                          `${action.setting} will be mapped to ${mappedSetting}`
+                      );
+                  } else {
+                      inverterCompatibility.supported = false;
+                      inverterCompatibility.recommendations.push(
+                          `${action.setting} is not supported by this inverter type`
+                      );
+                  }
+              }
+          }
+      });
+      
+      compatibility.inverterSpecific[inverterId] = inverterCompatibility;
+  });
+  
+  return compatibility;
+}
+
+function generateRulePreview(rule) {
+  const preview = {
+      summary: generateRuleSummary(rule),
+      mappingDetails: generateMappingDetails(rule),
+      estimatedImpact: estimateRuleImpact(rule),
+      executionFlow: generateExecutionFlow(rule),
+      compatibility: checkRuleCompatibility(rule)
+  };
+  
+  return preview;
+}
+
+function generateRuleSummary(rule) {
+  return {
+      name: rule.name,
+      description: rule.description,
+      active: rule.active,
+      conditionCount: rule.conditions ? rule.conditions.length : 0,
+      actionCount: rule.actions ? rule.actions.length : 0,
+      hasTimeRestrictions: rule.timeRestrictions && rule.timeRestrictions.enabled,
+      targetInverters: getTargetInverters(rule.actions),
+      complexity: calculateRuleComplexity(rule)
+  };
+}
+
+function generateMappingDetails(rule) {
+  const mappingDetails = {};
+  
+  rule.actions.forEach((action, index) => {
+      const targetInverters = action.inverter === 'all' ? 
+          Object.keys(inverterTypes) : [action.inverter];
+      
+      targetInverters.forEach(inverterId => {
+          const inverterInfo = inverterTypes[inverterId];
+          if (inverterInfo && willRequireMapping(action.setting, inverterInfo.type)) {
+              if (!mappingDetails[inverterId]) {
+                  mappingDetails[inverterId] = [];
+              }
+              
+              mappingDetails[inverterId].push({
+                  actionIndex: index,
+                  originalSetting: action.setting,
+                  mappedSetting: getMappedSetting(action.setting, inverterInfo.type),
+                  inverterType: inverterInfo.type,
+                  confidence: calculateConfidenceScore(inverterInfo)
+              });
+          }
+      });
+  });
+  
+  return mappingDetails;
+}
+
+function estimateRuleImpact(rule) {
+  return {
+      energyImpact: estimateEnergyImpact(rule),
+      systemLoad: estimateSystemLoad(rule),
+      batteryImpact: estimateBatteryImpact(rule),
+      costImpact: estimateCostImpact(rule)
+  };
+}
+
+function generateExecutionFlow(rule) {
+  const flow = [];
+  
+  // Add condition evaluation
+  if (rule.conditions && rule.conditions.length > 0) {
+      flow.push({
+          step: 'condition_evaluation',
+          description: `Evaluate ${rule.conditions.length} condition(s)`,
+          conditions: rule.conditions
+      });
+  }
+  
+  // Add time restriction check
+  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+      flow.push({
+          step: 'time_check',
+          description: 'Check time restrictions',
+          restrictions: rule.timeRestrictions
+      });
+  }
+  
+  // Add action execution
+  rule.actions.forEach((action, index) => {
+      flow.push({
+          step: 'action_execution',
+          description: `Execute action ${index + 1}: Set ${action.setting} to ${action.value}`,
+          action: action,
+          targetInverters: action.inverter === 'all' ? 
+              Object.keys(inverterTypes) : [action.inverter]
+      });
+  });
+  
+  return flow;
+}
+
+function getTargetInverters(actions) {
+  const targets = new Set();
+  
+  actions.forEach(action => {
+      if (action.inverter === 'all') {
+          Object.keys(inverterTypes).forEach(id => targets.add(id));
+      } else {
+          targets.add(action.inverter);
+      }
+  });
+  
+  return Array.from(targets);
+}
+
+function calculateRuleComplexity(rule) {
+  let complexity = 0;
+  
+  // Conditions add complexity
+  complexity += (rule.conditions || []).length * 2;
+  
+  // Actions add complexity
+  complexity += (rule.actions || []).length * 3;
+  
+  // Time restrictions add complexity
+  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+      complexity += 5;
+  }
+  
+  // Multiple target inverters add complexity
+  const targetCount = getTargetInverters(rule.actions).length;
+  complexity += targetCount * 1;
+  
+  return Math.min(complexity, 100);
+}
+
+function estimateEnergyImpact(rule) {
+  // Simplified energy impact estimation
+  const impacts = [];
+  
+  rule.actions.forEach(action => {
+      switch (action.setting) {
+          case 'grid_charge':
+          case 'charger_source_priority':
+              impacts.push(action.value.includes('Enabled') || action.value.includes('first') ? 'medium_increase' : 'medium_decrease');
+              break;
+          case 'energy_pattern':
+          case 'output_source_priority':
+              impacts.push('medium_change');
+              break;
+          case 'max_charge_current':
+          case 'max_discharge_current':
+              impacts.push('low_change');
+              break;
+          default:
+              impacts.push('minimal_change');
+      }
+  });
+  
+  return {
+      level: impacts.includes('medium_increase') ? 'medium' : 'low',
+      description: 'Estimated based on action types',
+      factors: impacts
+  };
+}
+
+function estimateSystemLoad(rule) {
+  const actionCount = rule.actions ? rule.actions.length : 0;
+  const conditionCount = rule.conditions ? rule.conditions.length : 0;
+  
+  let load = 'low';
+  if (actionCount > 3 || conditionCount > 5) {
+      load = 'medium';
+  }
+  if (actionCount > 6 || conditionCount > 10) {
+      load = 'high';
+  }
+  
+  return {
+      level: load,
+      description: `Based on ${actionCount} actions and ${conditionCount} conditions`
+  };
+}
+
+function estimateBatteryImpact(rule) {
+  const batteryActions = rule.actions.filter(action => 
+      action.setting.includes('charge') || 
+      action.setting.includes('battery') ||
+      action.setting.includes('discharge')
+  );
+  
+  return {
+      level: batteryActions.length > 0 ? 'medium' : 'low',
+      description: `${batteryActions.length} battery-related actions`,
+      affectedSettings: batteryActions.map(a => a.setting)
+  };
+}
+
+function estimateCostImpact(rule) {
+  const costImpactActions = rule.actions.filter(action => 
+      action.setting === 'grid_charge' ||
+      action.setting === 'charger_source_priority' ||
+      action.setting.includes('sell')
+  );
+  
+  return {
+      level: costImpactActions.length > 0 ? 'medium' : 'low',
+      description: `${costImpactActions.length} cost-affecting actions`,
+      potentialSavings: costImpactActions.length > 0 ? 'possible' : 'minimal'
+  };
+}
+
 
   // ================ MQTT and CRON SCHEDULING ================
 
@@ -5609,16 +6667,19 @@ function connectToMqtt() {
       connectTimeout: mqttConfig.connectTimeout
     })
   
-    mqttClient.on('connect', () => {
-      console.log('✅ Connected to MQTT broker')
-      // Subscribe to all topics with the prefix
-      mqttClient.subscribe(`${mqttTopicPrefix}/#`, (err) => {
-        if (err) {
-          console.error('Error subscribing to topics:', err.message)
-        } else {
-          console.log(`📡 Subscribed to ${mqttTopicPrefix}/# (enhanced for both inverter types)`)
-        }
-      })
+    mqttClient.on('connect', async () => {
+      try {
+        console.log('✅ Connected to MQTT broker')
+        await new Promise((resolve, reject) => {
+          mqttClient.subscribe(`${mqttTopicPrefix}/#`, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        console.log(`📡 Subscribed to ${mqttTopicPrefix}/#`);
+      } catch (error) {
+        console.error('Error subscribing to topics:', error.message);
+      }
     })
   
     mqttClient.on('message', (topic, message) => {
@@ -5759,11 +6820,11 @@ function connectToMqtt() {
       }
     }
   
-  // Enhanced periodic rule evaluation with inverter type awareness
-  cron.schedule('* * * * *', () => {
-    console.log('Running scheduled rule evaluation (enhanced with inverter type detection)...')
-    processRules()
-  })
+// Enhanced periodic rule evaluation with inverter type awareness
+cron.schedule('*/5 * * * *', () => {
+  console.log('Running scheduled rule evaluation...')
+  processRules()
+})
   
   // Weekend rules scheduling
   cron.schedule('0 0 * * 6', () => {
@@ -5816,43 +6877,8 @@ function connectToMqtt() {
     });
   });
   
-  // Graceful shutdown function
-  function gracefulShutdown() {
-    console.log('Starting graceful shutdown...');
-    
-    const forceExitTimeout = setTimeout(() => {
-      console.error('Forced exit after timeout');
-      process.exit(1);
-    }, 10000);
-    
-    if (db) {
-      console.log('Closing SQLite connection');
-      db.close().catch(err => console.error('Error closing SQLite:', err));
-    }
-    
-    if (mqttClient) {
-      console.log('Closing MQTT connection');
-      mqttClient.end(true, () => {
-        console.log('MQTT connection closed');
-      });
-    }
-    
-    if (heartbeatInterval) {
-      console.log('Clearing heartbeat interval');
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-    
-    incomingMessages = [];
-    settingsChangesQueue.length = 0;
-    
-    clearTimeout(forceExitTimeout);
-    console.log('Shutdown complete');
-    process.exit(0);
-  }
-  
-  process.on('SIGTERM', gracefulShutdown)
-  process.on('SIGINT', gracefulShutdown)
+
+
   
 // ================ COMPLETE ENHANCED INITIALIZATION FUNCTION ================
 
@@ -6266,28 +7292,6 @@ cron.schedule('0,30 * * * *', () => {
   }
 });
   
- // ================ ENHANCED STARTUP LOGGING AND SERVER INITIALIZATION ================
-
-// Enhanced logging for startup (replace existing startup logging section)
-console.log('\n🔋 ========== ENHANCED ENERGY MONITORING SYSTEM ==========');
-console.log('🔧 Core Features:');
-console.log('   ✅ Legacy Inverter Support (energy_pattern/grid_charge)');
-console.log('   ✅ New Inverter Support (charger_source_priority/output_source_priority)');
-console.log('   ✅ Automatic Inverter Type Detection');
-console.log('   ✅ Intelligent Setting Mapping');
-console.log('   ✅ Enhanced Rule Engine');
-console.log('   ✅ Real-time MQTT Monitoring');
-console.log('   ✅ User Notifications');
-console.log('   ✅ Analytics & Reporting');
-console.log('🔋 Enhanced Dynamic Pricing Features:');
-console.log('   ✅ Intelligent Price Analysis (Tibber Integration)');
-console.log('   ✅ Automatic Command Mapping Based on Inverter Type');
-console.log('   ✅ Smart Current Adjustment');
-console.log('   ✅ Enhanced Grid Charging Control');
-console.log('   ✅ Real-time Inverter Type Adaptation');
-console.log('   ✅ Advanced Logging with Type Information');
-console.log('   ✅ Backward Compatibility with All Systems');
-console.log('============================================================\n');
 
 // Initialize enhanced connections when server starts
 initializeConnections();
@@ -6511,17 +7515,6 @@ global.dynamicPricing = {
   }
 };
 
-console.log('\n🔋 ========== DYNAMIC PRICING SYSTEM ==========');
-console.log('🔧 Features:');
-console.log('   ✅ Intelligent Inverter Type Auto-Detection');
-console.log('   ✅ Automatic Command Mapping (legacy ↔ new)');
-console.log('   ✅ Grid Charging Control');
-console.log('   ✅ Smart Current Adjustment');
-console.log('   ✅ Advanced Price Intelligence (Tibber)');
-console.log('   ✅ Real-time Type Adaptation');
-console.log('   ✅ Logging & Status Reporting');
-console.log('   ✅ Backward Compatibility');
-console.log('============================================================\n');
 // Enhanced logging for startup
 console.log('\n🔋 ========== ENHANCED DYNAMIC PRICING SYSTEM ==========');
 console.log('🔧 Enhanced Features:');
@@ -6535,7 +7528,7 @@ console.log('   ✅ Enhanced Logging & Status Reporting');
 console.log('   ✅ Backward Compatibility');
 console.log('============================================================\n');
 
-function enhancedGracefulShutdown() {
+function GracefulShutdown() {
   console.log('🔄 Starting enhanced graceful shutdown...');
   
   const forceExitTimeout = setTimeout(() => {
@@ -6581,11 +7574,5 @@ function enhancedGracefulShutdown() {
   process.exit(0);
 }
 
-process.on('SIGTERM', enhancedGracefulShutdown);
-process.on('SIGINT', enhancedGracefulShutdown);
-
-// ================ ENHANCED FINAL INITIALIZATION LOG ================
-
-console.log('🎉 Enhanced Energy Monitoring System with Intelligent Dynamic Pricing fully initialized!');
-console.log('🔧 Features active: Inverter Type Auto-Detection, Command Mapping, Enhanced Pricing');
-console.log('🚀 System ready for intelligent energy management across all inverter types!');
+process.on('SIGTERM', GracefulShutdown);
+process.on('SIGINT', GracefulShutdown);
