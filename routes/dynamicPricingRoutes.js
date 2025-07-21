@@ -1,166 +1,117 @@
-// routes/dynamicPricingRoutes.js - TIBBER API ROUTES
+// routes/dynamicPricingRoutes.js - ENHANCED WITH TIBBER AND SMART CONDITIONS
 
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 
-// Import the Tibber pricing APIs
+// Import services
+const dynamicPricingService = require('../services/dynamicPricingService');
 const pricingApis = require('../services/pricingApis');
+const dynamicPricingMqtt = require('../services/dynamicPricingMqtt');
 
-// Configuration file path
-const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, '..', 'data', 'dynamic_pricing_config.json');
-
-// Ensure config directory exists
-function ensureConfigExists() {
-  const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
-  
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
-  }
-  
-  if (!fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-    const defaultConfig = {
-      enabled: false,
-      country: 'DE',
-      apiKey: '', // Tibber API token
-      priceThreshold: 0, // Use automatic threshold
-      minimumSoC: 20,
-      targetSoC: 80,
-      scheduledCharging: false,
-      chargingHours: [],
-      lastUpdate: null,
-      pricingData: [],
-      timezone: 'Europe/Berlin',
-      useTibberLevels: true,
-      lowPriceLevels: ['VERY_CHEAP', 'CHEAP'],
-      currency: 'EUR'
+// Helper function to get inverter type summary
+function getInverterTypeSummary() {
+  try {
+    if (!global.inverterTypes || Object.keys(global.inverterTypes).length === 0) {
+      return {
+        totalInverters: 0,
+        typesSummary: {},
+        detectionStatus: 'waiting for MQTT messages'
+      };
+    }
+    
+    const typesSummary = {};
+    Object.values(global.inverterTypes).forEach(inverter => {
+      const type = inverter.type || 'unknown';
+      typesSummary[type] = (typesSummary[type] || 0) + 1;
+    });
+    
+    return {
+      totalInverters: Object.keys(global.inverterTypes).length,
+      typesSummary: typesSummary,
+      detectionStatus: 'detected'
     };
-    
-    fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default Tibber dynamic pricing configuration');
-  }
-}
-
-// Load configuration
-function loadConfig() {
-  try {
-    ensureConfigExists();
-    const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-    return JSON.parse(configData);
   } catch (error) {
-    console.error('Error loading Tibber dynamic pricing config:', error.message);
-    return null;
+    return {
+      totalInverters: 0,
+      typesSummary: {},
+      detectionStatus: 'error'
+    };
   }
 }
 
-// Save configuration
-function saveConfig(config) {
-  try {
-    ensureConfigExists();
-    fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error saving Tibber dynamic pricing config:', error.message);
-    return false;
-  }
-}
-
-// Helper function to check if data is stale
-function isDataStale(lastUpdateString) {
-  if (!lastUpdateString) return true;
-  
-  const lastUpdate = new Date(lastUpdateString);
-  const now = new Date();
-  const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
-  
-  return hoursSinceUpdate > 4; // Consider data stale if older than 4 hours
-}
-
-// Helper function to get country names
-function getCountryName(countryCode) {
-  const countryNames = {
-    'NO': 'Norway',
-    'SE': 'Sweden', 
-    'DK': 'Denmark',
-    'FI': 'Finland',
-    'DE': 'Germany',
-    'NL': 'Netherlands'
-  };
-  
-  return countryNames[countryCode] || countryCode;
-}
-
-// API Routes
-
-// Get available countries and timezones (Tibber supported countries)
-router.get('/countries-timezones', (req, res) => {
-  try {
-    const supportedCountries = pricingApis.getSupportedCountries();
-    const timezones = [...new Set(supportedCountries.map(country => country.timezone))].sort();
-    
-    const countries = supportedCountries.map(country => ({
-      code: country.code,
-      name: getCountryName(country.code),
-      timezone: country.timezone,
-      currency: country.currency,
-      market: 'Tibber'
-    }));
-    
-    res.json({
-      success: true,
-      countries: countries,
-      timezones: timezones,
-      provider: 'Tibber'
-    });
-  } catch (error) {
-    console.error('Error getting Tibber countries and timezones:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get countries and timezones: ' + error.message
-    });
-  }
-});
-
-// Get dynamic pricing settings
+// GET /api/dynamic-pricing/settings - Get enhanced configuration
 router.get('/settings', (req, res) => {
   try {
-    const config = loadConfig();
+    const config = dynamicPricingService.loadConfig();
     
     if (!config) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Failed to load Tibber dynamic pricing configuration'
+        error: 'Failed to load enhanced configuration'
       });
     }
     
-    // Sanitize API token for security
-    const sanitizedConfig = { ...config };
-    if (sanitizedConfig.apiKey) {
-      const token = sanitizedConfig.apiKey;
-      sanitizedConfig.apiKey = token.length > 8 
+    // Sanitize API keys for security
+    const sanitizedConfig = JSON.parse(JSON.stringify(config));
+    if (sanitizedConfig.tibberApiKey) {
+      const token = sanitizedConfig.tibberApiKey;
+      sanitizedConfig.tibberApiKey = token.length > 8 
         ? token.substring(0, 8) + '...' + token.substring(token.length - 4)
         : token.substring(0, 4) + '...';
+    }
+    
+    if (sanitizedConfig.weatherConditions?.weatherApiKey) {
+      const key = sanitizedConfig.weatherConditions.weatherApiKey;
+      sanitizedConfig.weatherConditions.weatherApiKey = key.length > 8 
+        ? key.substring(0, 8) + '...' + key.substring(key.length - 4)
+        : key.substring(0, 4) + '...';
+    }
+    
+    // Add system status
+    const systemState = global.currentSystemState || {};
+    const status = dynamicPricingService.getStatus(config, systemState);
+    const inverterInfo = getInverterTypeSummary();
+    
+    // Get current real-time price if available
+    let currentPrice = null;
+    if (config.tibberApiKey && config.priceBasedCharging?.useRealTibberPrices) {
+      currentPrice = config.currentPrice || 'Loading...';
     }
     
     res.json({
       success: true,
       config: sanitizedConfig,
-      provider: 'Tibber'
+      status: status,
+      provider: 'Enhanced Dynamic Pricing with Tibber',
+      features: {
+        tibberIntegration: true,
+        smartPowerConditions: true,
+        realTimePricing: true,
+        weatherForecast: true,
+        cooldownManagement: true,
+        inverterTypeSupport: true,
+        autoCommandMapping: true
+      },
+      inverterStatus: inverterInfo,
+      currentPrice: currentPrice,
+      learnerModeActive: dynamicPricingMqtt.isLearnerModeActive(),
+      supportedCountries: pricingApis.getTibberCountriesAndCities()
     });
   } catch (error) {
-    console.error('Error retrieving Tibber dynamic pricing settings:', error);
+    console.error('Error retrieving enhanced settings:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to retrieve dynamic pricing settings: ' + error.message
+      error: 'Failed to retrieve enhanced settings: ' + error.message
     });
   }
 });
 
-// Update dynamic pricing settings
+// POST /api/dynamic-pricing/settings - Update enhanced configuration
 router.post('/settings', async (req, res) => {
   try {
-    const currentConfig = loadConfig();
+    const currentConfig = dynamicPricingService.loadConfig();
     
     if (!currentConfig) {
       return res.status(500).json({ 
@@ -169,37 +120,64 @@ router.post('/settings', async (req, res) => {
       });
     }
     
-    const { 
-      enabled, 
-      country, 
-      apiKey, 
-      priceThreshold,
-      minimumSoC,
-      targetSoC,
+    const {
+      enabled,
+      
+      // Tibber integration
+      tibberApiKey,
+      country,
+      city,
+      timezone,
+      
+      // Price-based charging settings
+      priceBasedCharging,
+      
+      // Battery settings
+      battery,
+      
+      // Smart power conditions
+      smartPowerConditions,
+      
+      // Weather conditions
+      weatherConditions,
+      
+      // Time conditions
+      timeConditions,
+      
+      // Cooldown settings
+      cooldownSettings,
+      
+      // Scheduled charging
       scheduledCharging,
       chargingHours,
-      timezone,
-      useTibberLevels,
-      lowPriceLevels,
+      
+      // Manual override command
       gridChargingOverride
     } = req.body;
     
-    // Handle manual grid charging override command
+    // Handle manual grid charging override command first
     if (gridChargingOverride !== undefined) {
-      console.log('Tibber grid charging override command:', gridChargingOverride ? 'ENABLE' : 'DISABLE');
+      console.log('Enhanced grid charging override:', gridChargingOverride ? 'ENABLE' : 'DISABLE');
       
       if (global.mqttClient && global.mqttClient.connected) {
-        const dynamicPricingMqtt = require('../services/dynamicPricingMqtt');
-        const success = dynamicPricingMqtt.sendGridChargeCommand(global.mqttClient, gridChargingOverride, currentConfig);
+        const success = await dynamicPricingService.sendGridChargeCommand(
+          global.mqttClient, 
+          gridChargingOverride, 
+          currentConfig
+        );
+        
+        const inverterInfo = getInverterTypeSummary();
         
         return res.json({
           success: success,
-          message: `Tibber grid charging ${gridChargingOverride ? 'enabled' : 'disabled'} ${success ? 'successfully' : 'failed'}`
+          message: `Enhanced grid charging ${gridChargingOverride ? 'enabled' : 'disabled'} ${success ? 'successfully' : 'failed'}`,
+          inverterStatus: inverterInfo,
+          enhanced: true
         });
       } else {
         return res.status(503).json({
           success: false,
-          error: 'MQTT client not available'
+          error: 'MQTT client not available for commands'
         });
       }
     }
@@ -208,241 +186,419 @@ router.post('/settings', async (req, res) => {
     const updatedConfig = {
       ...currentConfig,
       enabled: enabled !== undefined ? Boolean(enabled) : currentConfig.enabled,
+      
+      // Tibber integration
       country: country || currentConfig.country,
-      priceThreshold: priceThreshold !== undefined ? parseFloat(priceThreshold) : currentConfig.priceThreshold,
-      minimumSoC: minimumSoC !== undefined ? parseInt(minimumSoC, 10) : currentConfig.minimumSoC,
-      targetSoC: targetSoC !== undefined ? parseInt(targetSoC, 10) : currentConfig.targetSoC,
-      scheduledCharging: scheduledCharging !== undefined ? Boolean(scheduledCharging) : currentConfig.scheduledCharging,
-      chargingHours: chargingHours || currentConfig.chargingHours,
+      city: city || currentConfig.city,
       timezone: timezone || currentConfig.timezone,
-      useTibberLevels: useTibberLevels !== undefined ? Boolean(useTibberLevels) : (currentConfig.useTibberLevels !== undefined ? currentConfig.useTibberLevels : true),
-      lowPriceLevels: lowPriceLevels || currentConfig.lowPriceLevels || ['VERY_CHEAP', 'CHEAP']
+      scheduledCharging: scheduledCharging !== undefined ? Boolean(scheduledCharging) : currentConfig.scheduledCharging,
+      chargingHours: chargingHours || currentConfig.chargingHours
     };
     
-    // Update API token if provided and not masked
-    if (apiKey && apiKey !== '...' && !apiKey.includes('...')) {
-      updatedConfig.apiKey = apiKey;
+    // Update Tibber API key if provided and not masked
+    if (tibberApiKey && tibberApiKey !== '...' && !tibberApiKey.includes('...')) {
+      updatedConfig.tibberApiKey = tibberApiKey;
     }
     
-    // If country or timezone changed, clear old pricing data
-    if ((country && country !== currentConfig.country) || (timezone && timezone !== currentConfig.timezone)) {
-      console.log(`Country/timezone changed, clearing old Tibber pricing data...`);
+    // Update price-based charging settings
+    if (priceBasedCharging) {
+      updatedConfig.priceBasedCharging = {
+        ...currentConfig.priceBasedCharging,
+        ...priceBasedCharging
+      };
+    }
+    
+    // Update battery settings
+    if (battery) {
+      updatedConfig.battery = {
+        ...currentConfig.battery,
+        ...battery
+      };
+    }
+    
+    // Update smart power conditions
+    if (smartPowerConditions) {
+      updatedConfig.smartPowerConditions = {
+        ...currentConfig.smartPowerConditions,
+        ...smartPowerConditions
+      };
+    }
+    
+    // Update weather conditions with location
+    if (weatherConditions) {
+      const newWeatherConditions = {
+        ...currentConfig.weatherConditions,
+        ...weatherConditions
+      };
+      
+      // Set location based on country/city
+      if (updatedConfig.country && updatedConfig.city) {
+        try {
+          const location = pricingApis.getLocationByCountryCity(updatedConfig.country, updatedConfig.city);
+          newWeatherConditions.location = location;
+        } catch (locationError) {
+          console.log('Location lookup failed:', locationError.message);
+        }
+      }
+      
+      updatedConfig.weatherConditions = newWeatherConditions;
+    }
+    
+    // Update time conditions
+    if (timeConditions) {
+      updatedConfig.timeConditions = {
+        ...currentConfig.timeConditions,
+        ...timeConditions
+      };
+    }
+    
+    // Update cooldown settings
+    if (cooldownSettings) {
+      updatedConfig.cooldown = {
+        ...currentConfig.cooldown,
+        ...cooldownSettings
+      };
+    }
+    
+    // Clear old pricing data if country or Tibber settings changed
+    if ((country && country !== currentConfig.country) || 
+        (tibberApiKey && tibberApiKey !== currentConfig.tibberApiKey)) {
+      console.log('Tibber settings changed, clearing old pricing data...');
       updatedConfig.pricingData = [];
+      updatedConfig.currentPrice = null;
       updatedConfig.lastUpdate = null;
     }
     
-    const saved = saveConfig(updatedConfig);
+    // Save the updated configuration
+    const saved = dynamicPricingService.saveConfig(updatedConfig);
     
     if (!saved) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Failed to save configuration'
+        error: 'Failed to save enhanced configuration'
       });
     }
     
     // Sanitize response
-    const sanitizedConfig = { ...updatedConfig };
-    if (sanitizedConfig.apiKey) {
-      const token = sanitizedConfig.apiKey;
-      sanitizedConfig.apiKey = token.length > 8 
+    const sanitizedConfig = JSON.parse(JSON.stringify(updatedConfig));
+    if (sanitizedConfig.tibberApiKey) {
+      const token = sanitizedConfig.tibberApiKey;
+      sanitizedConfig.tibberApiKey = token.length > 8 
         ? token.substring(0, 8) + '...' + token.substring(token.length - 4)
         : token.substring(0, 4) + '...';
     }
     
+    if (sanitizedConfig.weatherConditions?.weatherApiKey) {
+      const key = sanitizedConfig.weatherConditions.weatherApiKey;
+      sanitizedConfig.weatherConditions.weatherApiKey = key.length > 8 
+        ? key.substring(0, 8) + '...' + key.substring(key.length - 4)
+        : key.substring(0, 4) + '...';
+    }
+    
+    // Get status
+    const systemState = global.currentSystemState || {};
+    const status = dynamicPricingService.getStatus(updatedConfig, systemState);
+    const inverterInfo = getInverterTypeSummary();
+    
     res.json({
       success: true,
-      message: 'Tibber dynamic pricing settings updated successfully',
+      message: 'Enhanced dynamic pricing settings updated successfully',
       config: sanitizedConfig,
-      provider: 'Tibber'
+      status: status,
+      provider: 'Enhanced Dynamic Pricing with Tibber',
+      features: {
+        tibberIntegration: true,
+        smartPowerConditions: true,
+        realTimePricing: true,
+        weatherForecast: true,
+        cooldownManagement: true,
+        inverterTypeSupport: true,
+        autoCommandMapping: true
+      },
+      inverterStatus: inverterInfo
     });
   } catch (error) {
-    console.error('Error updating Tibber dynamic pricing settings:', error);
+    console.error('Error updating enhanced settings:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to update dynamic pricing settings: ' + error.message
+      error: 'Failed to update enhanced settings: ' + error.message
     });
   }
 });
 
-// Get pricing data with automatic refresh
-router.get('/pricing-data', async (req, res) => {
+// GET /api/dynamic-pricing/current-price - Get real-time current price
+router.get('/current-price', async (req, res) => {
   try {
-    const config = loadConfig();
+    const config = dynamicPricingService.loadConfig();
     
-    if (!config) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to load configuration'
+    if (!config || !config.enabled) {
+      return res.json({
+        success: false,
+        error: 'Enhanced dynamic pricing is disabled'
       });
     }
-
-    let pricingData = config.pricingData || [];
-    const lastUpdate = config.lastUpdate;
-    const timezone = config.timezone || 'Europe/Berlin';
     
-    // Check if data needs refreshing
-    const needsRefresh = !lastUpdate || !pricingData.length || isDataStale(lastUpdate);
-    
-    // Automatically refresh if needed and API key is available
-    if (needsRefresh) {
-      console.log(`Tibber pricing data is stale, fetching fresh data...`);
-      
-      if (config.apiKey && config.apiKey.trim() !== '') {
-        try {
-          console.log(`Fetching real Tibber pricing data for ${config.country}...`);
-          pricingData = await pricingApis.fetchElectricityPrices(config);
-          
-          if (pricingData && pricingData.length > 0) {
-            console.log(`✅ Retrieved ${pricingData.length} real Tibber price points`);
-            
-            // Update currency and timezone from real data
-            if (pricingData[0].currency) config.currency = pricingData[0].currency;
-            if (pricingData[0].timezone) config.timezone = pricingData[0].timezone;
-            
-            // Update config with new data
-            config.pricingData = pricingData;
-            config.lastUpdate = new Date().toISOString();
-            saveConfig(config);
-          } else {
-            throw new Error('No real data returned from Tibber API');
-          }
-        } catch (realDataError) {
-          console.log(`❌ Tibber data fetch failed: ${realDataError.message}`);
-          
-          // Don't generate sample data - return error instead
-          return res.status(503).json({
-            success: false,
-            error: `Failed to fetch real Tibber data: ${realDataError.message}. Please check your API token and try again.`,
-            needsApiKey: true
-          });
-        }
-      } else {
-        // No API key provided and no existing data
-        if (pricingData.length === 0) {
-          return res.status(400).json({
-            success: false,
-            error: 'No Tibber API token configured and no existing pricing data available. Please configure your Tibber API token.',
-            needsApiKey: true
-          });
-        }
-      }
+    if (!config.tibberApiKey) {
+      return res.json({
+        success: false,
+        error: 'Tibber API key not configured'
+      });
     }
     
-    // Calculate low price periods using Tibber intelligence
-    const lowPricePeriods = pricingApis.determineLowPricePeriods(pricingData, config);
+    const currentPrice = await pricingApis.getTibberCurrentPrice(config);
     
-    // Determine data source
-    const isRealData = pricingData.length > 0 && pricingData[0].source === 'real';
-    
-    // Add Tibber-specific information
-    const tibberInfo = {
-      hasLevels: pricingData.some(p => p.level),
-      useLevelBasedCharging: config.useTibberLevels,
-      lowPriceLevels: config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP']
-    };
-    
-    console.log(`Tibber pricing data served: ${pricingData.length} ${isRealData ? 'REAL' : 'SAMPLE'} data points, ${lowPricePeriods.length} low price periods for timezone ${timezone}`);
+    // Update config with current price
+    config.currentPrice = currentPrice;
+    dynamicPricingService.saveConfig(config);
     
     res.json({
       success: true,
-      pricingData,
-      lowPricePeriods,
-      lastUpdate: config.lastUpdate,
-      timezone: timezone,
-      autoRefreshed: needsRefresh,
-      dataSource: isRealData ? 'real' : 'sample',
-      hasApiKey: !!(config.apiKey && config.apiKey.trim() !== ''),
-      provider: 'Tibber',
-      tibberInfo,
-      currency: config.currency || 'EUR'
+      currentPrice: currentPrice,
+      timestamp: new Date().toISOString(),
+      provider: 'Tibber Real-time'
     });
   } catch (error) {
-    console.error('Error retrieving Tibber pricing data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to retrieve pricing data: ' + error.message
+    console.error('Error getting current price:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get current price: ' + error.message
     });
   }
 });
 
-// Manual price update
-router.post('/update-prices', async (req, res) => {
+// POST /api/dynamic-pricing/test-tibber - Test Tibber API connection
+router.post('/test-tibber', async (req, res) => {
   try {
-    const config = loadConfig();
-    if (!config) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to load configuration'
-      });
-    }
+    const { apiKey } = req.body;
     
-    const timezone = config.timezone || 'Europe/Berlin';
-    
-    console.log(`Manual Tibber price update requested for country: ${config.country}, timezone: ${timezone}`);
-    
-    let pricingData = [];
-    let dataSource = 'real';
-    
-    if (!config.apiKey || config.apiKey.trim() === '') {
+    if (!apiKey || apiKey.includes('...')) {
       return res.status(400).json({
         success: false,
-        error: 'Tibber API token is required for fetching real pricing data. Please configure your API token first.',
-        needsApiKey: true
+        error: 'Valid Tibber API key is required'
       });
     }
     
-    try {
-      console.log(`Fetching real Tibber pricing data using API token...`);
-      pricingData = await pricingApis.fetchElectricityPrices(config);
-      
-      if (pricingData && pricingData.length > 0) {
-        dataSource = 'real';
-        console.log(`✅ Manual update: Retrieved ${pricingData.length} real Tibber price points`);
-        
-        // Update currency and timezone from real data
-        if (pricingData[0].currency) config.currency = pricingData[0].currency;
-        if (pricingData[0].timezone) config.timezone = pricingData[0].timezone;
-      } else {
-        throw new Error('No real data returned from Tibber API');
-      }
-    } catch (realDataError) {
-      console.log(`❌ Tibber data fetch failed: ${realDataError.message}`);
-      
-      return res.status(503).json({
-        success: false,
-        error: `Failed to fetch Tibber pricing data: ${realDataError.message}. Please check your API token and internet connection.`,
-        needsApiKey: true
-      });
-    }
+    const testResult = await pricingApis.testTibberConnection(apiKey);
     
-    // Update config
-    config.pricingData = pricingData;
-    config.lastUpdate = new Date().toISOString();
-    saveConfig(config);
-    
-    console.log(`Manual Tibber pricing data update completed for timezone ${timezone} with ${pricingData.length} ${dataSource} data points`);
-    
-    res.json({
-      success: true,
-      message: `Tibber price update completed. ${dataSource === 'real' ? 'Real data retrieved from Tibber API' : 'Sample data generated'}.`,
-      dataSource: dataSource,
-      dataPoints: pricingData.length,
-      provider: 'Tibber',
-      currency: config.currency
-    });
+    res.json(testResult);
   } catch (error) {
-    console.error('Error updating Tibber prices:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to update prices: ' + error.message
+    console.error('Error testing Tibber connection:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Test failed: ' + error.message
     });
   }
 });
 
-// Manual grid charging control
-router.post('/manual-charge', (req, res) => {
+// GET /api/dynamic-pricing/countries-cities - Get supported countries and cities
+router.get('/countries-cities', (req, res) => {
   try {
-    const { enable } = req.body;
+    const countriesData = pricingApis.getTibberCountriesAndCities();
+    res.json(countriesData);
+  } catch (error) {
+    console.error('Error getting countries/cities:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get countries and cities: ' + error.message
+    });
+  }
+});
+
+// GET /api/dynamic-pricing/recommendation - Get enhanced charging recommendation
+router.get('/recommendation', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    
+    if (!config || !config.enabled) {
+      return res.json({
+        success: true,
+        recommendation: {
+          shouldCharge: false,
+          reason: 'Enhanced dynamic pricing is disabled',
+          details: null,
+          enhanced: true
+        }
+      });
+    }
+    
+    const systemState = global.currentSystemState || {};
+    const decision = await dynamicPricingService.shouldChargeNow(config, systemState);
+    
+    // Get additional status information
+    const status = dynamicPricingService.getStatus(config, systemState);
+    const inverterInfo = getInverterTypeSummary();
+    
+    res.json({
+      success: true,
+      recommendation: {
+        shouldCharge: decision.shouldCharge,
+        reason: decision.reason,
+        details: decision.details,
+        priority: decision.priority,
+        enhanced: true,
+        tibberIntegration: !!config.tibberApiKey,
+        smartPowerRules: config.smartPowerConditions?.enabled || false
+      },
+      status: status,
+      inverterStatus: inverterInfo,
+      learnerModeActive: dynamicPricingMqtt.isLearnerModeActive()
+    });
+  } catch (error) {
+    console.error('Error generating enhanced recommendation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate recommendation: ' + error.message
+    });
+  }
+});
+
+// GET /api/dynamic-pricing/status - Get detailed enhanced status
+router.get('/status', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    const systemState = global.currentSystemState || {};
+    const status = dynamicPricingService.getStatus(config, systemState);
+    const inverterInfo = getInverterTypeSummary();
+    
+    // Get current decision without executing
+    let currentDecision = null;
+    if (config && config.enabled) {
+      try {
+        currentDecision = await dynamicPricingService.shouldChargeNow(config, systemState);
+      } catch (error) {
+        console.error('Error getting current decision:', error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      status: {
+        ...status,
+        currentDecision: currentDecision
+      },
+      systemState: {
+        battery_soc: systemState.battery_soc || 0,
+        pv_power: systemState.pv_power || 0,
+        load: systemState.load || 0,
+        grid_power: systemState.grid_power || 0,
+        grid_voltage: systemState.grid_voltage || 0,
+        battery_power: systemState.battery_power || 0, // ADDED BATTERY POWER
+        timestamp: systemState.timestamp || new Date().toISOString()
+      },
+      provider: 'Enhanced Dynamic Pricing with Tibber',
+      features: {
+        tibberIntegration: true,
+        smartPowerConditions: true,
+        realTimePricing: true,
+        weatherForecast: true,
+        cooldownManagement: true,
+        inverterTypeSupport: true,
+        autoCommandMapping: true,
+        userDefinedRules: true // NEW FEATURE
+      },
+      inverterStatus: inverterInfo,
+      learnerModeActive: dynamicPricingMqtt.isLearnerModeActive()
+    });
+  } catch (error) {
+    console.error('Error getting enhanced status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get status: ' + error.message
+    });
+  }
+});
+
+// POST /api/dynamic-pricing/test-conditions - Test specific enhanced conditions
+router.post('/test-conditions', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    const systemState = global.currentSystemState || {};
+    const { testType } = req.body;
+    
+    let testResult = {};
+    
+    switch (testType) {
+      case 'weather':
+        if (config.weatherConditions?.enabled) {
+          testResult = await dynamicPricingService.testWeatherAPI(config);
+        } else {
+          testResult = { success: false, error: 'Weather conditions are disabled' };
+        }
+        break;
+        
+      case 'time':
+        testResult = dynamicPricingService.checkTimeConditions(config);
+        break;
+        
+      case 'smartpower':
+      case 'power':
+        testResult = dynamicPricingService.checkSmartPowerConditions(config, systemState);
+        break;
+        
+      case 'price':
+        testResult = await dynamicPricingService.checkPriceConditions(config);
+        break;
+        
+      case 'cooldown':
+        testResult = {
+          inCooldown: dynamicPricingService.isInCooldown(config),
+          status: dynamicPricingService.getStatus(config, systemState).cooldown
+        };
+        break;
+        
+      case 'tibber':
+        if (config.tibberApiKey) {
+          try {
+            const currentPrice = await pricingApis.getTibberCurrentPrice(config);
+            testResult = { 
+              success: true, 
+              currentPrice: currentPrice,
+              message: 'Tibber API connection successful'
+            };
+          } catch (tibberError) {
+            testResult = { 
+              success: false, 
+              error: tibberError.message 
+            };
+          }
+        } else {
+          testResult = { 
+            success: false, 
+            error: 'Tibber API key not configured' 
+          };
+        }
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid test type. Use: weather, time, smartpower, price, cooldown, or tibber'
+        });
+    }
+    
+    res.json({
+      success: true,
+      testType: testType,
+      result: testResult,
+      systemState: {
+        ...systemState,
+        battery_power: systemState.battery_power || 0 // ENSURE BATTERY POWER IS INCLUDED
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error testing enhanced conditions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test conditions: ' + error.message
+    });
+  }
+});
+
+// POST /api/dynamic-pricing/manual-charge - Enhanced manual charging with logic
+router.post('/manual-charge', async (req, res) => {
+  try {
+    const { enable, force } = req.body;
     
     if (enable === undefined) {
       return res.status(400).json({
@@ -451,25 +607,51 @@ router.post('/manual-charge', (req, res) => {
       });
     }
     
-    console.log('Manual Tibber charging command:', enable ? 'ENABLE' : 'DISABLE');
+    console.log('Enhanced manual charging command:', enable ? 'ENABLE' : 'DISABLE', force ? '(FORCED)' : '');
     
     if (global.mqttClient && global.mqttClient.connected) {
-      const dynamicPricingMqtt = require('../services/dynamicPricingMqtt');
-      const config = loadConfig();
-      const success = dynamicPricingMqtt.sendGridChargeCommand(global.mqttClient, enable, config);
+      const config = dynamicPricingService.loadConfig();
+      
+      // Check enhanced conditions unless forced
+      if (!force && enable) {
+        const systemState = global.currentSystemState || {};
+        const decision = await dynamicPricingService.shouldChargeNow(config, systemState);
+        
+        if (!decision.shouldCharge) {
+          return res.json({
+            success: false,
+            message: `Enhanced conditions not met for charging: ${decision.reason}`,
+            recommendation: decision,
+            canForce: true,
+            enhanced: true
+          });
+        }
+      }
+      
+      const success = await dynamicPricingService.sendGridChargeCommand(
+        global.mqttClient, 
+        enable, 
+        config
+      );
+      
+      const inverterInfo = getInverterTypeSummary();
       
       res.json({
         success: success,
-        message: `Tibber grid charging ${enable ? 'enabled' : 'disabled'} ${success ? 'successfully' : 'failed'}`
+        message: `Enhanced grid charging ${enable ? 'enabled' : 'disabled'} ${success ? 'successfully' : 'failed'} ${force ? '(forced)' : 'with condition checking'}`,
+        enhanced: true,
+        tibberIntegration: !!config.tibberApiKey,
+        inverterStatus: inverterInfo,
+        learnerModeActive: dynamicPricingMqtt.isLearnerModeActive()
       });
     } else {
       res.status(503).json({
         success: false,
-        error: 'MQTT client not available'
+        error: 'MQTT client not available for commands'
       });
     }
   } catch (error) {
-    console.error('Error processing manual Tibber charge request:', error);
+    console.error('Error processing enhanced manual charge request:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error: ' + error.message
@@ -477,232 +659,21 @@ router.post('/manual-charge', (req, res) => {
   }
 });
 
-// Get current recommendation using Tibber data
-router.get('/recommendation', (req, res) => {
-  try {
-    const config = loadConfig();
-    
-    if (!config || !config.enabled) {
-      return res.json({
-        success: true,
-        recommendation: {
-          shouldCharge: false,
-          reason: 'Tibber dynamic pricing is disabled',
-          details: null
-        }
-      });
-    }
-    
-    const batterySoC = global.currentSystemState?.battery_soc || 0;
-    const pricingData = config.pricingData || [];
-    const timezone = config.timezone || 'Europe/Berlin';
-    
-    let shouldCharge = false;
-    let reason = '';
-    let details = null;
-    
-    if (batterySoC >= config.targetSoC) {
-      shouldCharge = false;
-      reason = 'Battery SoC has reached target level';
-      details = { batterySoC, targetSoC: config.targetSoC };
-    } else if (batterySoC < config.minimumSoC) {
-      shouldCharge = true;
-      reason = 'Battery SoC below minimum level';
-      details = { batterySoC, minimumSoC: config.minimumSoC };
-    } else if (pricingData.length > 0) {
-      const now = new Date();
-      const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-      
-      const currentPrice = pricingData.find(p => {
-        const priceTime = new Date(p.timestamp);
-        const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: timezone}));
-        
-        return nowInTimezone.getHours() === priceInTimezone.getHours() && 
-               nowInTimezone.getDate() === priceInTimezone.getDate() &&
-               nowInTimezone.getMonth() === priceInTimezone.getMonth();
-      });
-      
-      if (currentPrice) {
-        // Use Tibber price levels if available
-        if (currentPrice.level && config.useTibberLevels) {
-          const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
-          const isLowPrice = lowPriceLevels.includes(currentPrice.level);
-          
-          if (isLowPrice) {
-            shouldCharge = true;
-            reason = `Current electricity price level is favorable (${currentPrice.level})`;
-            details = { 
-              batterySoC, 
-              currentPrice: currentPrice.price, 
-              priceLevel: currentPrice.level,
-              currency: currentPrice.currency,
-              timezone, 
-              dataSource: currentPrice.source,
-              provider: 'Tibber'
-            };
-          } else {
-            shouldCharge = false;
-            reason = `Current electricity price level is not optimal (${currentPrice.level})`;
-            details = { 
-              batterySoC, 
-              currentPrice: currentPrice.price, 
-              priceLevel: currentPrice.level,
-              currency: currentPrice.currency,
-              timezone, 
-              dataSource: currentPrice.source,
-              provider: 'Tibber'
-            };
-          }
-        } else {
-          // Fallback to threshold-based
-          const lowPricePeriods = pricingApis.determineLowPricePeriods(pricingData, config);
-          const isInLowPricePeriod = lowPricePeriods.some(period => {
-            const start = new Date(period.start);
-            const end = new Date(period.end);
-            return now >= start && now < end;
-          });
-          
-          if (isInLowPricePeriod) {
-            shouldCharge = true;
-            reason = 'Current electricity price is below threshold';
-            details = { 
-              batterySoC, 
-              currentPrice: currentPrice.price, 
-              currency: currentPrice.currency,
-              timezone, 
-              dataSource: currentPrice.source,
-              provider: 'Tibber'
-            };
-          } else {
-            shouldCharge = false;
-            reason = 'Current electricity price is above threshold';
-            details = { 
-              batterySoC, 
-              currentPrice: currentPrice.price, 
-              currency: currentPrice.currency,
-              timezone, 
-              dataSource: currentPrice.source,
-              provider: 'Tibber'
-            };
-          }
-        }
-      } else {
-        shouldCharge = false;
-        reason = 'No Tibber price data available for current hour';
-        details = { batterySoC, timezone, provider: 'Tibber' };
-      }
-    } else {
-      shouldCharge = false;
-      reason = 'No Tibber pricing data available';
-      details = { batterySoC, timezone, provider: 'Tibber' };
-    }
-    
-    res.json({
-      success: true,
-      recommendation: {
-        shouldCharge,
-        reason,
-        details
-      }
-    });
-  } catch (error) {
-    console.error('Error generating Tibber recommendation:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate recommendation: ' + error.message
-    });
-  }
-});
-
-// Get pricing summary with Tibber-specific information
-router.get('/pricing-summary', (req, res) => {
-  try {
-    const config = loadConfig();
-    
-    if (!config) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to load configuration'
-      });
-    }
-    
-    const pricingData = config.pricingData || [];
-    const timezone = config.timezone || 'Europe/Berlin';
-    
-    if (pricingData.length === 0) {
-      return res.json({
-        success: true,
-        summary: {
-          currentPrice: null,
-          currentLevel: null,
-          averagePrice: null,
-          lowestPrice: null,
-          highestPrice: null,
-          pricesAvailable: false,
-          timezone: timezone,
-          dataSource: 'none',
-          provider: 'Tibber',
-          currency: config.currency || 'EUR'
-        }
-      });
-    }
-    
-    const now = new Date();
-    const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-    
-    const currentPrice = pricingData.find(p => {
-      const priceTime = new Date(p.timestamp);
-      const priceInTimezone = new Date(priceTime.toLocaleString("en-US", {timeZone: timezone}));
-      
-      return nowInTimezone.getHours() === priceInTimezone.getHours() && 
-             nowInTimezone.getDate() === priceInTimezone.getDate() &&
-             nowInTimezone.getMonth() === priceInTimezone.getMonth();
-    });
-    
-    const prices = pricingData.map(p => p.price);
-    const averagePrice = prices.reduce((acc, price) => acc + price, 0) / prices.length;
-    const lowestPrice = Math.min(...prices);
-    const highestPrice = Math.max(...prices);
-    
-    // Determine data source
-    const dataSource = pricingData.length > 0 && pricingData[0].source === 'real' ? 'real' : 'sample';
-    
-    res.json({
-      success: true,
-      summary: {
-        currentPrice: currentPrice ? currentPrice.price : null,
-        currentLevel: currentPrice ? currentPrice.level : null,
-        averagePrice: averagePrice,
-        lowestPrice: lowestPrice,
-        highestPrice: highestPrice,
-        pricesAvailable: true,
-        timezone: timezone,
-        timestamp: now.toISOString(),
-        dataSource: dataSource,
-        provider: 'Tibber',
-        currency: config.currency || 'EUR',
-        hasLevels: pricingData.some(p => p.level)
-      }
-    });
-  } catch (error) {
-    console.error('Error generating Tibber pricing summary:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate pricing summary: ' + error.message
-    });
-  }
-});
-
-// Get actions log
+// GET /api/dynamic-pricing/actions-log - Get enhanced actions log
 router.get('/actions-log', (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 5, 10);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 20);
     const logFile = path.join(__dirname, '..', 'logs', 'dynamic_pricing.log');
     
     if (!fs.existsSync(logFile)) {
+      const inverterInfo = getInverterTypeSummary();
+      
       return res.json({
         success: true,
-        actions: []
+        actions: [],
+        enhanced: true,
+        tibberIntegration: true,
+        inverterStatus: inverterInfo
       });
     }
     
@@ -716,25 +687,292 @@ router.get('/actions-log', (req, res) => {
       if (parts.length >= 2) {
         return {
           timestamp: parts[0],
-          action: parts.slice(1).join(' - ')
+          action: parts.slice(1).join(' - '),
+          enhanced: true
         };
       }
       return {
         timestamp: new Date().toISOString(),
-        action: line
+        action: line,
+        enhanced: true
       };
     });
+    
+    const inverterInfo = getInverterTypeSummary();
     
     res.json({
       success: true,
       actions,
-      provider: 'Tibber'
+      provider: 'Enhanced Dynamic Pricing with Tibber',
+      enhanced: true,
+      tibberIntegration: true,
+      inverterStatus: inverterInfo,
+      learnerModeActive: dynamicPricingMqtt.isLearnerModeActive()
     });
   } catch (error) {
-    console.error('Error retrieving Tibber actions log:', error);
+    console.error('Error retrieving enhanced actions log:', error);
     res.json({
       success: true,
-      actions: []
+      actions: [],
+      enhanced: true,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/dynamic-pricing/pricing-data - Get current pricing data with Tibber integration
+router.get('/pricing-data', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    let pricingData = config?.pricingData || [];
+    
+    // Try to get fresh data from Tibber if enabled
+    if (config.tibberApiKey && config.priceBasedCharging?.useRealTibberPrices) {
+      try {
+        const freshData = await pricingApis.fetchTibberPrices(config);
+        if (freshData && freshData.length > 0) {
+          pricingData = freshData;
+          
+          // Update config with fresh data
+          config.pricingData = freshData;
+          config.lastUpdate = new Date().toISOString();
+          dynamicPricingService.saveConfig(config);
+        }
+      } catch (tibberError) {
+        console.log('Failed to get fresh Tibber data, using cached:', tibberError.message);
+      }
+    }
+    
+    // Get the next 24 hours of data
+    const now = new Date();
+    const next24Hours = pricingData.filter(item => {
+      const itemTime = new Date(item.timestamp);
+      const hoursDiff = (itemTime - now) / (1000 * 60 * 60);
+      return hoursDiff >= -1 && hoursDiff <= 24; // Include current hour and next 24
+    });
+    
+    res.json({
+      success: true,
+      data: next24Hours,
+      total: pricingData.length,
+      lastUpdate: config?.lastUpdate || null,
+      country: config?.country || 'Unknown',
+      city: config?.city || 'Unknown',
+      currency: config?.currency || 'EUR',
+      provider: config.tibberApiKey ? 'Tibber' : 'Sample Data',
+      enhanced: true,
+      tibberIntegration: !!config.tibberApiKey
+    });
+  } catch (error) {
+    console.error('Error retrieving enhanced pricing data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve pricing data: ' + error.message
+    });
+  }
+});
+
+// POST /api/dynamic-pricing/refresh-prices - Force refresh Tibber prices
+router.post('/refresh-prices', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    
+    if (!config.tibberApiKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tibber API key not configured'
+      });
+    }
+    
+    const freshData = await pricingApis.fetchTibberPrices(config);
+    
+    if (freshData && freshData.length > 0) {
+      config.pricingData = freshData;
+      config.lastUpdate = new Date().toISOString();
+      
+      // Also get current price
+      try {
+        config.currentPrice = await pricingApis.getTibberCurrentPrice(config);
+      } catch (currentPriceError) {
+        console.log('Failed to get current price:', currentPriceError.message);
+      }
+      
+      dynamicPricingService.saveConfig(config);
+      
+      res.json({
+        success: true,
+        message: `Successfully refreshed ${freshData.length} price points from Tibber`,
+        dataPoints: freshData.length,
+        lastUpdate: config.lastUpdate,
+        currentPrice: config.currentPrice
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'No data returned from Tibber API'
+      });
+    }
+  } catch (error) {
+    console.error('Error refreshing Tibber prices:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh prices: ' + error.message
+    });
+  }
+});
+
+// POST /api/dynamic-pricing/test-weather - Test weather API
+router.post('/test-weather', async (req, res) => {
+  try {
+    const { weatherApiKey, country, city } = req.body;
+    
+    if (!weatherApiKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Weather API key is required'
+      });
+    }
+    
+    // Create test config
+    const testConfig = {
+      weatherConditions: {
+        enabled: true,
+        weatherApiKey: weatherApiKey
+      },
+      country: country,
+      city: city
+    };
+    
+    // If country/city provided, get location
+    if (country && city) {
+      try {
+        testConfig.weatherConditions.location = pricingApis.getLocationByCountryCity(country, city);
+      } catch (locationError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid country/city combination: ' + locationError.message
+        });
+      }
+    }
+    
+    const testResult = await dynamicPricingService.testWeatherAPI(testConfig);
+    
+    res.json(testResult);
+  } catch (error) {
+    console.error('Error testing weather API:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Weather API test failed: ' + error.message
+    });
+  }
+});
+
+// POST /api/dynamic-pricing/smart-power-rule - Add user smart power rule
+router.post('/smart-power-rule', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    const { rule } = req.body;
+    
+    if (!rule || !rule.name || !rule.conditions) {
+      return res.status(400).json({
+        success: false,
+        error: 'Rule must have name and conditions'
+      });
+    }
+    
+    const ruleId = dynamicPricingService.addUserSmartPowerRule(config, rule);
+    const saved = dynamicPricingService.saveConfig(config);
+    
+    if (saved) {
+      res.json({
+        success: true,
+        message: 'Smart power rule added successfully',
+        ruleId: ruleId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save rule'
+      });
+    }
+  } catch (error) {
+    console.error('Error adding smart power rule:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add rule: ' + error.message
+    });
+  }
+});
+
+// PUT /api/dynamic-pricing/smart-power-rule/:ruleId - Update user smart power rule
+router.put('/smart-power-rule/:ruleId', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    const { ruleId } = req.params;
+    const { rule } = req.body;
+    
+    const updated = dynamicPricingService.updateUserSmartPowerRule(config, ruleId, rule);
+    
+    if (updated) {
+      const saved = dynamicPricingService.saveConfig(config);
+      if (saved) {
+        res.json({
+          success: true,
+          message: 'Smart power rule updated successfully'
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to save updated rule'
+        });
+      }
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Rule not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error updating smart power rule:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update rule: ' + error.message
+    });
+  }
+});
+
+// DELETE /api/dynamic-pricing/smart-power-rule/:ruleId - Delete user smart power rule
+router.delete('/smart-power-rule/:ruleId', async (req, res) => {
+  try {
+    const config = dynamicPricingService.loadConfig();
+    const { ruleId } = req.params;
+    
+    const removed = dynamicPricingService.removeUserSmartPowerRule(config, ruleId);
+    
+    if (removed) {
+      const saved = dynamicPricingService.saveConfig(config);
+      if (saved) {
+        res.json({
+          success: true,
+          message: 'Smart power rule deleted successfully'
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to save after deletion'
+        });
+      }
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Rule not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting smart power rule:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete rule: ' + error.message
     });
   }
 });

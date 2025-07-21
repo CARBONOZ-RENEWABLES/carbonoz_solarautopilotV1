@@ -38,7 +38,12 @@ app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 
 // Extract configuration values with defaults
@@ -125,7 +130,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -169,7 +174,11 @@ const settingsToMonitor = [
   'solar_export_when_battery_full',
   'max_sell_power',
   'max_solar_power',
-  'grid_trickle_feed'
+  'grid_trickle_feed',
+
+  'serial_number',
+  'power_saving',
+ 
 ]
 
 // System state tracking
@@ -216,6 +225,11 @@ const currentSettingsState = {
   battery_float_charge_voltage: {},
   battery_absorption_charge_voltage: {},
   battery_equalization_charge_voltage: {},
+
+  // Specification settings
+  serial_number: {},
+  power_saving: {},
+
   
   // Last updated timestamp
   lastUpdated: null
@@ -1175,6 +1189,23 @@ async function handleMqttMessage(topic, message) {
     currentSettingsState.battery_equalization_charge_voltage[inverterId].value = messageContent;
     currentSettingsState.battery_equalization_charge_voltage[inverterId].lastUpdated = new Date();
   }
+
+ // Specification data handlers
+else if (specificTopic.includes('/serial_number/')) {
+  if (!currentSettingsState.serial_number[inverterId]) {
+    currentSettingsState.serial_number[inverterId] = {};
+  }
+  currentSettingsState.serial_number[inverterId].value = messageContent;
+  currentSettingsState.serial_number[inverterId].lastUpdated = new Date();
+}
+else if (specificTopic.includes('/power_saving/')) {
+  if (!currentSettingsState.power_saving[inverterId]) {
+    currentSettingsState.power_saving[inverterId] = {};
+  }
+  currentSettingsState.power_saving[inverterId].value = messageContent;
+  currentSettingsState.power_saving[inverterId].lastUpdated = new Date();
+}
+
   
   // Update the global timestamp
   currentSettingsState.lastUpdated = new Date();
@@ -1197,57 +1228,54 @@ async function handleMqttMessage(topic, message) {
   } else if (specificTopic.includes('total/grid_power')) {
     currentSystemState.grid_power = parseFloat(messageContent);
     shouldProcessRules = true;
+    
   } else if (specificTopic.includes('inverter_state') || specificTopic.includes('device_mode')) {
     currentSystemState.inverter_state = messageContent;
+    shouldProcessRules = true;
+  }
+
+  else if (specificTopic.includes('total/battery_power')) {
+    currentSystemState.battery_power = parseFloat(messageContent);
     shouldProcessRules = true;
   }
 
   // ========= DYNAMIC PRICING INTEGRATION =========
   // Check for key system metrics that should trigger dynamic pricing evaluation
   // IMPORTANT: Dynamic pricing commands will only be sent when Learner Mode is active
-  if (topic.includes('battery_state_of_charge') || 
-      topic.includes('grid_voltage') || 
-      topic.includes('pv_power') ||
-      topic.includes('load_power')) {
+if (topic.includes('battery_state_of_charge') || 
+    topic.includes('grid_voltage') || 
+    topic.includes('pv_power') ||
+    topic.includes('load_power') ||
+    topic.includes('battery_power')) {  // ADD THIS LINE
+  
+  if (dynamicPricingInstance && 
+      dynamicPricingInstance.enabled && 
+      dynamicPricingInstance.isReady() &&
+      learnerModeActive) {
     
-    // Only run the dynamic pricing check if the feature is enabled, ready, AND learner mode is active
-    if (dynamicPricingInstance && 
-        dynamicPricingInstance.enabled && 
-        dynamicPricingInstance.isReady() &&
-        learnerModeActive) { // ← KEY CONDITION: Only execute when learner mode is active
+    try {
+      const shouldCharge = dynamicPricingInstance.shouldChargeNow();
       
-      try {
-        // Check if we should charge now based on price and battery state
-        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+      if (shouldCharge !== null) {
+        const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
         
-        // Send the appropriate command only if learner mode allows it
-        if (shouldCharge !== null) {
-          const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+        if (commandSent) {
+          const action = shouldCharge ? 'enabled' : 'disabled';
+          const reason = shouldCharge 
+            ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
+            : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
           
-          if (commandSent) {
-            const action = shouldCharge ? 'enabled' : 'disabled';
-            const reason = shouldCharge 
-              ? 'Low electricity price or scheduled charging time' 
-              : 'High electricity price or target SoC reached';
-            
-            console.log(`Dynamic pricing: Grid charging ${action} - ${reason}`);
-            
-            // Log the action for the actions log in the UI
-            const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-            dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason}`);
-          }
+          console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
+          
+          const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+          dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
         }
-      } catch (error) {
-        console.error('Error in dynamic pricing logic:', error);
       }
-    } else if (dynamicPricingInstance && 
-               dynamicPricingInstance.enabled && 
-               dynamicPricingInstance.isReady() &&
-               !learnerModeActive) {
-      // Log that dynamic pricing wanted to act but couldn't due to learner mode being inactive
-      console.log('Dynamic pricing: Would have evaluated charging decision, but learner mode is not active');
+    } catch (error) {
+      console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
     }
   }
+}
   // ========= END OF DYNAMIC PRICING INTEGRATION =========
 
   // Batch changes to be processed together for better performance
@@ -4326,104 +4354,6 @@ function refreshPricingData() {
 
 
 // === Add routes for viewing battery charging and work mode settings ===
-app.get('/battery-charging', async (req, res) => {
-  try {
-    // No need to query SQLite for change count anymore
-    
-    res.render('battery-charging', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      // Flag to tell the frontend we're using in-memory settings
-      useInMemorySettings: true
-    });
-  } catch (error) {
-    console.error('Error rendering battery-charging page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-
-app.get('/work-mode', async (req, res) => {
-  try {
-    // No need to query SQLite for change count anymore
-    
-    res.render('work-mode', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      // Flag to tell the frontend we're using in-memory settings
-      useInMemorySettings: true
-    });
-  } catch (error) {
-    console.error('Error rendering work-mode page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-
-app.get('/grid-charge', async (req, res) => {
-  try {
-    // No need to query SQLite for change count anymore
-    // Pass the current settings directly to the template
-    
-    res.render('grid-charge', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
-      // Flag to tell the frontend we're using in-memory settings
-      useInMemorySettings: true
-    });
-  } catch (error) {
-    console.error('Error rendering grid-charge page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-
-
-app.get('/energy-pattern', async (req, res) => {
-  try {
-    // No need to query SQLite for change count anymore
-    
-    res.render('energy-pattern', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
-      user_id: USER_ID,
-      // Flag to tell the frontend we're using in-memory settings
-      useInMemorySettings: true
-    });
-  } catch (error) {
-    console.error('Error rendering energy-pattern page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
-
-// New route for voltage point view
-app.get('/voltage-point', async (req, res) => {
-  try {
-    // No need to query SQLite for change count anymore
-    
-    res.render('voltage-point', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
-      // Flag to tell the frontend we're using in-memory settings
-      useInMemorySettings: true
-    });
-  } catch (error) {
-    console.error('Error rendering voltage-point page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
 
 // Update the battery charging settings API
 app.post('/api/battery-charging/set', (req, res) => {
@@ -4712,6 +4642,161 @@ function setupWarningChecks() {
   console.log('✅ Warning check scheduler initialized (user-controlled notifications)');
 }
 
+
+// Complete route handler for inverter-settings page
+app.get('/inverter-settings', async (req, res) => {
+  try {
+    // Get current settings count if database is connected
+    let settingsCount = 0;
+    if (dbConnected) {
+      try {
+        const result = await db.get(`
+          SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
+        `, [USER_ID]);
+        settingsCount = result.count || 0;
+      } catch (dbError) {
+        console.error('Error getting settings count:', dbError);
+      }
+    }
+
+    // Prepare current system state with fallback values
+    const systemState = {
+      battery_soc: currentSystemState.battery_soc || null,
+      pv_power: currentSystemState.pv_power || null,
+      load: currentSystemState.load || null,
+      grid_voltage: currentSystemState.grid_voltage || null,
+      grid_power: currentSystemState.grid_power || null,
+      inverter_state: currentSystemState.inverter_state || null,
+      timestamp: currentSystemState.timestamp || new Date().toISOString()
+    };
+
+    // Prepare current settings with fallback structure
+    const settings = {
+      // Grid charge settings
+      grid_charge: currentSettingsState.grid_charge || {},
+      
+      // Energy pattern settings
+      energy_pattern: currentSettingsState.energy_pattern || {},
+      
+      // Voltage point settings
+      voltage_point: currentSettingsState.voltage_point || {},
+      
+      // Work mode settings
+      work_mode: currentSettingsState.work_mode || {},
+      remote_switch: currentSettingsState.remote_switch || {},
+      generator_charge: currentSettingsState.generator_charge || {},
+      force_generator_on: currentSettingsState.force_generator_on || {},
+      output_shutdown_voltage: currentSettingsState.output_shutdown_voltage || {},
+      stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage || {},
+      start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage || {},
+      start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage || {},
+      solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full || {},
+      max_sell_power: currentSettingsState.max_sell_power || {},
+      max_solar_power: currentSettingsState.max_solar_power || {},
+      grid_trickle_feed: currentSettingsState.grid_trickle_feed || {},
+      
+      // Battery charging settings
+      max_discharge_current: currentSettingsState.max_discharge_current || {},
+      max_charge_current: currentSettingsState.max_charge_current || {},
+      max_grid_charge_current: currentSettingsState.max_grid_charge_current || {},
+      max_generator_charge_current: currentSettingsState.max_generator_charge_current || {},
+      battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage || {},
+      battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage || {},
+      battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage || {},
+      
+      // Additional inverter info
+      serial_number: currentSettingsState.serial_number || {},
+      power_saving: currentSettingsState.power_saving || {},
+      firmware_version: currentSettingsState.firmware_version || {},
+      
+      // Last updated timestamp
+      lastUpdated: currentSettingsState.lastUpdated
+    };
+
+    // Get configuration values with fallbacks
+    const config = {
+      inverterNumber: inverterNumber || 1,
+      batteryNumber: batteryNumber || 1,
+      mqttTopicPrefix: options.mqtt_topic_prefix || 'energy',
+      mqttHost: options.mqtt_host || 'localhost',
+      mqttUsername: options.mqtt_username || 'User'
+    };
+
+    // Check for any warnings about inverter or battery configuration
+    const expectedInverters = parseInt(options.inverter_number) || 1;
+    const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
+    const batteryWarning = checkBatteryInformation(incomingMessages);
+
+    // Render the inverter-settings template with all necessary data
+    res.render('inverter-settings', { 
+      // Learner mode and system status
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      
+      // Current system state (real-time data)
+      currentSystemState: systemState,
+      
+      // Current inverter settings
+      currentSettings: settings,
+      
+      // Configuration
+      numInverters: config.inverterNumber,
+      numBatteries: config.batteryNumber,
+      mqtt_topic_prefix: config.mqttTopicPrefix,
+      mqtt_host: config.mqttHost,
+      mqtt_username: config.mqttUsername,
+      
+      // User identification
+      user_id: USER_ID,
+      
+      // Settings statistics
+      settings_count: settingsCount,
+      
+      // System warnings
+      inverterWarning: inverterWarning,
+      batteryWarning: batteryWarning,
+      
+      // Ingress path for Home Assistant add-on compatibility
+      ingress_path: process.env.INGRESS_PATH || '',
+      
+      // Additional metadata
+      timestamp: new Date(),
+      serverPort: port,
+      
+      // Flags for frontend
+      useInMemorySettings: true,
+      realTimeUpdates: true,
+      
+      // MQTT connection status
+      mqttConnected: mqttClient ? mqttClient.connected : false,
+      
+      // Recent messages sample for debugging (limited to last 10)
+      recentMessages: incomingMessages.slice(-10),
+      
+      // Dynamic pricing status (if available)
+      dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false
+    });
+
+  } catch (error) {
+    console.error('Error rendering inverter-settings page:', error);
+    
+    // Fallback error response
+    try {
+      res.status(500).render('error', { 
+        error: 'Error loading inverter settings page',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        ingress_path: process.env.INGRESS_PATH || ''
+      });
+    } catch (renderError) {
+      // If even the error template fails, send a basic error response
+      res.status(500).send(`
+        <h1>Error Loading Inverter Settings</h1>
+        <p>An error occurred while loading the inverter settings page.</p>
+        <p><a href="/">Return to Home</a></p>
+      `);
+    }
+  }
+});
 
 
 // ================ UPDATED API ROUTES ================
@@ -5784,6 +5869,105 @@ app.post('/api/command', (req, res) => {
   } catch (error) {
     console.error('Error sending command:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+
+app.get('/inverter-settings', async (req, res) => {
+  try {
+    res.render('inverter-settings', { 
+      active: learnerModeActive,
+      db_connected: dbConnected,
+      ingress_path: process.env.INGRESS_PATH || '',
+      user_id: USER_ID,
+      numInverters: inverterNumber || 1,
+      currentSystemState: currentSystemState,
+      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
+      // Pass current settings to template
+      currentSettings: currentSettingsState
+    });
+  } catch (error) {
+    console.error('Error rendering inverter-settings page:', error);
+    res.status(500).send('Error loading inverter settings page');
+  }
+});
+
+// Dynamic inverter info API - only returns data that exists
+app.get('/api/inverter-info/:inverter', (req, res) => {
+  try {
+    const inverterId = req.params.inverter;
+    
+    // Get dynamic data from currentSettingsState
+    const info = {
+      serial_number: currentSettingsState.serial_number?.[inverterId]?.value,
+      power_saving: currentSettingsState.power_saving?.[inverterId]?.value,
+      firmware_version: currentSettingsState.firmware_version?.[inverterId]?.value
+    };
+    
+    // Only include fields that have actual valid data
+    const filteredInfo = {};
+    Object.keys(info).forEach(key => {
+      const value = info[key];
+      if (value !== undefined && 
+          value !== null && 
+          value !== 'N/A' && 
+          value !== '' && 
+          value !== 'Unknown' &&
+          value !== 'Loading...' &&
+          value !== '0' &&
+          value !== 0) {
+        filteredInfo[key] = value;
+      }
+    });
+    
+    res.json({ 
+      success: Object.keys(filteredInfo).length > 0, 
+      info: filteredInfo 
+    });
+  } catch (error) {
+    console.error('Error getting inverter info:', error);
+    res.status(500).json({ error: 'Failed to get inverter info' });
+  }
+});
+
+// Dynamic grid settings API - only returns data that exists
+app.get('/api/grid-settings/:inverter', (req, res) => {
+  try {
+    const inverterId = req.params.inverter;
+    
+    // Get dynamic grid data from currentSettingsState
+    const settings = {
+      grid_type: currentSettingsState.grid_type?.[inverterId]?.value,
+      grid_voltage_high: currentSettingsState.grid_voltage_high?.[inverterId]?.value,
+      grid_voltage_low: currentSettingsState.grid_voltage_low?.[inverterId]?.value,
+      grid_frequency: currentSettingsState.grid_frequency?.[inverterId]?.value,
+      grid_frequency_high: currentSettingsState.grid_frequency_high?.[inverterId]?.value,
+      grid_frequency_low: currentSettingsState.grid_frequency_low?.[inverterId]?.value
+    };
+    
+    // Only include fields that have actual valid data
+    const filteredSettings = {};
+    Object.keys(settings).forEach(key => {
+      const value = settings[key];
+      if (value !== undefined && 
+          value !== null && 
+          value !== 'N/A' && 
+          value !== '' && 
+          value !== 'Unknown' &&
+          value !== 'Loading...' &&
+          value !== '0' &&
+          value !== 0) {
+        filteredSettings[key] = value;
+      }
+    });
+    
+    res.json({ 
+      success: Object.keys(filteredSettings).length > 0, 
+      settings: filteredSettings 
+    });
+  } catch (error) {
+    console.error('Error getting grid settings:', error);
+    res.status(500).json({ error: 'Failed to get grid settings' });
   }
 });
 

@@ -1,154 +1,167 @@
-// pricingApis.js - TIBBER API INTEGRATION
+// services/pricingApis.js - ENHANCED WITH TIBBER REAL-TIME INTEGRATION
 
 const axios = require('axios');
 const moment = require('moment-timezone');
 
-/**
- * Tibber supported countries with their configurations
- */
-const TIBBER_COUNTRIES = {
-  'NO': { timezone: 'Europe/Oslo', currency: 'NOK', market: 'TIBBER' },
-  'SE': { timezone: 'Europe/Stockholm', currency: 'SEK', market: 'TIBBER' },
-  'DK': { timezone: 'Europe/Copenhagen', currency: 'DKK', market: 'TIBBER' },
-  'FI': { timezone: 'Europe/Helsinki', currency: 'EUR', market: 'TIBBER' },
-  'DE': { timezone: 'Europe/Berlin', currency: 'EUR', market: 'TIBBER' },
-  'NL': { timezone: 'Europe/Amsterdam', currency: 'EUR', market: 'TIBBER' }
+// Tibber API endpoints
+const TIBBER_API_URL = 'https://api.tibber.com/v1-beta/gql';
+
+// Country to timezone mapping for Tibber
+const TIBBER_COUNTRY_TIMEZONES = {
+  'NO': 'Europe/Oslo',      // Norway
+  'SE': 'Europe/Stockholm', // Sweden
+  'DK': 'Europe/Copenhagen',// Denmark
+  'FI': 'Europe/Helsinki',  // Finland
+  'DE': 'Europe/Berlin',    // Germany
+  'NL': 'Europe/Amsterdam', // Netherlands
+  'GB': 'Europe/London'     // United Kingdom
+};
+
+// Cities mapping for weather API
+const TIBBER_CITIES = {
+  'NO': [
+    { name: 'Oslo', lat: 59.9139, lon: 10.7522 },
+    { name: 'Bergen', lat: 60.3913, lon: 5.3221 },
+    { name: 'Trondheim', lat: 63.4305, lon: 10.3951 },
+    { name: 'Stavanger', lat: 58.9700, lon: 5.7331 }
+  ],
+  'SE': [
+    { name: 'Stockholm', lat: 59.3293, lon: 18.0686 },
+    { name: 'Göteborg', lat: 57.7089, lon: 11.9746 },
+    { name: 'Malmö', lat: 55.6050, lon: 13.0038 },
+    { name: 'Uppsala', lat: 59.8586, lon: 17.6389 }
+  ],
+  'DK': [
+    { name: 'Copenhagen', lat: 55.6761, lon: 12.5683 },
+    { name: 'Århus', lat: 56.1629, lon: 10.2039 },
+    { name: 'Odense', lat: 55.4038, lon: 10.4024 },
+    { name: 'Aalborg', lat: 57.0488, lon: 9.9217 }
+  ],
+  'FI': [
+    { name: 'Helsinki', lat: 60.1699, lon: 24.9384 },
+    { name: 'Espoo', lat: 60.2055, lon: 24.6559 },
+    { name: 'Tampere', lat: 61.4991, lon: 23.7871 },
+    { name: 'Vantaa', lat: 60.2934, lon: 25.0378 }
+  ],
+  'DE': [
+    { name: 'Berlin', lat: 52.5200, lon: 13.4050 },
+    { name: 'Hamburg', lat: 53.5511, lon: 9.9937 },
+    { name: 'Munich', lat: 48.1351, lon: 11.5820 },
+    { name: 'Cologne', lat: 50.9375, lon: 6.9603 },
+    { name: 'Frankfurt', lat: 50.1109, lon: 8.6821 }
+  ],
+  'NL': [
+    { name: 'Amsterdam', lat: 52.3676, lon: 4.9041 },
+    { name: 'Rotterdam', lat: 51.9244, lon: 4.4777 },
+    { name: 'The Hague', lat: 52.0705, lon: 4.3007 },
+    { name: 'Utrecht', lat: 52.0907, lon: 5.1214 }
+  ],
+  'GB': [
+    { name: 'London', lat: 51.5074, lon: -0.1278 },
+    { name: 'Manchester', lat: 53.4808, lon: -2.2426 },
+    { name: 'Birmingham', lat: 52.4862, lon: -1.8904 },
+    { name: 'Leeds', lat: 53.8008, lon: -1.5491 }
+  ]
 };
 
 /**
- * Tibber GraphQL API endpoint
+ * Fetch real-time electricity prices from Tibber API
+ * @param {Object} config - Configuration object
+ * @returns {Array} Array of price data with Tibber levels
  */
-const TIBBER_API_URL = 'https://api.tibber.com/v1-beta/gql';
+async function fetchTibberPrices(config) {
+  try {
+    if (!config.tibberApiKey || !config.tibberApiKey.trim()) {
+      throw new Error('Tibber API key is required');
+    }
 
-/**
- * GraphQL query for getting current and forecasted prices
- */
-const TIBBER_PRICE_QUERY = `
-  query {
-    viewer {
-      homes {
-        currentSubscription {
-          priceInfo {
-            current {
-              total
-              energy
-              tax
-              startsAt
-              level
-            }
-            today {
-              total
-              energy
-              tax
-              startsAt
-              level
-            }
-            tomorrow {
-              total
-              energy
-              tax
-              startsAt
-              level
+    const query = `
+      query {
+        viewer {
+          homes {
+            currentSubscription {
+              priceInfo {
+                current {
+                  total
+                  energy
+                  tax
+                  startsAt
+                  currency
+                  level
+                }
+                today {
+                  total
+                  energy
+                  tax
+                  startsAt
+                  currency
+                  level
+                }
+                tomorrow {
+                  total
+                  energy
+                  tax
+                  startsAt
+                  currency
+                  level
+                }
+              }
             }
           }
         }
-        address {
-          address1
-          postalCode
-          city
-          country
-        }
-        timeZone
       }
-    }
-  }
-`;
+    `;
 
-/**
- * Fetch electricity prices from Tibber API
- */
-async function fetchTibberElectricityPrices(config) {
-  if (!config.apiKey) {
-    throw new Error('Tibber API token is required');
-  }
-  
-  try {
-    console.log(`Fetching Tibber pricing data for ${config.country}...`);
-    
+    console.log('🔋 Fetching real-time prices from Tibber API...');
+
     const response = await axios.post(TIBBER_API_URL, {
-      query: TIBBER_PRICE_QUERY
+      query: query
     }, {
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'SolarAutopilot/1.0'
+        'Authorization': `Bearer ${config.tibberApiKey}`,
+        'Content-Type': 'application/json'
       },
-      timeout: 30000
+      timeout: 15000
     });
-    
-    if (response.status !== 200) {
-      throw new Error(`Tibber API returned status ${response.status}`);
+
+    if (response.data.errors) {
+      const error = response.data.errors[0];
+      console.error('Tibber API Error:', error.message);
+      throw new Error(`Tibber API Error: ${error.message}`);
     }
-    
-    const data = response.data;
-    
-    if (data.errors && data.errors.length > 0) {
-      throw new Error(`Tibber API error: ${data.errors[0].message}`);
+
+    const homes = response.data.data?.viewer?.homes;
+    if (!homes || homes.length === 0) {
+      throw new Error('No Tibber homes found in your account');
     }
-    
-    if (!data.data || !data.data.viewer || !data.data.viewer.homes || data.data.viewer.homes.length === 0) {
-      throw new Error('No homes found in Tibber account or invalid API token');
-    }
-    
-    const home = data.data.viewer.homes[0]; // Use first home
-    const priceInfo = home.currentSubscription?.priceInfo;
-    
+
+    const priceInfo = homes[0].currentSubscription?.priceInfo;
     if (!priceInfo) {
-      throw new Error('No price information available for this home');
+      throw new Error('No price information available from Tibber');
     }
+
+    const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
+    const currency = priceInfo.current?.currency || 'EUR';
+
+    // Combine today's and tomorrow's prices
+    const allPrices = [...(priceInfo.today || []), ...(priceInfo.tomorrow || [])];
     
-    // Get timezone from home data or use config
-    const homeTimezone = home.timeZone || config.timezone;
-    const countryConfig = TIBBER_COUNTRIES[config.country] || TIBBER_COUNTRIES['DE'];
-    const timezone = homeTimezone || countryConfig.timezone;
-    
-    // Determine currency from home location
-    const homeCurrency = determineCurrencyFromCountry(home.address?.country || config.country);
-    
-    const prices = [];
-    
-    // Process current price
-    if (priceInfo.current) {
-      prices.push(formatTibberPrice(priceInfo.current, timezone, homeCurrency));
-    }
-    
-    // Process today's prices
-    if (priceInfo.today && Array.isArray(priceInfo.today)) {
-      priceInfo.today.forEach(price => {
-        prices.push(formatTibberPrice(price, timezone, homeCurrency));
-      });
-    }
-    
-    // Process tomorrow's prices (if available)
-    if (priceInfo.tomorrow && Array.isArray(priceInfo.tomorrow)) {
-      priceInfo.tomorrow.forEach(price => {
-        prices.push(formatTibberPrice(price, timezone, homeCurrency));
-      });
-    }
-    
-    // Remove duplicates and sort by timestamp
-    const uniquePrices = prices
-      .filter((price, index, self) => 
-        index === self.findIndex(p => p.timestamp === price.timestamp)
-      )
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
-    console.log(`✅ Tibber: Retrieved ${uniquePrices.length} real price points`);
-    console.log(`Home location: ${home.address?.city}, ${home.address?.country}`);
-    console.log(`Timezone: ${timezone}, Currency: ${homeCurrency}`);
-    
-    return uniquePrices;
-    
+    const formattedPrices = allPrices.map(priceData => ({
+      timestamp: moment(priceData.startsAt).tz(timezone).toISOString(),
+      price: priceData.total, // Use total price including taxes
+      currency: currency,
+      level: priceData.level, // Tibber price level (VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE)
+      energy: priceData.energy,
+      tax: priceData.tax,
+      timezone: timezone,
+      provider: 'Tibber',
+      localHour: moment(priceData.startsAt).tz(timezone).hour()
+    }));
+
+    console.log(`✅ Retrieved ${formattedPrices.length} real-time price points from Tibber`);
+    console.log(`💰 Current price: ${priceInfo.current?.total?.toFixed(4)} ${currency}/kWh (Level: ${priceInfo.current?.level})`);
+
+    return formattedPrices;
   } catch (error) {
     console.error('Error fetching Tibber prices:', error.message);
     throw error;
@@ -156,298 +169,313 @@ async function fetchTibberElectricityPrices(config) {
 }
 
 /**
- * Format Tibber price data to our standard format
+ * Get current real-time price from Tibber
+ * @param {Object} config - Configuration object
+ * @returns {Object} Current price information
  */
-function formatTibberPrice(tibberPrice, timezone, currency) {
-  return {
-    timestamp: tibberPrice.startsAt,
-    price: parseFloat((tibberPrice.total || 0).toFixed(4)),
-    energy: parseFloat((tibberPrice.energy || 0).toFixed(4)),
-    tax: parseFloat((tibberPrice.tax || 0).toFixed(4)),
-    level: tibberPrice.level || 'NORMAL', // VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE
-    currency: currency,
-    unit: 'kWh',
-    timezone: timezone,
-    source: 'real',
-    market: 'TIBBER'
-  };
-}
-
-/**
- * Determine currency based on country
- */
-function determineCurrencyFromCountry(country) {
-  const currencyMap = {
-    'NO': 'NOK',
-    'SE': 'SEK', 
-    'DK': 'DKK',
-    'FI': 'EUR',
-    'DE': 'EUR',
-    'NL': 'EUR'
-  };
-  
-  return currencyMap[country] || 'EUR';
-}
-
-/**
- * Generate sample price data for testing (Tibber-style)
- */
-function generateTibberSampleData(countryCode = 'DE') {
-  const prices = [];
-  const countryConfig = TIBBER_COUNTRIES[countryCode] || TIBBER_COUNTRIES['DE'];
-  const timezone = countryConfig.timezone;
-  const currency = countryConfig.currency;
-  
-  const now = moment().tz(timezone).startOf('hour');
-  
-  // Country-specific price patterns (in local currency)
-  const pricePatterns = {
-    'NO': { base: 1.20, peak: 2.00, valley: 0.60 }, // NOK/kWh
-    'SE': { base: 1.80, peak: 2.80, valley: 0.90 }, // SEK/kWh
-    'DK': { base: 2.20, peak: 3.50, valley: 1.20 }, // DKK/kWh
-    'FI': { base: 0.18, peak: 0.28, valley: 0.12 }, // EUR/kWh
-    'DE': { base: 0.30, peak: 0.45, valley: 0.20 }, // EUR/kWh
-    'NL': { base: 0.26, peak: 0.38, valley: 0.16 }  // EUR/kWh
-  };
-  
-  const pattern = pricePatterns[countryCode] || pricePatterns['DE'];
-  
-  // Generate 48 hourly price points
-  for (let i = 0; i < 48; i++) {
-    const timestamp = moment(now).add(i, 'hours');
-    
-    const hour = timestamp.hour();
-    const isWeekend = timestamp.day() === 0 || timestamp.day() === 6;
-    
-    let basePrice = pattern.base;
-    let level = 'NORMAL';
-    
-    // Time-of-day pricing with Tibber-style levels
-    if (hour >= 7 && hour <= 9) {
-      basePrice = pattern.peak;
-      level = 'EXPENSIVE';
-    } else if (hour >= 17 && hour <= 21) {
-      basePrice = pattern.peak;
-      level = 'VERY_EXPENSIVE';
-    } else if (hour >= 1 && hour <= 5) {
-      basePrice = pattern.valley;
-      level = 'VERY_CHEAP';
-    } else if (hour >= 11 && hour <= 14) {
-      basePrice = pattern.valley;
-      level = 'CHEAP';
-    }
-    
-    // Weekend patterns
-    if (isWeekend) {
-      basePrice *= 0.85;
-      if (level === 'VERY_EXPENSIVE') level = 'EXPENSIVE';
-      if (level === 'EXPENSIVE') level = 'NORMAL';
-    }
-    
-    // Add market volatility
-    const volatilityFactor = 0.8 + (Math.random() * 0.4);
-    const finalPrice = basePrice * volatilityFactor;
-    
-    prices.push({
-      timestamp: timestamp.toISOString(),
-      price: parseFloat(finalPrice.toFixed(4)),
-      energy: parseFloat((finalPrice * 0.7).toFixed(4)),
-      tax: parseFloat((finalPrice * 0.3).toFixed(4)),
-      level: level,
-      currency: currency,
-      unit: 'kWh',
-      timezone: timezone,
-      source: 'sample',
-      market: 'TIBBER',
-      country: countryCode
-    });
-  }
-  
-  return prices;
-}
-
-/**
- * Main function to fetch electricity prices - TIBBER FOCUSED (Real data only)
- */
-async function fetchElectricityPrices(config) {
-  const countryCode = config.country || 'DE';
-  
-  // Check if country is supported by Tibber
-  if (!TIBBER_COUNTRIES[countryCode]) {
-    throw new Error(`Country ${countryCode} not supported by Tibber`);
-  }
-  
-  // Require API key for real data
-  if (!config.apiKey || config.apiKey.trim() === '') {
-    throw new Error('Tibber API token is required');
-  }
-  
+async function getTibberCurrentPrice(config) {
   try {
-    console.log(`Attempting to fetch REAL Tibber pricing data for ${countryCode}`);
-    
-    const prices = await fetchTibberElectricityPrices(config);
-    
-    // Validate we got data
-    if (!prices || prices.length === 0) {
-      throw new Error('No pricing data returned from Tibber API');
-    }
-    
-    // Add metadata
-    const enhancedPrices = prices.map(price => ({
-      ...price,
-      country: countryCode,
-      operator: 'Tibber'
-    }));
-    
-    console.log(`✅ Successfully fetched ${enhancedPrices.length} REAL price points from Tibber for ${countryCode}`);
-    return enhancedPrices;
-    
-  } catch (error) {
-    console.log(`❌ Tibber data fetch failed for ${countryCode}: ${error.message}`);
-    throw error; // Don't fall back to sample data, throw the error
-  }
-}
-
-/**
- * Determine low price periods using Tibber's price levels
- */
-function determineLowPricePeriods(pricingData, config) {
-  if (!pricingData || pricingData.length === 0) {
-    return [];
-  }
-  
-  try {
-    // If Tibber data, use their price levels
-    const hasTibberLevels = pricingData.some(p => p.level);
-    
-    if (hasTibberLevels) {
-      // Use Tibber's built-in price levels
-      const lowPricePeriods = pricingData.filter(p => 
-        p.level === 'VERY_CHEAP' || p.level === 'CHEAP'
-      );
-      
-      // Group consecutive periods
-      return groupConsecutivePeriods(lowPricePeriods, config.timezone);
-    }
-    
-    // Fallback to threshold-based calculation
-    const threshold = config.priceThreshold > 0 
-      ? config.priceThreshold 
-      : calculateAutoThreshold(pricingData);
-    
-    const lowPricePeriods = pricingData.filter(p => p.price <= threshold);
-    return groupConsecutivePeriods(lowPricePeriods, config.timezone);
-    
-  } catch (error) {
-    console.error('Error determining low price periods:', error);
-    return [];
-  }
-}
-
-/**
- * Group consecutive price periods
- */
-function groupConsecutivePeriods(periods, timezone = 'Europe/Berlin') {
-  if (periods.length === 0) return [];
-  
-  const groupedPeriods = [];
-  let currentGroup = null;
-  
-  periods.forEach(period => {
-    const periodTime = moment(period.timestamp).tz(timezone);
-    
-    if (!currentGroup) {
-      currentGroup = {
-        start: period.timestamp,
-        end: moment(periodTime).add(1, 'hour').toISOString(),
-        avgPrice: period.price,
-        level: period.level || 'LOW',
-        timezone: timezone
-      };
-    } else {
-      const currentEnd = moment(currentGroup.end).tz(timezone);
-      
-      if (periodTime.diff(currentEnd, 'hours') <= 1) {
-        currentGroup.end = moment(periodTime).add(1, 'hour').toISOString();
-        currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2;
-      } else {
-        groupedPeriods.push(currentGroup);
-        currentGroup = {
-          start: period.timestamp,
-          end: moment(periodTime).add(1, 'hour').toISOString(),
-          avgPrice: period.price,
-          level: period.level || 'LOW',
-          timezone: timezone
-        };
+    const query = `
+      query {
+        viewer {
+          homes {
+            currentSubscription {
+              priceInfo {
+                current {
+                  total
+                  energy
+                  tax
+                  startsAt
+                  currency
+                  level
+                }
+              }
+            }
+          }
+        }
       }
+    `;
+
+    const response = await axios.post(TIBBER_API_URL, {
+      query: query
+    }, {
+      headers: {
+        'Authorization': `Bearer ${config.tibberApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (response.data.errors) {
+      throw new Error(`Tibber API Error: ${response.data.errors[0].message}`);
     }
-  });
-  
-  if (currentGroup) {
-    groupedPeriods.push(currentGroup);
+
+    const current = response.data.data?.viewer?.homes?.[0]?.currentSubscription?.priceInfo?.current;
+    
+    if (!current) {
+      throw new Error('No current price available from Tibber');
+    }
+
+    return {
+      price: current.total,
+      level: current.level,
+      currency: current.currency,
+      timestamp: current.startsAt,
+      provider: 'Tibber Real-time',
+      isRealTime: true
+    };
+  } catch (error) {
+    console.error('Error getting current Tibber price:', error.message);
+    throw error;
   }
-  
-  return groupedPeriods;
 }
 
 /**
- * Calculate automatic threshold (25% lowest prices)
+ * Get supported Tibber countries and cities
+ * @returns {Object} Countries and cities data
  */
-function calculateAutoThreshold(pricingData) {
-  const prices = pricingData.map(p => p.price).sort((a, b) => a - b);
-  const index = Math.floor(prices.length * 0.25);
-  return prices[index] || 0.1;
-}
-
-/**
- * Get supported countries
- */
-function getSupportedCountries() {
-  return Object.keys(TIBBER_COUNTRIES).map(countryCode => ({
-    code: countryCode,
-    ...TIBBER_COUNTRIES[countryCode],
-    name: getCountryName(countryCode)
+function getTibberCountriesAndCities() {
+  const countries = Object.keys(TIBBER_CITIES).map(code => ({
+    code: code,
+    name: getCountryName(code),
+    timezone: TIBBER_COUNTRY_TIMEZONES[code],
+    cities: TIBBER_CITIES[code]
   }));
+
+  return {
+    success: true,
+    countries: countries,
+    supported: Object.keys(TIBBER_CITIES)
+  };
 }
 
 /**
- * Get country name
+ * Get country name from code
  */
-function getCountryName(countryCode) {
-  const countryNames = {
+function getCountryName(code) {
+  const names = {
     'NO': 'Norway',
     'SE': 'Sweden', 
     'DK': 'Denmark',
     'FI': 'Finland',
     'DE': 'Germany',
-    'NL': 'Netherlands'
+    'NL': 'Netherlands',
+    'GB': 'United Kingdom'
   };
-  
-  return countryNames[countryCode] || countryCode;
+  return names[code] || code;
 }
 
 /**
- * Validate if country is supported by Tibber
+ * Get location coordinates by country and city
+ * @param {string} country - Country code
+ * @param {string} city - City name
+ * @returns {Object} Coordinates
  */
-function isCountrySupported(countryCode) {
-  return TIBBER_COUNTRIES.hasOwnProperty(countryCode);
+function getLocationByCountryCity(country, city) {
+  if (!TIBBER_CITIES[country]) {
+    throw new Error(`Country ${country} not supported by Tibber`);
+  }
+
+  const cityData = TIBBER_CITIES[country].find(c => 
+    c.name.toLowerCase() === city.toLowerCase()
+  );
+
+  if (!cityData) {
+    // Return capital/first city as fallback
+    return TIBBER_CITIES[country][0];
+  }
+
+  return cityData;
 }
 
 /**
- * Get timezone for a country
+ * Test Tibber API connection
+ * @param {string} apiKey - Tibber API key
+ * @returns {Object} Test result
  */
-function getCountryTimezone(countryCode) {
-  const config = TIBBER_COUNTRIES[countryCode];
-  return config ? config.timezone : 'UTC';
+async function testTibberConnection(apiKey) {
+  try {
+    const query = `
+      query {
+        viewer {
+          login
+          userId
+          name
+          homes {
+            id
+            address {
+              address1
+              city
+              country
+            }
+            currentSubscription {
+              status
+              priceInfo {
+                current {
+                  total
+                  currency
+                  level
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await axios.post(TIBBER_API_URL, {
+      query: query
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (response.data.errors) {
+      return {
+        success: false,
+        error: response.data.errors[0].message,
+        details: 'Invalid API key or API error'
+      };
+    }
+
+    const viewer = response.data.data?.viewer;
+    if (!viewer) {
+      return {
+        success: false,
+        error: 'No viewer data returned',
+        details: 'API key may be invalid'
+      };
+    }
+
+    const homes = viewer.homes || [];
+    const currentPrice = homes[0]?.currentSubscription?.priceInfo?.current;
+
+    return {
+      success: true,
+      user: {
+        name: viewer.name,
+        login: viewer.login,
+        userId: viewer.userId
+      },
+      homes: homes.length,
+      currentPrice: currentPrice ? {
+        price: currentPrice.total,
+        currency: currentPrice.currency,
+        level: currentPrice.level
+      } : null,
+      message: `Connected successfully. Found ${homes.length} home(s).`
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      details: 'Connection failed'
+    };
+  }
+}
+
+/**
+ * Generate sample data with realistic Nordic pricing patterns
+ * @param {string} timezone - Timezone for data
+ * @returns {Array} Sample price data
+ */
+function generateRealisticSampleData(timezone = 'Europe/Berlin') {
+  const prices = [];
+  const now = moment().tz(timezone);
+  const startHour = now.clone().startOf('hour');
+
+  // Realistic Nordic price patterns
+  const basePrices = {
+    night: 0.08,    // 00:00 - 06:00
+    morning: 0.15,  // 06:00 - 09:00  
+    day: 0.12,      // 09:00 - 17:00
+    evening: 0.18,  // 17:00 - 22:00
+    late: 0.10      // 22:00 - 00:00
+  };
+
+  const levels = ['VERY_CHEAP', 'CHEAP', 'NORMAL', 'EXPENSIVE', 'VERY_EXPENSIVE'];
+
+  for (let i = 0; i < 48; i++) {
+    const timestamp = startHour.clone().add(i, 'hours');
+    const hour = timestamp.hour();
+    
+    let basePrice;
+    let level;
+    
+    if (hour >= 0 && hour < 6) {
+      basePrice = basePrices.night;
+      level = Math.random() < 0.7 ? 'VERY_CHEAP' : 'CHEAP';
+    } else if (hour >= 6 && hour < 9) {
+      basePrice = basePrices.morning;
+      level = Math.random() < 0.5 ? 'NORMAL' : 'EXPENSIVE';
+    } else if (hour >= 9 && hour < 17) {
+      basePrice = basePrices.day;
+      level = 'NORMAL';
+    } else if (hour >= 17 && hour < 22) {
+      basePrice = basePrices.evening;
+      level = Math.random() < 0.6 ? 'EXPENSIVE' : 'VERY_EXPENSIVE';
+    } else {
+      basePrice = basePrices.late;
+      level = Math.random() < 0.6 ? 'CHEAP' : 'NORMAL';
+    }
+
+    const randomFactor = 0.8 + (Math.random() * 0.4); // ±20% variation
+    const price = basePrice * randomFactor;
+
+    prices.push({
+      timestamp: timestamp.toISOString(),
+      price: parseFloat(price.toFixed(4)),
+      currency: 'EUR',
+      level: level,
+      timezone: timezone,
+      provider: 'Sample Data',
+      localHour: hour,
+      energy: parseFloat((price * 0.7).toFixed(4)), // Energy component
+      tax: parseFloat((price * 0.3).toFixed(4))      // Tax component
+    });
+  }
+
+  return prices;
+}
+
+/**
+ * Main function to fetch electricity prices (enhanced with Tibber)
+ * @param {Object} config - Configuration object
+ * @returns {Array} Price data
+ */
+async function fetchElectricityPrices(config) {
+  try {
+    // If Tibber API key is provided, use real Tibber data
+    if (config.tibberApiKey && config.tibberApiKey.trim()) {
+      console.log('🔋 Using real-time Tibber API for pricing data...');
+      return await fetchTibberPrices(config);
+    }
+    
+    // Fallback to sample data
+    console.log('🔋 Using sample pricing data (no Tibber API key provided)...');
+    const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
+    return generateRealisticSampleData(timezone);
+  } catch (error) {
+    console.error('Error fetching electricity prices:', error.message);
+    
+    // Fallback to sample data on error
+    console.log('🔋 Falling back to sample pricing data due to error...');
+    const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
+    return generateRealisticSampleData(timezone);
+  }
 }
 
 module.exports = {
   fetchElectricityPrices,
-  fetchTibberElectricityPrices,
-  generateTibberSampleData,
-  determineLowPricePeriods,
-  getSupportedCountries,
-  isCountrySupported,
-  getCountryTimezone,
-  TIBBER_COUNTRIES
+  fetchTibberPrices,
+  getTibberCurrentPrice,
+  getTibberCountriesAndCities,
+  getLocationByCountryCity,
+  testTibberConnection,
+  generateRealisticSampleData,
+  TIBBER_COUNTRY_TIMEZONES,
+  TIBBER_CITIES
 };

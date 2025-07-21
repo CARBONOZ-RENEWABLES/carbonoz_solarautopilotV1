@@ -1,4 +1,4 @@
-// dynamicPricingService.js - TIBBER INTEGRATION
+// services/dynamicPricingService.js - ENHANCED WITH TIBBER AND SMART CONDITIONS
 
 const axios = require('axios');
 const moment = require('moment-timezone');
@@ -8,9 +8,92 @@ const cron = require('node-cron');
 const pricingApis = require('./pricingApis');
 
 // Configuration file path
-const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, '..', 'data', 'dynamic_pricing_config.json');
+const COOLDOWN_STATE_FILE = path.join(__dirname, '..', 'data', 'cooldown_state.json');
 
-// Ensure the config file exists
+// Default configuration with enhanced features
+function getDefaultConfig() {
+  return {
+    enabled: false,
+    
+    // Tibber integration
+    tibberApiKey: '',
+    country: 'DE',
+    city: 'Berlin',
+    timezone: 'Europe/Berlin',
+    currency: 'EUR',
+    
+    // Price-based charging settings with Tibber levels
+    priceBasedCharging: {
+      enabled: true,
+      useRealTibberPrices: true,
+      useTibberLevels: true,
+      allowedTibberLevels: ['VERY_CHEAP', 'CHEAP'], // Tibber price levels
+      maxPriceThreshold: 0.20, // Fallback threshold if not using Tibber levels
+      preferTibberLevels: true // Prefer Tibber levels over price threshold
+    },
+    
+    // Battery settings
+    battery: {
+      targetSoC: 80,
+      minimumSoC: 20,
+      emergencySoC: 15, // Emergency charging threshold
+      maxSoC: 95 // Maximum allowed SoC
+    },
+    
+    // EMPTY smart power conditions - user will create their own
+    smartPowerConditions: {
+      enabled: false,
+      rules: [] // Start with empty rules array
+    },
+    
+    // Weather-based charging with country/city selection
+    weatherConditions: {
+      enabled: false,
+      chargeOnCloudyDays: true,
+      chargeBeforeStorm: true,
+      cloudCoverThreshold: 70, // % cloud cover to trigger charging
+      weatherApiKey: '', // OpenWeatherMap API key
+      location: null // Will be set based on country/city selection
+    },
+    
+    // Time-based conditions
+    timeConditions: {
+      enabled: true,
+      preferNightCharging: false,
+      nightStart: '22:00',
+      nightEnd: '06:00',
+      avoidPeakHours: true,
+      peakStart: '17:00',
+      peakEnd: '21:00'
+    },
+    
+    // Cooldown settings
+    cooldown: {
+      enabled: true,
+      chargingCooldownMinutes: 30,
+      errorCooldownMinutes: 60,
+      maxChargingCyclesPerDay: 8
+    },
+    
+    // Scheduled charging (additional to smart charging)
+    scheduledCharging: false,
+    chargingHours: [],
+    
+    // Data and status
+    lastUpdate: null,
+    pricingData: [],
+    currentPrice: null,
+    
+    // Features
+    inverterSupport: true,
+    autoCommandMapping: true,
+    intelligentCurrentAdjustment: true,
+    supportedInverterTypes: ['legacy', 'new', 'hybrid']
+  };
+}
+
+// Ensure config file exists
 function ensureConfigExists() {
   const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
   
@@ -19,42 +102,34 @@ function ensureConfigExists() {
   }
   
   if (!fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-    const defaultConfig = {
-      enabled: false,
-      country: 'DE', // Default to Germany
-      apiKey: '', // Tibber API token
-      priceThreshold: 0, // Use automatic threshold based on Tibber levels
-      minimumSoC: 20, // Minimum battery SoC to allow grid charging
-      targetSoC: 80, // Target battery SoC for charging
-      scheduledCharging: false,
-      chargingHours: [], // Additional manual time periods
-      lastUpdate: null,
-      pricingData: [],
-      timezone: 'Europe/Berlin',
-      useTibberLevels: true, // Use Tibber's price level classification
-      lowPriceLevels: ['VERY_CHEAP', 'CHEAP'], // Which Tibber levels to consider as low
-      currency: 'EUR'
-    };
-    
+    const defaultConfig = getDefaultConfig();
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default Tibber dynamic pricing configuration');
+    console.log('Created enhanced dynamic pricing configuration with Tibber integration');
   }
 }
 
-// Load the configuration
+// Load configuration
 function loadConfig() {
   try {
+    ensureConfigExists();
     const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-    return JSON.parse(configData);
+    const config = JSON.parse(configData);
+    
+    // Merge with defaults to ensure all new properties exist
+    const defaultConfig = getDefaultConfig();
+    const mergedConfig = mergeDeep(defaultConfig, config);
+    
+    return mergedConfig;
   } catch (error) {
     console.error('Error loading dynamic pricing config:', error.message);
-    return null;
+    return getDefaultConfig();
   }
 }
 
-// Save the configuration
+// Save configuration
 function saveConfig(config) {
   try {
+    ensureConfigExists();
     fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
     return true;
   } catch (error) {
@@ -63,435 +138,1000 @@ function saveConfig(config) {
   }
 }
 
-// Determine low price periods using Tibber's intelligent price levels
-function determineLowPricePeriods(prices, config) {
-  if (!prices || prices.length === 0) {
-    return [];
+// Deep merge utility function
+function mergeDeep(target, source) {
+  const output = Object.assign({}, target);
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach(key => {
+      if (isObject(source[key])) {
+        if (!(key in target))
+          Object.assign(output, { [key]: source[key] });
+        else
+          output[key] = mergeDeep(target[key], source[key]);
+      } else {
+        Object.assign(output, { [key]: source[key] });
+      }
+    });
+  }
+  return output;
+}
+
+function isObject(item) {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+}
+
+// Cooldown state management (existing code)
+function loadCooldownState() {
+  try {
+    if (fs.existsSync(COOLDOWN_STATE_FILE)) {
+      const data = fs.readFileSync(COOLDOWN_STATE_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading cooldown state:', error);
   }
   
+  return {
+    lastChargingCommand: null,
+    lastErrorTime: null,
+    chargingCyclesToday: 0,
+    lastResetDate: moment().format('YYYY-MM-DD')
+  };
+}
+
+function saveCooldownState(state) {
   try {
-    // If we have Tibber data with price levels, use them
-    const hasTibberLevels = prices.some(p => p.level);
-    
-    if (hasTibberLevels && config.useTibberLevels) {
-      console.log('Using Tibber price levels for low price detection');
-      
-      const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
-      const lowPricePeriods = prices.filter(p => 
-        lowPriceLevels.includes(p.level)
-      );
-      
-      return groupConsecutivePeriods(lowPricePeriods, config.timezone);
+    const dir = path.dirname(COOLDOWN_STATE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-    
-    // Fallback to manual threshold
-    let threshold = config.priceThreshold;
-    
-    if (!threshold || threshold <= 0) {
-      // Use automatic threshold - 25% lowest prices
-      const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
-      threshold = sortedPrices[Math.floor(sortedPrices.length * 0.25)]?.price || 0.1;
-      console.log(`Using automatic threshold: ${threshold} ${config.currency || 'EUR'}/kWh`);
-    }
-    
-    const lowPricePeriods = prices.filter(p => p.price <= threshold);
-    return groupConsecutivePeriods(lowPricePeriods, config.timezone);
-    
+    fs.writeFileSync(COOLDOWN_STATE_FILE, JSON.stringify(state, null, 2));
   } catch (error) {
-    console.error('Error determining low price periods:', error);
-    return [];
+    console.error('Error saving cooldown state:', error);
   }
 }
 
-// Group consecutive price periods
-function groupConsecutivePeriods(periods, timezone = 'Europe/Berlin') {
-  if (periods.length === 0) return [];
+// Check if we're in cooldown period
+function isInCooldown(config) {
+  if (!config.cooldown.enabled) return false;
   
-  const groupedPeriods = [];
-  let currentGroup = null;
+  const cooldownState = loadCooldownState();
+  const now = moment();
   
-  periods.forEach(period => {
-    const periodTime = moment(period.timestamp).tz(timezone);
+  // Reset daily cycle count if it's a new day
+  const today = now.format('YYYY-MM-DD');
+  if (cooldownState.lastResetDate !== today) {
+    cooldownState.chargingCyclesToday = 0;
+    cooldownState.lastResetDate = today;
+    saveCooldownState(cooldownState);
+  }
+  
+  // Check daily cycle limit
+  if (cooldownState.chargingCyclesToday >= config.cooldown.maxChargingCyclesPerDay) {
+    console.log(`🔄 Cooldown: Daily charging cycle limit reached (${cooldownState.chargingCyclesToday}/${config.cooldown.maxChargingCyclesPerDay})`);
+    return true;
+  }
+  
+  // Check error cooldown
+  if (cooldownState.lastErrorTime) {
+    const errorCooldownEnd = moment(cooldownState.lastErrorTime).add(config.cooldown.errorCooldownMinutes, 'minutes');
+    if (now.isBefore(errorCooldownEnd)) {
+      console.log(`🔄 Cooldown: Error cooldown active until ${errorCooldownEnd.format('HH:mm')}`);
+      return true;
+    }
+  }
+  
+  // Check charging command cooldown
+  if (cooldownState.lastChargingCommand) {
+    const chargingCooldownEnd = moment(cooldownState.lastChargingCommand).add(config.cooldown.chargingCooldownMinutes, 'minutes');
+    if (now.isBefore(chargingCooldownEnd)) {
+      const remainingMinutes = chargingCooldownEnd.diff(now, 'minutes');
+      console.log(`🔄 Cooldown: Charging command cooldown active for ${remainingMinutes} more minutes`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Update cooldown state after an action
+function updateCooldownState(actionType, success = true) {
+  const cooldownState = loadCooldownState();
+  const now = moment();
+  
+  if (actionType === 'charging_command' && success) {
+    cooldownState.lastChargingCommand = now.toISOString();
+    cooldownState.chargingCyclesToday += 1;
+  } else if (actionType === 'error') {
+    cooldownState.lastErrorTime = now.toISOString();
+  } else if (actionType === 'reset' || actionType === 'daily_reset') {
+    cooldownState.chargingCyclesToday = 0;
+    cooldownState.lastChargingCommand = null;
+    cooldownState.lastErrorTime = null;
+  }
+  
+  saveCooldownState(cooldownState);
+}
+
+// Get weather forecast data with country/city support
+async function getWeatherForecast(config) {
+  if (!config.weatherConditions.enabled || !config.weatherConditions.weatherApiKey) {
+    return { success: false, error: 'Weather conditions disabled or no API key' };
+  }
+  
+  try {
+    let location = config.weatherConditions.location;
     
-    if (!currentGroup) {
-      currentGroup = {
-        start: period.timestamp,
-        end: moment(periodTime).add(1, 'hour').toISOString(),
-        avgPrice: period.price,
-        level: period.level || 'LOW',
-        timezone: timezone
-      };
-    } else {
-      const currentEnd = moment(currentGroup.end).tz(timezone);
-      
-      // If this period starts within 1 hour of current group end, extend it
-      if (Math.abs(periodTime.diff(currentEnd, 'hours')) <= 1) {
-        currentGroup.end = moment(periodTime).add(1, 'hour').toISOString();
-        currentGroup.avgPrice = (currentGroup.avgPrice + period.price) / 2;
-      } else {
-        // Start a new group
-        groupedPeriods.push(currentGroup);
-        currentGroup = {
-          start: period.timestamp,
-          end: moment(periodTime).add(1, 'hour').toISOString(),
-          avgPrice: period.price,
-          level: period.level || 'LOW',
-          timezone: timezone
-        };
+    // If no location set, get from country/city
+    if (!location && config.country && config.city) {
+      try {
+        location = pricingApis.getLocationByCountryCity(config.country, config.city);
+      } catch (locationError) {
+        console.error('Location lookup failed:', locationError.message);
+        return { success: false, error: 'Failed to get location coordinates' };
       }
     }
-  });
-  
-  if (currentGroup) {
-    groupedPeriods.push(currentGroup);
-  }
-  
-  return groupedPeriods;
-}
-
-// Check if current time is within a low price period
-function isCurrentlyLowPrice(config, currentSystemState) {
-  if (!config.enabled || !config.pricingData) {
-    return false;
-  }
-  
-  const timezone = config.timezone || 'Europe/Berlin';
-  const now = moment().tz(timezone);
-  
-  // Find current hour price
-  const currentPrice = config.pricingData.find(p => {
-    const priceTime = moment(p.timestamp).tz(timezone);
-    return now.isSame(priceTime, 'hour');
-  });
-  
-  if (!currentPrice) {
-    return false;
-  }
-  
-  // If we have Tibber levels, use them
-  if (currentPrice.level && config.useTibberLevels) {
-    const lowPriceLevels = config.lowPriceLevels || ['VERY_CHEAP', 'CHEAP'];
-    return lowPriceLevels.includes(currentPrice.level);
-  }
-  
-  // Fallback to threshold check
-  const lowPricePeriods = determineLowPricePeriods(config.pricingData, config);
-  
-  return lowPricePeriods.some(period => {
-    const periodStart = moment(period.start).tz(timezone);
-    const periodEnd = moment(period.end).tz(timezone);
-    return now.isBetween(periodStart, periodEnd, null, '[)');
-  });
-}
-
-// Check if current time is within a scheduled charging period
-function isWithinScheduledChargingTime(config, currentTime) {
-  if (!config.scheduledCharging || !config.chargingHours || config.chargingHours.length === 0) {
-    return false;
-  }
-  
-  const timeFormat = 'HH:mm';
-  const currentTimeStr = currentTime.format(timeFormat);
-  
-  return config.chargingHours.some(period => {
-    // Handle cases where start time is later than end time (overnight periods)
-    if (period.start > period.end) {
-      return currentTimeStr >= period.start || currentTimeStr < period.end;
-    } else {
-      return currentTimeStr >= period.start && currentTimeStr < period.end;
-    }
-  });
-}
-
-// Main scheduling logic for battery charging
-function scheduleCharging(config, mqttClient, currentSystemState) {
-  if (!config.enabled) {
-    return false;
-  }
-  
-  const timezone = config.timezone || 'Europe/Berlin';
-  const now = moment().tz(timezone);
-  const batterySoC = currentSystemState?.battery_soc || 0;
-  
-  console.log(`Tibber charging evaluation: SoC=${batterySoC}%, Target=${config.targetSoC}%, Min=${config.minimumSoC}%`);
-  
-  // Battery is already at target level
-  if (batterySoC >= config.targetSoC) {
-    sendGridChargeCommand(mqttClient, false, config);
-    console.log(`Battery full (${batterySoC}% >= ${config.targetSoC}%), disabling grid charging`);
-    return true;
-  }
-  
-  // Battery is below minimum level - emergency charging
-  if (batterySoC < config.minimumSoC) {
-    sendGridChargeCommand(mqttClient, true, config);
-    console.log(`Emergency charging: Battery low (${batterySoC}% < ${config.minimumSoC}%)`);
-    return true;
-  }
-  
-  // Check if we're in a scheduled charging time
-  if (isWithinScheduledChargingTime(config, now)) {
-    sendGridChargeCommand(mqttClient, true, config);
-    console.log('Charging due to scheduled time period');
-    return true;
-  }
-  
-  // Check if current price is low (using Tibber intelligence)
-  if (isCurrentlyLowPrice(config, currentSystemState)) {
-    sendGridChargeCommand(mqttClient, true, config);
     
-    // Get current price info for logging
-    const currentPrice = config.pricingData.find(p => {
-      const priceTime = moment(p.timestamp).tz(timezone);
-      return now.isSame(priceTime, 'hour');
+    if (!location || !location.lat || !location.lon) {
+      return { success: false, error: 'No location configured for weather forecast' };
+    }
+    
+    const { lat, lon } = location;
+    const apiKey = config.weatherConditions.weatherApiKey.trim();
+    
+    if (!apiKey) {
+      return { success: false, error: 'Weather API key is empty' };
+    }
+    
+    console.log(`🌤️ Fetching weather forecast for lat:${lat}, lon:${lon}`);
+    
+    const response = await axios.get(`https://api.openweathermap.org/data/2.5/forecast`, {
+      params: {
+        lat: lat,
+        lon: lon,
+        appid: apiKey,
+        units: 'metric',
+        cnt: 8 // Next 24 hours (8 x 3-hour periods)
+      },
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'SolarAutopilot/1.0'
+      }
     });
     
-    if (currentPrice) {
-      console.log(`Charging due to low price: ${currentPrice.price} ${config.currency}/kWh (Level: ${currentPrice.level || 'N/A'})`);
+    if (response.data && response.data.list && response.data.list.length > 0) {
+      console.log(`✅ Weather forecast received: ${response.data.list.length} periods`);
+      return {
+        success: true,
+        forecast: response.data.list,
+        location: response.data.city ? response.data.city.name : 'Unknown',
+        coordinates: { lat, lon },
+        apiResponseCode: response.status
+      };
+    } else {
+      return { 
+        success: false, 
+        error: 'No forecast data in API response',
+        apiResponseCode: response.status
+      };
     }
     
-    return true;
+  } catch (error) {
+    console.error('Weather API Error:', error.message);
+    
+    // Provide specific error messages based on error type
+    if (error.response) {
+      const status = error.response.status;
+      const statusText = error.response.statusText;
+      
+      switch (status) {
+        case 401:
+          return { success: false, error: 'Invalid weather API key (401 Unauthorized)' };
+        case 429:
+          return { success: false, error: 'Weather API rate limit exceeded (429 Too Many Requests)' };
+        case 404:
+          return { success: false, error: 'Weather API endpoint not found (404)' };
+        default:
+          return { 
+            success: false, 
+            error: `Weather API error: ${status} ${statusText}`,
+            details: error.response.data
+          };
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      return { success: false, error: 'Weather API request timeout' };
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      return { success: false, error: 'Cannot connect to weather API server' };
+    } else {
+      return { success: false, error: error.message };
+    }
   }
-  
-  // Price is not favorable, disable charging
-  sendGridChargeCommand(mqttClient, false, config);
-  console.log('Current price not favorable for charging');
-  return true;
 }
 
-// Send a command to enable or disable grid charging
-function sendGridChargeCommand(mqttClient, enable, config) {
-  if (!mqttClient || !mqttClient.connected) {
-    console.error('MQTT client is not connected, cannot send grid charge command');
-    return false;
+// Analyze weather conditions for charging decision
+function analyzeWeatherConditions(config, weatherData) {
+  if (!weatherData || !weatherData.success) {
+    return { shouldInfluenceCharging: false, reason: 'No weather data available' };
+  }
+  
+  const forecast = weatherData.forecast;
+  const settings = config.weatherConditions;
+  
+  // Analyze next 12 hours weather
+  const next12Hours = forecast.slice(0, 4);
+  
+  let cloudyCount = 0;
+  let stormCount = 0;
+  let avgCloudCover = 0;
+  
+  next12Hours.forEach(period => {
+    const cloudCover = period.clouds.all; // Percentage
+    avgCloudCover += cloudCover;
+    
+    if (cloudCover > settings.cloudCoverThreshold) cloudyCount++;
+    
+    // Check for storms or heavy weather
+    const weather = period.weather[0];
+    if (weather.main === 'Thunderstorm' || (weather.main === 'Rain' && weather.description.includes('heavy'))) {
+      stormCount++;
+    }
+  });
+  
+  avgCloudCover = avgCloudCover / next12Hours.length;
+  
+  // Determine if weather should influence charging
+  if (settings.chargeBeforeStorm && stormCount > 0) {
+    return { 
+      shouldInfluenceCharging: true, 
+      reason: 'Storm expected in next 12 hours - charging recommended',
+      priority: 'high',
+      details: { stormCount, avgCloudCover }
+    };
+  }
+  
+  if (settings.chargeOnCloudyDays && avgCloudCover > settings.cloudCoverThreshold) {
+    return { 
+      shouldInfluenceCharging: true, 
+      reason: `High cloud cover expected (${Math.round(avgCloudCover)}%) - charging recommended`,
+      priority: 'medium',
+      details: { avgCloudCover, cloudyCount }
+    };
+  }
+  
+  if (avgCloudCover < 30) {
+    return { 
+      shouldInfluenceCharging: false, 
+      reason: 'Clear skies expected - good solar conditions',
+      priority: 'low',
+      details: { avgCloudCover }
+    };
+  }
+  
+  return { 
+    shouldInfluenceCharging: false, 
+    reason: 'Weather conditions neutral',
+    details: { avgCloudCover, cloudyCount, stormCount }
+  };
+}
+
+// Check time-based conditions
+function checkTimeConditions(config) {
+  if (!config.timeConditions.enabled) {
+    return { allow: true, reason: 'Time conditions disabled' };
+  }
+  
+  const now = moment().tz(config.timezone);
+  const currentTime = now.format('HH:mm');
+  const timeSettings = config.timeConditions;
+  
+  // Check if we're in peak hours (avoid charging during peak if enabled)
+  if (timeSettings.avoidPeakHours) {
+    const peakStart = timeSettings.peakStart;
+    const peakEnd = timeSettings.peakEnd;
+    
+    if (isTimeInRange(currentTime, peakStart, peakEnd)) {
+      return { 
+        allow: false, 
+        reason: `Peak hours (${peakStart}-${peakEnd}) - charging avoided`,
+        priority: 'high'
+      };
+    }
+  }
+  
+  // Check if night charging is preferred
+  if (timeSettings.preferNightCharging) {
+    const nightStart = timeSettings.nightStart;
+    const nightEnd = timeSettings.nightEnd;
+    
+    if (isTimeInRange(currentTime, nightStart, nightEnd)) {
+      return { 
+        allow: true, 
+        reason: `Night time charging preferred (${nightStart}-${nightEnd})`,
+        priority: 'medium'
+      };
+    } else {
+      return { 
+        allow: false, 
+        reason: 'Outside preferred night charging hours',
+        priority: 'low'
+      };
+    }
+  }
+  
+  return { allow: true, reason: 'Time conditions satisfied' };
+}
+
+// Check if current time is within a time range
+function isTimeInRange(currentTime, startTime, endTime) {
+  const current = moment(currentTime, 'HH:mm');
+  const start = moment(startTime, 'HH:mm');
+  const end = moment(endTime, 'HH:mm');
+  
+  if (end.isBefore(start)) {
+    // Overnight range (e.g., 22:00 to 06:00)
+    return current.isAfter(start) || current.isBefore(end);
+  } else {
+    // Same day range
+    return current.isBetween(start, end, null, '[)');
+  }
+}
+
+// Enhanced smart power conditions checker
+function checkSmartPowerConditions(config, systemState) {
+  if (!config.smartPowerConditions.enabled || !config.smartPowerConditions.rules.length) {
+    return { 
+      allow: true, 
+      reason: 'Smart power conditions disabled or no rules defined',
+      details: { rulesCount: 0 }
+    };
+  }
+  
+  const rules = config.smartPowerConditions.rules;
+  const results = [];
+  
+  // Check each user-defined power rule
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+    
+    const ruleResult = evaluateSmartPowerRule(rule, systemState);
+    results.push({
+      ruleId: rule.id,
+      ruleName: rule.name,
+      passed: ruleResult.passed,
+      reason: ruleResult.reason,
+      priority: rule.priority,
+      details: ruleResult.details
+    });
+  }
+  
+  // Find highest priority passing rule
+  const passingRules = results.filter(r => r.passed);
+  
+  if (passingRules.length > 0) {
+    // Sort by priority (high > medium > low)
+    const priorityOrder = { high: 3, medium: 2, low: 1 };
+    passingRules.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+    
+    const bestRule = passingRules[0];
+    return {
+      allow: true,
+      reason: `User rule "${bestRule.ruleName}" conditions met`,
+      priority: bestRule.priority,
+      details: {
+        passingRules: passingRules.length,
+        appliedRule: bestRule,
+        allResults: results
+      }
+    };
+  }
+  
+  // No rules passed
+  const failedReasons = results.map(r => `${r.ruleName}: ${r.reason}`);
+  return {
+    allow: false,
+    reason: `No user power rules satisfied`,
+    priority: 'low',
+    details: {
+      failedRules: results.length,
+      failedReasons: failedReasons.slice(0, 2), // Show first 2 failures
+      allResults: results
+    }
+  };
+}
+
+
+// Evaluate a single smart power rule
+function evaluateSmartPowerRule(rule, systemState) {
+  const conditions = rule.conditions;
+  const results = [];
+  
+  for (const [parameter, condition] of Object.entries(conditions)) {
+    const result = evaluateCondition(parameter, condition, systemState);
+    results.push(result);
+    
+    if (!result.passed) {
+      return {
+        passed: false,
+        reason: result.reason,
+        details: { failedCondition: parameter, allConditions: results }
+      };
+    }
+  }
+  
+  return {
+    passed: true,
+    reason: `All conditions satisfied`,
+    details: { passedConditions: results.length, conditions: results }
+  };
+}
+
+// Evaluate individual condition with enhanced logic
+function evaluateCondition(parameter, condition, systemState) {
+  let currentValue = systemState[parameter];
+  let compareValue;
+  
+  // Handle comparison with other parameters
+  if (condition.compare) {
+    compareValue = systemState[condition.compare];
+    if (condition.offset) {
+      compareValue += condition.offset;
+    }
+  } else {
+    compareValue = condition.value;
+  }
+  
+  if (currentValue === null || currentValue === undefined) {
+    return {
+      passed: false,
+      reason: `${parameter} not available (${currentValue})`,
+      values: { current: currentValue, compare: compareValue }
+    };
+  }
+  
+  if (compareValue === null || compareValue === undefined) {
+    return {
+      passed: false,
+      reason: `Comparison value not available for ${parameter}`,
+      values: { current: currentValue, compare: compareValue }
+    };
+  }
+  
+  let passed = false;
+  let operator = condition.operator;
+  
+  switch (operator) {
+    case 'gt':
+      passed = currentValue > compareValue;
+      break;
+    case 'lt':
+      passed = currentValue < compareValue;
+      break;
+    case 'eq':
+      passed = Math.abs(currentValue - compareValue) < 0.01;
+      break;
+    case 'gte':
+      passed = currentValue >= compareValue;
+      break;
+    case 'lte':
+      passed = currentValue <= compareValue;
+      break;
+    default:
+      return {
+        passed: false,
+        reason: `Invalid operator ${operator}`,
+        values: { current: currentValue, compare: compareValue }
+      };
+  }
+  
+  const compareText = condition.compare ? 
+    `${condition.compare}${condition.offset ? ' + ' + condition.offset : ''}` : 
+    compareValue.toString();
+  
+  return {
+    passed: passed,
+    reason: `${parameter} ${currentValue} ${operator} ${compareText} (${compareValue}) = ${passed}`,
+    values: { current: currentValue, compare: compareValue, operator }
+  };
+}
+
+// Enhanced price conditions with real Tibber integration
+async function checkPriceConditions(config) {
+  const priceSettings = config.priceBasedCharging;
+  
+  if (!priceSettings.enabled) {
+    return { allow: false, reason: 'Price-based charging disabled' };
   }
   
   try {
-    // Read the global options to get the MQTT topic prefix
-    const optionsPath = path.join(__dirname, '..', 'data', 'options.json');
-    let options;
+    let currentPrice = null;
     
-    try {
-      options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
-    } catch (error) {
-      // Fallback to /data/options.json for Home Assistant add-on
-      options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+    // Try to get real-time Tibber price first
+    if (config.tibberApiKey && priceSettings.useRealTibberPrices) {
+      try {
+        currentPrice = await pricingApis.getTibberCurrentPrice(config);
+        console.log(`💰 Real-time Tibber price: ${currentPrice.price} ${currentPrice.currency}/kWh (Level: ${currentPrice.level})`);
+      } catch (tibberError) {
+        console.log(`❌ Tibber API error: ${tibberError.message}, falling back to stored data`);
+      }
     }
     
-    const mqttTopicPrefix = options.mqtt_topic_prefix || 'energy';
-    const inverterNumber = options.inverter_number || 1;
-    
-    // Send command to each inverter
-    for (let i = 1; i <= inverterNumber; i++) {
-      const topic = `${mqttTopicPrefix}/inverter_${i}/grid_charge/set`;
-      const value = enable ? 'Enabled' : 'Disabled';
+    // Fallback to stored pricing data
+    if (!currentPrice && config.pricingData && config.pricingData.length > 0) {
+      const timezone = config.timezone || 'Europe/Berlin';
+      const now = moment().tz(timezone);
       
-      mqttClient.publish(topic, value, { qos: 1, retain: false }, (err) => {
-        if (err) {
-          console.error(`Error publishing to ${topic}: ${err.message}`);
-        } else {
-          console.log(`Tibber grid charge command sent: ${topic} = ${value}`);
-        }
+      currentPrice = config.pricingData.find(p => {
+        const priceTime = moment(p.timestamp).tz(timezone);
+        return now.isSame(priceTime, 'hour');
       });
     }
     
-    // Log the action
-    const logMessage = `${new Date().toISOString()} - Tibber dynamic pricing ${enable ? 'enabled' : 'disabled'} grid charging`;
-    const logFile = path.join(__dirname, 'logs', 'dynamic_pricing.log');
+    if (!currentPrice) {
+      return { allow: false, reason: 'No current price data available' };
+    }
     
-    // Ensure logs directory exists
-    const logDir = path.dirname(logFile);
+    // Use Tibber levels if available and enabled
+    if (priceSettings.useTibberLevels && currentPrice.level && priceSettings.preferTibberLevels) {
+      const allowedLevels = priceSettings.allowedTibberLevels || ['VERY_CHEAP', 'CHEAP'];
+      const isAllowedLevel = allowedLevels.includes(currentPrice.level);
+      
+      if (isAllowedLevel) {
+        return { 
+          allow: true, 
+          reason: `Tibber price level favorable (${currentPrice.level}): ${currentPrice.price.toFixed(4)} ${config.currency}/kWh`,
+          details: {
+            price: currentPrice.price,
+            level: currentPrice.level,
+            source: currentPrice.isRealTime ? 'Real-time Tibber' : 'Cached data'
+          }
+        };
+      } else {
+        return { 
+          allow: false, 
+          reason: `Tibber price level unfavorable (${currentPrice.level}): ${currentPrice.price.toFixed(4)} ${config.currency}/kWh`,
+          details: {
+            price: currentPrice.price,
+            level: currentPrice.level,
+            allowedLevels: allowedLevels
+          }
+        };
+      }
+    }
+    
+    // Use price threshold
+    const maxPrice = priceSettings.maxPriceThreshold;
+    
+    if (currentPrice.price <= maxPrice) {
+      return { 
+        allow: true, 
+        reason: `Price below threshold: ${currentPrice.price.toFixed(4)} ${config.currency}/kWh ≤ ${maxPrice.toFixed(4)} ${config.currency}/kWh`,
+        details: {
+          price: currentPrice.price,
+          threshold: maxPrice,
+          level: currentPrice.level || 'N/A'
+        }
+      };
+    } else {
+      return { 
+        allow: false, 
+        reason: `Price above threshold: ${currentPrice.price.toFixed(4)} ${config.currency}/kWh > ${maxPrice.toFixed(4)} ${config.currency}/kWh`,
+        details: {
+          price: currentPrice.price,
+          threshold: maxPrice,
+          level: currentPrice.level || 'N/A'
+        }
+      };
+    }
+  } catch (error) {
+    console.error('Error checking price conditions:', error.message);
+    return { 
+      allow: false, 
+      reason: `Price check failed: ${error.message}` 
+    };
+  }
+}
+
+// Main charging decision logic with enhanced conditions
+async function shouldChargeNow(config, currentSystemState) {
+  console.log('🔋 Enhanced dynamic pricing: Charging decision analysis starting...');
+  
+  // Check if feature is enabled
+  if (!config.enabled) {
+    return {
+      shouldCharge: false,
+      reason: 'Enhanced dynamic pricing is disabled',
+      details: { enabled: false }
+    };
+  }
+  
+  // Check cooldown first
+  if (isInCooldown(config)) {
+    return {
+      shouldCharge: false,
+      reason: 'System is in cooldown period',
+      details: { cooldown: true }
+    };
+  }
+  
+  const batterySoC = currentSystemState?.battery_soc || 0;
+  const batterySettings = config.battery;
+  
+  // Emergency charging check
+  if (batterySoC < batterySettings.emergencySoC) {
+    console.log(`🚨 Emergency charging: SoC ${batterySoC}% < ${batterySettings.emergencySoC}%`);
+    return {
+      shouldCharge: true,
+      reason: 'Emergency charging - battery critically low',
+      details: { emergency: true, batterySoC },
+      priority: 'emergency'
+    };
+  }
+  
+  // Check if battery is already full
+  if (batterySoC >= batterySettings.targetSoC) {
+    return {
+      shouldCharge: false,
+      reason: `Battery at target SoC (${batterySoC}% >= ${batterySettings.targetSoC}%)`,
+      details: { batteryFull: true, batterySoC }
+    };
+  }
+  
+  // Check maximum SoC limit
+  if (batterySoC >= batterySettings.maxSoC) {
+    return {
+      shouldCharge: false,
+      reason: `Battery at maximum SoC (${batterySoC}% >= ${batterySettings.maxSoC}%)`,
+      details: { batteryMax: true, batterySoC }
+    };
+  }
+  
+  const analysisResults = {
+    price: null,
+    weather: null,
+    time: null,
+    smartPower: null,
+    scheduled: null
+  };
+  
+  // 1. Check scheduled charging first
+  if (config.scheduledCharging && config.chargingHours && config.chargingHours.length > 0) {
+    const now = moment().tz(config.timezone);
+    const currentTime = now.format('HH:mm');
+    
+    const inScheduledTime = config.chargingHours.some(period => {
+      return isTimeInRange(currentTime, period.start, period.end);
+    });
+    
+    if (inScheduledTime) {
+      analysisResults.scheduled = {
+        allow: true,
+        reason: 'Within scheduled charging period',
+        priority: 'high'
+      };
+      
+      console.log('✅ Scheduled charging time detected');
+      return {
+        shouldCharge: true,
+        reason: 'Scheduled charging period active',
+        details: { scheduled: true, batterySoC, analysisResults },
+        priority: 'scheduled'
+      };
+    }
+  }
+  
+  // 2. Check time conditions
+  const timeCheck = checkTimeConditions(config);
+  analysisResults.time = timeCheck;
+  
+  if (!timeCheck.allow && timeCheck.priority === 'high') {
+    console.log(`⏰ Time condition blocked: ${timeCheck.reason}`);
+    return {
+      shouldCharge: false,
+      reason: timeCheck.reason,
+      details: { timeBlocked: true, batterySoC, analysisResults }
+    };
+  }
+  
+  // 3. Check enhanced smart power conditions
+  const smartPowerCheck = checkSmartPowerConditions(config, currentSystemState);
+  analysisResults.smartPower = smartPowerCheck;
+  
+  // 4. Check weather conditions
+  let weatherAnalysis = null;
+  if (config.weatherConditions.enabled) {
+    try {
+      const weatherData = await getWeatherForecast(config);
+      weatherAnalysis = analyzeWeatherConditions(config, weatherData);
+      analysisResults.weather = weatherAnalysis;
+      
+      console.log(`🌤️ Weather analysis: ${weatherAnalysis.reason}`);
+    } catch (error) {
+      console.error('Weather analysis failed:', error);
+      analysisResults.weather = { shouldInfluenceCharging: false, reason: 'Weather analysis failed' };
+    }
+  }
+  
+  // 5. Check price conditions with real Tibber prices
+  const priceCheck = await checkPriceConditions(config);
+  analysisResults.price = priceCheck;
+  
+  console.log(`💰 Enhanced price analysis: ${priceCheck.reason}`);
+  
+  // Enhanced decision logic combining all factors
+  let shouldCharge = false;
+  let primaryReason = '';
+  let priority = 'low';
+  
+  // High priority weather conditions (storms, etc.)
+  if (weatherAnalysis && weatherAnalysis.shouldInfluenceCharging && weatherAnalysis.priority === 'high') {
+    shouldCharge = true;
+    primaryReason = weatherAnalysis.reason;
+    priority = 'weather-emergency';
+  }
+  // Smart power conditions (high priority)
+  else if (smartPowerCheck.allow && smartPowerCheck.priority === 'high') {
+    if (priceCheck.allow) {
+      shouldCharge = true;
+      primaryReason = `Smart power rule + favorable prices: ${smartPowerCheck.reason} & ${priceCheck.reason}`;
+      priority = 'smart-power-high';
+    } else {
+      // High priority power conditions can override price restrictions for emergency situations
+      if (batterySoC < batterySettings.minimumSoC) {
+        shouldCharge = true;
+        primaryReason = `Emergency smart power rule (low battery): ${smartPowerCheck.reason}`;
+        priority = 'smart-power-emergency';
+      } else {
+        shouldCharge = false;
+        primaryReason = `Smart power conditions met but price unfavorable: ${priceCheck.reason}`;
+        priority = 'price-blocked';
+      }
+    }
+  }
+  // Price-based charging when conditions are favorable
+  else if (priceCheck.allow) {
+    const favorableConditions = [];
+    
+    // Add time preference
+    if (timeCheck.allow && timeCheck.priority === 'medium') {
+      favorableConditions.push('preferred time');
+    }
+    
+    // Add weather preference
+    if (weatherAnalysis && weatherAnalysis.shouldInfluenceCharging && weatherAnalysis.priority === 'medium') {
+      favorableConditions.push('weather forecast');
+    }
+    
+    // Add medium priority smart power conditions
+    if (smartPowerCheck.allow && smartPowerCheck.priority === 'medium') {
+      favorableConditions.push('smart power conditions');
+    }
+    
+    shouldCharge = true;
+    primaryReason = `Favorable prices: ${priceCheck.reason}`;
+    if (favorableConditions.length > 0) {
+      primaryReason += ` (+ ${favorableConditions.join(', ')})`;
+    }
+    priority = 'price-based';
+  }
+  // Don't charge if price conditions are not met
+  else {
+    shouldCharge = false;
+    primaryReason = priceCheck.reason;
+    
+    // Show additional context about failed conditions
+    const blockedConditions = [];
+    if (!smartPowerCheck.allow) blockedConditions.push('smart power');
+    if (!timeCheck.allow && timeCheck.priority !== 'low') blockedConditions.push('time restrictions');
+    if (weatherAnalysis && !weatherAnalysis.shouldInfluenceCharging) blockedConditions.push('weather neutral');
+    
+    if (blockedConditions.length > 0) {
+      primaryReason += ` (also: ${blockedConditions.join(', ')})`;
+    }
+    
+    priority = 'conditions-blocked';
+  }
+  
+  console.log(`🔋 Enhanced Decision: ${shouldCharge ? 'CHARGE' : 'DON\'T CHARGE'} - ${primaryReason} (Priority: ${priority})`);
+  
+  return {
+    shouldCharge,
+    reason: primaryReason,
+    details: { 
+      batterySoC, 
+      analysisResults,
+      enhanced: true,
+      tibberIntegration: !!config.tibberApiKey,
+      smartPowerRules: config.smartPowerConditions.enabled
+    },
+    priority
+  };
+}
+
+// Test weather API connection
+async function testWeatherAPI(config) {
+  try {
+    const testResult = await getWeatherForecast(config);
+    return testResult;
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Weather API test failed: ' + error.message
+    };
+  }
+}
+
+// Grid charge command with cooldown management (existing function, kept same)
+async function sendGridChargeCommand(mqttClient, enable, config) {
+  try {
+    const dynamicPricingMqtt = require('./dynamicPricingMqtt');
+    
+    if (!dynamicPricingMqtt.isLearnerModeActive()) {
+      console.log('🔄 Would send grid charge command but learner mode is not active');
+      return false;
+    }
+    
+    const success = dynamicPricingMqtt.sendGridChargeCommand(mqttClient, enable, config);
+    
+    if (success) {
+      updateCooldownState('charging_command', true);
+      
+      const action = enable ? 'enabled' : 'disabled';
+      console.log(`🔋 Grid charging ${action} successfully with enhanced conditions and cooldown tracking`);
+      
+      logAction(`Grid charging ${action} with enhanced conditions analysis`);
+    } else {
+      updateCooldownState('error');
+    }
+    
+    return success;
+  } catch (error) {
+    console.error('Error in enhanced grid charge command:', error);
+    updateCooldownState('error');
+    return false;
+  }
+}
+
+// Logging function (existing, kept same)
+function logAction(action) {
+  try {
+    const logDir = path.join(__dirname, '..', 'logs');
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
     
-    fs.appendFileSync(logFile, logMessage + '\n');
+    const logFile = path.join(logDir, 'dynamic_pricing.log');
+    const timestamp = new Date().toISOString();
     
+    const cooldownState = loadCooldownState();
+    const cooldownInfo = `(cycles today: ${cooldownState.chargingCyclesToday})`;
+    
+    const logMessage = `${timestamp} - ${action} ${cooldownInfo}\n`;
+    
+    if (fs.existsSync(logFile)) {
+      const stats = fs.statSync(logFile);
+      if (stats.size > 100000) { // 100KB
+        const content = fs.readFileSync(logFile, 'utf8');
+        const lines = content.split('\n').slice(-50);
+        fs.writeFileSync(logFile, lines.join('\n') + '\n');
+      }
+    }
+    
+    fs.appendFileSync(logFile, logMessage);
+  } catch (error) {
+    console.error('Error logging action:', error);
+  }
+}
+
+// Get status with enhanced information
+function getStatus(config, currentSystemState) {
+  const cooldownState = loadCooldownState();
+  
+  return {
+    enabled: config.enabled,
+    tibberIntegration: {
+      enabled: !!config.tibberApiKey,
+      country: config.country,
+      city: config.city,
+      useRealPrices: config.priceBasedCharging?.useRealTibberPrices
+    },
+    cooldown: {
+      inCooldown: isInCooldown(config),
+      chargingCyclesUsed: cooldownState.chargingCyclesToday,
+      maxCyclesPerDay: config.cooldown.maxChargingCyclesPerDay,
+      lastChargingCommand: cooldownState.lastChargingCommand,
+      nextChargingAllowed: cooldownState.lastChargingCommand ? 
+        moment(cooldownState.lastChargingCommand).add(config.cooldown.chargingCooldownMinutes, 'minutes').toISOString() : null
+    },
+    conditions: {
+      price: config.priceBasedCharging,
+      weather: config.weatherConditions,
+      time: config.timeConditions,
+      smartPower: config.smartPowerConditions
+    },
+    battery: {
+      currentSoC: currentSystemState?.battery_soc || 0,
+      settings: config.battery
+    },
+    currentPrice: config.currentPrice,
+    lastDecision: null,
+    enhanced: true
+  };
+}
+
+
+// Add user rule management functions
+function addUserSmartPowerRule(config, newRule) {
+  if (!config.smartPowerConditions) {
+    config.smartPowerConditions = { enabled: false, rules: [] };
+  }
+  
+  // Generate unique ID
+  const ruleId = 'user_rule_' + Date.now();
+  newRule.id = ruleId;
+  
+  // Validate rule structure
+  if (!newRule.name || !newRule.conditions) {
+    throw new Error('Rule must have name and conditions');
+  }
+  
+  // Set defaults
+  newRule.enabled = newRule.enabled !== false;
+  newRule.priority = newRule.priority || 'medium';
+  newRule.description = newRule.description || 'User-defined rule';
+  
+  config.smartPowerConditions.rules.push(newRule);
+  
+  return ruleId;
+}
+
+function removeUserSmartPowerRule(config, ruleId) {
+  if (!config.smartPowerConditions || !config.smartPowerConditions.rules) {
+    return false;
+  }
+  
+  const index = config.smartPowerConditions.rules.findIndex(rule => rule.id === ruleId);
+  if (index !== -1) {
+    config.smartPowerConditions.rules.splice(index, 1);
     return true;
-  } catch (error) {
-    console.error('Error sending grid charge command:', error.message);
+  }
+  
+  return false;
+}
+
+function updateUserSmartPowerRule(config, ruleId, updates) {
+  if (!config.smartPowerConditions || !config.smartPowerConditions.rules) {
     return false;
   }
-}
-
-// Update pricing data from Tibber API
-async function updatePricingData(mqttClient, currentSystemState) {
-  console.log('Updating Tibber electricity pricing data...');
   
-  try {
-    const config = loadConfig();
-    
-    if (!config || !config.enabled) {
-      console.log('Tibber dynamic pricing is disabled, skipping price update');
-      return false;
-    }
-    
-    if (!config.apiKey || config.apiKey.trim() === '') {
-      console.error('Tibber API token not configured');
-      return false;
-    }
-    
-    // Fetch latest pricing data from Tibber
-    const prices = await pricingApis.fetchElectricityPrices(config);
-    
-    if (prices && prices.length > 0) {
-      // Update the config with new pricing data
-      config.pricingData = prices;
-      config.lastUpdate = new Date().toISOString();
-      
-      // Update currency if we got it from Tibber data
-      if (prices[0].currency) {
-        config.currency = prices[0].currency;
-      }
-      
-      // Update timezone if we got it from Tibber data
-      if (prices[0].timezone) {
-        config.timezone = prices[0].timezone;
-      }
-      
-      // Save the updated config
-      saveConfig(config);
-      
-      console.log(`Updated Tibber pricing data: ${prices.length} price points for ${config.country}`);
-      console.log(`Currency: ${config.currency}, Timezone: ${config.timezone}`);
-      
-      // Immediately evaluate charging decision with new data
-      scheduleCharging(config, mqttClient, currentSystemState);
-      
-      return true;
-    } else {
-      console.error('Failed to fetch Tibber pricing data or no price points received');
-      return false;
-    }
-  } catch (error) {
-    console.error('Error updating Tibber pricing data:', error.message);
-    return false;
-  }
-}
-
-// Get the next best charging times based on Tibber data
-function getNextBestChargingTimes(config, hours = 4) {
-  if (!config || !config.pricingData || config.pricingData.length === 0) {
-    return [];
-  }
-  
-  const timezone = config.timezone || 'Europe/Berlin';
-  const now = moment().tz(timezone);
-  
-  // Get future prices only
-  const futurePrices = config.pricingData.filter(p => {
-    const priceTime = moment(p.timestamp).tz(timezone);
-    return priceTime.isAfter(now);
-  });
-  
-  if (futurePrices.length === 0) {
-    return [];
-  }
-  
-  // If we have Tibber levels, prioritize by level
-  if (futurePrices.some(p => p.level) && config.useTibberLevels) {
-    const levelPriority = {
-      'VERY_CHEAP': 1,
-      'CHEAP': 2,
-      'NORMAL': 3,
-      'EXPENSIVE': 4,
-      'VERY_EXPENSIVE': 5
-    };
-    
-    const sortedByLevel = futurePrices.sort((a, b) => {
-      const priorityA = levelPriority[a.level] || 3;
-      const priorityB = levelPriority[b.level] || 3;
-      
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-      
-      // If same level, sort by price
-      return a.price - b.price;
-    });
-    
-    return sortedByLevel.slice(0, hours).map(p => ({
-      time: moment(p.timestamp).tz(timezone).format('HH:mm'),
-      date: moment(p.timestamp).tz(timezone).format('MMM D'),
-      price: p.price,
-      currency: p.currency || config.currency,
-      level: p.level
-    }));
-  }
-  
-  // Fallback to price-based sorting
-  const sortedByPrice = futurePrices.sort((a, b) => a.price - b.price);
-  
-  return sortedByPrice.slice(0, hours).map(p => ({
-    time: moment(p.timestamp).tz(timezone).format('HH:mm'),
-    date: moment(p.timestamp).tz(timezone).format('MMM D'),
-    price: p.price,
-    currency: p.currency || config.currency,
-    level: p.level || 'UNKNOWN'
-  }));
-}
-
-// Initialize dynamic pricing module with Tibber
-function initializeDynamicPricing(mqttClient, currentSystemState) {
-  try {
-    // Ensure config file exists
-    ensureConfigExists();
-    
-    console.log('🔋 Initializing Tibber dynamic pricing module...');
-    
-    // Set up scheduled jobs - less frequent to avoid API limits
-    
-    // Update pricing data every 4 hours (Tibber updates prices daily around 13:00)
-    cron.schedule('0 */4 * * *', async () => {
-      await updatePricingData(mqttClient, currentSystemState);
-    });
-    
-    // Check charging schedule every 30 minutes
-    cron.schedule('*/30 * * * *', () => {
-      const config = loadConfig();
-      if (config && config.enabled) {
-        scheduleCharging(config, mqttClient, currentSystemState);
-      }
-    });
-    
-    // Special schedule at 13:30 when Tibber typically updates next day prices
-    cron.schedule('30 13 * * *', async () => {
-      console.log('Tibber daily price update time - fetching latest prices');
-      await updatePricingData(mqttClient, currentSystemState);
-    });
-    
-    // Do an initial update
-    setTimeout(() => {
-      updatePricingData(mqttClient, currentSystemState);
-    }, 5000);
-    
-    // Make functions available globally
-    global.tibberDynamicPricing = {
-      loadConfig,
-      saveConfig,
-      updatePricingData,
-      scheduleCharging,
-      determineLowPricePeriods,
-      getNextBestChargingTimes,
-      isCurrentlyLowPrice
-    };
-    
-    console.log('✅ Tibber dynamic electricity pricing module initialized');
+  const rule = config.smartPowerConditions.rules.find(rule => rule.id === ruleId);
+  if (rule) {
+    Object.assign(rule, updates);
     return true;
-  } catch (error) {
-    console.error('❌ Error initializing Tibber dynamic pricing module:', error.message);
-    return false;
   }
+  
+  return false;
 }
 
 module.exports = {
-  initializeDynamicPricing,
-  updatePricingData,
-  scheduleCharging,
-  determineLowPricePeriods,
   loadConfig,
   saveConfig,
   ensureConfigExists,
-  getNextBestChargingTimes,
-  isCurrentlyLowPrice
+  shouldChargeNow,
+  sendGridChargeCommand,
+  getStatus,
+  isInCooldown,
+  updateCooldownState,
+  getWeatherForecast,
+  testWeatherAPI, // NEW function
+  analyzeWeatherConditions,
+  checkTimeConditions,
+  checkSmartPowerConditions,
+  checkPriceConditions,
+  logAction,
+  evaluateSmartPowerRule,
+  evaluateCondition,
+  // NEW functions for user rule management
+  addUserSmartPowerRule,
+  removeUserSmartPowerRule,
+  updateUserSmartPowerRule
 };
