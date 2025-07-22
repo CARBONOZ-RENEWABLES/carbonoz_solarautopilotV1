@@ -41,10 +41,10 @@ function getDefaultConfig() {
       maxSoC: 95 // Maximum allowed SoC
     },
     
-    // EMPTY smart power conditions - user will create their own
+    // COMPLETELY EMPTY smart power conditions - user creates their own
     smartPowerConditions: {
       enabled: false,
-      rules: [] // Start with empty rules array
+      rules: [] // Start with empty rules array - NO DEFAULT RULES
     },
     
     // Weather-based charging with country/city selection
@@ -160,7 +160,7 @@ function isObject(item) {
   return (item && typeof item === 'object' && !Array.isArray(item));
 }
 
-// Cooldown state management (existing code)
+// Cooldown state management
 function loadCooldownState() {
   try {
     if (fs.existsSync(COOLDOWN_STATE_FILE)) {
@@ -476,24 +476,35 @@ function isTimeInRange(currentTime, startTime, endTime) {
   }
 }
 
-// Enhanced smart power conditions checker
+// Enhanced smart power conditions checker - NO DEFAULT RULES
 function checkSmartPowerConditions(config, systemState) {
   if (!config.smartPowerConditions.enabled || !config.smartPowerConditions.rules.length) {
     return { 
       allow: true, 
-      reason: 'Smart power conditions disabled or no rules defined',
-      details: { rulesCount: 0 }
+      reason: 'Smart power conditions disabled or no custom rules defined',
+      details: { 
+        rulesCount: 0,
+        userDefined: true,
+        optional: true
+      }
     };
   }
   
   const rules = config.smartPowerConditions.rules;
   const results = [];
   
+  console.log(`🔧 Evaluating ${rules.length} user-defined smart power rule(s)...`);
+  
   // Check each user-defined power rule
   for (const rule of rules) {
-    if (!rule.enabled) continue;
+    if (!rule.enabled) {
+      console.log(`⏭️ Skipping disabled rule: ${rule.name}`);
+      continue;
+    }
     
+    console.log(`🔍 Evaluating rule: "${rule.name}" (Priority: ${rule.priority})`);
     const ruleResult = evaluateSmartPowerRule(rule, systemState);
+    
     results.push({
       ruleId: rule.id,
       ruleName: rule.name,
@@ -502,6 +513,8 @@ function checkSmartPowerConditions(config, systemState) {
       priority: rule.priority,
       details: ruleResult.details
     });
+    
+    console.log(`📋 Rule "${rule.name}": ${ruleResult.passed ? 'PASSED' : 'FAILED'} - ${ruleResult.reason}`);
   }
   
   // Find highest priority passing rule
@@ -515,64 +528,95 @@ function checkSmartPowerConditions(config, systemState) {
     const bestRule = passingRules[0];
     return {
       allow: true,
-      reason: `User rule "${bestRule.ruleName}" conditions met`,
+      reason: `Custom rule "${bestRule.ruleName}" conditions satisfied`,
       priority: bestRule.priority,
       details: {
         passingRules: passingRules.length,
         appliedRule: bestRule,
-        allResults: results
+        allResults: results,
+        userDefined: true
       }
     };
   }
   
   // No rules passed
-  const failedReasons = results.map(r => `${r.ruleName}: ${r.reason}`);
+  const failedReasons = results
+    .filter(r => !r.passed)
+    .map(r => `${r.ruleName}: ${r.reason}`)
+    .slice(0, 3); // Show first 3 failures
+    
   return {
     allow: false,
-    reason: `No user power rules satisfied`,
+    reason: `No custom power rules satisfied (${results.length} rules checked)`,
     priority: 'low',
     details: {
-      failedRules: results.length,
-      failedReasons: failedReasons.slice(0, 2), // Show first 2 failures
-      allResults: results
+      failedRules: results.filter(r => !r.passed).length,
+      failedReasons: failedReasons,
+      allResults: results,
+      userDefined: true
     }
   };
 }
 
-
-// Evaluate a single smart power rule
+// Enhanced rule evaluation with better parameter support
 function evaluateSmartPowerRule(rule, systemState) {
   const conditions = rule.conditions;
   const results = [];
   
+  console.log(`🔧 Evaluating ${Object.keys(conditions).length} condition(s) for rule "${rule.name}"`);
+  
   for (const [parameter, condition] of Object.entries(conditions)) {
-    const result = evaluateCondition(parameter, condition, systemState);
+    const result = evaluateEnhancedCondition(parameter, condition, systemState);
     results.push(result);
+    
+    console.log(`   📊 ${parameter}: ${result.reason} → ${result.passed ? 'PASS' : 'FAIL'}`);
     
     if (!result.passed) {
       return {
         passed: false,
-        reason: result.reason,
-        details: { failedCondition: parameter, allConditions: results }
+        reason: `Condition failed: ${result.reason}`,
+        details: { 
+          failedCondition: parameter, 
+          allConditions: results,
+          systemState: {
+            battery_soc: systemState.battery_soc,
+            pv_power: systemState.pv_power,
+            load: systemState.load,
+            grid_power: systemState.grid_power,
+            battery_power: systemState.battery_power,
+            grid_voltage: systemState.grid_voltage
+          }
+        }
       };
     }
   }
   
   return {
     passed: true,
-    reason: `All conditions satisfied`,
-    details: { passedConditions: results.length, conditions: results }
+    reason: `All ${results.length} condition(s) satisfied`,
+    details: { 
+      passedConditions: results.length, 
+      conditions: results,
+      systemState: {
+        battery_soc: systemState.battery_soc,
+        pv_power: systemState.pv_power,
+        load: systemState.load,
+        grid_power: systemState.grid_power,
+        battery_power: systemState.battery_power,
+        grid_voltage: systemState.grid_voltage
+      }
+    }
   };
 }
 
-// Evaluate individual condition with enhanced logic
-function evaluateCondition(parameter, condition, systemState) {
-  let currentValue = systemState[parameter];
+// Enhanced condition evaluation with more parameters and better handling
+function evaluateEnhancedCondition(parameter, condition, systemState) {
+  let currentValue = getCurrentSystemValue(parameter, systemState);
   let compareValue;
   
-  // Handle comparison with other parameters
+  // Handle comparison with other parameters or fixed values
   if (condition.compare) {
-    compareValue = systemState[condition.compare];
+    compareValue = getCurrentSystemValue(condition.compare, systemState);
     if (condition.offset) {
       compareValue += condition.offset;
     }
@@ -580,25 +624,30 @@ function evaluateCondition(parameter, condition, systemState) {
     compareValue = condition.value;
   }
   
+  // Validate current value
   if (currentValue === null || currentValue === undefined) {
     return {
       passed: false,
-      reason: `${parameter} not available (${currentValue})`,
-      values: { current: currentValue, compare: compareValue }
+      reason: `${parameter} not available (current: ${currentValue})`,
+      values: { current: currentValue, compare: compareValue },
+      parameterStatus: 'unavailable'
     };
   }
   
+  // Validate compare value
   if (compareValue === null || compareValue === undefined) {
     return {
       passed: false,
-      reason: `Comparison value not available for ${parameter}`,
-      values: { current: currentValue, compare: compareValue }
+      reason: `Comparison value not available for ${parameter} (compare: ${compareValue})`,
+      values: { current: currentValue, compare: compareValue },
+      parameterStatus: 'compare_unavailable'
     };
   }
   
   let passed = false;
   let operator = condition.operator;
   
+  // Enhanced operator support
   switch (operator) {
     case 'gt':
       passed = currentValue > compareValue;
@@ -615,11 +664,22 @@ function evaluateCondition(parameter, condition, systemState) {
     case 'lte':
       passed = currentValue <= compareValue;
       break;
+    case 'ne': // Not equal
+      passed = Math.abs(currentValue - compareValue) >= 0.01;
+      break;
+    case 'between': // For range conditions
+      if (condition.maxValue !== undefined) {
+        passed = currentValue >= compareValue && currentValue <= condition.maxValue;
+      } else {
+        passed = false;
+      }
+      break;
     default:
       return {
         passed: false,
-        reason: `Invalid operator ${operator}`,
-        values: { current: currentValue, compare: compareValue }
+        reason: `Invalid operator "${operator}" for ${parameter}`,
+        values: { current: currentValue, compare: compareValue },
+        parameterStatus: 'invalid_operator'
       };
   }
   
@@ -627,11 +687,55 @@ function evaluateCondition(parameter, condition, systemState) {
     `${condition.compare}${condition.offset ? ' + ' + condition.offset : ''}` : 
     compareValue.toString();
   
+  const operatorText = getOperatorText(operator);
+  
   return {
     passed: passed,
-    reason: `${parameter} ${currentValue} ${operator} ${compareText} (${compareValue}) = ${passed}`,
-    values: { current: currentValue, compare: compareValue, operator }
+    reason: `${parameter} ${currentValue} ${operatorText} ${compareText} (${compareValue})`,
+    values: { 
+      current: currentValue, 
+      compare: compareValue, 
+      operator: operator,
+      operatorText: operatorText
+    },
+    parameterStatus: 'evaluated'
   };
+}
+
+// Get current system value with enhanced parameter support
+function getCurrentSystemValue(parameter, systemState) {
+  const parameterMap = {
+    'battery_soc': systemState.battery_soc,
+    'pv_power': systemState.pv_power,
+    'load_power': systemState.load,
+    'load': systemState.load, // Alias
+    'grid_power': systemState.grid_power,
+    'battery_power': systemState.battery_power,
+    'grid_voltage': systemState.grid_voltage,
+    // Additional calculated values
+    'net_power': (systemState.pv_power || 0) - (systemState.load || 0),
+    'battery_charging_power': Math.max(0, systemState.battery_power || 0),
+    'battery_discharging_power': Math.max(0, -(systemState.battery_power || 0)),
+    'grid_import': Math.max(0, systemState.grid_power || 0),
+    'grid_export': Math.max(0, -(systemState.grid_power || 0))
+  };
+  
+  return parameterMap[parameter];
+}
+
+// Get human-readable operator text
+function getOperatorText(operator) {
+  const operatorMap = {
+    'gt': 'greater than',
+    'lt': 'less than',
+    'gte': 'greater than or equal to',
+    'lte': 'less than or equal to',
+    'eq': 'equal to',
+    'ne': 'not equal to',
+    'between': 'between'
+  };
+  
+  return operatorMap[operator] || operator;
 }
 
 // Enhanced price conditions with real Tibber integration
@@ -960,7 +1064,7 @@ async function testWeatherAPI(config) {
   }
 }
 
-// Grid charge command with cooldown management (existing function, kept same)
+// Grid charge command with cooldown management
 async function sendGridChargeCommand(mqttClient, enable, config) {
   try {
     const dynamicPricingMqtt = require('./dynamicPricingMqtt');
@@ -991,7 +1095,7 @@ async function sendGridChargeCommand(mqttClient, enable, config) {
   }
 }
 
-// Logging function (existing, kept same)
+// Logging function
 function logAction(action) {
   try {
     const logDir = path.join(__dirname, '..', 'logs');
@@ -1058,7 +1162,6 @@ function getStatus(config, currentSystemState) {
   };
 }
 
-
 // Add user rule management functions
 function addUserSmartPowerRule(config, newRule) {
   if (!config.smartPowerConditions) {
@@ -1122,15 +1225,16 @@ module.exports = {
   isInCooldown,
   updateCooldownState,
   getWeatherForecast,
-  testWeatherAPI, // NEW function
+  testWeatherAPI,
   analyzeWeatherConditions,
   checkTimeConditions,
   checkSmartPowerConditions,
   checkPriceConditions,
   logAction,
   evaluateSmartPowerRule,
-  evaluateCondition,
-  // NEW functions for user rule management
+  evaluateEnhancedCondition,
+  getCurrentSystemValue,
+  getOperatorText,
   addUserSmartPowerRule,
   removeUserSmartPowerRule,
   updateUserSmartPowerRule
