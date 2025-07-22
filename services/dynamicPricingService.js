@@ -1,4 +1,4 @@
-// services/dynamicPricingService.js - ENHANCED WITH TIBBER AND SMART CONDITIONS
+// services/dynamicPricingService.js - FIXED VERSION WITH PROPER API INTEGRATIONS
 
 const axios = require('axios');
 const moment = require('moment-timezone');
@@ -10,6 +10,7 @@ const pricingApis = require('./pricingApis');
 // Configuration file path
 const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, '..', 'data', 'dynamic_pricing_config.json');
 const COOLDOWN_STATE_FILE = path.join(__dirname, '..', 'data', 'cooldown_state.json');
+const CURRENT_PRICE_CACHE_FILE = path.join(__dirname, '..', 'data', 'current_price_cache.json');
 
 // Default configuration with enhanced features
 function getDefaultConfig() {
@@ -138,6 +139,50 @@ function saveConfig(config) {
   }
 }
 
+// Save current price to cache for persistence
+function saveCurrentPriceCache(priceData) {
+  try {
+    const cacheDir = path.dirname(CURRENT_PRICE_CACHE_FILE);
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    
+    const cacheData = {
+      price: priceData,
+      timestamp: new Date().toISOString(),
+      expires: moment().add(1, 'hour').toISOString() // Cache for 1 hour
+    };
+    
+    fs.writeFileSync(CURRENT_PRICE_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+  } catch (error) {
+    console.error('Error saving price cache:', error);
+  }
+}
+
+// Load current price from cache
+function loadCurrentPriceCache() {
+  try {
+    if (!fs.existsSync(CURRENT_PRICE_CACHE_FILE)) {
+      return null;
+    }
+    
+    const cacheData = JSON.parse(fs.readFileSync(CURRENT_PRICE_CACHE_FILE, 'utf8'));
+    const now = moment();
+    const expires = moment(cacheData.expires);
+    
+    if (now.isBefore(expires)) {
+      return cacheData.price;
+    } else {
+      // Cache expired, remove file
+      fs.unlinkSync(CURRENT_PRICE_CACHE_FILE);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error loading price cache:', error);
+    return null;
+  }
+}
+
 // Deep merge utility function
 function mergeDeep(target, source) {
   const output = Object.assign({}, target);
@@ -253,7 +298,7 @@ function updateCooldownState(actionType, success = true) {
   saveCooldownState(cooldownState);
 }
 
-// Get weather forecast data with country/city support
+// FIXED: Get weather forecast data with proper error handling
 async function getWeatherForecast(config) {
   if (!config.weatherConditions.enabled || !config.weatherConditions.weatherApiKey) {
     return { success: false, error: 'Weather conditions disabled or no API key' };
@@ -283,67 +328,109 @@ async function getWeatherForecast(config) {
       return { success: false, error: 'Weather API key is empty' };
     }
     
-    console.log(`🌤️ Fetching weather forecast for lat:${lat}, lon:${lon}`);
+    console.log(`🌤️ Fetching weather forecast for lat:${lat}, lon:${lon} with key:${apiKey.substring(0, 8)}...`);
     
-    const response = await axios.get(`https://api.openweathermap.org/data/2.5/forecast`, {
-      params: {
-        lat: lat,
-        lon: lon,
-        appid: apiKey,
-        units: 'metric',
-        cnt: 8 // Next 24 hours (8 x 3-hour periods)
-      },
+    // FIXED: Updated URL and parameters for OpenWeatherMap API 2.5
+    const url = 'https://api.openweathermap.org/data/2.5/forecast';
+    const params = {
+      lat: lat,
+      lon: lon,
+      appid: apiKey,
+      units: 'metric',
+      cnt: 8, // Next 24 hours (8 x 3-hour periods)
+      lang: 'en'
+    };
+    
+    console.log('🌤️ Weather API Request URL:', url);
+    console.log('🌤️ Weather API Parameters:', { ...params, appid: apiKey.substring(0, 8) + '...' });
+    
+    const response = await axios.get(url, {
+      params: params,
       timeout: 15000,
       headers: {
-        'User-Agent': 'SolarAutopilot/1.0'
+        'User-Agent': 'SolarAutopilot/1.0',
+        'Accept': 'application/json'
       }
     });
     
+    console.log('🌤️ Weather API Response Status:', response.status);
+    console.log('🌤️ Weather API Response Data Keys:', Object.keys(response.data));
+    
     if (response.data && response.data.list && response.data.list.length > 0) {
       console.log(`✅ Weather forecast received: ${response.data.list.length} periods`);
+      console.log('🌤️ First forecast item:', JSON.stringify(response.data.list[0], null, 2));
+      
       return {
         success: true,
         forecast: response.data.list,
         location: response.data.city ? response.data.city.name : 'Unknown',
         coordinates: { lat, lon },
-        apiResponseCode: response.status
+        apiResponseCode: response.status,
+        current: response.data.list[0] // Add current weather for easier access
       };
     } else {
+      console.error('❌ No forecast data in API response:', response.data);
       return { 
         success: false, 
         error: 'No forecast data in API response',
-        apiResponseCode: response.status
+        apiResponseCode: response.status,
+        responseData: response.data
       };
     }
     
   } catch (error) {
-    console.error('Weather API Error:', error.message);
+    console.error('❌ Weather API Error:', error.message);
     
-    // Provide specific error messages based on error type
+    // FIXED: Provide specific error messages based on error type
     if (error.response) {
       const status = error.response.status;
       const statusText = error.response.statusText;
+      const responseData = error.response.data;
+      
+      console.error('❌ Weather API Error Response:', {
+        status,
+        statusText,
+        data: responseData
+      });
       
       switch (status) {
         case 401:
-          return { success: false, error: 'Invalid weather API key (401 Unauthorized)' };
+          return { 
+            success: false, 
+            error: `Invalid weather API key (401 Unauthorized). Please check your OpenWeatherMap API key.`,
+            details: responseData
+          };
         case 429:
-          return { success: false, error: 'Weather API rate limit exceeded (429 Too Many Requests)' };
+          return { 
+            success: false, 
+            error: 'Weather API rate limit exceeded (429 Too Many Requests). Please try again later.',
+            details: responseData
+          };
         case 404:
-          return { success: false, error: 'Weather API endpoint not found (404)' };
+          return { 
+            success: false, 
+            error: 'Weather API endpoint not found (404). The location might be invalid.',
+            details: responseData
+          };
+        case 400:
+          return { 
+            success: false, 
+            error: `Bad request to weather API (400). ${responseData?.message || 'Invalid parameters.'}`,
+            details: responseData
+          };
         default:
           return { 
             success: false, 
             error: `Weather API error: ${status} ${statusText}`,
-            details: error.response.data
+            details: responseData
           };
       }
     } else if (error.code === 'ECONNABORTED') {
-      return { success: false, error: 'Weather API request timeout' };
+      return { success: false, error: 'Weather API request timeout. Please try again.' };
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      return { success: false, error: 'Cannot connect to weather API server' };
+      return { success: false, error: 'Cannot connect to weather API server. Please check your internet connection.' };
     } else {
-      return { success: false, error: error.message };
+      return { success: false, error: `Weather API error: ${error.message}` };
     }
   }
 }
@@ -702,25 +789,36 @@ function evaluateEnhancedCondition(parameter, condition, systemState) {
   };
 }
 
-// Get current system value with enhanced parameter support
+// FIXED: Get current system value with enhanced parameter support and null handling
 function getCurrentSystemValue(parameter, systemState) {
-  const parameterMap = {
-    'battery_soc': systemState.battery_soc,
-    'pv_power': systemState.pv_power,
-    'load_power': systemState.load,
-    'load': systemState.load, // Alias
-    'grid_power': systemState.grid_power,
-    'battery_power': systemState.battery_power,
-    'grid_voltage': systemState.grid_voltage,
-    // Additional calculated values
-    'net_power': (systemState.pv_power || 0) - (systemState.load || 0),
-    'battery_charging_power': Math.max(0, systemState.battery_power || 0),
-    'battery_discharging_power': Math.max(0, -(systemState.battery_power || 0)),
-    'grid_import': Math.max(0, systemState.grid_power || 0),
-    'grid_export': Math.max(0, -(systemState.grid_power || 0))
+  // FIXED: Better null/undefined handling for system state values
+  const getValue = (value) => {
+    if (value === null || value === undefined || value === 'N/A' || value === '--') {
+      return null;
+    }
+    const num = Number(value);
+    return isNaN(num) ? null : num;
   };
   
-  return parameterMap[parameter];
+  const parameterMap = {
+    'battery_soc': getValue(systemState.battery_soc),
+    'pv_power': getValue(systemState.pv_power),
+    'load_power': getValue(systemState.load),
+    'load': getValue(systemState.load), // Alias
+    'grid_power': getValue(systemState.grid_power),
+    'battery_power': getValue(systemState.battery_power), // FIXED: Ensure battery_power is handled
+    'grid_voltage': getValue(systemState.grid_voltage),
+    // Additional calculated values
+    'net_power': getValue((systemState.pv_power || 0) - (systemState.load || 0)),
+    'battery_charging_power': Math.max(0, getValue(systemState.battery_power) || 0),
+    'battery_discharging_power': Math.max(0, -(getValue(systemState.battery_power) || 0)),
+    'grid_import': Math.max(0, getValue(systemState.grid_power) || 0),
+    'grid_export': Math.max(0, -(getValue(systemState.grid_power) || 0))
+  };
+  
+  const value = parameterMap[parameter];
+  console.log(`🔍 getCurrentSystemValue(${parameter}): ${value} (from systemState.${parameter}: ${systemState[parameter]})`);
+  return value;
 }
 
 // Get human-readable operator text
@@ -738,7 +836,7 @@ function getOperatorText(operator) {
   return operatorMap[operator] || operator;
 }
 
-// Enhanced price conditions with real Tibber integration
+// FIXED: Enhanced price conditions with real Tibber integration and caching
 async function checkPriceConditions(config) {
   const priceSettings = config.priceBasedCharging;
   
@@ -754,8 +852,17 @@ async function checkPriceConditions(config) {
       try {
         currentPrice = await pricingApis.getTibberCurrentPrice(config);
         console.log(`💰 Real-time Tibber price: ${currentPrice.price} ${currentPrice.currency}/kWh (Level: ${currentPrice.level})`);
+        
+        // Save to cache for persistence
+        saveCurrentPriceCache(currentPrice);
       } catch (tibberError) {
-        console.log(`❌ Tibber API error: ${tibberError.message}, falling back to stored data`);
+        console.log(`❌ Tibber API error: ${tibberError.message}, trying cache...`);
+        
+        // Try to load from cache
+        currentPrice = loadCurrentPriceCache();
+        if (currentPrice) {
+          console.log(`💰 Using cached price: ${currentPrice.price} ${currentPrice.currency}/kWh (Level: ${currentPrice.level})`);
+        }
       }
     }
     
@@ -768,6 +875,10 @@ async function checkPriceConditions(config) {
         const priceTime = moment(p.timestamp).tz(timezone);
         return now.isSame(priceTime, 'hour');
       });
+      
+      if (currentPrice) {
+        console.log(`💰 Using stored price data: ${currentPrice.price} ${currentPrice.currency || 'EUR'}/kWh`);
+      }
     }
     
     if (!currentPrice) {
@@ -857,8 +968,18 @@ async function shouldChargeNow(config, currentSystemState) {
     };
   }
   
-  const batterySoC = currentSystemState?.battery_soc || 0;
+  // FIXED: Better handling of battery SoC with null checks
+  const batterySoC = getCurrentSystemValue('battery_soc', currentSystemState);
   const batterySettings = config.battery;
+  
+  if (batterySoC === null) {
+    console.log('⚠️ Battery SoC data not available, skipping charging decision');
+    return {
+      shouldCharge: false,
+      reason: 'Battery SoC data not available',
+      details: { batteryDataMissing: true }
+    };
+  }
   
   // Emergency charging check
   if (batterySoC < batterySettings.emergencySoC) {
@@ -1126,9 +1247,15 @@ function logAction(action) {
   }
 }
 
-// Get status with enhanced information
+// FIXED: Get status with enhanced information and current price
 function getStatus(config, currentSystemState) {
   const cooldownState = loadCooldownState();
+  
+  // Try to get current price from cache
+  let currentPrice = loadCurrentPriceCache();
+  if (!currentPrice && config.currentPrice) {
+    currentPrice = config.currentPrice;
+  }
   
   return {
     enabled: config.enabled,
@@ -1153,10 +1280,10 @@ function getStatus(config, currentSystemState) {
       smartPower: config.smartPowerConditions
     },
     battery: {
-      currentSoC: currentSystemState?.battery_soc || 0,
+      currentSoC: getCurrentSystemValue('battery_soc', currentSystemState) || 0,
       settings: config.battery
     },
-    currentPrice: config.currentPrice,
+    currentPrice: currentPrice, // FIXED: Include persistent current price
     lastDecision: null,
     enhanced: true
   };
@@ -1237,5 +1364,7 @@ module.exports = {
   getOperatorText,
   addUserSmartPowerRule,
   removeUserSmartPowerRule,
-  updateUserSmartPowerRule
+  updateUserSmartPowerRule,
+  saveCurrentPriceCache,
+  loadCurrentPriceCache
 };

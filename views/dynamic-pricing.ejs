@@ -2947,326 +2947,63 @@ color: #f3f4f6;
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="<%= ingress_path %>/js/dynamic-pricing.js"></script>
-
- <script>
-    // Dynamic Pricing Dashboard - Complete JavaScript Implementation
-// Enhanced with real-time data updates and Tibber integration
+   <script>
+    // Dynamic Pricing Dashboard JavaScript
+// Enhanced with beautiful charts and real-time updates
 
 class DynamicPricingDashboard {
     constructor() {
         this.config = {};
-        this.status = {};
-        this.pricingData = [];
-        this.chart = null;
-        this.updateInterval = null;
-        this.statusInterval = null;
+        this.systemState = {};
         this.priceChart = null;
-        this.currentEditingRule = null;
-        this.powerRules = [];
-        this.schedules = [];
+        this.isConnected = false;
+        this.updateInterval = null;
+        this.toastContainer = document.getElementById('toastContainer');
         
-        // Country/City mapping
-        this.cityMap = {
-            'NO': [
-                { name: 'Oslo', lat: 59.9139, lon: 10.7522 },
-                { name: 'Bergen', lat: 60.3913, lon: 5.3221 },
-                { name: 'Trondheim', lat: 63.4305, lon: 10.3951 },
-                { name: 'Stavanger', lat: 58.9700, lon: 5.7331 }
-            ],
-            'SE': [
-                { name: 'Stockholm', lat: 59.3293, lon: 18.0686 },
-                { name: 'Göteborg', lat: 57.7089, lon: 11.9746 },
-                { name: 'Malmö', lat: 55.6050, lon: 13.0038 },
-                { name: 'Uppsala', lat: 59.8586, lon: 17.6389 }
-            ],
-            'DK': [
-                { name: 'Copenhagen', lat: 55.6761, lon: 12.5683 },
-                { name: 'Århus', lat: 56.1629, lon: 10.2039 },
-                { name: 'Odense', lat: 55.4038, lon: 10.4024 },
-                { name: 'Aalborg', lat: 57.0488, lon: 9.9217 }
-            ],
-            'FI': [
-                { name: 'Helsinki', lat: 60.1699, lon: 24.9384 },
-                { name: 'Espoo', lat: 60.2055, lon: 24.6559 },
-                { name: 'Tampere', lat: 61.4991, lon: 23.7871 },
-                { name: 'Vantaa', lat: 60.2934, lon: 25.0378 }
-            ],
-            'DE': [
-                { name: 'Berlin', lat: 52.5200, lon: 13.4050 },
-                { name: 'Hamburg', lat: 53.5511, lon: 9.9937 },
-                { name: 'Munich', lat: 48.1351, lon: 11.5820 },
-                { name: 'Cologne', lat: 50.9375, lon: 6.9603 },
-                { name: 'Frankfurt', lat: 50.1109, lon: 8.6821 }
-            ],
-            'NL': [
-                { name: 'Amsterdam', lat: 52.3676, lon: 4.9041 },
-                { name: 'Rotterdam', lat: 51.9244, lon: 4.4777 },
-                { name: 'The Hague', lat: 52.0705, lon: 4.3007 },
-                { name: 'Utrecht', lat: 52.0907, lon: 5.1214 }
-            ],
-            'GB': [
-                { name: 'London', lat: 51.5074, lon: -0.1278 },
-                { name: 'Manchester', lat: 53.4808, lon: -2.2426 },
-                { name: 'Birmingham', lat: 52.4862, lon: -1.8904 },
-                { name: 'Leeds', lat: 53.8008, lon: -1.5491 }
-            ]
-        };
-
+        // Initialize the dashboard
         this.init();
     }
 
     async init() {
-        console.log('🔋 Initializing Dynamic Pricing Dashboard...');
-        
-        // Initialize components
-        this.setupEventListeners();
-        this.setupTabs();
-        this.initializeChart();
-        this.setupCountryCityHandler();
-        
-        // Load initial data
-        await this.loadSettings();
-        await this.loadStatus();
-        await this.loadPricingData();
-        
-        // Start real-time updates
-        this.startRealTimeUpdates();
-        
-        // Update connection status
-        this.updateConnectionStatus();
-        
-        console.log('✅ Dynamic Pricing Dashboard initialized successfully');
-    }
-
-    setupEventListeners() {
-        // Quick Action Buttons
-        document.getElementById('manualChargeBtn')?.addEventListener('click', () => this.manualCharge(true));
-        document.getElementById('manualStopBtn')?.addEventListener('click', () => this.manualCharge(false));
-        document.getElementById('refreshDataBtn')?.addEventListener('click', () => this.refreshAllData());
-        document.getElementById('testConditionsBtn')?.addEventListener('click', () => this.testConditions());
-        
-        // Configuration buttons
-        document.getElementById('saveSettingsBtn')?.addEventListener('click', () => this.saveSettings());
-        document.getElementById('disableBtn')?.addEventListener('click', () => this.toggleEnable(false));
-        document.getElementById('resetSettingsBtn')?.addEventListener('click', () => this.resetSettings());
-        document.getElementById('exportSettingsBtn')?.addEventListener('click', () => this.exportSettings());
-        document.getElementById('importSettingsBtn')?.addEventListener('click', () => this.importSettings());
-        
-        // Test buttons
-        document.getElementById('testTibberBtn')?.addEventListener('click', () => this.testTibberConnection());
-        document.getElementById('testWeatherBtn')?.addEventListener('click', () => this.testWeatherConnection());
-        
-        // Status refresh buttons
-        document.getElementById('refreshStatusBtn')?.addEventListener('click', () => this.loadStatus());
-        
-        // API key visibility toggle
-        document.getElementById('toggleApiKey')?.addEventListener('click', () => this.toggleApiKeyVisibility());
-        
-        // Chart period selector
-        document.getElementById('chartPeriod')?.addEventListener('change', (e) => this.updateChartPeriod(e.target.value));
-        
-        // Power Rules
-        document.getElementById('addPowerRuleBtn')?.addEventListener('click', () => this.openPowerRuleModal());
-        document.getElementById('saveRuleBtn')?.addEventListener('click', () => this.savePowerRule());
-        document.getElementById('cancelRuleBtn')?.addEventListener('click', () => this.closePowerRuleModal());
-        document.getElementById('closePowerRuleModal')?.addEventListener('click', () => this.closePowerRuleModal());
-        document.getElementById('addConditionBtn')?.addEventListener('click', () => this.addCondition());
-        
-        // Schedule management
-        document.getElementById('addScheduleBtn')?.addEventListener('click', () => this.addSchedule());
-        
-        // Toggle handlers for enabling/disabling sections
-        this.setupToggleHandlers();
-        
-        // Form change handlers
-        this.setupFormChangeHandlers();
-    }
-
-    setupToggleHandlers() {
-        // Price-based charging toggle
-        const priceToggle = document.getElementById('enablePriceCharging');
-        if (priceToggle) {
-            priceToggle.addEventListener('change', () => {
-                this.toggleSection('tibberLevelsConfig', priceToggle.checked);
-                this.toggleSection('priceThresholdConfig', priceToggle.checked);
-            });
-        }
-
-        // Tibber levels vs price threshold
-        const tibberLevelsToggle = document.getElementById('useTibberLevels');
-        if (tibberLevelsToggle) {
-            tibberLevelsToggle.addEventListener('change', () => {
-                document.getElementById('tibberLevelsConfig').style.display = 
-                    tibberLevelsToggle.checked ? 'block' : 'none';
-                document.getElementById('priceThresholdConfig').style.display = 
-                    tibberLevelsToggle.checked ? 'none' : 'block';
-            });
-        }
-
-        // Weather conditions toggle
-        const weatherToggle = document.getElementById('enableWeatherConditions');
-        if (weatherToggle) {
-            weatherToggle.addEventListener('change', () => {
-                this.toggleSection('currentWeatherDisplay', weatherToggle.checked);
-            });
-        }
-
-        // Power conditions toggle
-        const powerToggle = document.getElementById('enablePowerConditions');
-        if (powerToggle) {
-            powerToggle.addEventListener('change', () => {
-                this.toggleSection('powerRulesSection', powerToggle.checked);
-            });
-        }
-
-        // Time conditions toggle
-        const timeToggle = document.getElementById('enableTimeConditions');
-        if (timeToggle) {
-            timeToggle.addEventListener('change', () => {
-                this.updateTimeConditionsVisibility();
-            });
-        }
-
-        // Scheduled charging toggle
-        const scheduleToggle = document.getElementById('enableScheduledCharging');
-        if (scheduleToggle) {
-            scheduleToggle.addEventListener('change', () => {
-                this.toggleSection('scheduleBuilder', scheduleToggle.checked);
-            });
-        }
-
-        // Cooldown toggle
-        const cooldownToggle = document.getElementById('enableCooldown');
-        if (cooldownToggle) {
-            cooldownToggle.addEventListener('change', () => {
-                // Cooldown specific toggles handled in form
-            });
+        try {
+            console.log('🔋 Initializing Dynamic Pricing Dashboard...');
+            
+            // Hide loading overlay
+            this.hideLoading();
+            
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Initialize chart
+            this.initializeChart();
+            
+            // Load initial data
+            await this.loadConfiguration();
+            await this.loadSystemStatus();
+            
+            // Start periodic updates
+            this.startPeriodicUpdates();
+            
+            // Setup tab functionality
+            this.setupTabs();
+            
+            console.log('✅ Dashboard initialized successfully');
+            this.showToast('Dashboard loaded successfully', 'success');
+        } catch (error) {
+            console.error('❌ Error initializing dashboard:', error);
+            this.showToast('Error initializing dashboard: ' + error.message, 'error');
         }
     }
 
-    setupFormChangeHandlers() {
-        // Auto-save on certain field changes
-        const autoSaveFields = [
-            'emergencySOC', 'minimumSOC', 'targetSOC', 'maxSOC',
-            'cloudCoverThreshold', 'peakStart', 'peakEnd', 
-            'nightStart', 'nightEnd', 'chargingCooldownMinutes', 
-            'maxChargingCyclesPerDay'
-        ];
-
-        autoSaveFields.forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.addEventListener('blur', () => {
-                    // Auto-save with debouncing
-                    clearTimeout(this.autoSaveTimeout);
-                    this.autoSaveTimeout = setTimeout(() => this.saveSettings(), 2000);
-                });
-            }
-        });
-    }
-
-    setupTabs() {
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tabId = btn.getAttribute('data-tab');
-                
-                // Remove active class from all tabs and contents
-                tabBtns.forEach(b => b.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-                
-                // Add active class to clicked tab and corresponding content
-                btn.classList.add('active');
-                const targetContent = document.getElementById(`${tabId}-tab`);
-                if (targetContent) {
-                    targetContent.classList.add('active');
-                }
-            });
-        });
-    }
-
-    setupCountryCityHandler() {
-        const countrySelect = document.getElementById('country');
-        const citySelect = document.getElementById('city');
-        const timezoneSelect = document.getElementById('timezone');
-
-        if (countrySelect && citySelect) {
-            countrySelect.addEventListener('change', () => {
-                const country = countrySelect.value;
-                this.updateCityOptions(country);
-                this.updateTimezone(country);
-            });
-        }
-    }
-
-    updateCityOptions(countryCode) {
-        const citySelect = document.getElementById('city');
-        if (!citySelect) return;
-
-        // Clear existing options
-        citySelect.innerHTML = '<option value="">Select City</option>';
-
-        if (this.cityMap[countryCode]) {
-            this.cityMap[countryCode].forEach(city => {
-                const option = document.createElement('option');
-                option.value = city.name;
-                option.textContent = city.name;
-                citySelect.appendChild(option);
-            });
-        }
-    }
-
-    updateTimezone(countryCode) {
-        const timezoneSelect = document.getElementById('timezone');
-        if (!timezoneSelect) return;
-
-        const timezoneMap = {
-            'NO': 'Europe/Oslo',
-            'SE': 'Europe/Stockholm',
-            'DK': 'Europe/Copenhagen',
-            'FI': 'Europe/Helsinki',
-            'DE': 'Europe/Berlin',
-            'NL': 'Europe/Amsterdam',
-            'GB': 'Europe/London'
-        };
-
-        if (timezoneMap[countryCode]) {
-            timezoneSelect.value = timezoneMap[countryCode];
-        }
-    }
-
-    toggleSection(sectionId, show) {
-        const section = document.getElementById(sectionId);
-        if (section) {
-            section.style.display = show ? 'block' : 'none';
-        }
-    }
-
-    updateTimeConditionsVisibility() {
-        const enabled = document.getElementById('enableTimeConditions')?.checked;
-        const avoidPeak = document.getElementById('avoidPeakHours')?.checked;
-        const preferNight = document.getElementById('preferNightCharging')?.checked;
-
-        // Show/hide peak hour controls
-        ['peakStart', 'peakEnd'].forEach(id => {
-            const field = document.getElementById(id)?.parentElement;
-            if (field) field.style.display = (enabled && avoidPeak) ? 'block' : 'none';
-        });
-
-        // Show/hide night charging controls
-        ['nightStart', 'nightEnd'].forEach(id => {
-            const field = document.getElementById(id)?.parentElement;
-            if (field) field.style.display = (enabled && preferNight) ? 'block' : 'none';
-        });
-    }
+    // =============================================================================
+    // CHART INITIALIZATION AND MANAGEMENT
+    // =============================================================================
 
     initializeChart() {
         const ctx = document.getElementById('priceChart');
         if (!ctx) return;
 
+        // Beautiful chart configuration
         this.priceChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -3274,192 +3011,605 @@ class DynamicPricingDashboard {
                 datasets: [{
                     label: 'Price',
                     data: [],
-                    borderColor: 'rgb(37, 99, 235)',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    borderWidth: 2,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
                     fill: true,
-                    tension: 0.1,
-                    pointBackgroundColor: function(context) {
-                        const level = context.raw?.level;
-                        const colors = {
-                            'VERY_CHEAP': '#10b981',
-                            'CHEAP': '#22c55e',
-                            'NORMAL': '#64748b',
-                            'EXPENSIVE': '#f59e0b',
-                            'VERY_EXPENSIVE': '#ef4444'
-                        };
-                        return colors[level] || '#64748b';
-                    },
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#3b82f6',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
+                    segment: {
+                        borderColor: (ctx) => this.getSegmentColor(ctx),
+                        backgroundColor: (ctx) => this.getSegmentBackgroundColor(ctx)
+                    }
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
                 plugins: {
                     legend: {
                         display: false
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: false,
                         callbacks: {
-                            label: function(context) {
-                                const dataPoint = context.raw;
-                                const level = dataPoint?.level || 'Unknown';
-                                return `${context.formattedValue} EUR/kWh (${level})`;
+                            title: (tooltipItems) => {
+                                const dataIndex = tooltipItems[0].dataIndex;
+                                const rawData = this.priceChart.data.datasets[0].rawData;
+                                if (rawData && rawData[dataIndex]) {
+                                    const time = new Date(rawData[dataIndex].timestamp);
+                                    return time.toLocaleString();
+                                }
+                                return tooltipItems[0].label;
+                            },
+                            label: (context) => {
+                                const dataIndex = context.dataIndex;
+                                const rawData = this.priceChart.data.datasets[0].rawData;
+                                if (rawData && rawData[dataIndex]) {
+                                    const item = rawData[dataIndex];
+                                    const level = item.level ? ` (${item.level})` : '';
+                                    return `Price: ${context.parsed.y.toFixed(4)} ${item.currency || 'EUR'}/kWh${level}`;
+                                }
+                                return `Price: ${context.parsed.y.toFixed(4)} EUR/kWh`;
                             }
                         }
                     }
                 },
                 scales: {
                     x: {
+                        display: true,
                         grid: {
-                            display: true,
-                            color: 'rgba(0, 0, 0, 0.05)'
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
                         },
                         ticks: {
-                            maxRotation: 45
+                            color: '#6b7280',
+                            font: {
+                                size: 11
+                            },
+                            maxTicksLimit: 12,
+                            callback: function(value, index) {
+                                const rawData = this.chart.data.datasets[0].rawData;
+                                if (rawData && rawData[index]) {
+                                    const time = new Date(rawData[index].timestamp);
+                                    return time.getHours().toString().padStart(2, '0') + ':00';
+                                }
+                                return this.getLabelForValue(value);
+                            }
                         }
                     },
                     y: {
+                        display: true,
                         grid: {
-                            display: true,
-                            color: 'rgba(0, 0, 0, 0.05)'
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
                         },
-                        title: {
-                            display: true,
-                            text: 'Price (EUR/kWh)'
+                        ticks: {
+                            color: '#6b7280',
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return value.toFixed(3);
+                            }
                         }
                     }
                 },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
                 }
             }
         });
+
+        // Setup chart period selector
+        document.getElementById('chartPeriod')?.addEventListener('change', (e) => {
+            this.updateChart(e.target.value);
+        });
     }
 
-    updateChartPeriod(period) {
-        console.log('📊 Updating chart period:', period);
-        this.loadPricingData(period);
-    }
-
-    async loadSettings() {
-        try {
-            console.log('🔧 Loading dynamic pricing settings...');
-            const response = await fetch('/api/dynamic-pricing/settings');
-            const data = await response.json();
-
-            if (data.success) {
-                this.config = data.config;
-                this.populateSettingsForm(this.config);
-                this.updateInverterStatus(data.inverterStatus);
-                console.log('✅ Settings loaded successfully');
-            } else {
-                throw new Error(data.error || 'Failed to load settings');
-            }
-        } catch (error) {
-            console.error('❌ Error loading settings:', error);
-            this.showToast('Failed to load settings: ' + error.message, 'error');
-        }
-    }
-
-    populateSettingsForm(config) {
-        // Tibber settings
-        this.setFieldValue('tibberApiKey', this.maskApiKey(config.tibberApiKey || ''));
-        this.setFieldValue('country', config.country || 'DE');
-        this.setFieldValue('city', config.city || 'Berlin');
-        this.setFieldValue('timezone', config.timezone || 'Europe/Berlin');
+    getSegmentColor(ctx) {
+        const rawData = ctx.chart.data.datasets[0].rawData;
+        if (!rawData || !rawData[ctx.p0DataIndex]) return '#3b82f6';
         
-        // Update city options based on country
-        if (config.country) {
-            this.updateCityOptions(config.country);
-            this.setFieldValue('city', config.city);
+        const level = rawData[ctx.p0DataIndex].level;
+        return this.getPriceLevelColor(level);
+    }
+
+    getSegmentBackgroundColor(ctx) {
+        const color = this.getSegmentColor(ctx);
+        return color + '20'; // Add transparency
+    }
+
+    getPriceLevelColor(level) {
+        const colors = {
+            'VERY_CHEAP': '#10b981',   // Green
+            'CHEAP': '#22c55e',        // Light green
+            'NORMAL': '#64748b',       // Gray
+            'EXPENSIVE': '#f59e0b',    // Orange
+            'VERY_EXPENSIVE': '#ef4444' // Red
+        };
+        return colors[level] || '#3b82f6';
+    }
+
+    async updateChart(period = '24h') {
+        try {
+            const response = await fetch('/api/dynamic-pricing/pricing-data');
+            const data = await response.json();
+            
+            if (!data.success || !data.data) {
+                console.warn('No pricing data available');
+                return;
+            }
+
+            let filteredData = data.data;
+            const now = new Date();
+
+            // Filter data based on period
+            switch (period) {
+                case '24h':
+                    filteredData = data.data.slice(0, 24);
+                    break;
+                case '48h':
+                    filteredData = data.data.slice(0, 48);
+                    break;
+                case 'today':
+                    filteredData = data.data.filter(item => {
+                        const itemDate = new Date(item.timestamp);
+                        return itemDate.toDateString() === now.toDateString();
+                    });
+                    break;
+                case 'tomorrow':
+                    const tomorrow = new Date(now);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    filteredData = data.data.filter(item => {
+                        const itemDate = new Date(item.timestamp);
+                        return itemDate.toDateString() === tomorrow.toDateString();
+                    });
+                    break;
+            }
+
+            if (filteredData.length === 0) {
+                console.warn('No data for selected period');
+                return;
+            }
+
+            // Update chart data
+            const labels = filteredData.map(item => {
+                const time = new Date(item.timestamp);
+                return time.getHours().toString().padStart(2, '0') + ':00';
+            });
+
+            const prices = filteredData.map(item => item.price);
+
+            this.priceChart.data.labels = labels;
+            this.priceChart.data.datasets[0].data = prices;
+            this.priceChart.data.datasets[0].rawData = filteredData;
+
+            // Update y-axis range for better visualization
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            const padding = (maxPrice - minPrice) * 0.1;
+            
+            this.priceChart.options.scales.y.min = Math.max(0, minPrice - padding);
+            this.priceChart.options.scales.y.max = maxPrice + padding;
+
+            this.priceChart.update('active');
+            
+            console.log(`📊 Chart updated with ${filteredData.length} data points for ${period}`);
+        } catch (error) {
+            console.error('Error updating chart:', error);
+            this.showToast('Error updating price chart', 'error');
         }
+    }
 
-        // Price-based charging
-        const priceSettings = config.priceBasedCharging || {};
-        this.setCheckbox('enablePriceCharging', priceSettings.enabled);
-        this.setCheckbox('useTibberLevels', priceSettings.useTibberLevels);
-        this.setFieldValue('maxPriceThreshold', priceSettings.maxPriceThreshold || 0.20);
+    // =============================================================================
+    // EVENT LISTENERS
+    // =============================================================================
 
-        // Tibber levels
-        const allowedLevels = priceSettings.allowedTibberLevels || ['VERY_CHEAP', 'CHEAP'];
-        ['VERY_CHEAP', 'CHEAP', 'NORMAL'].forEach(level => {
-            const checkbox = document.getElementById(`level${level.charAt(0) + level.slice(1).toLowerCase().replace('_', '')}`);
-            if (checkbox) checkbox.checked = allowedLevels.includes(level);
+    setupEventListeners() {
+        // Quick action buttons
+        document.getElementById('manualChargeBtn')?.addEventListener('click', () => {
+            this.manualCharge(true);
         });
 
-        // Battery settings
-        const batterySettings = config.battery || {};
-        this.setFieldValue('emergencySOC', batterySettings.emergencySoC || 15);
-        this.setFieldValue('minimumSOC', batterySettings.minimumSoC || 20);
-        this.setFieldValue('targetSOC', batterySettings.targetSoC || 80);
-        this.setFieldValue('maxSOC', batterySettings.maxSoC || 95);
+        document.getElementById('manualStopBtn')?.addEventListener('click', () => {
+            this.manualCharge(false);
+        });
 
-        // Weather conditions
-        const weatherSettings = config.weatherConditions || {};
-        this.setCheckbox('enableWeatherConditions', weatherSettings.enabled);
-        this.setFieldValue('weatherApiKey', this.maskApiKey(weatherSettings.weatherApiKey || ''));
-        this.setFieldValue('cloudCoverThreshold', weatherSettings.cloudCoverThreshold || 70);
-        this.setCheckbox('chargeOnCloudyDays', weatherSettings.chargeOnCloudyDays);
-        this.setCheckbox('chargeBeforeStorm', weatherSettings.chargeBeforeStorm);
+        document.getElementById('refreshDataBtn')?.addEventListener('click', () => {
+            this.refreshAllData();
+        });
 
-        // Time conditions
-        const timeSettings = config.timeConditions || {};
-        this.setCheckbox('enableTimeConditions', timeSettings.enabled);
-        this.setCheckbox('avoidPeakHours', timeSettings.avoidPeakHours);
-        this.setCheckbox('preferNightCharging', timeSettings.preferNightCharging);
-        this.setFieldValue('peakStart', timeSettings.peakStart || '17:00');
-        this.setFieldValue('peakEnd', timeSettings.peakEnd || '21:00');
-        this.setFieldValue('nightStart', timeSettings.nightStart || '22:00');
-        this.setFieldValue('nightEnd', timeSettings.nightEnd || '06:00');
+        document.getElementById('testConditionsBtn')?.addEventListener('click', () => {
+            this.showTestConditionsModal();
+        });
 
-        // Smart power conditions
-        const powerSettings = config.smartPowerConditions || {};
-        this.setCheckbox('enablePowerConditions', powerSettings.enabled);
-        this.powerRules = powerSettings.rules || [];
-        this.updatePowerRulesList();
+        // Configuration form handlers
+        document.getElementById('saveSettingsBtn')?.addEventListener('click', () => {
+            this.saveConfiguration();
+        });
 
-        // Scheduled charging
-        this.setCheckbox('enableScheduledCharging', config.scheduledCharging);
-        this.schedules = config.chargingHours || [];
-        this.updateSchedulesList();
+        document.getElementById('testTibberBtn')?.addEventListener('click', () => {
+            this.testTibberConnection();
+        });
 
-        // Cooldown settings
-        const cooldownSettings = config.cooldown || {};
-        this.setCheckbox('enableCooldown', cooldownSettings.enabled);
-        this.setFieldValue('chargingCooldownMinutes', cooldownSettings.chargingCooldownMinutes || 30);
-        this.setFieldValue('maxChargingCyclesPerDay', cooldownSettings.maxChargingCyclesPerDay || 8);
+        document.getElementById('testWeatherBtn')?.addEventListener('click', () => {
+            this.testWeatherAPI();
+        });
 
-        // Update visibility based on toggles
-        this.updateAllToggleVisibility();
+        // Country/city selectors
+        document.getElementById('country')?.addEventListener('change', (e) => {
+            this.updateCitiesList(e.target.value);
+        });
+
+        // API key toggle
+        document.getElementById('toggleApiKey')?.addEventListener('click', () => {
+            this.togglePasswordField('tibberApiKey');
+        });
+
+        // Conditional field toggles
+        document.getElementById('useTibberLevels')?.addEventListener('change', (e) => {
+            this.toggleTibberLevelsConfig(e.target.checked);
+        });
+
+        // Modal handlers
+        document.getElementById('addPowerRuleBtn')?.addEventListener('click', () => {
+            this.showPowerRuleModal();
+        });
+
+        document.getElementById('closePowerRuleModal')?.addEventListener('click', () => {
+            this.hidePowerRuleModal();
+        });
+
+        // Refresh buttons
+        document.getElementById('refreshStatusBtn')?.addEventListener('click', () => {
+            this.loadSystemStatus();
+        });
+
+        // Settings import/export
+        document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
+            this.exportSettings();
+        });
+
+        document.getElementById('importSettingsBtn')?.addEventListener('click', () => {
+            this.importSettings();
+        });
     }
 
-    updateAllToggleVisibility() {
-        // Update all conditional visibility based on current toggle states
-        setTimeout(() => {
-            const priceToggle = document.getElementById('enablePriceCharging');
-            if (priceToggle) priceToggle.dispatchEvent(new Event('change'));
+    setupTabs() {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
 
-            const tibberToggle = document.getElementById('useTibberLevels');
-            if (tibberToggle) tibberToggle.dispatchEvent(new Event('change'));
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.getAttribute('data-tab');
+                
+                // Remove active class from all tabs and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                button.classList.add('active');
+                document.getElementById(targetTab + '-tab')?.classList.add('active');
+            });
+        });
+    }
 
-            const weatherToggle = document.getElementById('enableWeatherConditions');
-            if (weatherToggle) weatherToggle.dispatchEvent(new Event('change'));
+    // =============================================================================
+    // DATA LOADING AND UPDATES
+    // =============================================================================
 
-            const powerToggle = document.getElementById('enablePowerConditions');
-            if (powerToggle) powerToggle.dispatchEvent(new Event('change'));
+    async loadConfiguration() {
+        try {
+            const response = await fetch('/api/dynamic-pricing/settings');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.config = data.config;
+                this.populateConfigurationForm(data.config);
+                this.updateConnectionStatus(true);
+                console.log('📋 Configuration loaded successfully');
+            } else {
+                throw new Error(data.error || 'Failed to load configuration');
+            }
+        } catch (error) {
+            console.error('Error loading configuration:', error);
+            this.updateConnectionStatus(false);
+            this.showToast('Error loading configuration: ' + error.message, 'error');
+        }
+    }
 
-            const timeToggle = document.getElementById('enableTimeConditions');
-            if (timeToggle) this.updateTimeConditionsVisibility();
+    async loadSystemStatus() {
+        try {
+            const response = await fetch('/api/dynamic-pricing/status');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.systemState = data.systemState;
+                this.updateStatusDisplay(data);
+                this.updateChargingDecision(data.status.currentDecision);
+                this.updateInverterStatus(data.inverterStatus);
+                this.updateHealthIndicators(data);
+                console.log('📊 System status updated');
+            } else {
+                throw new Error(data.error || 'Failed to load system status');
+            }
+        } catch (error) {
+            console.error('Error loading system status:', error);
+            this.showToast('Error loading system status: ' + error.message, 'error');
+        }
+    }
 
-            const scheduleToggle = document.getElementById('enableScheduledCharging');
-            if (scheduleToggle) scheduleToggle.dispatchEvent(new Event('change'));
-        }, 100);
+    async loadCurrentPrice() {
+        try {
+            const response = await fetch('/api/dynamic-pricing/current-price');
+            const data = await response.json();
+            
+            if (data.success && data.currentPrice) {
+                this.updateCurrentPriceDisplay(data.currentPrice);
+            }
+        } catch (error) {
+            console.warn('Could not load current price:', error);
+        }
+    }
+
+    startPeriodicUpdates() {
+        // Update every 30 seconds
+        this.updateInterval = setInterval(() => {
+            this.loadSystemStatus();
+            this.loadCurrentPrice();
+            this.updateChart();
+        }, 30000);
+
+        console.log('🔄 Started periodic updates (30s interval)');
+    }
+
+    stopPeriodicUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+            console.log('⏹️ Stopped periodic updates');
+        }
+    }
+
+    // =============================================================================
+    // UI UPDATES
+    // =============================================================================
+
+    updateStatusDisplay(data) {
+        const state = data.systemState;
+        
+        // Update status cards
+        this.updateStatusCard('batterySOC', state.battery_soc, '%');
+        this.updateStatusCard('pvPower', state.pv_power, 'W');
+        this.updateStatusCard('loadPower', state.load, 'W');
+        this.updateStatusCard('gridPower', state.grid_power, 'W');
+        this.updateStatusCard('batteryPower', state.battery_power, 'W');
+
+        // Update learner mode indicator
+        const learnerMode = data.learnerModeActive;
+        const learnerIndicator = document.getElementById('learnerModeStatus');
+        if (learnerIndicator) {
+            learnerIndicator.className = `learner-mode-indicator ${learnerMode ? 'active' : 'inactive'}`;
+            learnerIndicator.querySelector('span').textContent = learnerMode ? 'Learner Mode: Active' : 'Learner Mode: Inactive';
+        }
+    }
+
+    updateStatusCard(elementId, value, unit) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (value !== null && value !== undefined) {
+                element.textContent = this.formatNumber(value);
+            } else {
+                element.textContent = '--';
+            }
+        }
+    }
+
+    updateCurrentPriceDisplay(priceData) {
+        const priceElement = document.getElementById('currentPrice');
+        const currencyElement = document.getElementById('currentCurrency');
+        const levelElement = document.getElementById('priceLevel');
+        
+        if (priceElement && priceData) {
+            priceElement.textContent = priceData.price.toFixed(4);
+            
+            if (currencyElement) {
+                currencyElement.textContent = `${priceData.currency || 'EUR'}/kWh`;
+            }
+            
+            if (levelElement && priceData.level) {
+                levelElement.textContent = priceData.level.replace('_', ' ');
+                levelElement.className = `price-level ${priceData.level.toLowerCase().replace('_', '-')}`;
+            }
+        }
+    }
+
+    updateChargingDecision(decision) {
+        const decisionElement = document.getElementById('chargingDecision');
+        if (!decisionElement || !decision) return;
+
+        const icon = decisionElement.querySelector('i');
+        const text = decisionElement.querySelector('span');
+        
+        if (decision.shouldCharge === true) {
+            decisionElement.className = 'charging-decision should-charge';
+            icon.className = 'fas fa-check-circle';
+            text.textContent = `Recommended: CHARGE - ${decision.reason}`;
+        } else if (decision.shouldCharge === false) {
+            decisionElement.className = 'charging-decision should-not-charge';
+            icon.className = 'fas fa-times-circle';
+            text.textContent = `Recommended: DON'T CHARGE - ${decision.reason}`;
+        } else {
+            decisionElement.className = 'charging-decision analyzing';
+            icon.className = 'fas fa-question-circle';
+            text.textContent = 'Analyzing conditions...';
+        }
+    }
+
+    updateConnectionStatus(connected) {
+        this.isConnected = connected;
+        const indicator = document.getElementById('connectionStatus');
+        
+        if (indicator) {
+            if (connected) {
+                indicator.className = 'status-indicator connected';
+                indicator.querySelector('span').textContent = 'Connected';
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                indicator.querySelector('span').textContent = 'Disconnected';
+            }
+        }
+    }
+
+    updateInverterStatus(inverterStatus) {
+        const container = document.getElementById('inverterStatusDisplay');
+        if (!container || !inverterStatus) return;
+
+        container.innerHTML = '';
+
+        if (inverterStatus.totalInverters === 0) {
+            container.innerHTML = '<p class="text-muted">No inverters detected yet. Waiting for MQTT messages...</p>';
+            return;
+        }
+
+        Object.entries(inverterStatus.typesSummary).forEach(([type, count]) => {
+            const div = document.createElement('div');
+            div.className = 'inverter-item';
+            div.innerHTML = `
+                <h6>Inverter Type: ${type.charAt(0).toUpperCase() + type.slice(1)}</h6>
+                <span class="inverter-type ${type}">${count} inverter${count !== 1 ? 's' : ''}</span>
+                <p>Auto-detection and command mapping enabled</p>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    updateHealthIndicators(data) {
+        const container = document.getElementById('healthIndicators');
+        if (!container) return;
+
+        const indicators = [
+            {
+                icon: 'database',
+                label: 'Configuration',
+                status: data.success ? 'good' : 'error',
+                value: data.success ? 'Loaded' : 'Error'
+            },
+            {
+                icon: 'wifi',
+                label: 'Connection',
+                status: this.isConnected ? 'good' : 'error',
+                value: this.isConnected ? 'Connected' : 'Disconnected'
+            },
+            {
+                icon: 'graduation-cap',
+                label: 'Learner Mode',
+                status: data.learnerModeActive ? 'good' : 'warning',
+                value: data.learnerModeActive ? 'Active' : 'Inactive'
+            }
+        ];
+
+        container.innerHTML = indicators.map(indicator => `
+            <div class="health-item">
+                <div class="health-icon ${indicator.status}">
+                    <i class="fas fa-${indicator.icon}"></i>
+                </div>
+                <div class="health-info">
+                    <h6>${indicator.label}</h6>
+                    <p>${indicator.value}</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // =============================================================================
+    // CONFIGURATION FORM HANDLING
+    // =============================================================================
+
+    populateConfigurationForm(config) {
+        try {
+            // Tibber settings
+            this.setFieldValue('tibberApiKey', config.tibberApiKey || '');
+            this.setFieldValue('country', config.country || '');
+            this.setFieldValue('timezone', config.timezone || 'Europe/Berlin');
+            
+            // Update cities when country is set
+            if (config.country) {
+                this.updateCitiesList(config.country).then(() => {
+                    this.setFieldValue('city', config.city || '');
+                });
+            }
+
+            // Price-based charging
+            this.setCheckboxValue('enablePriceCharging', config.priceBasedCharging?.enabled);
+            this.setCheckboxValue('useTibberLevels', config.priceBasedCharging?.useTibberLevels);
+            this.setFieldValue('maxPriceThreshold', config.priceBasedCharging?.maxPriceThreshold || 0.20);
+
+            // Tibber levels
+            const allowedLevels = config.priceBasedCharging?.allowedTibberLevels || [];
+            ['VERY_CHEAP', 'CHEAP', 'NORMAL'].forEach(level => {
+                const checkbox = document.getElementById(`level${level.charAt(0) + level.slice(1).toLowerCase().replace('_', '')}`);
+                if (checkbox) {
+                    checkbox.checked = allowedLevels.includes(level);
+                }
+            });
+
+            // Battery settings
+            this.setFieldValue('emergencySOC', config.battery?.emergencySoC || 15);
+            this.setFieldValue('minimumSOC', config.battery?.minimumSoC || 20);
+            this.setFieldValue('targetSOC', config.battery?.targetSoC || 80);
+            this.setFieldValue('maxSOC', config.battery?.maxSoC || 95);
+
+            // Weather settings
+            this.setCheckboxValue('enableWeatherConditions', config.weatherConditions?.enabled);
+            this.setFieldValue('weatherApiKey', config.weatherConditions?.weatherApiKey || '');
+            this.setFieldValue('cloudCoverThreshold', config.weatherConditions?.cloudCoverThreshold || 70);
+            this.setCheckboxValue('chargeOnCloudyDays', config.weatherConditions?.chargeOnCloudyDays);
+            this.setCheckboxValue('chargeBeforeStorm', config.weatherConditions?.chargeBeforeStorm);
+
+            // Time conditions
+            this.setCheckboxValue('enableTimeConditions', config.timeConditions?.enabled);
+            this.setCheckboxValue('avoidPeakHours', config.timeConditions?.avoidPeakHours);
+            this.setFieldValue('peakStart', config.timeConditions?.peakStart || '17:00');
+            this.setFieldValue('peakEnd', config.timeConditions?.peakEnd || '21:00');
+            this.setCheckboxValue('preferNightCharging', config.timeConditions?.preferNightCharging);
+            this.setFieldValue('nightStart', config.timeConditions?.nightStart || '22:00');
+            this.setFieldValue('nightEnd', config.timeConditions?.nightEnd || '06:00');
+
+            // Scheduled charging
+            this.setCheckboxValue('enableScheduledCharging', config.scheduledCharging);
+
+            // Cooldown settings
+            this.setCheckboxValue('enableCooldown', config.cooldown?.enabled);
+            this.setFieldValue('chargingCooldownMinutes', config.cooldown?.chargingCooldownMinutes || 30);
+            this.setFieldValue('maxChargingCyclesPerDay', config.cooldown?.maxChargingCyclesPerDay || 8);
+
+            // Smart power conditions
+            this.setCheckboxValue('enablePowerConditions', config.smartPowerConditions?.enabled);
+
+            // Toggle conditional sections
+            this.toggleTibberLevelsConfig(config.priceBasedCharging?.useTibberLevels);
+
+            console.log('📋 Configuration form populated');
+        } catch (error) {
+            console.error('Error populating configuration form:', error);
+        }
     }
 
     setFieldValue(fieldId, value) {
@@ -3469,464 +3619,239 @@ class DynamicPricingDashboard {
         }
     }
 
-    setCheckbox(checkboxId, checked) {
-        const checkbox = document.getElementById(checkboxId);
-        if (checkbox) {
-            checkbox.checked = !!checked;
+    setCheckboxValue(fieldId, value) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.checked = Boolean(value);
         }
     }
 
-    maskApiKey(apiKey) {
-        if (!apiKey || apiKey.length < 8) return apiKey;
-        return apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
-    }
-
-    async loadStatus() {
+    async updateCitiesList(countryCode) {
         try {
-            const response = await fetch('/api/dynamic-pricing/status');
+            const response = await fetch('/api/dynamic-pricing/countries-cities');
             const data = await response.json();
+            
+            const citySelect = document.getElementById('city');
+            if (!citySelect) return;
 
-            if (data.success) {
-                this.status = data.status;
-                this.updateStatusDisplay(data);
-                this.updateConnectionStatus(true);
-            } else {
-                throw new Error(data.error || 'Failed to load status');
+            citySelect.innerHTML = '<option value="">Select City</option>';
+
+            const country = data.countries.find(c => c.code === countryCode);
+            if (country && country.cities) {
+                country.cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city.name;
+                    option.textContent = city.name;
+                    citySelect.appendChild(option);
+                });
+            }
+
+            // Update timezone based on country
+            if (country && country.timezone) {
+                this.setFieldValue('timezone', country.timezone);
             }
         } catch (error) {
-            console.error('❌ Error loading status:', error);
-            this.updateConnectionStatus(false);
+            console.error('Error updating cities list:', error);
         }
     }
 
-    updateStatusDisplay(data) {
-        const { status, systemState } = data;
-
-        // Update system state displays
-        this.updateElement('batterySOC', this.formatNumber(systemState.battery_soc) || '--');
-        this.updateElement('pvPower', this.formatNumber(systemState.pv_power) || '--');
-        this.updateElement('loadPower', this.formatNumber(systemState.load) || '--');
-        this.updateElement('gridPower', this.formatNumber(systemState.grid_power) || '--');
-        this.updateElement('batteryPower', this.formatNumber(systemState.battery_power) || '--');
-
-        // Update current price with proper handling
-        if (status.currentPrice) {
-            this.updateElement('currentPrice', this.formatPrice(status.currentPrice.price));
-            const currency = status.currentPrice.currency || 'EUR';
-            this.updateElement('currentCurrency', currency + '/kWh');
-            this.updatePriceLevel(status.currentPrice.level);
-        } else {
-            this.updateElement('currentPrice', '--');
-            this.updateElement('currentCurrency', 'EUR/kWh');
-            this.updatePriceLevel(null);
-        }
-
-        // Update charging decision
-        if (status.currentDecision) {
-            this.updateChargingDecision(status.currentDecision);
-        }
-
-        // Update learner mode status
-        this.updateLearnerModeStatus(data.learnerModeActive);
-
-        // Update Tibber status
-        this.updateTibberStatus(status.tibberIntegration);
-
-        // Update inverter status
-        this.updateInverterStatus(data.inverterStatus);
-
-        // Update health indicators
-        this.updateHealthIndicators(status);
-
-        // Update weather display if weather is enabled
-        if (status.conditions?.weather?.enabled) {
-            this.updateWeatherDisplay();
-        }
-    }
-
-    updateElement(elementId, value) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = value;
-        }
-    }
-
-    formatNumber(num) {
-        if (num === null || num === undefined) return '--';
-        return Number(num).toLocaleString();
-    }
-
-    formatPrice(price) {
-        if (price === null || price === undefined) return '--';
-        return Number(price).toFixed(4);
-    }
-
-    updatePriceLevel(level) {
-        const element = document.getElementById('priceLevel');
-        if (element) {
-            if (level) {
-                element.textContent = level.replace('_', ' ');
-                element.className = 'price-level ' + level.toLowerCase().replace('_', '-');
-            } else {
-                element.textContent = '';
-                element.className = 'price-level';
-            }
-        }
-    }
-
-    updateChargingDecision(decision) {
-        const element = document.getElementById('chargingDecision');
-        if (!element) return;
-
-        const shouldCharge = decision.shouldCharge;
-        const reason = decision.reason;
-
-        element.className = 'charging-decision ' + 
-            (shouldCharge === null ? 'analyzing' : 
-             shouldCharge ? 'should-charge' : 'should-not-charge');
-
-        const iconClass = shouldCharge === null ? 'fa-question-circle' : 
-                         shouldCharge ? 'fa-play-circle' : 'fa-stop-circle';
-
-        const status = shouldCharge === null ? 'Analyzing conditions...' : 
-                      shouldCharge ? `✅ Should charge: ${reason}` : 
-                      `❌ Should not charge: ${reason}`;
-
-        element.innerHTML = `
-            <div class="decision-status">
-                <i class="fas ${iconClass}"></i>
-                <span>${status}</span>
-            </div>
-        `;
-    }
-
-    updateConnectionStatus(connected = true) {
-        const statusElement = document.getElementById('connectionStatus');
-        if (!statusElement) return;
-
-        if (connected) {
-            statusElement.className = 'status-indicator connected';
-            statusElement.innerHTML = '<i class="fas fa-circle"></i> <span>Connected</span>';
-        } else {
-            statusElement.className = 'status-indicator disconnected';
-            statusElement.innerHTML = '<i class="fas fa-circle"></i> <span>Disconnected</span>';
-        }
-    }
-
-    updateLearnerModeStatus(active) {
-        const statusElement = document.getElementById('learnerModeStatus');
-        if (!statusElement) return;
-
-        statusElement.className = 'learner-mode-indicator ' + (active ? 'active' : 'inactive');
-        statusElement.innerHTML = `<i class="fas fa-graduation-cap"></i> <span>${active ? 'Active' : 'Inactive'}</span>`;
-
-        // Update quick action buttons
-        const chargeBtn = document.getElementById('manualChargeBtn');
-        const stopBtn = document.getElementById('manualStopBtn');
+    toggleTibberLevelsConfig(useTibberLevels) {
+        const tibberLevelsConfig = document.getElementById('tibberLevelsConfig');
+        const priceThresholdConfig = document.getElementById('priceThresholdConfig');
         
-        if (chargeBtn) chargeBtn.disabled = !active;
-        if (stopBtn) stopBtn.disabled = !active;
-    }
-
-    updateTibberStatus(tibberStatus) {
-        if (!tibberStatus) return;
-
-        this.updateElement('tibberConnection', tibberStatus.enabled ? 'Connected' : 'Not configured');
-        this.updateElement('lastPriceUpdate', 'Live' );
-        this.updateElement('dataPoints', '48+ hours');
-    }
-
-    updateInverterStatus(inverterStatus) {
-        const container = document.getElementById('inverterStatusDisplay');
-        if (!container || !inverterStatus) return;
-
-        const { totalInverters, typesSummary } = inverterStatus;
-
-        container.innerHTML = '';
-
-        if (totalInverters === 0) {
-            container.innerHTML = '<p>No inverters detected yet. Waiting for MQTT messages...</p>';
-            return;
+        if (tibberLevelsConfig) {
+            tibberLevelsConfig.style.display = useTibberLevels ? 'block' : 'none';
         }
-
-        Object.entries(typesSummary).forEach(([type, count]) => {
-            const item = document.createElement('div');
-            item.className = 'inverter-item';
-            
-            item.innerHTML = `
-                <h6>${count}x Inverter${count > 1 ? 's' : ''}</h6>
-                <div class="inverter-type ${type}">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
-                <p>${this.getInverterTypeDescription(type)}</p>
-            `;
-            
-            container.appendChild(item);
-        });
+        
+        if (priceThresholdConfig) {
+            priceThresholdConfig.style.display = useTibberLevels ? 'none' : 'block';
+        }
     }
 
-    getInverterTypeDescription(type) {
-        const descriptions = {
-            'legacy': 'Uses energy_pattern and grid_charge commands',
-            'new': 'Uses charger_source_priority and output_source_priority commands',
-            'hybrid': 'Supports both legacy and new command sets',
-            'unknown': 'Type detection in progress'
-        };
-        return descriptions[type] || 'Unknown inverter type';
-    }
-
-    updateHealthIndicators(status) {
-        const container = document.getElementById('healthIndicators');
-        if (!container) return;
-
-        const indicators = [
-            {
-                icon: 'fas fa-database',
-                title: 'API Connection',
-                status: status.enabled ? 'good' : 'warning',
-                description: status.enabled ? 'Connected' : 'Disabled'
-            },
-            {
-                icon: 'fas fa-clock',
-                title: 'Cooldown Status',
-                status: status.cooldown?.inCooldown ? 'warning' : 'good',
-                description: status.cooldown?.inCooldown ? 'In cooldown' : 'Ready'
-            },
-            {
-                icon: 'fas fa-chart-line',
-                title: 'Price Data',
-                status: status.currentPrice ? 'good' : 'error',
-                description: status.currentPrice ? 'Live data' : 'No data'
+    togglePasswordField(fieldId) {
+        const field = document.getElementById(fieldId);
+        const button = document.querySelector(`button[onclick*="${fieldId}"]`);
+        
+        if (field && button) {
+            if (field.type === 'password') {
+                field.type = 'text';
+                button.querySelector('i').className = 'fas fa-eye-slash';
+            } else {
+                field.type = 'password';
+                button.querySelector('i').className = 'fas fa-eye';
             }
-        ];
-
-        container.innerHTML = '';
-
-        indicators.forEach(indicator => {
-            const item = document.createElement('div');
-            item.className = 'health-item';
-            
-            item.innerHTML = `
-                <div class="health-icon ${indicator.status}">
-                    <i class="${indicator.icon}"></i>
-                </div>
-                <div class="health-info">
-                    <h6>${indicator.title}</h6>
-                    <p>${indicator.description}</p>
-                </div>
-            `;
-            
-            container.appendChild(item);
-        });
+        }
     }
 
-    async updateWeatherDisplay() {
+    // =============================================================================
+    // API ACTIONS
+    // =============================================================================
+
+    async saveConfiguration() {
         try {
-            const response = await fetch('/api/dynamic-pricing/test-conditions', {
+            const saveBtn = document.getElementById('saveSettingsBtn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
+
+            const config = this.collectConfigurationData();
+            
+            const response = await fetch('/api/dynamic-pricing/settings', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ testType: 'weather' })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
             });
 
-            const data = await response.json();
-            if (data.success && data.result.success) {
-                const weather = data.result.forecast[0].weather[0];
-                const main = data.result.forecast[0].main;
-                const clouds = data.result.forecast[0].clouds;
-
-                // Update status card weather
-                this.updateElement('weatherTemp', Math.round(main.temp) + '°C');
-                this.updateElement('weatherDesc', weather.description);
-
-                // Update detailed weather display
-                this.updateElement('currentWeatherTemp', Math.round(main.temp) + '°C');
-                this.updateElement('currentWeatherDesc', weather.description);
-                this.updateElement('currentCloudCover', clouds.all + '%');
-                this.updateElement('currentHumidity', main.humidity + '%');
-
-                // Update weather icons
-                this.updateWeatherIcons(weather.main);
-            }
-        } catch (error) {
-            console.log('Weather update failed:', error.message);
-        }
-    }
-
-    updateWeatherIcons(weatherMain) {
-        const iconClass = this.getWeatherIconClass(weatherMain);
-        const weatherIcon = document.getElementById('weatherIcon');
-        const currentWeatherIcon = document.getElementById('currentWeatherIcon');
-
-        if (weatherIcon) {
-            weatherIcon.className = `weather-icon ${iconClass}`;
-        }
-        if (currentWeatherIcon) {
-            currentWeatherIcon.className = `weather-icon-large ${iconClass}`;
-        }
-    }
-
-    getWeatherIconClass(weatherMain) {
-        const iconMap = {
-            'Clear': 'sunny',
-            'Clouds': 'cloudy',
-            'Rain': 'rainy',
-            'Drizzle': 'rainy',
-            'Thunderstorm': 'stormy',
-            'Snow': 'snowy',
-            'Mist': 'cloudy',
-            'Fog': 'cloudy'
-        };
-        return iconMap[weatherMain] || 'cloudy';
-    }
-
-    async loadPricingData(period = '24h') {
-        try {
-            const response = await fetch('/api/dynamic-pricing/pricing-data');
             const data = await response.json();
 
             if (data.success) {
-                this.pricingData = data.data || [];
-                this.updateChart(period);
+                this.config = data.config;
+                this.showToast('Configuration saved successfully', 'success');
+                console.log('✅ Configuration saved');
+                
+                // Refresh data after saving
+                await this.loadSystemStatus();
+                await this.updateChart();
             } else {
-                throw new Error(data.error || 'Failed to load pricing data');
+                throw new Error(data.error || 'Failed to save configuration');
             }
         } catch (error) {
-            console.error('❌ Error loading pricing data:', error);
+            console.error('Error saving configuration:', error);
+            this.showToast('Error saving configuration: ' + error.message, 'error');
+        } finally {
+            const saveBtn = document.getElementById('saveSettingsBtn');
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Settings';
+            saveBtn.disabled = false;
         }
     }
 
-    updateChart(period = '24h') {
-        if (!this.priceChart || !this.pricingData.length) return;
+    collectConfigurationData() {
+        return {
+            enabled: true, // Always enable when saving
+            
+            // Tibber settings
+            tibberApiKey: document.getElementById('tibberApiKey')?.value || '',
+            country: document.getElementById('country')?.value || '',
+            city: document.getElementById('city')?.value || '',
+            timezone: document.getElementById('timezone')?.value || 'Europe/Berlin',
 
-        let filteredData = [...this.pricingData];
-        const now = new Date();
+            // Price-based charging
+            priceBasedCharging: {
+                enabled: document.getElementById('enablePriceCharging')?.checked || false,
+                useRealTibberPrices: true,
+                useTibberLevels: document.getElementById('useTibberLevels')?.checked || false,
+                allowedTibberLevels: this.getSelectedTibberLevels(),
+                maxPriceThreshold: parseFloat(document.getElementById('maxPriceThreshold')?.value) || 0.20,
+                preferTibberLevels: document.getElementById('useTibberLevels')?.checked || false
+            },
 
-        // Filter data based on period
-        switch (period) {
-            case '24h':
-                // Get next 24 data points (hours)
-                filteredData = this.pricingData.slice(0, 24);
-                break;
-            case '48h':
-                // Get next 48 data points (hours)
-                filteredData = this.pricingData.slice(0, 48);
-                break;
-            case 'today':
-                // Filter for today's data
-                filteredData = this.pricingData.filter(item => {
-                    const itemDate = new Date(item.timestamp);
-                    return itemDate.toDateString() === now.toDateString();
-                });
-                break;
-            case 'tomorrow':
-                // Filter for tomorrow's data
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                filteredData = this.pricingData.filter(item => {
-                    const itemDate = new Date(item.timestamp);
-                    return itemDate.toDateString() === tomorrow.toDateString();
-                });
-                break;
-        }
+            // Battery settings
+            battery: {
+                emergencySoC: parseInt(document.getElementById('emergencySOC')?.value) || 15,
+                minimumSoC: parseInt(document.getElementById('minimumSOC')?.value) || 20,
+                targetSoC: parseInt(document.getElementById('targetSOC')?.value) || 80,
+                maxSoC: parseInt(document.getElementById('maxSOC')?.value) || 95
+            },
 
-        // Ensure we have data
-        if (filteredData.length === 0) {
-            console.log('No pricing data available for period:', period);
-            return;
-        }
+            // Weather conditions
+            weatherConditions: {
+                enabled: document.getElementById('enableWeatherConditions')?.checked || false,
+                weatherApiKey: document.getElementById('weatherApiKey')?.value || '',
+                chargeOnCloudyDays: document.getElementById('chargeOnCloudyDays')?.checked || false,
+                chargeBeforeStorm: document.getElementById('chargeBeforeStorm')?.checked || false,
+                cloudCoverThreshold: parseInt(document.getElementById('cloudCoverThreshold')?.value) || 70
+            },
 
-        // Prepare chart data
-        const labels = filteredData.map(item => {
-            const date = new Date(item.timestamp);
-            return date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-            });
-        });
+            // Time conditions
+            timeConditions: {
+                enabled: document.getElementById('enableTimeConditions')?.checked || false,
+                avoidPeakHours: document.getElementById('avoidPeakHours')?.checked || false,
+                peakStart: document.getElementById('peakStart')?.value || '17:00',
+                peakEnd: document.getElementById('peakEnd')?.value || '21:00',
+                preferNightCharging: document.getElementById('preferNightCharging')?.checked || false,
+                nightStart: document.getElementById('nightStart')?.value || '22:00',
+                nightEnd: document.getElementById('nightEnd')?.value || '06:00'
+            },
 
-        const prices = filteredData.map(item => ({
-            x: item.timestamp,
-            y: item.price,
-            level: item.level
-        }));
+            // Smart power conditions
+            smartPowerConditions: {
+                enabled: document.getElementById('enablePowerConditions')?.checked || false,
+                rules: [] // TODO: Implement power rules collection
+            },
 
-        // Update chart
-        this.priceChart.data.labels = labels;
-        this.priceChart.data.datasets[0].data = prices;
-        this.priceChart.update('none'); // Disable animation for smoother updates
-    }
+            // Scheduled charging
+            scheduledCharging: document.getElementById('enableScheduledCharging')?.checked || false,
+            chargingHours: [], // TODO: Implement schedule collection
 
-    startRealTimeUpdates() {
-        // Update status every 10 seconds
-        this.statusInterval = setInterval(() => {
-            this.loadStatus();
-        }, 10000);
-
-        // Update pricing data every 5 minutes
-        this.updateInterval = setInterval(() => {
-            this.loadPricingData();
-        }, 300000);
-
-        // Update current price every 30 seconds
-        setInterval(async () => {
-            try {
-                const response = await fetch('/api/dynamic-pricing/current-price');
-                const data = await response.json();
-                if (data.success && data.currentPrice) {
-                    this.updateElement('currentPrice', this.formatPrice(data.currentPrice.price));
-                    const currency = data.currentPrice.currency || 'EUR';
-                    this.updateElement('currentCurrency', currency + '/kWh');
-                    this.updatePriceLevel(data.currentPrice.level);
-                }
-            } catch (error) {
-                // Silently handle errors for background updates
+            // Cooldown settings
+            cooldownSettings: {
+                enabled: document.getElementById('enableCooldown')?.checked || false,
+                chargingCooldownMinutes: parseInt(document.getElementById('chargingCooldownMinutes')?.value) || 30,
+                maxChargingCyclesPerDay: parseInt(document.getElementById('maxChargingCyclesPerDay')?.value) || 8
             }
-        }, 30000);
-
-        console.log('🔄 Real-time updates started');
+        };
     }
 
-    stopRealTimeUpdates() {
-        if (this.statusInterval) {
-            clearInterval(this.statusInterval);
-            this.statusInterval = null;
-        }
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
-        console.log('⏹️ Real-time updates stopped');
+    getSelectedTibberLevels() {
+        const levels = [];
+        ['VERY_CHEAP', 'CHEAP', 'NORMAL'].forEach(level => {
+            const fieldId = `level${level.charAt(0) + level.slice(1).toLowerCase().replace('_', '')}`;
+            const checkbox = document.getElementById(fieldId);
+            if (checkbox && checkbox.checked) {
+                levels.push(level);
+            }
+        });
+        return levels.length > 0 ? levels : ['VERY_CHEAP', 'CHEAP'];
     }
 
     async manualCharge(enable) {
         try {
-            const action = enable ? 'enable' : 'disable';
-            console.log(`🔋 Manual charging: ${action}`);
+            const button = enable ? document.getElementById('manualChargeBtn') : document.getElementById('manualStopBtn');
+            const originalText = button.innerHTML;
+            
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            button.disabled = true;
 
             const response = await fetch('/api/dynamic-pricing/manual-charge', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enable })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enable: enable })
             });
 
             const data = await response.json();
-            
+
             if (data.success) {
-                this.showToast(data.message, 'success');
-                // Refresh status to show updated state
-                setTimeout(() => this.loadStatus(), 1000);
+                const action = enable ? 'started' : 'stopped';
+                this.showToast(`Charging ${action} successfully`, 'success');
+                console.log(`🔋 Manual charging ${action}`);
+                
+                // Refresh status after manual action
+                setTimeout(() => this.loadSystemStatus(), 2000);
             } else {
-                // Show conditions not met message with option to force
                 if (data.canForce) {
-                    const force = confirm(`${data.message}\n\nDo you want to force this action?`);
+                    // Show option to force the command
+                    const force = confirm(`Conditions not met: ${data.message}\n\nDo you want to force this command anyway?`);
                     if (force) {
                         return this.manualChargeForce(enable);
                     }
+                } else {
+                    throw new Error(data.message || `Failed to ${enable ? 'start' : 'stop'} charging`);
                 }
-                this.showToast(data.message || 'Command failed', 'error');
             }
         } catch (error) {
-            console.error('❌ Error sending manual charge command:', error);
-            this.showToast('Failed to send command: ' + error.message, 'error');
+            console.error('Error with manual charge command:', error);
+            this.showToast('Error: ' + error.message, 'error');
+        } finally {
+            const button = enable ? document.getElementById('manualChargeBtn') : document.getElementById('manualStopBtn');
+            const originalIcon = enable ? 'fa-play' : 'fa-stop';
+            const originalText = enable ? 'Start Charging' : 'Stop Charging';
+            
+            button.innerHTML = `<i class="fas ${originalIcon}"></i> ${originalText}`;
+            button.disabled = false;
         }
     }
 
@@ -3934,602 +3859,231 @@ class DynamicPricingDashboard {
         try {
             const response = await fetch('/api/dynamic-pricing/manual-charge', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enable, force: true })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enable: enable, force: true })
             });
 
             const data = await response.json();
-            
+
             if (data.success) {
-                this.showToast(data.message, 'success');
-                setTimeout(() => this.loadStatus(), 1000);
+                const action = enable ? 'started' : 'stopped';
+                this.showToast(`Charging ${action} (forced)`, 'warning');
+                setTimeout(() => this.loadSystemStatus(), 2000);
             } else {
-                this.showToast(data.message || 'Forced command failed', 'error');
+                throw new Error(data.message || 'Failed to force charging command');
             }
         } catch (error) {
-            console.error('❌ Error sending forced charge command:', error);
-            this.showToast('Failed to send forced command: ' + error.message, 'error');
-        }
-    }
-
-    async refreshAllData() {
-        console.log('🔄 Refreshing all data...');
-        
-        // Show loading state
-        const btn = document.getElementById('refreshDataBtn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-        btn.disabled = true;
-
-        try {
-            // Refresh pricing data first
-            const priceResponse = await fetch('/api/dynamic-pricing/refresh-prices', {
-                method: 'POST'
-            });
-
-            // Load all data
-            await Promise.all([
-                this.loadSettings(),
-                this.loadStatus(),
-                this.loadPricingData()
-            ]);
-
-            this.showToast('Data refreshed successfully', 'success');
-        } catch (error) {
-            console.error('❌ Error refreshing data:', error);
-            this.showToast('Failed to refresh data: ' + error.message, 'error');
-        } finally {
-            // Restore button
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async testConditions() {
-        const testTypes = ['tibber', 'price', 'weather', 'time', 'smartpower', 'cooldown'];
-        let results = [];
-
-        for (const testType of testTypes) {
-            try {
-                const response = await fetch('/api/dynamic-pricing/test-conditions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ testType })
-                });
-
-                const data = await response.json();
-                results.push({ testType, success: data.success, result: data.result });
-            } catch (error) {
-                results.push({ testType, success: false, error: error.message });
-            }
-        }
-
-        // Show results
-        this.showTestResults(results);
-    }
-
-    showTestResults(results) {
-        const modal = document.createElement('div');
-        modal.className = 'modal active';
-        
-        const resultsHtml = results.map(result => {
-            const status = result.success ? '✅' : '❌';
-            const message = result.success ? 
-                (typeof result.result === 'string' ? result.result : 'Test passed') :
-                (result.error || 'Test failed');
-            
-            return `
-                <div class="test-result-item">
-                    <strong>${status} ${result.testType.toUpperCase()}</strong><br>
-                    <small>${message}</small>
-                </div>
-            `;
-        }).join('');
-
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Condition Test Results</h3>
-                    <button class="modal-close" onclick="this.closest('.modal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    ${resultsHtml}
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-    }
-
-    async saveSettings() {
-        try {
-            console.log('💾 Saving settings...');
-
-            const settings = this.gatherSettingsFromForm();
-            
-            const response = await fetch('/api/dynamic-pricing/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                this.showToast('Settings saved successfully', 'success');
-                // Refresh data to reflect changes
-                setTimeout(() => {
-                    this.loadSettings();
-                    this.loadStatus();
-                }, 1000);
-            } else {
-                throw new Error(data.error || 'Failed to save settings');
-            }
-        } catch (error) {
-            console.error('❌ Error saving settings:', error);
-            this.showToast('Failed to save settings: ' + error.message, 'error');
-        }
-    }
-
-    gatherSettingsFromForm() {
-        // Get Tibber API key (handle masked values)
-        let tibberApiKey = document.getElementById('tibberApiKey')?.value || '';
-        if (tibberApiKey.includes('...')) {
-            tibberApiKey = this.config.tibberApiKey; // Keep existing if masked
-        }
-
-        // Get weather API key (handle masked values)  
-        let weatherApiKey = document.getElementById('weatherApiKey')?.value || '';
-        if (weatherApiKey.includes('...')) {
-            weatherApiKey = this.config.weatherConditions?.weatherApiKey; // Keep existing if masked
-        }
-
-        // Gather Tibber levels
-        const allowedTibberLevels = [];
-        ['VERY_CHEAP', 'CHEAP', 'NORMAL'].forEach(level => {
-            const checkbox = document.getElementById(`level${level.charAt(0) + level.slice(1).toLowerCase().replace('_', '')}`);
-            if (checkbox?.checked) allowedTibberLevels.push(level);
-        });
-
-        return {
-            enabled: true, // Always enabled when saving
-
-            // Tibber integration
-            tibberApiKey,
-            country: document.getElementById('country')?.value,
-            city: document.getElementById('city')?.value,
-            timezone: document.getElementById('timezone')?.value,
-
-            // Price-based charging
-            priceBasedCharging: {
-                enabled: document.getElementById('enablePriceCharging')?.checked,
-                useRealTibberPrices: true,
-                useTibberLevels: document.getElementById('useTibberLevels')?.checked,
-                allowedTibberLevels,
-                maxPriceThreshold: parseFloat(document.getElementById('maxPriceThreshold')?.value || 0.20),
-                preferTibberLevels: true
-            },
-
-            // Battery settings
-            battery: {
-                emergencySoC: parseInt(document.getElementById('emergencySOC')?.value || 15),
-                minimumSoC: parseInt(document.getElementById('minimumSOC')?.value || 20),
-                targetSoC: parseInt(document.getElementById('targetSOC')?.value || 80),
-                maxSoC: parseInt(document.getElementById('maxSOC')?.value || 95)
-            },
-
-            // Weather conditions
-            weatherConditions: {
-                enabled: document.getElementById('enableWeatherConditions')?.checked,
-                weatherApiKey,
-                cloudCoverThreshold: parseInt(document.getElementById('cloudCoverThreshold')?.value || 70),
-                chargeOnCloudyDays: document.getElementById('chargeOnCloudyDays')?.checked,
-                chargeBeforeStorm: document.getElementById('chargeBeforeStorm')?.checked
-            },
-
-            // Time conditions
-            timeConditions: {
-                enabled: document.getElementById('enableTimeConditions')?.checked,
-                avoidPeakHours: document.getElementById('avoidPeakHours')?.checked,
-                preferNightCharging: document.getElementById('preferNightCharging')?.checked,
-                peakStart: document.getElementById('peakStart')?.value || '17:00',
-                peakEnd: document.getElementById('peakEnd')?.value || '21:00',
-                nightStart: document.getElementById('nightStart')?.value || '22:00',
-                nightEnd: document.getElementById('nightEnd')?.value || '06:00'
-            },
-
-            // Smart power conditions
-            smartPowerConditions: {
-                enabled: document.getElementById('enablePowerConditions')?.checked,
-                rules: this.powerRules
-            },
-
-            // Scheduled charging
-            scheduledCharging: document.getElementById('enableScheduledCharging')?.checked,
-            chargingHours: this.schedules,
-
-            // Cooldown settings
-            cooldownSettings: {
-                enabled: document.getElementById('enableCooldown')?.checked,
-                chargingCooldownMinutes: parseInt(document.getElementById('chargingCooldownMinutes')?.value || 30),
-                maxChargingCyclesPerDay: parseInt(document.getElementById('maxChargingCyclesPerDay')?.value || 8)
-            }
-        };
-    }
-
-    async toggleEnable(enabled) {
-        try {
-            const settings = { enabled };
-            
-            const response = await fetch('/api/dynamic-pricing/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                const action = enabled ? 'enabled' : 'disabled';
-                this.showToast(`Dynamic pricing ${action}`, enabled ? 'success' : 'warning');
-                setTimeout(() => this.loadStatus(), 1000);
-            } else {
-                throw new Error(data.error || 'Failed to toggle dynamic pricing');
-            }
-        } catch (error) {
-            console.error('❌ Error toggling dynamic pricing:', error);
-            this.showToast('Failed to toggle: ' + error.message, 'error');
+            this.showToast('Error forcing command: ' + error.message, 'error');
         }
     }
 
     async testTibberConnection() {
-        const apiKeyField = document.getElementById('tibberApiKey');
-        const testBtn = document.getElementById('testTibberBtn');
-        
-        if (!apiKeyField || !testBtn) return;
-
-        let apiKey = apiKeyField.value;
-        if (apiKey.includes('...')) {
-            this.showToast('Please enter your full Tibber API key to test', 'warning');
-            return;
-        }
-
-        const originalText = testBtn.textContent;
-        testBtn.textContent = 'Testing...';
-        testBtn.disabled = true;
-
         try {
+            const button = document.getElementById('testTibberBtn');
+            const originalText = button.textContent;
+            
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+
+            const apiKey = document.getElementById('tibberApiKey')?.value;
+            if (!apiKey) {
+                throw new Error('Please enter a Tibber API key first');
+            }
+
             const response = await fetch('/api/dynamic-pricing/test-tibber', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ apiKey: apiKey })
             });
 
             const data = await response.json();
-            
+
             if (data.success) {
-                this.showToast(`✅ Tibber connection successful! Found ${data.homes} home(s)`, 'success');
-                this.updateElement('tibberConnection', 'Test passed');
+                this.showToast(`Tibber connection successful! Found ${data.homes} home(s)`, 'success');
+                
+                // Update status display
+                document.getElementById('tibberConnection').textContent = 'Connected';
+                
+                if (data.currentPrice) {
+                    this.updateCurrentPriceDisplay(data.currentPrice);
+                }
             } else {
-                this.showToast(`❌ Tibber test failed: ${data.error}`, 'error');
-                this.updateElement('tibberConnection', 'Test failed');
+                throw new Error(data.error || 'Tibber connection failed');
             }
         } catch (error) {
-            console.error('❌ Error testing Tibber:', error);
+            console.error('Tibber test failed:', error);
             this.showToast('Tibber test failed: ' + error.message, 'error');
+            document.getElementById('tibberConnection').textContent = 'Failed';
         } finally {
-            testBtn.textContent = originalText;
-            testBtn.disabled = false;
+            const button = document.getElementById('testTibberBtn');
+            button.textContent = 'Test';
+            button.disabled = false;
         }
     }
 
-    async testWeatherConnection() {
-        const apiKeyField = document.getElementById('weatherApiKey');
-        const countryField = document.getElementById('country');
-        const cityField = document.getElementById('city');
-        const testBtn = document.getElementById('testWeatherBtn');
-        
-        if (!apiKeyField || !testBtn) return;
-
-        let weatherApiKey = apiKeyField.value;
-        if (weatherApiKey.includes('...')) {
-            this.showToast('Please enter your full weather API key to test', 'warning');
-            return;
-        }
-
-        const originalText = testBtn.textContent;
-        testBtn.textContent = 'Testing...';
-        testBtn.disabled = true;
-
+    async testWeatherAPI() {
         try {
+            const button = document.getElementById('testWeatherBtn');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+
+            const weatherApiKey = document.getElementById('weatherApiKey')?.value;
+            const country = document.getElementById('country')?.value;
+            const city = document.getElementById('city')?.value;
+
+            if (!weatherApiKey) {
+                throw new Error('Please enter a weather API key first');
+            }
+
             const response = await fetch('/api/dynamic-pricing/test-weather', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    weatherApiKey,
-                    country: countryField?.value,
-                    city: cityField?.value
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    weatherApiKey: weatherApiKey,
+                    country: country,
+                    city: city
                 })
             });
 
             const data = await response.json();
-            
+
             if (data.success) {
-                this.showToast(`✅ Weather API test successful!`, 'success');
-                // Update weather display immediately
-                this.updateWeatherDisplay();
+                this.showToast('Weather API connection successful!', 'success');
+                
+                if (data.current) {
+                    this.updateWeatherDisplay(data.current);
+                }
             } else {
-                this.showToast(`❌ Weather test failed: ${data.error}`, 'error');
+                throw new Error(data.error || 'Weather API test failed');
             }
         } catch (error) {
-            console.error('❌ Error testing weather:', error);
+            console.error('Weather test failed:', error);
             this.showToast('Weather test failed: ' + error.message, 'error');
         } finally {
-            testBtn.textContent = originalText;
-            testBtn.disabled = false;
+            const button = document.getElementById('testWeatherBtn');
+            button.textContent = 'Test';
+            button.disabled = false;
         }
     }
 
-    toggleApiKeyVisibility() {
-        const apiKeyField = document.getElementById('tibberApiKey');
-        const toggleBtn = document.getElementById('toggleApiKey');
-        
-        if (!apiKeyField || !toggleBtn) return;
-
-        const icon = toggleBtn.querySelector('i');
-        
-        if (apiKeyField.type === 'password') {
-            apiKeyField.type = 'text';
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-        } else {
-            apiKeyField.type = 'password';
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
-        }
-    }
-
-    // Power Rules Management
-    updatePowerRulesList() {
-        const container = document.getElementById('powerRulesList');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        this.powerRules.forEach((rule, index) => {
-            const item = document.createElement('div');
-            item.className = 'power-rule-item';
+    async refreshAllData() {
+        try {
+            const button = document.getElementById('refreshDataBtn');
+            const originalText = button.innerHTML;
             
-            item.innerHTML = `
-                <div class="power-rule-info">
-                    <h6>${rule.name}</h6>
-                    <p>${rule.description || 'Custom power rule'}</p>
-                    <div class="power-rule-priority ${rule.priority}">${rule.priority} Priority</div>
-                </div>
-                <div class="power-rule-actions">
-                    <button class="btn btn-icon" onclick="dashboard.editPowerRule(${index})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-icon" onclick="dashboard.deletePowerRule(${index})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-            
-            container.appendChild(item);
-        });
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            button.disabled = true;
 
-        if (this.powerRules.length === 0) {
-            container.innerHTML = '<p>No custom power rules defined. Click "Add New Rule" to create one.</p>';
+            // Refresh all data sources
+            await Promise.all([
+                this.loadConfiguration(),
+                this.loadSystemStatus(),
+                this.loadCurrentPrice(),
+                this.updateChart()
+            ]);
+
+            this.showToast('All data refreshed successfully', 'success');
+            console.log('🔄 All data refreshed');
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            this.showToast('Error refreshing data: ' + error.message, 'error');
+        } finally {
+            const button = document.getElementById('refreshDataBtn');
+            button.innerHTML = '<i class="fas fa-refresh"></i> Refresh Data';
+            button.disabled = false;
         }
     }
 
-    openPowerRuleModal(editIndex = null) {
-        const modal = document.getElementById('powerRuleModal');
-        if (!modal) return;
+    // =============================================================================
+    // UTILITY FUNCTIONS
+    // =============================================================================
 
-        this.currentEditingRule = editIndex;
+    formatNumber(value) {
+        if (value === null || value === undefined) return '--';
+        if (typeof value !== 'number') return value;
         
-        if (editIndex !== null) {
-            const rule = this.powerRules[editIndex];
-            document.getElementById('ruleName').value = rule.name;
-            document.getElementById('ruleDescription').value = rule.description || '';
-            document.getElementById('rulePriority').value = rule.priority;
-        } else {
-            document.getElementById('ruleName').value = '';
-            document.getElementById('ruleDescription').value = '';
-            document.getElementById('rulePriority').value = 'medium';
+        if (Math.abs(value) >= 1000) {
+            return (value / 1000).toFixed(1) + 'k';
         }
-
-        modal.classList.add('active');
+        
+        return value.toLocaleString();
     }
 
-    closePowerRuleModal() {
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icon = this.getToastIcon(type);
+        toast.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+        
+        this.toastContainer.appendChild(toast);
+        
+        // Trigger animation
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 5000);
+    }
+
+    getToastIcon(type) {
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+        return icons[type] || icons.info;
+    }
+
+    hideLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    showTestConditionsModal() {
+        // TODO: Implement test conditions modal
+        this.showToast('Test conditions feature coming soon', 'info');
+    }
+
+    showPowerRuleModal() {
+        // TODO: Implement power rule modal
+        this.showToast('Power rule configuration coming soon', 'info');
+    }
+
+    hidePowerRuleModal() {
         const modal = document.getElementById('powerRuleModal');
         if (modal) {
             modal.classList.remove('active');
         }
-        this.currentEditingRule = null;
-    }
-
-    editPowerRule(index) {
-        this.openPowerRuleModal(index);
-    }
-
-    deletePowerRule(index) {
-        if (confirm('Are you sure you want to delete this power rule?')) {
-            this.powerRules.splice(index, 1);
-            this.updatePowerRulesList();
-        }
-    }
-
-    addCondition() {
-        const container = document.getElementById('ruleConditions');
-        if (!container) return;
-
-        const conditionDiv = document.createElement('div');
-        conditionDiv.className = 'condition-item';
-        conditionDiv.innerHTML = `
-            <div class="config-grid">
-                <div class="config-item">
-                    <label>Parameter</label>
-                    <select class="config-input condition-parameter">
-                        <option value="battery_soc">Battery SoC (%)</option>
-                        <option value="pv_power">PV Power (W)</option>
-                        <option value="load_power">Load Power (W)</option>
-                        <option value="grid_power">Grid Power (W)</option>
-                        <option value="battery_power">Battery Power (W)</option>
-                    </select>
-                </div>
-                <div class="config-item">
-                    <label>Operator</label>
-                    <select class="config-input condition-operator">
-                        <option value="gt">Greater than</option>
-                        <option value="lt">Less than</option>
-                        <option value="gte">Greater than or equal</option>
-                        <option value="lte">Less than or equal</option>
-                        <option value="eq">Equal to</option>
-                    </select>
-                </div>
-                <div class="config-item">
-                    <label>Value</label>
-                    <input type="number" class="config-input condition-value" placeholder="Enter value">
-                </div>
-                <div class="config-item">
-                    <button class="btn btn-outline" onclick="this.closest('.condition-item').remove()">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        container.appendChild(conditionDiv);
-    }
-
-    savePowerRule() {
-        const name = document.getElementById('ruleName').value;
-        const description = document.getElementById('ruleDescription').value;
-        const priority = document.getElementById('rulePriority').value;
-
-        if (!name.trim()) {
-            this.showToast('Please enter a rule name', 'warning');
-            return;
-        }
-
-        // Gather conditions
-        const conditions = {};
-        const conditionItems = document.querySelectorAll('.condition-item');
-        
-        conditionItems.forEach(item => {
-            const parameter = item.querySelector('.condition-parameter').value;
-            const operator = item.querySelector('.condition-operator').value;
-            const value = parseFloat(item.querySelector('.condition-value').value);
-            
-            if (parameter && operator && !isNaN(value)) {
-                conditions[parameter] = { operator, value };
-            }
-        });
-
-        if (Object.keys(conditions).length === 0) {
-            this.showToast('Please add at least one condition', 'warning');
-            return;
-        }
-
-        const rule = {
-            id: this.currentEditingRule !== null ? this.powerRules[this.currentEditingRule].id : Date.now(),
-            name: name.trim(),
-            description: description.trim(),
-            priority,
-            enabled: true,
-            conditions
-        };
-
-        if (this.currentEditingRule !== null) {
-            this.powerRules[this.currentEditingRule] = rule;
-        } else {
-            this.powerRules.push(rule);
-        }
-
-        this.updatePowerRulesList();
-        this.closePowerRuleModal();
-        this.showToast('Power rule saved', 'success');
-    }
-
-    // Schedule Management
-    updateSchedulesList() {
-        const container = document.getElementById('schedulesList');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        this.schedules.forEach((schedule, index) => {
-            const item = document.createElement('div');
-            item.className = 'schedule-item';
-            
-            const days = schedule.days ? schedule.days.join(', ') : 'Daily';
-            
-            item.innerHTML = `
-                <div class="schedule-time">${schedule.start} - ${schedule.end}</div>
-                <div class="schedule-days">${days}</div>
-                <button class="btn btn-outline" onclick="dashboard.deleteSchedule(${index})">
-                    <i class="fas fa-trash"></i> Remove
-                </button>
-            `;
-            
-            container.appendChild(item);
-        });
-
-        if (this.schedules.length === 0) {
-            container.innerHTML = '<p>No charging schedules defined.</p>';
-        }
-    }
-
-    addSchedule() {
-        const start = prompt('Enter start time (HH:MM):');
-        const end = prompt('Enter end time (HH:MM):');
-        
-        if (start && end) {
-            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            if (timeRegex.test(start) && timeRegex.test(end)) {
-                this.schedules.push({ start, end });
-                this.updateSchedulesList();
-            } else {
-                this.showToast('Invalid time format. Use HH:MM', 'error');
-            }
-        }
-    }
-
-    deleteSchedule(index) {
-        if (confirm('Remove this charging schedule?')) {
-            this.schedules.splice(index, 1);
-            this.updateSchedulesList();
-        }
-    }
-
-    // Utility Functions
-    async resetSettings() {
-        if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
-
-        try {
-            // You could implement a reset API endpoint, or just reload defaults
-            location.reload();
-        } catch (error) {
-            this.showToast('Failed to reset settings', 'error');
-        }
     }
 
     exportSettings() {
-        const settings = this.gatherSettingsFromForm();
-        const dataStr = JSON.stringify(settings, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const dataStr = JSON.stringify(this.config, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
         
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = 'dynamic-pricing-settings.json';
-        link.click();
+        const exportFileDefaultName = 'dynamic-pricing-settings.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        this.showToast('Settings exported successfully', 'success');
     }
 
     importSettings() {
@@ -4537,86 +4091,101 @@ class DynamicPricingDashboard {
         input.type = 'file';
         input.accept = '.json';
         
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const settings = JSON.parse(e.target.result);
-                    this.populateSettingsFromImport(settings);
-                    this.showToast('Settings imported successfully', 'success');
-                } catch (error) {
-                    this.showToast('Invalid settings file', 'error');
-                }
-            };
-            reader.readAsText(file);
+        input.onchange = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const settings = JSON.parse(e.target.result);
+                        this.populateConfigurationForm(settings);
+                        this.showToast('Settings imported successfully', 'success');
+                    } catch (error) {
+                        this.showToast('Error importing settings: Invalid file format', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
         };
         
         input.click();
     }
 
-    populateSettingsFromImport(settings) {
-        // Populate form with imported settings
-        // This would be similar to populateSettingsForm but from imported data
-        console.log('Importing settings:', settings);
-        // Implementation would set form fields from settings object
+    updateWeatherDisplay(weatherData) {
+        // Update weather status card
+        const weatherIcon = document.getElementById('weatherIcon');
+        const weatherTemp = document.getElementById('weatherTemp');
+        const weatherDesc = document.getElementById('weatherDesc');
+        
+        if (weatherData) {
+            if (weatherTemp) {
+                weatherTemp.textContent = `${Math.round(weatherData.main?.temp || 0)}°C`;
+            }
+            
+            if (weatherDesc) {
+                weatherDesc.textContent = weatherData.weather?.[0]?.description || 'Unknown';
+            }
+            
+            if (weatherIcon) {
+                const iconClass = this.getWeatherIconClass(weatherData.weather?.[0]?.main);
+                weatherIcon.innerHTML = `<i class="fas ${iconClass}"></i>`;
+                weatherIcon.className = `weather-icon ${this.getWeatherClass(weatherData.weather?.[0]?.main)}`;
+            }
+        }
     }
 
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer') || document.body;
-        
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
-        const iconMap = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
+    getWeatherIconClass(weatherMain) {
+        const icons = {
+            'Clear': 'fa-sun',
+            'Clouds': 'fa-cloud',
+            'Rain': 'fa-cloud-rain',
+            'Drizzle': 'fa-cloud-drizzle',
+            'Thunderstorm': 'fa-bolt',
+            'Snow': 'fa-snowflake',
+            'Mist': 'fa-smog',
+            'Fog': 'fa-smog'
         };
-        
-        toast.innerHTML = `
-            <i class="${iconMap[type] || iconMap.info}"></i>
-            <span>${message}</span>
-        `;
-        
-        container.appendChild(toast);
-        
-        // Trigger animation
-        setTimeout(() => toast.classList.add('show'), 100);
-        
-        // Remove after delay
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => container.removeChild(toast), 300);
-        }, 5000);
+        return icons[weatherMain] || 'fa-cloud';
     }
 
+    getWeatherClass(weatherMain) {
+        const classes = {
+            'Clear': 'sunny',
+            'Clouds': 'cloudy',
+            'Rain': 'rainy',
+            'Drizzle': 'rainy',
+            'Thunderstorm': 'stormy',
+            'Snow': 'snowy'
+        };
+        return classes[weatherMain] || 'cloudy';
+    }
+
+    // Cleanup function
     destroy() {
-        this.stopRealTimeUpdates();
+        this.stopPeriodicUpdates();
+        
         if (this.priceChart) {
             this.priceChart.destroy();
         }
-        console.log('🔋 Dynamic Pricing Dashboard destroyed');
+        
+        console.log('🧹 Dashboard destroyed');
     }
 }
 
 // Initialize dashboard when DOM is loaded
-let dashboard;
-
 document.addEventListener('DOMContentLoaded', () => {
-    dashboard = new DynamicPricingDashboard();
+    window.dynamicPricingDashboard = new DynamicPricingDashboard();
 });
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    if (dashboard) {
-        dashboard.destroy();
+    if (window.dynamicPricingDashboard) {
+        window.dynamicPricingDashboard.destroy();
     }
 });
- </script>
+   </script>
+
+
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
