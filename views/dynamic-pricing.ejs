@@ -778,6 +778,7 @@ body {
         }
 
 
+
 /* Header */
 .header {
   background: #DEAF0B;
@@ -786,6 +787,9 @@ body {
   border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-xl);
   box-shadow: var(--shadow-lg);
+}
+.dark-mode .header {
+  background: #DEAF0B;
 }
 
 .header-content {
@@ -1317,6 +1321,9 @@ body {
   padding-bottom: var(--spacing-sm);
   border-bottom: 2px solid var(--border-light);
 }
+.dark-mode .config-section h4,h5 {
+color: #fff;
+}
 
 .config-section h5 {
   font-size: 1rem;
@@ -1351,7 +1358,9 @@ body {
   color: var(--text-primary);
   font-size: 0.875rem;
 }
-
+.dark-mode .config-item label {
+ color: #fff;
+}
 .config-input, .select-input {
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
@@ -1360,6 +1369,11 @@ body {
   color: var(--text-primary);
   transition: all var(--transition-fast);
   font-size: 0.875rem;
+}
+
+.dark-mode .config-input, .select-input {
+ background-color: transparent;
+ color: #fff;
 }
 
 .config-input:focus, .select-input:focus {
@@ -1399,6 +1413,9 @@ body {
   margin-top: var(--spacing-xs);
 }
 
+.dark-mode .help-text {
+ color: #f8fafc;
+}
 /* Toggle Switches */
 .toggle-group {
   display: flex;
@@ -1451,6 +1468,10 @@ body {
 .toggle-text {
   color: var(--text-primary);
   font-size: 0.875rem;
+}
+
+.dark-mode .toggle-text {
+color: #f1f5f9;
 }
 
 /* Checkbox Groups */
@@ -1633,6 +1654,9 @@ body {
   color: var(--text-primary);
   margin-bottom: var(--spacing-xs);
 }
+.dark-mode .power-rule-info h6,p  {
+color: #f3f4f6;
+}
 
 .power-rule-info p {
   font-size: 0.875rem;
@@ -1722,7 +1746,9 @@ body {
   color: var(--text-primary);
   margin-bottom: var(--spacing-sm);
 }
-
+.dark-mode .inverter-item h6 {
+  color: #DEAF0B;
+}
 .inverter-type {
   display: inline-block;
   padding: var(--spacing-xs) var(--spacing-sm);
@@ -1818,6 +1844,11 @@ body {
   font-size: 0.875rem;
   text-decoration: none;
   border: 1px solid transparent;
+}
+
+.dark-mode.btn {
+ background: #DEAF0B;
+ color: #fff;
 }
 
 .btn:disabled {
@@ -2176,6 +2207,31 @@ body {
     margin-bottom: var(--spacing-lg);
   }
 }
+.panel-content{
+    color: #000;
+}
+.dark-mode  .panel-content,.panel, .chart-panel{
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
+.dark-mode .chart-container{
+    background-color: rgba(24, 27, 31, 1);
+}
+
+.dark-mode .tabs-content{
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .modal-content{
+    background-color: rgb(32, 36, 41);
+}
+
+.dark-mode .actions-footer{
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+
     </style>
   
 </head>
