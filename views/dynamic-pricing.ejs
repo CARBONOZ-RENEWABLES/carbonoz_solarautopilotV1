@@ -711,9 +711,9 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
-   <script>
+<script>
     // Dynamic Pricing Dashboard JavaScript
-// Enhanced with beautiful charts and real-time updates
+// Enhanced with complete power rules and scheduling functionality
 
 class DynamicPricingDashboard {
     constructor() {
@@ -723,6 +723,10 @@ class DynamicPricingDashboard {
         this.isConnected = false;
         this.updateInterval = null;
         this.toastContainer = document.getElementById('toastContainer');
+        this.powerRules = [];
+        this.schedules = [];
+        this.editingRuleId = null;
+        this.editingScheduleId = null;
         
         // Initialize the dashboard
         this.init();
@@ -1031,7 +1035,7 @@ class DynamicPricingDashboard {
             this.toggleTibberLevelsConfig(e.target.checked);
         });
 
-        // Modal handlers
+        // Power Rule Modal handlers
         document.getElementById('addPowerRuleBtn')?.addEventListener('click', () => {
             this.showPowerRuleModal();
         });
@@ -1040,18 +1044,33 @@ class DynamicPricingDashboard {
             this.hidePowerRuleModal();
         });
 
+        document.getElementById('saveRuleBtn')?.addEventListener('click', () => {
+            this.savePowerRule();
+        });
+
+        document.getElementById('cancelRuleBtn')?.addEventListener('click', () => {
+            this.hidePowerRuleModal();
+        });
+
+        document.getElementById('addConditionBtn')?.addEventListener('click', () => {
+            this.addConditionRow();
+        });
+
+        // Schedule handlers
+        document.getElementById('addScheduleBtn')?.addEventListener('click', () => {
+            this.addScheduleRow();
+        });
+
         // Refresh buttons
         document.getElementById('refreshStatusBtn')?.addEventListener('click', () => {
             this.loadSystemStatus();
         });
 
-        // Settings import/export
-        document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
-            this.exportSettings();
-        });
-
-        document.getElementById('importSettingsBtn')?.addEventListener('click', () => {
-            this.importSettings();
+        // Modal background click to close
+        document.getElementById('powerRuleModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'powerRuleModal') {
+                this.hidePowerRuleModal();
+            }
         });
     }
 
@@ -1075,6 +1094,544 @@ class DynamicPricingDashboard {
     }
 
     // =============================================================================
+    // POWER RULES MANAGEMENT
+    // =============================================================================
+
+    showPowerRuleModal(ruleId = null) {
+        const modal = document.getElementById('powerRuleModal');
+        if (!modal) return;
+
+        this.editingRuleId = ruleId;
+        
+        // Clear existing form
+        this.clearPowerRuleForm();
+        
+        if (ruleId) {
+            // Load existing rule data
+            this.loadPowerRuleData(ruleId);
+        } else {
+            // Add default condition row for new rules
+            this.addConditionRow();
+        }
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    hidePowerRuleModal() {
+        const modal = document.getElementById('powerRuleModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            this.editingRuleId = null;
+        }
+    }
+
+    clearPowerRuleForm() {
+        document.getElementById('ruleName').value = '';
+        document.getElementById('rulePriority').value = 'medium';
+        document.getElementById('ruleDescription').value = '';
+        
+        const conditionsContainer = document.getElementById('ruleConditions');
+        conditionsContainer.innerHTML = '';
+    }
+
+    loadPowerRuleData(ruleId) {
+        const rule = this.powerRules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        document.getElementById('ruleName').value = rule.name || '';
+        document.getElementById('rulePriority').value = rule.priority || 'medium';
+        document.getElementById('ruleDescription').value = rule.description || '';
+
+        // Load conditions
+        if (rule.conditions) {
+            Object.entries(rule.conditions).forEach(([parameter, condition]) => {
+                this.addConditionRow(parameter, condition);
+            });
+        }
+    }
+
+    addConditionRow(parameter = '', condition = {}) {
+        const conditionsContainer = document.getElementById('ruleConditions');
+        const conditionId = 'condition_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        const conditionRow = document.createElement('div');
+        conditionRow.className = 'condition-row';
+        conditionRow.setAttribute('data-condition-id', conditionId);
+        
+        conditionRow.innerHTML = `
+            <div class="condition-controls">
+                <select class="condition-parameter" onchange="dashboard.updateConditionOperators('${conditionId}')">
+                    <option value="">Select Parameter</option>
+                    <option value="battery_soc" ${parameter === 'battery_soc' ? 'selected' : ''}>Battery SoC (%)</option>
+                    <option value="pv_power" ${parameter === 'pv_power' ? 'selected' : ''}>PV Power (W)</option>
+                    <option value="load" ${parameter === 'load' ? 'selected' : ''}>Load Power (W)</option>
+                    <option value="grid_power" ${parameter === 'grid_power' ? 'selected' : ''}>Grid Power (W)</option>
+                    <option value="battery_power" ${parameter === 'battery_power' ? 'selected' : ''}>Battery Power (W)</option>
+                    <option value="grid_voltage" ${parameter === 'grid_voltage' ? 'selected' : ''}>Grid Voltage (V)</option>
+                    <option value="net_power" ${parameter === 'net_power' ? 'selected' : ''}>Net Power (W)</option>
+                </select>
+                
+                <select class="condition-operator">
+                    <option value="gt" ${condition.operator === 'gt' ? 'selected' : ''}>Greater Than (>)</option>
+                    <option value="lt" ${condition.operator === 'lt' ? 'selected' : ''}>Less Than (<)</option>
+                    <option value="gte" ${condition.operator === 'gte' ? 'selected' : ''}>Greater Than or Equal (≥)</option>
+                    <option value="lte" ${condition.operator === 'lte' ? 'selected' : ''}>Less Than or Equal (≤)</option>
+                    <option value="eq" ${condition.operator === 'eq' ? 'selected' : ''}>Equal (=)</option>
+                    <option value="ne" ${condition.operator === 'ne' ? 'selected' : ''}>Not Equal (≠)</option>
+                </select>
+                
+                <input type="number" class="condition-value" placeholder="Value" value="${condition.value || ''}" step="0.1">
+                
+                <button type="button" class="btn btn-outline btn-sm" onclick="dashboard.removeConditionRow('${conditionId}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="condition-help">
+                <small class="help-text" id="help_${conditionId}">Select a parameter to see current value</small>
+            </div>
+        `;
+        
+        conditionsContainer.appendChild(conditionRow);
+        
+        // Update help text and operators
+        this.updateConditionOperators(conditionId);
+    }
+
+    removeConditionRow(conditionId) {
+        const conditionRow = document.querySelector(`[data-condition-id="${conditionId}"]`);
+        if (conditionRow) {
+            conditionRow.remove();
+        }
+    }
+
+    updateConditionOperators(conditionId) {
+        const conditionRow = document.querySelector(`[data-condition-id="${conditionId}"]`);
+        if (!conditionRow) return;
+
+        const parameterSelect = conditionRow.querySelector('.condition-parameter');
+        const helpText = conditionRow.querySelector(`#help_${conditionId}`);
+        const parameter = parameterSelect.value;
+
+        if (parameter && this.systemState) {
+            const currentValue = this.getCurrentParameterValue(parameter);
+            const unit = this.getParameterUnit(parameter);
+            
+            if (currentValue !== null && currentValue !== undefined) {
+                helpText.textContent = `Current ${parameter.replace('_', ' ')}: ${this.formatNumber(currentValue)}${unit}`;
+            } else {
+                helpText.textContent = `${parameter.replace('_', ' ')} data not available`;
+            }
+        } else {
+            helpText.textContent = 'Select a parameter to see current value';
+        }
+    }
+
+    getCurrentParameterValue(parameter) {
+        if (!this.systemState) return null;
+        
+        switch (parameter) {
+            case 'battery_soc':
+                return this.systemState.battery_soc;
+            case 'pv_power':
+                return this.systemState.pv_power;
+            case 'load':
+                return this.systemState.load;
+            case 'grid_power':
+                return this.systemState.grid_power;
+            case 'battery_power':
+                return this.systemState.battery_power;
+            case 'grid_voltage':
+                return this.systemState.grid_voltage;
+            case 'net_power':
+                return (this.systemState.pv_power || 0) - (this.systemState.load || 0);
+            default:
+                return null;
+        }
+    }
+
+    getParameterUnit(parameter) {
+        const units = {
+            'battery_soc': '%',
+            'pv_power': 'W',
+            'load': 'W',
+            'grid_power': 'W',
+            'battery_power': 'W',
+            'grid_voltage': 'V',
+            'net_power': 'W'
+        };
+        return units[parameter] || '';
+    }
+
+    async savePowerRule() {
+        try {
+            const saveBtn = document.getElementById('saveRuleBtn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
+
+            // Collect form data
+            const ruleData = this.collectPowerRuleData();
+            
+            // Validate rule data
+            if (!this.validatePowerRuleData(ruleData)) {
+                return;
+            }
+
+            let response;
+            if (this.editingRuleId) {
+                // Update existing rule
+                response = await fetch(`<%= ingress_path %>/api/dynamic-pricing/smart-power-rule/${this.editingRuleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rule: ruleData })
+                });
+            } else {
+                // Create new rule
+                response = await fetch('<%= ingress_path %>/api/dynamic-pricing/smart-power-rule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rule: ruleData })
+                });
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast(this.editingRuleId ? 'Rule updated successfully' : 'Rule created successfully', 'success');
+                this.hidePowerRuleModal();
+                await this.loadPowerRules();
+                this.displayPowerRules();
+            } else {
+                throw new Error(data.error || 'Failed to save rule');
+            }
+        } catch (error) {
+            console.error('Error saving power rule:', error);
+            this.showToast('Error saving rule: ' + error.message, 'error');
+        } finally {
+            const saveBtn = document.getElementById('saveRuleBtn');
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Rule';
+            saveBtn.disabled = false;
+        }
+    }
+
+    collectPowerRuleData() {
+        const ruleData = {
+            name: document.getElementById('ruleName').value.trim(),
+            priority: document.getElementById('rulePriority').value,
+            description: document.getElementById('ruleDescription').value.trim(),
+            enabled: true,
+            conditions: {}
+        };
+
+        // Collect conditions
+        const conditionRows = document.querySelectorAll('.condition-row');
+        conditionRows.forEach(row => {
+            const parameter = row.querySelector('.condition-parameter').value;
+            const operator = row.querySelector('.condition-operator').value;
+            const value = parseFloat(row.querySelector('.condition-value').value);
+
+            if (parameter && operator && !isNaN(value)) {
+                ruleData.conditions[parameter] = {
+                    operator: operator,
+                    value: value
+                };
+            }
+        });
+
+        return ruleData;
+    }
+
+    validatePowerRuleData(ruleData) {
+        if (!ruleData.name) {
+            this.showToast('Please enter a rule name', 'error');
+            return false;
+        }
+
+        if (Object.keys(ruleData.conditions).length === 0) {
+            this.showToast('Please add at least one condition', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    async loadPowerRules() {
+        try {
+            // Load power rules from configuration
+            if (this.config && this.config.smartPowerConditions && this.config.smartPowerConditions.rules) {
+                this.powerRules = this.config.smartPowerConditions.rules;
+            }
+        } catch (error) {
+            console.error('Error loading power rules:', error);
+        }
+    }
+
+    displayPowerRules() {
+        const container = document.getElementById('powerRulesList');
+        if (!container) return;
+
+        if (this.powerRules.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-lightning-bolt"></i>
+                    <p>No custom power rules defined yet</p>
+                    <small>Click "Add New Rule" to create your first smart power rule</small>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = this.powerRules.map(rule => `
+            <div class="power-rule-item" data-rule-id="${rule.id}">
+                <div class="rule-header">
+                    <div class="rule-info">
+                        <h6>${rule.name}</h6>
+                        <span class="rule-priority priority-${rule.priority}">${rule.priority.toUpperCase()}</span>
+                        <span class="rule-status ${rule.enabled ? 'enabled' : 'disabled'}">
+                            ${rule.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                    </div>
+                    <div class="rule-actions">
+                        <button class="btn btn-sm btn-outline" onclick="dashboard.editPowerRule('${rule.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="dashboard.togglePowerRule('${rule.id}')">
+                            <i class="fas fa-${rule.enabled ? 'pause' : 'play'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline text-danger" onclick="dashboard.deletePowerRule('${rule.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="rule-description">
+                    <p>${rule.description || 'No description'}</p>
+                </div>
+                <div class="rule-conditions">
+                    <small><strong>Conditions:</strong></small>
+                    ${Object.entries(rule.conditions).map(([param, cond]) => `
+                        <span class="condition-tag">
+                            ${param.replace('_', ' ')} ${this.getOperatorSymbol(cond.operator)} ${cond.value}${this.getParameterUnit(param)}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getOperatorSymbol(operator) {
+        const symbols = {
+            'gt': '>',
+            'lt': '<',
+            'gte': '≥',
+            'lte': '≤',
+            'eq': '=',
+            'ne': '≠'
+        };
+        return symbols[operator] || operator;
+    }
+
+    editPowerRule(ruleId) {
+        this.showPowerRuleModal(ruleId);
+    }
+
+    async togglePowerRule(ruleId) {
+        try {
+            const rule = this.powerRules.find(r => r.id === ruleId);
+            if (!rule) return;
+
+            rule.enabled = !rule.enabled;
+
+            const response = await fetch(`<%= ingress_path %>/api/dynamic-pricing/smart-power-rule/${ruleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rule: rule })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast(`Rule ${rule.enabled ? 'enabled' : 'disabled'}`, 'success');
+                this.displayPowerRules();
+            } else {
+                throw new Error(data.error || 'Failed to toggle rule');
+            }
+        } catch (error) {
+            console.error('Error toggling power rule:', error);
+            this.showToast('Error toggling rule: ' + error.message, 'error');
+        }
+    }
+
+    async deletePowerRule(ruleId) {
+        try {
+            const rule = this.powerRules.find(r => r.id === ruleId);
+            if (!rule) return;
+
+            if (!confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+                return;
+            }
+
+            const response = await fetch(`<%= ingress_path %>/api/dynamic-pricing/smart-power-rule/${ruleId}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('Rule deleted successfully', 'success');
+                this.powerRules = this.powerRules.filter(r => r.id !== ruleId);
+                this.displayPowerRules();
+            } else {
+                throw new Error(data.error || 'Failed to delete rule');
+            }
+        } catch (error) {
+            console.error('Error deleting power rule:', error);
+            this.showToast('Error deleting rule: ' + error.message, 'error');
+        }
+    }
+
+    // =============================================================================
+    // SCHEDULE MANAGEMENT
+    // =============================================================================
+
+    addScheduleRow(schedule = null) {
+        const container = document.getElementById('schedulesList');
+        if (!container) return;
+
+        const scheduleId = schedule ? schedule.id : 'schedule_' + Date.now();
+        const isEditing = !!schedule;
+
+        const scheduleRow = document.createElement('div');
+        scheduleRow.className = 'schedule-item';
+        scheduleRow.setAttribute('data-schedule-id', scheduleId);
+
+        scheduleRow.innerHTML = `
+            <div class="schedule-controls">
+                <div class="schedule-time">
+                    <label>Start Time:</label>
+                    <input type="time" class="schedule-start" value="${schedule?.start || '22:00'}">
+                    
+                    <label>End Time:</label>
+                    <input type="time" class="schedule-end" value="${schedule?.end || '06:00'}">
+                </div>
+                
+                <div class="schedule-days">
+                    <label>Days:</label>
+                    <div class="days-selector">
+                        ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => `
+                            <label class="day-checkbox">
+                                <input type="checkbox" value="${day}" ${schedule?.days?.includes(day) ? 'checked' : ''}>
+                                <span>${day.charAt(0).toUpperCase()}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="schedule-actions">
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" class="schedule-enabled" ${schedule?.enabled !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Enabled</span>
+                        </label>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline btn-sm" onclick="dashboard.removeScheduleRow('${scheduleId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="schedule-description">
+                <input type="text" class="schedule-desc" placeholder="Description (optional)" value="${schedule?.description || ''}">
+            </div>
+        `;
+
+        if (isEditing) {
+            // Replace existing schedule
+            const existingRow = container.querySelector(`[data-schedule-id="${scheduleId}"]`);
+            if (existingRow) {
+                container.replaceChild(scheduleRow, existingRow);
+            } else {
+                container.appendChild(scheduleRow);
+            }
+        } else {
+            container.appendChild(scheduleRow);
+        }
+
+        this.showToast('Schedule added - remember to save settings', 'info');
+    }
+
+    removeScheduleRow(scheduleId) {
+        const scheduleRow = document.querySelector(`[data-schedule-id="${scheduleId}"]`);
+        if (scheduleRow) {
+            scheduleRow.remove();
+            this.showToast('Schedule removed - remember to save settings', 'info');
+        }
+    }
+
+    collectScheduleData() {
+        const schedules = [];
+        const scheduleRows = document.querySelectorAll('.schedule-item');
+
+        scheduleRows.forEach((row, index) => {
+            const scheduleId = row.getAttribute('data-schedule-id');
+            const start = row.querySelector('.schedule-start').value;
+            const end = row.querySelector('.schedule-end').value;
+            const enabled = row.querySelector('.schedule-enabled').checked;
+            const description = row.querySelector('.schedule-desc').value.trim();
+
+            // Collect selected days
+            const days = [];
+            row.querySelectorAll('.days-selector input[type="checkbox"]:checked').forEach(checkbox => {
+                days.push(checkbox.value);
+            });
+
+            if (start && end) {
+                schedules.push({
+                    id: scheduleId,
+                    start: start,
+                    end: end,
+                    days: days,
+                    enabled: enabled,
+                    description: description || `Schedule ${index + 1}`
+                });
+            }
+        });
+
+        return schedules;
+    }
+
+    displaySchedules() {
+        const container = document.getElementById('schedulesList');
+        if (!container) return;
+
+        if (this.schedules.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-clock"></i>
+                    <p>No charging schedules defined</p>
+                    <small>Click "Add Schedule" to create time-based charging periods</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Clear container and add each schedule
+        container.innerHTML = '';
+        this.schedules.forEach(schedule => {
+            this.addScheduleRow(schedule);
+        });
+    }
+
+    // =============================================================================
     // DATA LOADING AND UPDATES
     // =============================================================================
 
@@ -1087,6 +1644,16 @@ class DynamicPricingDashboard {
                 this.config = data.config;
                 this.populateConfigurationForm(data.config);
                 this.updateConnectionStatus(true);
+                
+                // Load power rules and schedules
+                await this.loadPowerRules();
+                this.displayPowerRules();
+                
+                if (data.config.chargingHours) {
+                    this.schedules = data.config.chargingHours;
+                    this.displaySchedules();
+                }
+                
                 console.log('📋 Configuration loaded successfully');
             } else {
                 throw new Error(data.error || 'Failed to load configuration');
@@ -1539,15 +2106,15 @@ class DynamicPricingDashboard {
                 nightEnd: document.getElementById('nightEnd')?.value || '06:00'
             },
 
-            // Smart power conditions
+            // Smart power conditions with collected rules
             smartPowerConditions: {
                 enabled: document.getElementById('enablePowerConditions')?.checked || false,
-                rules: [] // TODO: Implement power rules collection
+                rules: this.powerRules // Use the power rules array
             },
 
-            // Scheduled charging
+            // Scheduled charging with collected schedules
             scheduledCharging: document.getElementById('enableScheduledCharging')?.checked || false,
-            chargingHours: [], // TODO: Implement schedule collection
+            chargingHours: this.collectScheduleData(),
 
             // Cooldown settings
             cooldownSettings: {
@@ -1612,7 +2179,7 @@ class DynamicPricingDashboard {
         } finally {
             const button = enable ? document.getElementById('manualChargeBtn') : document.getElementById('manualStopBtn');
             const originalIcon = enable ? 'fa-play' : 'fa-stop';
-            const originalText = enable ? 'Start Charging' : 'Stop Charging';
+            const originalText = enable ? 'Manual Charging Test' : 'Manual Charge Stop Test';
             
             button.innerHTML = `<i class="fas ${originalIcon}"></i> ${originalText}`;
             button.disabled = false;
@@ -1703,7 +2270,7 @@ class DynamicPricingDashboard {
                 throw new Error('Please enter a weather API key first');
             }
 
-            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-weather', {
+            const response = await fetch('/api/dynamic-pricing/test-weather', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1824,20 +2391,6 @@ class DynamicPricingDashboard {
         this.showToast('Test conditions feature coming soon', 'info');
     }
 
-    showPowerRuleModal() {
-        // TODO: Implement power rule modal
-        this.showToast('Power rule configuration coming soon', 'info');
-    }
-
-    hidePowerRuleModal() {
-        const modal = document.getElementById('powerRuleModal');
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    }
-
-
-
     updateWeatherDisplay(weatherData) {
         // Update weather status card
         const weatherIcon = document.getElementById('weatherIcon');
@@ -1899,18 +2452,22 @@ class DynamicPricingDashboard {
     }
 }
 
+// Make dashboard available globally for onclick handlers
+window.dashboard = null;
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.dynamicPricingDashboard = new DynamicPricingDashboard();
+    window.dashboard = new DynamicPricingDashboard();
+    window.dynamicPricingDashboard = window.dashboard; // For backward compatibility
 });
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    if (window.dynamicPricingDashboard) {
-        window.dynamicPricingDashboard.destroy();
+    if (window.dashboard) {
+        window.dashboard.destroy();
     }
 });
-   </script>
+</script>
 
 
 
