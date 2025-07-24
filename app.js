@@ -3105,745 +3105,642 @@ app.get('/', async (req, res) => {
   
 
 
-  // ================ ENHANCED RULE CREATION WITH INVERTER TYPE SUPPORT ================
+// ================ DYNAMIC RULE CREATION BASED ON INVERTER TYPES ================
 
 async function createDefaultRules() {
-    if (!dbConnected) return;
-    
-    try {
+  if (!dbConnected) return;
+  
+  try {
       const count = await countRules(USER_ID);
       
       if (count === 0) {
-        console.log('Creating default rules for user:', USER_ID);
-        
-        // Rule 1: Low Load Battery First - works for both inverter types
-        const rule1 = {
-          name: 'Low Load Battery First',
-          description: 'If load is lower than 5000W, change energy pattern to battery first (auto-detects inverter type)',
-          active: true,
-          conditions: [{
-            parameter: 'load',
-            operator: 'lt',
-            value: 5000
-          }],
-          actions: [{
-            setting: 'energy_pattern', // Will be auto-mapped to output_source_priority for new inverters
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule1);
-        
-        // Rule 2: Low Battery Enable Grid Charge - works for both inverter types
-        const rule2 = {
-          name: 'Low Battery Enable Grid Charge',
-          description: 'If SOC is lower than 20%, turn Grid charge on (auto-detects inverter type)',
-          active: true,
-          conditions: [{
-            parameter: 'battery_soc',
-            operator: 'lt',
-            value: 20
-          }],
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Enabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule2);
-        
-        // Rule 3: Weekend Grid Charge Off - works for both inverter types
-        const rule3 = {
-          name: 'Weekend Grid Charge Off',
-          description: 'Turn Grid charge off every Saturday and Sunday (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            days: ['saturday', 'sunday'],
-            enabled: true
-          },
-          conditions: [],
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule3);
-        
-        // Rule 4: Smart Grid Charge Management - works for both inverter types
-        const rule4 = {
-          name: 'Smart Grid Charge Management',
-          description: 'If SOC < 70% AND Load < 10000W AND PV > 8000W, turn Grid charge ON (auto-detects inverter type)',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 70
-            },
-            {
-              parameter: 'load',
-              operator: 'lt',
-              value: 10000
-            },
-            {
-              parameter: 'pv_power',
-              operator: 'gt',
-              value: 8000
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Enabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule4);
-        
-        // Rule 5: Emergency Grid Charge Off - works for both inverter types
-        const rule5 = {
-          name: 'Emergency Grid Charge Off',
-          description: 'If load > 13000W OR PV < 8000W, turn Grid charge OFF (9:00-17:00) (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            startTime: '09:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'load',
-              operator: 'gt',
-              value: 13000
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule5);
-        
-        // Rule 6: NEW INVERTER SPECIFIC - Direct charger source priority rule
-        const rule6 = {
-          name: 'NEW - Solar Priority Charging',
-          description: 'Set charger source priority to Solar first during peak sun hours (10:00-16:00)',
-          active: true,
-          timeRestrictions: {
-            startTime: '10:00',
-            endTime: '16:00',
-            enabled: true
-          },
-          conditions: [{
-            parameter: 'pv_power',
-            operator: 'gt',
-            value: 5000
-          }],
-          actions: [{
-            setting: 'charger_source_priority', // Will be auto-mapped to grid_charge for legacy inverters
-            value: 'Solar first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule6);
-        
-        // Rule 7: NEW INVERTER SPECIFIC - Output source priority rule
-        const rule7 = {
-          name: 'NEW - Evening Output Priority',
-          description: 'Set output source priority to Solar/Battery/Utility in evening (18:00-22:00)',
-          active: true,
-          timeRestrictions: {
-            startTime: '18:00',
-            endTime: '22:00',
-            enabled: true
-          },
-          conditions: [{
-            parameter: 'battery_soc',
-            operator: 'gt',
-            value: 30
-          }],
-          actions: [{
-            setting: 'output_source_priority', // Will be auto-mapped to energy_pattern for legacy inverters
-            value: 'Solar/Battery/Utility',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(rule7);
-        
-        console.log('Default rules created for user (with inverter type auto-detection):', USER_ID);
+          console.log('Creating dynamic default rules based on detected inverter types...');
+          
+          // Analyze detected inverter types
+          const detectedTypes = analyzeInverterTypes();
+          console.log(`Detected inverter environment: ${detectedTypes.summary}`);
+          
+          // Create rules based on detected types
+          const rules = [];
+          
+          // Rule 1: Adaptive Low Load Management
+          if (detectedTypes.hasAny) {
+              rules.push({
+                  name: 'Adaptive Low Load Management',
+                  description: `When load < 5000W, optimize energy usage (supports ${detectedTypes.summary})`,
+                  active: true,
+                  conditions: [{
+                      parameter: 'load',
+                      operator: 'lt',
+                      value: 5000
+                  }],
+                  actions: generateAdaptiveActions('energy_optimization', 'Battery first', detectedTypes),
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 2: Smart Battery Protection
+          rules.push({
+              name: 'Smart Battery Protection',
+              description: `Enable charging when SOC < 20% (auto-adapts to ${detectedTypes.summary})`,
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 20
+              }],
+              actions: generateAdaptiveActions('charging', 'Enabled', detectedTypes),
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Rule 3: Peak Solar Optimization (for new/hybrid inverters)
+          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
+              rules.push({
+                  name: 'Peak Solar Optimization',
+                  description: 'Prioritize solar during peak production (new inverters)',
+                  active: true,
+                  conditions: [{
+                      parameter: 'pv_power',
+                      operator: 'gt',
+                      value: 8000
+                  }],
+                  timeRestrictions: {
+                      startTime: '10:00',
+                      endTime: '16:00',
+                      enabled: true
+                  },
+                  actions: [{
+                      setting: 'output_source_priority',
+                      value: 'Solar first',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 4: Legacy Grid Management (for legacy inverters)
+          if (detectedTypes.hasLegacy) {
+              rules.push({
+                  name: 'Legacy Grid Management',
+                  description: 'Traditional grid charge control for legacy inverters',
+                  active: true,
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'lt',
+                      value: 50
+                  }, {
+                      parameter: 'pv_power',
+                      operator: 'lt',
+                      value: 3000
+                  }],
+                  actions: [{
+                      setting: 'grid_charge',
+                      value: 'Enabled',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 5: Universal High Load Response
+          rules.push({
+              name: 'High Load Response',
+              description: `Disable grid export when load > 12000W (all inverter types)`,
+              active: true,
+              conditions: [{
+                  parameter: 'load',
+                  operator: 'gt',
+                  value: 12000
+              }],
+              actions: [
+                  {
+                      setting: 'max_sell_power',
+                      value: '0',
+                      inverter: 'all'
+                  },
+                  ...generateAdaptiveActions('high_load', 'Grid first', detectedTypes)
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Save all rules
+          for (const rule of rules) {
+              await saveRule(rule);
+              console.log(`Created rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${rules.length} dynamic default rules for ${detectedTypes.summary}`);
       }
-    } catch (error) {
-      console.error('Error creating default rules:', error.message);
-    }
+  } catch (error) {
+      console.error('Error creating dynamic default rules:', error.message);
   }
+}
+
+async function createExtendedAutomationRules() {
+  if (!dbConnected) return;
   
-  async function createExtendedAutomationRules() {
-    if (!dbConnected) return;
-    
-    try {
+  try {
       const count = await db.get(`
-        SELECT COUNT(*) as count FROM rules 
-        WHERE user_id = ? AND name LIKE '%Extended%'
+          SELECT COUNT(*) as count FROM rules 
+          WHERE user_id = ? AND name LIKE '%Extended%'
       `, [USER_ID]);
       
       if (count.count === 0) {
-        console.log('Creating extended automation rules for user:', USER_ID);
-        
-        // ===== Morning Energy Pattern Rules (00:05 to 12:00) =====
-        const morningEnergyPatternLowSoc = {
-          name: 'Extended - Morning Energy Pattern (Low SOC)',
-          description: 'Set energy pattern to Battery First from 00:05-12:00 when SOC is 0-35% (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '12:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 35
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern', // Will be auto-mapped for new inverters
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningEnergyPatternLowSoc);
-        
-        const morningEnergyPatternHighSoc = {
-          name: 'Extended - Morning Energy Pattern (High SOC)',
-          description: 'Set energy pattern to Load First from 00:05-12:00 when SOC is 41-100% (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '12:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 41
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern', // Will be auto-mapped for new inverters
-            value: 'Load first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningEnergyPatternHighSoc);
-        
-        // ===== NEW INVERTER SPECIFIC RULES =====
-        const newInverterChargerRule = {
-          name: 'Extended - NEW Inverter Charger Management',
-          description: 'Set charger source priority to Solar and utility simultaneously when SOC < 50% during day',
-          active: true,
-          timeRestrictions: {
-            startTime: '08:00',
-            endTime: '18:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 50
-            }
-          ],
-          actions: [{
-            setting: 'charger_source_priority', // Will be auto-mapped to grid_charge for legacy inverters
-            value: 'Solar and utility simultaneously',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(newInverterChargerRule);
-        
-        const newInverterOutputRule = {
-          name: 'Extended - NEW Inverter Output Management',
-          description: 'Set output source priority to Utility first when SOC < 20%',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 20
-            }
-          ],
-          actions: [{
-            setting: 'output_source_priority', // Will be auto-mapped to energy_pattern for legacy inverters
-            value: 'Utility first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(newInverterOutputRule);
-        
-        // Continue with other extended rules but adapted for both inverter types...
-        const afternoonEnergyPatternLowSoc = {
-          name: 'Extended - Afternoon Energy Pattern (Low SOC)',
-          description: 'Set energy pattern to Battery First from 12:00-17:00 when SOC is 0-79% (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            startTime: '12:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonEnergyPatternLowSoc);
-        
-        const afternoonEnergyPatternHighSoc = {
-          name: 'Extended - Afternoon Energy Pattern (High SOC)',
-          description: 'Set energy pattern to Load First from 12:00-17:00 when SOC is 80-100% (auto-detects inverter type)',
-          active: true,
-          timeRestrictions: {
-            startTime: '12:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Load first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonEnergyPatternHighSoc);
-        
-        console.log(`Extended automation rules created for user (with inverter type auto-detection): ${USER_ID}`);
+          console.log('Creating extended automation rules based on inverter types...');
+          
+          const detectedTypes = analyzeInverterTypes();
+          const rules = [];
+          
+          // Time-based optimization rules
+          if (detectedTypes.hasLegacy || detectedTypes.hasHybrid) {
+              // Morning optimization for legacy systems
+              rules.push({
+                  name: 'Extended - Morning Energy Optimization',
+                  description: 'Optimize morning energy usage (legacy compatible)',
+                  active: true,
+                  timeRestrictions: {
+                      startTime: '06:00',
+                      endTime: '10:00',
+                      enabled: true
+                  },
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'gt',
+                      value: 40
+                  }],
+                  actions: [{
+                      setting: 'energy_pattern',
+                      value: 'Load first',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
+              // Advanced charging strategies for new inverters
+              rules.push({
+                  name: 'Extended - Smart Charging Strategy',
+                  description: 'Advanced charging control for new inverters',
+                  active: true,
+                  conditions: [
+                      {
+                          parameter: 'battery_soc',
+                          operator: 'lt',
+                          value: 60
+                      },
+                      {
+                          parameter: 'pv_power',
+                          operator: 'gt',
+                          value: 4000
+                      }
+                  ],
+                  actions: [{
+                      setting: 'charger_source_priority',
+                      value: 'Solar and utility simultaneously',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+              
+              // Evening optimization for new inverters
+              rules.push({
+                  name: 'Extended - Evening Battery Priority',
+                  description: 'Optimize evening energy usage (new inverters)',
+                  active: true,
+                  timeRestrictions: {
+                      startTime: '18:00',
+                      endTime: '22:00',
+                      enabled: true
+                  },
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'gt',
+                      value: 50
+                  }],
+                  actions: [{
+                      setting: 'output_source_priority',
+                      value: 'Solar/Battery/Utility',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Universal battery protection
+          rules.push({
+              name: 'Extended - Deep Discharge Protection',
+              description: 'Protect battery from deep discharge (all types)',
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 25
+              }],
+              actions: [
+                  {
+                      setting: 'max_discharge_current',
+                      value: '20',
+                      inverter: 'all'
+                  },
+                  ...generateAdaptiveActions('emergency_charge', 'Enabled', detectedTypes)
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Save all extended rules
+          for (const rule of rules) {
+              await saveRule(rule);
+              console.log(`Created extended rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${rules.length} extended automation rules for ${detectedTypes.summary}`);
       }
-    } catch (error) {
+  } catch (error) {
       console.error('Error creating extended automation rules:', error.message);
-    }
   }
+}
+
+async function createNightChargingRule() {
+  if (!dbConnected) return;
   
-  async function createNightChargingRule() {
-    if (!dbConnected) return;
-    
-    try {
+  try {
+      const detectedTypes = analyzeInverterTypes();
+      
+      // Check if night charging rule exists
       const existingRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Night Battery Charging to 95%' AND user_id = ?
+          SELECT * FROM rules 
+          WHERE name LIKE 'Night Charging%' AND user_id = ?
       `, [USER_ID]);
       
-      if (existingRule) {
-        console.log('Night charging rule already exists, updating it...');
-        
-        const updatedRule = {
-          name: 'Night Battery Charging to 95%',
-          description: 'Charges the battery at night (11PM to 6AM) to 95% SOC on weekdays only (auto-detects inverter type)',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 95
-            }
-          ],
-          timeRestrictions: {
-            startTime: '23:00',
-            endTime: '06:00',
-            enabled: true,
-            days: ['monday', 'tuesday', 'wednesday', 'thursday']
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Enabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(existingRule.id, updatedRule);
-        console.log('Night charging rule updated successfully');
-      } else {
-        const nightChargingRule = {
-          name: 'Night Battery Charging to 95%',
-          description: 'Charges the battery at night (11PM to 6AM) to 95% SOC on weekdays only (auto-detects inverter type)',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 95
-            }
-          ],
-          timeRestrictions: {
-            startTime: '23:00',
-            endTime: '06:00',
-            enabled: true,
-            days: ['monday', 'tuesday', 'wednesday', 'thursday']
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Enabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(nightChargingRule);
-        console.log('Night charging rule created successfully');
+      if (!existingRule) {
+          const nightRule = {
+              name: `Night Charging Strategy (${detectedTypes.primary})`,
+              description: `Intelligent night charging for ${detectedTypes.summary}`,
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 85
+              }],
+              timeRestrictions: {
+                  startTime: '23:00',
+                  endTime: '05:00',
+                  enabled: true,
+                  days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+              },
+              actions: [],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          };
+          
+          // Add appropriate actions based on inverter types
+          if (detectedTypes.hasNew) {
+              nightRule.actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+              nightRule.actions.push({
+                  setting: 'max_grid_charge_current',
+                  value: '80',
+                  inverter: 'all'
+              });
+          } else {
+              nightRule.actions.push({
+                  setting: 'grid_charge',
+                  value: 'Enabled',
+                  inverter: 'all'
+              });
+          }
+          
+          await saveRule(nightRule);
+          console.log('Created dynamic night charging rule');
+          
+          // Create complementary daytime rule
+          const daytimeRule = {
+              name: `Daytime Solar Priority (${detectedTypes.primary})`,
+              description: `Disable grid charging during day for ${detectedTypes.summary}`,
+              active: true,
+              timeRestrictions: {
+                  startTime: '06:00',
+                  endTime: '22:00',
+                  enabled: true
+              },
+              conditions: [{
+                  parameter: 'pv_power',
+                  operator: 'gt',
+                  value: 1000
+              }],
+              actions: generateAdaptiveActions('solar_priority', 'Disabled', detectedTypes),
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          };
+          
+          await saveRule(daytimeRule);
+          console.log('Created complementary daytime rule');
       }
-      
-      // Create complementary rules...
-      const existingComplementaryRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Disable Grid Charging After 6AM' AND user_id = ?
-      `, [USER_ID]);
-      
-      if (existingComplementaryRule) {
-        console.log('Complementary rule already exists, updating it...');
-        
-        const updatedComplementaryRule = {
-          name: 'Disable Grid Charging After 6AM',
-          description: 'Disables grid charging after 6AM until 11PM (daytime) on weekdays (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            startTime: '06:01',
-            endTime: '22:59',
-            enabled: true,
-            days: ['monday', 'tuesday', 'wednesday', 'thursday']
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Disabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(existingComplementaryRule.id, updatedComplementaryRule);
-        console.log('Complementary rule updated successfully');
-      } else {
-        const complementaryRule = {
-          name: 'Disable Grid Charging After 6AM',
-          description: 'Disables grid charging after 6AM until 11PM (daytime) on weekdays (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            startTime: '06:01',
-            endTime: '22:59',
-            enabled: true,
-            days: ['monday', 'tuesday', 'wednesday', 'thursday']
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Disabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(complementaryRule);
-        console.log('Complementary rule created successfully');
-      }
-      
-      // Create battery full rule
-      const existingEmergencyRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Disable Grid Charging When Battery Full' AND user_id = ?
-      `, [USER_ID]);
-      
-      if (existingEmergencyRule) {
-        console.log('Battery full rule already exists, updating it...');
-        
-        const updatedEmergencyRule = {
-          name: 'Disable Grid Charging When Battery Full',
-          description: 'Disables grid charging when battery SOC reaches 95% or higher (auto-detects inverter type)',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 95
-            }
-          ],
-          timeRestrictions: {
-            enabled: false
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Disabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(existingEmergencyRule.id, updatedEmergencyRule);
-        console.log('Battery full rule updated successfully');
-      } else {
-        const emergencyRule = {
-          name: 'Disable Grid Charging When Battery Full',
-          description: 'Disables grid charging when battery SOC reaches 95% or higher (auto-detects inverter type)',
-          active: true,
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 95
-            }
-          ],
-          timeRestrictions: {
-            enabled: false
-          },
-          actions: [
-            {
-              setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-              value: 'Disabled',
-              inverter: 'all'
-            }
-          ],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(emergencyRule);
-        console.log('Battery full rule created successfully');
-      }
-      
-      return true;
-    } catch (error) {
+  } catch (error) {
       console.error('Error creating night charging rules:', error.message);
-      return false;
-    }
+  }
+}
+
+async function createWeekendGridChargeRules() {
+  if (!dbConnected) return;
+  
+  try {
+      const detectedTypes = analyzeInverterTypes();
+      
+      // Check if weekend rules exist
+      const existingWeekendRule = await db.get(`
+          SELECT * FROM rules 
+          WHERE name LIKE '%Weekend%' AND user_id = ?
+      `, [USER_ID]);
+      
+      if (!existingWeekendRule) {
+          const weekendRules = [];
+          
+          // Weekend optimization rule
+          weekendRules.push({
+              name: `Weekend Solar Maximization (${detectedTypes.primary})`,
+              description: `Maximize solar usage on weekends for ${detectedTypes.summary}`,
+              active: true,
+              timeRestrictions: {
+                  days: ['saturday', 'sunday'],
+                  enabled: true
+              },
+              conditions: [{
+                  parameter: 'pv_power',
+                  operator: 'gt',
+                  value: 2000
+              }],
+              actions: [
+                  ...generateAdaptiveActions('weekend_solar', 'Disabled', detectedTypes),
+                  {
+                      setting: 'solar_export_when_battery_full',
+                      value: 'Enabled',
+                      inverter: 'all'
+                  }
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Weekend battery preservation
+          if (detectedTypes.hasAny) {
+              weekendRules.push({
+                  name: `Weekend Battery Preservation (${detectedTypes.primary})`,
+                  description: 'Preserve battery on weekends when solar is available',
+                  active: true,
+                  timeRestrictions: {
+                      days: ['saturday', 'sunday'],
+                      startTime: '09:00',
+                      endTime: '17:00',
+                      enabled: true
+                  },
+                  conditions: [
+                      {
+                          parameter: 'battery_soc',
+                          operator: 'gt',
+                          value: 70
+                      },
+                      {
+                          parameter: 'pv_power',
+                          operator: 'gt',
+                          value: 5000
+                      }
+                  ],
+                  actions: generateAdaptiveActions('battery_preserve', 'Load first', detectedTypes),
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Save weekend rules
+          for (const rule of weekendRules) {
+              await saveRule(rule);
+              console.log(`Created weekend rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${weekendRules.length} weekend rules for ${detectedTypes.summary}`);
+      }
+  } catch (error) {
+      console.error('Error creating weekend rules:', error.message);
+  }
+}
+
+// ================ HELPER FUNCTIONS FOR DYNAMIC RULE GENERATION ================
+
+function analyzeInverterTypes() {
+  const analysis = {
+      hasLegacy: false,
+      hasNew: false,
+      hasHybrid: false,
+      hasUnknown: false,
+      hasAny: false,
+      primary: 'unknown',
+      summary: 'no inverters',
+      counts: {
+          legacy: 0,
+          new: 0,
+          hybrid: 0,
+          unknown: 0
+      }
+  };
+  
+  if (!inverterTypes || Object.keys(inverterTypes).length === 0) {
+      // If no types detected yet, assume we might have any type
+      analysis.hasAny = true;
+      analysis.hasLegacy = true;
+      analysis.hasNew = true;
+      analysis.primary = 'universal';
+      analysis.summary = 'all types (detection pending)';
+      return analysis;
   }
   
-  async function createWeekendGridChargeRules() {
-    if (!dbConnected) return;
-    
-    try {
-      // Create Friday evening rule
-      const fridayRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Weekend Grid Charge Off - Friday Evening' AND user_id = ?
-      `, [USER_ID]);
+  // Count inverter types
+  Object.values(inverterTypes).forEach(inv => {
+      const type = inv.type || 'unknown';
+      analysis.counts[type] = (analysis.counts[type] || 0) + 1;
       
-      if (fridayRule) {
-        const updatedFridayRule = {
-          name: 'Weekend Grid Charge Off - Friday Evening',
-          description: 'Turns Grid charge off every Friday from 6PM until midnight (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['friday'],
-            startTime: '18:00',
-            endTime: '23:59',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(fridayRule.id, updatedFridayRule);
-        console.log('Friday evening grid charge rule updated successfully');
-      } else {
-        const newFridayRule = {
-          name: 'Weekend Grid Charge Off - Friday Evening',
-          description: 'Turns Grid charge off every Friday from 6PM until midnight (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['friday'],
-            startTime: '18:00',
-            endTime: '23:59',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(newFridayRule);
-        console.log('Friday evening grid charge rule created successfully');
+      switch (type) {
+          case 'legacy':
+              analysis.hasLegacy = true;
+              analysis.hasAny = true;
+              break;
+          case 'new':
+              analysis.hasNew = true;
+              analysis.hasAny = true;
+              break;
+          case 'hybrid':
+              analysis.hasHybrid = true;
+              analysis.hasAny = true;
+              break;
+          case 'unknown':
+              analysis.hasUnknown = true;
+              analysis.hasAny = true;
+              break;
       }
-      
-      // Create Saturday and Sunday rules...
-      const saturdayRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Weekend Grid Charge Off - Saturday' AND user_id = ?
-      `, [USER_ID]);
-      
-      if (saturdayRule) {
-        const updatedSaturdayRule = {
-          name: 'Weekend Grid Charge Off - Saturday',
-          description: 'Turns Grid charge off for all of Saturday (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['saturday'],
-            startTime: '00:00',
-            endTime: '23:59',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(saturdayRule.id, updatedSaturdayRule);
-        console.log('Saturday grid charge rule updated successfully');
-      } else {
-        const newSaturdayRule = {
-          name: 'Weekend Grid Charge Off - Saturday',
-          description: 'Turns Grid charge off for all of Saturday (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['saturday'],
-            startTime: '00:00',
-            endTime: '23:59',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(newSaturdayRule);
-        console.log('Saturday grid charge rule created successfully');
-      }
-      
-      const sundayRule = await db.get(`
-        SELECT * FROM rules 
-        WHERE name = 'Weekend Grid Charge Off - Sunday' AND user_id = ?
-      `, [USER_ID]);
-      
-      if (sundayRule) {
-        const updatedSundayRule = {
-          name: 'Weekend Grid Charge Off - Sunday',
-          description: 'Turns Grid charge off on Sunday until 6PM (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['sunday'],
-            startTime: '00:00',
-            endTime: '18:00',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await updateRule(sundayRule.id, updatedSundayRule);
-        console.log('Sunday grid charge rule updated successfully');
-      } else {
-        const newSundayRule = {
-          name: 'Weekend Grid Charge Off - Sunday',
-          description: 'Turns Grid charge off on Sunday until 6PM (auto-detects inverter type)',
-          active: true,
-          conditions: [],
-          timeRestrictions: {
-            days: ['sunday'],
-            startTime: '00:00',
-            endTime: '18:00',
-            enabled: true
-          },
-          actions: [{
-            setting: 'grid_charge', // Will be auto-mapped to charger_source_priority for new inverters
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        
-        await saveRule(newSundayRule);
-        console.log('Sunday grid charge rule created successfully');
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error creating weekend grid charge rules:', error.message);
-      return false;
-    }
+  });
+  
+  // Determine primary type
+  const types = Object.entries(analysis.counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]);
+  
+  if (types.length > 0) {
+      analysis.primary = types[0][0];
   }
+  
+  // Create summary
+  const summaryParts = [];
+  if (analysis.counts.legacy > 0) summaryParts.push(`${analysis.counts.legacy}x legacy`);
+  if (analysis.counts.new > 0) summaryParts.push(`${analysis.counts.new}x new`);
+  if (analysis.counts.hybrid > 0) summaryParts.push(`${analysis.counts.hybrid}x hybrid`);
+  if (analysis.counts.unknown > 0) summaryParts.push(`${analysis.counts.unknown}x unknown`);
+  
+  analysis.summary = summaryParts.join(', ') || 'no inverters';
+  
+  return analysis;
+}
+
+function generateAdaptiveActions(actionType, value, detectedTypes) {
+  const actions = [];
+  
+  switch (actionType) {
+      case 'charging':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              const mappedValue = value === 'Enabled' ? 'Solar and utility simultaneously' : 'Solar first';
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: mappedValue,
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'energy_optimization':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              const mappedValue = mapEnergyPatternToOutputSourcePriority(value);
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: mappedValue,
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'weekend_solar':
+      case 'solar_priority':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Solar only',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'battery_preserve':
+          if (detectedTypes.hasLegacy) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: 'Solar first',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'emergency_charge':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: 'Enabled',
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'high_load':
+          if (detectedTypes.hasLegacy) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+          }
+          break;
+  }
+  
+  // Remove duplicates
+  const uniqueActions = [];
+  const seen = new Set();
+  
+  actions.forEach(action => {
+      const key = `${action.setting}-${action.value}`;
+      if (!seen.has(key)) {
+          seen.add(key);
+          uniqueActions.push(action);
+      }
+  });
+  
+  return uniqueActions.length > 0 ? uniqueActions : [{
+      setting: 'remote_switch',
+      value: 'Enabled',
+      inverter: 'all'
+  }];
+}
   
 
   
@@ -7147,28 +7044,29 @@ function setupWarningChecks() {
 
 async function initializeAutomationRules() {
   try {
-    console.log('🔧 Initializing enhanced automation rules with intelligent inverter type support...');
-    
-    // First create the basic default rules (now with enhanced auto-mapping)
-    await createDefaultRules();
-    
-    // Then create the extended advanced rules (now with enhanced auto-mapping)
-    await createExtendedAutomationRules();
-
-    // Create the enhanced night charging rules
-    await createNightChargingRule();
-    
-    // Create enhanced weekend grid charge rules
-    await createWeekendGridChargeRules();
-    
-    console.log('✅ All enhanced automation rules initialized successfully with intelligent inverter type auto-detection');
-    console.log('📋 Enhanced rules will automatically detect and adapt to:');
-    console.log('   - Legacy inverters (energy_pattern/grid_charge)');
-    console.log('   - New inverters (charger_source_priority/output_source_priority)');
-    console.log('   - Hybrid inverters (supporting both legacy and new settings)');
-    console.log('   - Dynamic pricing integration with intelligent command mapping');
+      console.log('🔧 Initializing dynamic automation rules based on inverter types...');
+      
+      // Wait a bit for initial inverter type detection
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Analyze current inverter environment
+      const detectedTypes = analyzeInverterTypes();
+      console.log(`📊 Inverter environment: ${detectedTypes.summary}`);
+      
+      // Create rules dynamically based on detected types
+      await createDefaultRules();
+      await createExtendedAutomationRules();
+      await createNightChargingRule();
+      await createWeekendGridChargeRules();
+      
+      console.log('✅ Dynamic automation rules initialized successfully');
+      console.log(`📋 Rules created for: ${detectedTypes.summary}`);
+      
+      if (detectedTypes.hasLegacy && detectedTypes.hasNew) {
+          console.log('🔄 Mixed environment detected - rules will use auto-mapping');
+      }
   } catch (error) {
-    console.error('Error initializing enhanced automation rules:', error.message);
+      console.error('Error initializing dynamic automation rules:', error.message);
   }
 }
   
