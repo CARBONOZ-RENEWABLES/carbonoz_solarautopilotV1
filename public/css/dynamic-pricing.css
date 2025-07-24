@@ -961,7 +961,7 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
-  background: var(--bg-tertiary);
+  background: #f3f4f6;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
 }
@@ -979,7 +979,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: white;
+  color: black;
 }
 
 .status-icon.battery {
@@ -1004,7 +1004,7 @@ body {
 
 .status-info h4 {
   font-size: 0.875rem;
-  color: #fff;
+  color: #000;
   font-weight: 500;
   margin-bottom: var(--spacing-xs);
 }
@@ -1034,7 +1034,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: white;
+  color: #fbbf24;
   position: relative;
 }
 
@@ -1066,7 +1066,7 @@ body {
 .weather-temp {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #22c55e;
 }
 
 .weather-desc {
@@ -2359,8 +2359,7 @@ color: #f3f4f6;
 
 /* Status cards */
 .dark-mode .status-card {
-  background: #DEAF0B;
-  color: #f8fafc;
+  background: rgb(32, 36, 41);  color: #f8fafc;
 }
 
 .dark-mode .status-info h4 {
