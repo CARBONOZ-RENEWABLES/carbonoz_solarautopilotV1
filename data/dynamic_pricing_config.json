@@ -1,9 +1,9 @@
 {
   "enabled": true,
   "tibberApiKey": "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1",
-  "country": "DE",
-  "city": "Berlin",
-  "timezone": "Europe/Berlin",
+  "country": "GB",
+  "city": "London",
+  "timezone": "Europe/London",
   "currency": "EUR",
   "priceBasedCharging": {
     "enabled": true,
@@ -26,7 +26,7 @@
     "maxSoC": 95
   },
   "smartPowerConditions": {
-    "enabled": true,
+    "enabled": false,
     "rules": []
   },
   "weatherConditions": {
@@ -53,25 +53,8 @@
     "maxChargingCyclesPerDay": 6
   },
   "scheduledCharging": false,
-  "chargingHours": [
-    {
-      "id": "schedule_1753369800833",
-      "start": "22:00",
-      "end": "06:00",
-      "days": [],
-      "enabled": true,
-      "description": "Schedule 1"
-    },
-    {
-      "id": "schedule_1753369822889",
-      "start": "22:00",
-      "end": "06:00",
-      "days": [],
-      "enabled": true,
-      "description": "Schedule 2"
-    }
-  ],
-  "lastUpdate": "2025-07-24T15:25:19.460Z",
+  "chargingHours": [],
+  "lastUpdate": "2025-07-24T16:48:25.143Z",
   "pricingData": [
     {
       "timestamp": "2025-07-23T22:00:00.000Z",
@@ -80,9 +63,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.6386,
       "tax": 0.2456,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 0
+      "localHour": 23
     },
     {
       "timestamp": "2025-07-23T23:00:00.000Z",
@@ -91,9 +74,9 @@
       "level": "NORMAL",
       "energy": 0.3188,
       "tax": 0.1658,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 1
+      "localHour": 0
     },
     {
       "timestamp": "2025-07-24T00:00:00.000Z",
@@ -102,9 +85,9 @@
       "level": "NORMAL",
       "energy": 0.3828,
       "tax": 0.1818,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 2
+      "localHour": 1
     },
     {
       "timestamp": "2025-07-24T01:00:00.000Z",
@@ -113,9 +96,9 @@
       "level": "NORMAL",
       "energy": 0.3804,
       "tax": 0.1811,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 3
+      "localHour": 2
     },
     {
       "timestamp": "2025-07-24T02:00:00.000Z",
@@ -124,9 +107,9 @@
       "level": "NORMAL",
       "energy": 0.3286,
       "tax": 0.1681,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 4
+      "localHour": 3
     },
     {
       "timestamp": "2025-07-24T03:00:00.000Z",
@@ -135,9 +118,9 @@
       "level": "NORMAL",
       "energy": 0.3387,
       "tax": 0.1707,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 5
+      "localHour": 4
     },
     {
       "timestamp": "2025-07-24T04:00:00.000Z",
@@ -146,9 +129,9 @@
       "level": "NORMAL",
       "energy": 0.3668,
       "tax": 0.1777,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 6
+      "localHour": 5
     },
     {
       "timestamp": "2025-07-24T05:00:00.000Z",
@@ -157,9 +140,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.7737,
       "tax": 0.2795,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 7
+      "localHour": 6
     },
     {
       "timestamp": "2025-07-24T06:00:00.000Z",
@@ -168,9 +151,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.6684,
       "tax": 0.253,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 8
+      "localHour": 7
     },
     {
       "timestamp": "2025-07-24T07:00:00.000Z",
@@ -179,9 +162,9 @@
       "level": "EXPENSIVE",
       "energy": 0.4482,
       "tax": 0.198,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 9
+      "localHour": 8
     },
     {
       "timestamp": "2025-07-24T08:00:00.000Z",
@@ -190,9 +173,9 @@
       "level": "EXPENSIVE",
       "energy": 0.4446,
       "tax": 0.1972,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 10
+      "localHour": 9
     },
     {
       "timestamp": "2025-07-24T09:00:00.000Z",
@@ -201,9 +184,9 @@
       "level": "EXPENSIVE",
       "energy": 0.468,
       "tax": 0.203,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 11
+      "localHour": 10
     },
     {
       "timestamp": "2025-07-24T10:00:00.000Z",
@@ -212,9 +195,9 @@
       "level": "EXPENSIVE",
       "energy": 0.4949,
       "tax": 0.2097,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 12
+      "localHour": 11
     },
     {
       "timestamp": "2025-07-24T11:00:00.000Z",
@@ -223,9 +206,9 @@
       "level": "EXPENSIVE",
       "energy": 0.5017,
       "tax": 0.2114,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 13
+      "localHour": 12
     },
     {
       "timestamp": "2025-07-24T12:00:00.000Z",
@@ -234,9 +217,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.5609,
       "tax": 0.2262,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 14
+      "localHour": 13
     },
     {
       "timestamp": "2025-07-24T13:00:00.000Z",
@@ -245,9 +228,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.7046,
       "tax": 0.2622,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 15
+      "localHour": 14
     },
     {
       "timestamp": "2025-07-24T14:00:00.000Z",
@@ -256,9 +239,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.8473,
       "tax": 0.2978,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 16
+      "localHour": 15
     },
     {
       "timestamp": "2025-07-24T15:00:00.000Z",
@@ -267,9 +250,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 1.0344,
       "tax": 0.3446,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 17
+      "localHour": 16
     },
     {
       "timestamp": "2025-07-24T16:00:00.000Z",
@@ -278,9 +261,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 1.1741,
       "tax": 0.3795,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 18
+      "localHour": 17
     },
     {
       "timestamp": "2025-07-24T17:00:00.000Z",
@@ -289,9 +272,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 1.1522,
       "tax": 0.3741,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 19
+      "localHour": 18
     },
     {
       "timestamp": "2025-07-24T18:00:00.000Z",
@@ -300,9 +283,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.965,
       "tax": 0.3273,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 20
+      "localHour": 19
     },
     {
       "timestamp": "2025-07-24T19:00:00.000Z",
@@ -311,9 +294,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.8732,
       "tax": 0.3043,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 21
+      "localHour": 20
     },
     {
       "timestamp": "2025-07-24T20:00:00.000Z",
@@ -322,9 +305,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.7338,
       "tax": 0.2695,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 22
+      "localHour": 21
     },
     {
       "timestamp": "2025-07-24T21:00:00.000Z",
@@ -333,9 +316,9 @@
       "level": "VERY_EXPENSIVE",
       "energy": 0.6678,
       "tax": 0.253,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 23
+      "localHour": 22
     },
     {
       "timestamp": "2025-07-24T22:00:00.000Z",
@@ -344,9 +327,9 @@
       "level": "NORMAL",
       "energy": 0.4386,
       "tax": 0.1957,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 0
+      "localHour": 23
     },
     {
       "timestamp": "2025-07-24T23:00:00.000Z",
@@ -355,9 +338,9 @@
       "level": "CHEAP",
       "energy": 0.3263,
       "tax": 0.1675,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 1
+      "localHour": 0
     },
     {
       "timestamp": "2025-07-25T00:00:00.000Z",
@@ -366,9 +349,9 @@
       "level": "VERY_CHEAP",
       "energy": 0.1116,
       "tax": 0.1138,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 2
+      "localHour": 1
     },
     {
       "timestamp": "2025-07-25T01:00:00.000Z",
@@ -377,9 +360,9 @@
       "level": "VERY_CHEAP",
       "energy": 0.11,
       "tax": 0.1135,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 3
+      "localHour": 2
     },
     {
       "timestamp": "2025-07-25T02:00:00.000Z",
@@ -388,9 +371,9 @@
       "level": "VERY_CHEAP",
       "energy": 0.1109,
       "tax": 0.1137,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 4
+      "localHour": 3
     },
     {
       "timestamp": "2025-07-25T03:00:00.000Z",
@@ -399,9 +382,9 @@
       "level": "VERY_CHEAP",
       "energy": 0.142,
       "tax": 0.1215,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 5
+      "localHour": 4
     },
     {
       "timestamp": "2025-07-25T04:00:00.000Z",
@@ -410,9 +393,9 @@
       "level": "VERY_CHEAP",
       "energy": 0.1885,
       "tax": 0.1331,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 6
+      "localHour": 5
     },
     {
       "timestamp": "2025-07-25T05:00:00.000Z",
@@ -421,9 +404,9 @@
       "level": "NORMAL",
       "energy": 0.4814,
       "tax": 0.2064,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 7
+      "localHour": 6
     },
     {
       "timestamp": "2025-07-25T06:00:00.000Z",
@@ -432,9 +415,9 @@
       "level": "NORMAL",
       "energy": 0.4698,
       "tax": 0.2034,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 8
+      "localHour": 7
     },
     {
       "timestamp": "2025-07-25T07:00:00.000Z",
@@ -443,9 +426,9 @@
       "level": "NORMAL",
       "energy": 0.4684,
       "tax": 0.2031,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 9
+      "localHour": 8
     },
     {
       "timestamp": "2025-07-25T08:00:00.000Z",
@@ -454,9 +437,9 @@
       "level": "CHEAP",
       "energy": 0.3582,
       "tax": 0.1755,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 10
+      "localHour": 9
     },
     {
       "timestamp": "2025-07-25T09:00:00.000Z",
@@ -465,9 +448,9 @@
       "level": "NORMAL",
       "energy": 0.4031,
       "tax": 0.1868,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 11
+      "localHour": 10
     },
     {
       "timestamp": "2025-07-25T10:00:00.000Z",
@@ -476,9 +459,9 @@
       "level": "CHEAP",
       "energy": 0.3693,
       "tax": 0.1783,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 12
+      "localHour": 11
     },
     {
       "timestamp": "2025-07-25T11:00:00.000Z",
@@ -487,9 +470,9 @@
       "level": "CHEAP",
       "energy": 0.2687,
       "tax": 0.1532,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 13
+      "localHour": 12
     },
     {
       "timestamp": "2025-07-25T12:00:00.000Z",
@@ -498,9 +481,9 @@
       "level": "NORMAL",
       "energy": 0.4043,
       "tax": 0.1871,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 14
+      "localHour": 13
     },
     {
       "timestamp": "2025-07-25T13:00:00.000Z",
@@ -509,9 +492,9 @@
       "level": "CHEAP",
       "energy": 0.4027,
       "tax": 0.1866,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 15
+      "localHour": 14
     },
     {
       "timestamp": "2025-07-25T14:00:00.000Z",
@@ -520,9 +503,9 @@
       "level": "NORMAL",
       "energy": 0.4345,
       "tax": 0.1946,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 16
+      "localHour": 15
     },
     {
       "timestamp": "2025-07-25T15:00:00.000Z",
@@ -531,9 +514,9 @@
       "level": "NORMAL",
       "energy": 0.4788,
       "tax": 0.2057,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 17
+      "localHour": 16
     },
     {
       "timestamp": "2025-07-25T16:00:00.000Z",
@@ -542,9 +525,9 @@
       "level": "NORMAL",
       "energy": 0.4972,
       "tax": 0.2103,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 18
+      "localHour": 17
     },
     {
       "timestamp": "2025-07-25T17:00:00.000Z",
@@ -553,9 +536,9 @@
       "level": "NORMAL",
       "energy": 0.5355,
       "tax": 0.2199,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 19
+      "localHour": 18
     },
     {
       "timestamp": "2025-07-25T18:00:00.000Z",
@@ -564,9 +547,9 @@
       "level": "NORMAL",
       "energy": 0.5063,
       "tax": 0.2125,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 20
+      "localHour": 19
     },
     {
       "timestamp": "2025-07-25T19:00:00.000Z",
@@ -575,9 +558,9 @@
       "level": "NORMAL",
       "energy": 0.4772,
       "tax": 0.2054,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 21
+      "localHour": 20
     },
     {
       "timestamp": "2025-07-25T20:00:00.000Z",
@@ -586,9 +569,9 @@
       "level": "NORMAL",
       "energy": 0.4433,
       "tax": 0.1968,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 22
+      "localHour": 21
     },
     {
       "timestamp": "2025-07-25T21:00:00.000Z",
@@ -597,12 +580,19 @@
       "level": "NORMAL",
       "energy": 0.424,
       "tax": 0.1921,
-      "timezone": "Europe/Berlin",
+      "timezone": "Europe/London",
       "provider": "Tibber",
-      "localHour": 23
+      "localHour": 22
     }
   ],
-  "currentPrice": {},
+  "currentPrice": {
+    "price": 1.5536,
+    "level": "VERY_EXPENSIVE",
+    "currency": "SEK",
+    "timestamp": "2025-07-24T18:00:00.000+02:00",
+    "provider": "Tibber Real-time",
+    "isRealTime": true
+  },
   "inverterSupport": true,
   "autoCommandMapping": true,
   "intelligentCurrentAdjustment": true,
