@@ -28,6 +28,7 @@ const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
 const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
 const dynamicPricingController = require('./services/dynamicPricingController');
+
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 app.use(express.json())
@@ -45,13 +46,10 @@ try {
   options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
 }
 
-
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number 
 const batteryNumber = options.battery_number 
 const mqttTopicPrefix = options.mqtt_topic_prefix 
-
-
 
 // Constants
 const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json')
@@ -80,7 +78,7 @@ if (!fs.existsSync(SETTINGS_FILE)) {
 
 // Middleware
 app.use(helmet({
-  contentSecurityPolicy: false // Disabled for development, enable in production
+  contentSecurityPolicy: false
 }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -91,13 +89,11 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }))
 
-// Add this line BEFORE initializing the rate limiter
-app.set('trust proxy', 1); // Trust first proxy
+app.set('trust proxy', 1);
 
-// Then initialize your rate limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
 app.use('/api/', limiter);
 
@@ -119,11 +115,10 @@ try {
   console.log('InfluxDB client initialized')
 } catch (error) {
   console.error('Error initializing InfluxDB client:', error.message)
-  // Create a fallback that logs errors instead of crashing
   influx = {
     writePoints: async () => {
       console.error('InfluxDB not available, data not saved')
-      return Promise.resolve() // Just resolve to avoid crashing
+      return Promise.resolve()
     }
   }
 }
@@ -145,7 +140,10 @@ const MAX_MESSAGES = 500
 
 // Learner mode configuration
 let learnerModeActive = false
+
+// Updated settings to monitor including new inverter types
 const settingsToMonitor = [
+  // Legacy inverter settings
   'energy_pattern',
   'grid_charge',
   'power',
@@ -153,6 +151,11 @@ const settingsToMonitor = [
   'voltage',
   'work_mode_timer',
   'voltage_point',
+  
+  // New inverter settings  
+  'charger_source_priority',
+  'output_source_priority',
+  
   // Battery charging settings
   'max_discharge_current',
   'max_charge_current',
@@ -161,6 +164,7 @@ const settingsToMonitor = [
   'battery_float_charge_voltage',
   'battery_absorption_charge_voltage',
   'battery_equalization_charge_voltage',
+  
   // Work mode settings
   'remote_switch',
   'generator_charge',
@@ -169,16 +173,13 @@ const settingsToMonitor = [
   'stop_battery_discharge_voltage',
   'start_battery_discharge_voltage',
   'start_grid_charge_voltage',
-  // Work mode detail settings
   'work_mode',
   'solar_export_when_battery_full',
   'max_sell_power',
   'max_solar_power',
   'grid_trickle_feed',
-
   'serial_number',
   'power_saving',
- 
 ]
 
 // System state tracking
@@ -192,13 +193,17 @@ let currentSystemState = {
   timestamp: null
 }
 
-
+// Updated current settings state to handle both inverter types
 const currentSettingsState = {
-  // Grid Charge Settings
+  // Legacy Grid Charge Settings
   grid_charge: {},
   
-  // Energy Pattern Settings
+  // Legacy Energy Pattern Settings
   energy_pattern: {},
+  
+  // New Inverter Settings
+  charger_source_priority: {},
+  output_source_priority: {},
   
   // Voltage Point Settings
   voltage_point: {},
@@ -229,7 +234,6 @@ const currentSettingsState = {
   // Specification settings
   serial_number: {},
   power_saving: {},
-
   
   // Last updated timestamp
   lastUpdated: null
@@ -238,15 +242,124 @@ const currentSettingsState = {
 // Track previous state of settings to detect changes
 let previousSettings = {}
 
-let dynamicPricingInstance = null;
+// Track inverter types for each inverter
+const inverterTypes = {}
 
+let dynamicPricingInstance = null;
 
 // Make learner mode accessible globally for dynamic pricing
 global.learnerModeActive = learnerModeActive;
 
+// ================ INVERTER TYPE DETECTION ================
+
+// Function to detect inverter type based on received MQTT messages
+function detectInverterType(inverterId, specificTopic, messageContent) {
+  // Initialize inverter type if not exists
+  if (!inverterTypes[inverterId]) {
+    inverterTypes[inverterId] = {
+      type: 'unknown',
+      hasLegacySettings: false,
+      hasNewSettings: false,
+      detectionConfidence: 0
+    };
+  }
+  
+  const inverterData = inverterTypes[inverterId];
+  
+  // Check for legacy settings
+  if (specificTopic.includes('/energy_pattern/') || specificTopic.includes('/grid_charge/')) {
+    inverterData.hasLegacySettings = true;
+    inverterData.detectionConfidence += 10;
+  }
+  
+  // Check for new settings
+  if (specificTopic.includes('/charger_source_priority/') || specificTopic.includes('/output_source_priority/')) {
+    inverterData.hasNewSettings = true;
+    inverterData.detectionConfidence += 10;
+  }
+  
+  // Determine type based on detection
+  if (inverterData.hasLegacySettings && !inverterData.hasNewSettings && inverterData.detectionConfidence >= 10) {
+    inverterData.type = 'legacy';
+    console.log(`Detected ${inverterId} as LEGACY inverter (energy_pattern/grid_charge)`);
+  } else if (inverterData.hasNewSettings && !inverterData.hasLegacySettings && inverterData.detectionConfidence >= 10) {
+    inverterData.type = 'new';
+    console.log(`Detected ${inverterId} as NEW inverter (charger_source_priority/output_source_priority)`);
+  } else if (inverterData.hasLegacySettings && inverterData.hasNewSettings) {
+    inverterData.type = 'hybrid';
+    console.log(`Detected ${inverterId} as HYBRID inverter (supports both legacy and new settings)`);
+  }
+  
+  return inverterData.type;
+}
+
+// Function to get inverter type
+function getInverterType(inverterId) {
+  return inverterTypes[inverterId]?.type || 'unknown';
+}
+
+// ================ SETTING MAPPING FUNCTIONS ================
+
+// Map legacy energy_pattern to new output_source_priority
+function mapEnergyPatternToOutputSourcePriority(energyPattern) {
+  switch (energyPattern) {
+    case 'Battery first':
+      return 'Solar/Battery/Utility';
+    case 'Load first':
+      return 'Solar first';
+    case 'Grid first':
+      return 'Utility first';
+    case 'Solar first':
+      return 'Solar first';
+    default:
+      return 'Solar/Battery/Utility';
+  }
+}
+
+// Map new output_source_priority to legacy energy_pattern
+function mapOutputSourcePriorityToEnergyPattern(outputPriority) {
+  switch (outputPriority) {
+    case 'Solar/Battery/Utility':
+      return 'Battery first';
+    case 'Solar first':
+      return 'Solar first';
+    case 'Utility first':
+      return 'Grid first';
+    case 'Solar/Utility/Battery':
+      return 'Load first';
+    default:
+      return 'Battery first';
+  }
+}
+
+// Map legacy grid_charge to new charger_source_priority
+function mapGridChargeToChargerSourcePriority(gridCharge) {
+  switch (gridCharge) {
+    case 'Enabled':
+      return 'Solar and utility simultaneously';
+    case 'Disabled':
+      return 'Solar first';
+    default:
+      return 'Solar first';
+  }
+}
+
+// Map new charger_source_priority to legacy grid_charge
+function mapChargerSourcePriorityToGridCharge(chargerPriority) {
+  switch (chargerPriority) {
+    case 'Utility first':
+    case 'Solar and utility simultaneously':
+      return 'Enabled';
+    case 'Solar first':
+    case 'Solar only':
+      return 'Disabled';
+    default:
+      return 'Disabled';
+  }
+}
+
 // ================ DATABASE FUNCTIONS ================
 
-// SQLite Database Schema Setup
 async function initializeDatabase() {
   try {
     db = await open({
@@ -254,7 +367,6 @@ async function initializeDatabase() {
       driver: sqlite3.Database,
     });
     
-    // Create settings_changes table
     await db.exec(`
       CREATE TABLE IF NOT EXISTS settings_changes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -269,7 +381,6 @@ async function initializeDatabase() {
       )
     `);
     
-    // Create rules table
     await db.exec(`
       CREATE TABLE IF NOT EXISTS rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -287,7 +398,6 @@ async function initializeDatabase() {
       )
     `);
     
-    // Create indexes for better performance
     await db.exec(`
       CREATE INDEX IF NOT EXISTS idx_settings_changes_user_id ON settings_changes(user_id);
       CREATE INDEX IF NOT EXISTS idx_settings_changes_timestamp ON settings_changes(timestamp);
@@ -309,13 +419,11 @@ async function initializeDatabase() {
   }
 }
 
-// Connect to SQLite database
 async function connectToDatabase() {
   try {
     if (!dbConnected) {
       await initializeDatabase();
       
-      // Since we just connected to the database, prune old records
       if (dbConnected) {
         await pruneOldSettingsChanges();
       }
@@ -328,18 +436,14 @@ async function connectToDatabase() {
   }
 }
 
-// Add this after the currentSettingsState declaration (around line 99)
 function cleanupCurrentSettingsState() {
   try {
     const now = Date.now();
-    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
     
-    // For each category in currentSettingsState
     Object.keys(currentSettingsState).forEach(category => {
       if (typeof currentSettingsState[category] === 'object' && category !== 'lastUpdated') {
-        // For each inverter in this category
         Object.keys(currentSettingsState[category]).forEach(inverterId => {
-          // If the entry is older than 24 hours, remove it
           if (currentSettingsState[category][inverterId] && 
               currentSettingsState[category][inverterId].lastUpdated) {
             const lastUpdated = new Date(currentSettingsState[category][inverterId].lastUpdated).getTime();
@@ -357,49 +461,24 @@ function cleanupCurrentSettingsState() {
   }
 }
 
-
-
-  
 // ================ USER IDENTIFICATION SYSTEM ================
 
-// Function to generate a unique user ID based on MQTT credentials
 function generateUserId() {
-  // Create a unique identifier by combining MQTT username, hostname, and a fixed salt
   const userIdBase = `${mqttConfig.username}:${options.mqtt_host}:${options.mqtt_topic_prefix}`;
   
-  // Use a simple hash function to create a shorter ID
   let hash = 0;
   for (let i = 0; i < userIdBase.length; i++) {
     const char = userIdBase.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   
   return `user_${Math.abs(hash).toString(16)}`;
 }
 
-// Store the user ID as a global variable - place this after MQTT config is loaded
 const USER_ID = generateUserId();
 console.log(`Generated User ID: ${USER_ID}`);
-  
-  // Create database indexes for user identification
-  async function createDatabaseIndexes() {
-    if (!dbConnected) return;
-    
-    try {
-      await SettingsChange.collection.createIndex({ user_id: 1 });
-      
-      await Rule.collection.createIndex({ mqtt_username: 1 });
-      await Rule.collection.createIndex({ user_id: 1 });
-      
-      console.log('Database indexes created including user identification');
-    } catch (error) {
-      console.error('Error creating database indexes:', error.message);
-    }
-  }
-  
 
-// Function to retry DB connection in background
 async function retryDatabaseConnection() {
   try {
     if (!dbConnected) {
@@ -408,24 +487,18 @@ async function retryDatabaseConnection() {
     }
   } catch (error) {
     console.error('Failed to connect to database on retry:', error.message)
-    // Schedule another retry
     setTimeout(retryDatabaseConnection, 30000)
   }
 }
 
-
-
 // ================ SETTINGS CHANGE FUNCTIONS ================
 
-// Function to save a settings change to SQLite
 async function saveSettingsChange(changeData) {
   if (!dbConnected) return false;
   
   try {
-    // Convert system_state object to JSON string
     const systemStateJson = JSON.stringify(changeData.system_state || {});
     
-    // Convert values to strings for SQLite
     const oldValueStr = typeof changeData.old_value === 'object' ? 
       JSON.stringify(changeData.old_value) : 
       String(changeData.old_value || '');
@@ -434,7 +507,6 @@ async function saveSettingsChange(changeData) {
       JSON.stringify(changeData.new_value) : 
       String(changeData.new_value || '');
     
-    // Insert into SQLite
     await db.run(`
       INSERT INTO settings_changes 
       (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
@@ -457,11 +529,8 @@ async function saveSettingsChange(changeData) {
   }
 }
 
-// Function to handle setting changes
 async function handleSettingChange(specificTopic, messageContent, changeType) {
-  // Only proceed if the setting has changed
   if (previousSettings[specificTopic] !== messageContent) {
-    // Create a detailed change record with user identification
     const changeData = {
       timestamp: new Date(),
       topic: specificTopic,
@@ -469,33 +538,26 @@ async function handleSettingChange(specificTopic, messageContent, changeType) {
       new_value: messageContent,
       system_state: { ...currentSystemState },
       change_type: changeType,
-      // Add user identification
       user_id: USER_ID,
       mqtt_username: mqttConfig.username
     };
     
-    // Update previous settings
     previousSettings[specificTopic] = messageContent;
     
-    // Save to database if connected
     if (dbConnected) {
       try {
         await saveSettingsChange(changeData);
       } catch (error) {
         console.error('Error saving to database:', error.message);
-        // Try to connect to database in background
         retryDatabaseConnection();
       }
     } else {
-      // Try to connect to database in background
       retryDatabaseConnection();
     }
     
-    // Send notifications based on change type - these are just status update functions
-    // that don't need console.log outputs themselves
-    if (changeType === 'grid_charge') {
+    if (changeType === 'grid_charge' || changeType === 'charger_source_priority') {
       sendGridChargeNotification(changeData);
-    } else if (changeType === 'energy_pattern') {
+    } else if (changeType === 'energy_pattern' || changeType === 'output_source_priority') {
       sendEnergyPatternNotification(changeData);
     } else if (changeType === 'voltage_point') {
       sendVoltagePointNotification(changeData);
@@ -503,11 +565,8 @@ async function handleSettingChange(specificTopic, messageContent, changeType) {
   }
 }
 
-// Function to handle battery charging setting changes
 async function handleBatteryChargingSettingChange(specificTopic, messageContent, settingType) {
-  // Only proceed if the setting has changed
   if (previousSettings[specificTopic] !== messageContent) {
-    // Create a detailed change record with user identification
     const changeData = {
       timestamp: new Date(),
       topic: specificTopic,
@@ -515,38 +574,29 @@ async function handleBatteryChargingSettingChange(specificTopic, messageContent,
       new_value: messageContent,
       system_state: { ...currentSystemState },
       change_type: settingType,
-      // Add user identification
       user_id: USER_ID,
       mqtt_username: mqttConfig.username
     };
     
-    // Update previous settings
     previousSettings[specificTopic] = messageContent;
     
-    // Save to database if connected
     if (dbConnected) {
       try {
         await saveSettingsChange(changeData);
       } catch (error) {
         console.error('Error saving to database:', error.message);
-        // Try to connect to database in background
         retryDatabaseConnection();
       }
     } else {
-      // Try to connect to database in background
       retryDatabaseConnection();
     }
     
-    // Send notification without logging
     sendBatteryChargingNotification(changeData);
   }
 }
 
-// Function to handle work mode setting changes
 async function handleWorkModeSettingChange(specificTopic, messageContent, settingType) {
-  // Only proceed if the setting has changed
   if (previousSettings[specificTopic] !== messageContent) {
-    // Create a detailed change record with user identification
     const changeData = {
       timestamp: new Date(),
       topic: specificTopic,
@@ -554,37 +604,28 @@ async function handleWorkModeSettingChange(specificTopic, messageContent, settin
       new_value: messageContent,
       system_state: { ...currentSystemState },
       change_type: settingType,
-      // Add user identification
       user_id: USER_ID,
       mqtt_username: mqttConfig.username
     };
     
-    // Update previous settings
     previousSettings[specificTopic] = messageContent;
     
-    // Save to database if connected
     if (dbConnected) {
       try {
         await saveSettingsChange(changeData);
       } catch (error) {
         console.error('Error saving to database:', error.message);
-        // Try to connect to database in background
         retryDatabaseConnection();
       }
     } else {
-      // Try to connect to database in background
       retryDatabaseConnection();
     }
     
-    // Send notification without logging
     sendWorkModeNotification(changeData);
   }
 }
 
-
-
 // ================ RULES FUNCTIONS ================
-
 
 async function countRules(userId) {
   if (!dbConnected) return 0;
@@ -604,17 +645,14 @@ async function countRules(userId) {
 async function batchUpdateRules(rules) {
   if (!dbConnected || rules.length === 0) return;
   
-  // Use the mutex pattern for transaction control
   return executeWithDbMutex(async () => {
     let transactionStarted = false;
     
     try {
-      // Begin a transaction
       await db.run('BEGIN TRANSACTION');
       transactionStarted = true;
       
       for (const rule of rules) {
-        // Update in SQLite
         await db.run(`
           UPDATE rules 
           SET last_triggered = ?,
@@ -628,17 +666,14 @@ async function batchUpdateRules(rules) {
         ]);
       }
       
-      // Commit the transaction
       await db.run('COMMIT');
       transactionStarted = false;
       return true;
     } catch (error) {
-      // Rollback on error, but only if we started a transaction
       if (transactionStarted) {
         try {
           await db.run('ROLLBACK');
         } catch (rollbackError) {
-          // Only log the error if it's not "no transaction is active"
           if (!rollbackError.message.includes('no transaction is active')) {
             console.error('Error rolling back transaction:', rollbackError.message);
           }
@@ -651,27 +686,22 @@ async function batchUpdateRules(rules) {
   });
 }
 
-// Function to save a rule to SQLite
 async function saveRule(ruleData) {
   if (!dbConnected) return null;
   
   try {
-    // Debug the rule data
     console.log('Saving new rule with data:', {
       name: ruleData.name,
       active: ruleData.active,
       user_id: ruleData.user_id
     });
     
-    // Convert active boolean to integer (SQLite stores booleans as 0/1)
     const activeValue = ruleData.active ? 1 : 0;
     
-    // Convert complex objects to JSON strings
     const conditionsJson = JSON.stringify(ruleData.conditions || []);
     const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
     const actionsJson = JSON.stringify(ruleData.actions || []);
     
-    // Insert into SQLite
     const result = await db.run(`
       INSERT INTO rules 
       (name, description, active, conditions, time_restrictions, actions, 
@@ -680,7 +710,7 @@ async function saveRule(ruleData) {
     `, [
       ruleData.name,
       ruleData.description || '',
-      activeValue,  // Explicitly set as 0 or 1
+      activeValue,
       conditionsJson,
       timeRestrictionsJson,
       actionsJson,
@@ -693,7 +723,6 @@ async function saveRule(ruleData) {
     
     console.log('Save rule result:', result);
     
-    // Get the ID of the inserted rule
     const ruleIdResult = await db.get('SELECT last_insert_rowid() as id');
     
     if (!ruleIdResult || !ruleIdResult.id) {
@@ -703,7 +732,6 @@ async function saveRule(ruleData) {
     
     console.log(`New rule saved with ID ${ruleIdResult.id}`);
     
-    // Return the rule data with the new ID
     return {
       id: ruleIdResult.id,
       ...ruleData
@@ -714,24 +742,18 @@ async function saveRule(ruleData) {
   }
 }
 
-
-// Function to get a rule by ID
 async function updateRule(id, ruleData) {
   if (!dbConnected) return false;
   
   try {
-    // Convert complex objects to JSON strings
     const conditionsJson = JSON.stringify(ruleData.conditions || []);
     const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
     const actionsJson = JSON.stringify(ruleData.actions || []);
     
-    // Debug the rule data before update
     console.log('Updating rule with active status:', ruleData.active);
     
-    // Convert active boolean to integer (SQLite stores booleans as 0/1)
     const activeValue = ruleData.active ? 1 : 0;
     
-    // Update in SQLite with explicit active value
     const result = await db.run(`
       UPDATE rules 
       SET name = ?, 
@@ -746,7 +768,7 @@ async function updateRule(id, ruleData) {
     `, [
       ruleData.name,
       ruleData.description || '',
-      activeValue,  // This is now explicitly set as 0 or 1
+      activeValue,
       conditionsJson,
       timeRestrictionsJson,
       actionsJson,
@@ -756,7 +778,6 @@ async function updateRule(id, ruleData) {
       ruleData.user_id
     ]);
     
-    // Debug the update operation
     console.log('Update rule result:', result);
     
     return result.changes > 0;
@@ -766,21 +787,18 @@ async function updateRule(id, ruleData) {
   }
 }
 
-// Function to get all rules
 async function getAllRules(userId, options = {}) {
   if (!dbConnected) return [];
   
   try {
     const { active, sort, limit, offset } = options;
     
-    // Build query based on options
     let query = 'SELECT * FROM rules WHERE user_id = ?';
     const params = [userId];
     
     if (active !== undefined) {
-      // Explicitly compare with 1 for active rules in SQLite
       query += ' AND active = ?';
-      params.push(active ? 1 : 0); // Convert boolean to integer
+      params.push(active ? 1 : 0);
     }
     
     if (sort) {
@@ -799,17 +817,15 @@ async function getAllRules(userId, options = {}) {
       }
     }
     
-    // Debug the query
     console.log('Rules query:', query, 'with params:', params);
     
     const rules = await db.all(query, params);
     
-    // Parse JSON fields for each rule and ensure active is properly converted to boolean
     return rules.map(rule => ({
       id: rule.id,
       name: rule.name,
       description: rule.description,
-      active: rule.active === 1, // Explicitly convert SQLite integer to boolean
+      active: rule.active === 1,
       conditions: JSON.parse(rule.conditions || '[]'),
       timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
       actions: JSON.parse(rule.actions || '[]'),
@@ -825,19 +841,16 @@ async function getAllRules(userId, options = {}) {
   }
 }
 
-// Function to delete a rule
 async function deleteRule(id, userId) {
   if (!dbConnected) return false;
   
   try {
-    // Run the SQL directly - simplifying to avoid mutex issues
     const result = await db.run(`
       DELETE FROM rules WHERE id = ? AND user_id = ?
     `, [id, userId]);
     
     console.log('Delete rule result:', result);
     
-    // Check if any rows were affected (deletion successful)
     return result.changes > 0;
   } catch (error) {
     console.error('Error deleting rule from SQLite:', error.message);
@@ -845,7 +858,6 @@ async function deleteRule(id, userId) {
   }
 }
 
-// Function to get a rule by ID
 async function getRuleById(id, userId) {
   if (!dbConnected) return null;
   
@@ -861,12 +873,11 @@ async function getRuleById(id, userId) {
       return null;
     }
     
-    // Parse JSON fields and explicitly convert active to boolean
     const parsedRule = {
       id: rule.id,
       name: rule.name,
       description: rule.description,
-      active: rule.active === 1, // Explicitly convert SQLite integer to boolean
+      active: rule.active === 1,
       conditions: JSON.parse(rule.conditions || '[]'),
       timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
       actions: JSON.parse(rule.actions || '[]'),
@@ -886,14 +897,12 @@ async function getRuleById(id, userId) {
   }
 }
 
-// Function to get settings changes
 async function getSettingsChanges(userId, options = {}) {
   if (!dbConnected) return { changes: [], pagination: { total: 0 } };
   
   try {
     const { changeType, topic, limit = 100, skip = 0 } = options;
     
-    // Build query based on options
     let query = 'SELECT * FROM settings_changes WHERE user_id = ?';
     const countQuery = 'SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?';
     const params = [userId];
@@ -916,14 +925,11 @@ async function getSettingsChanges(userId, options = {}) {
     query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
     params.push(limit, skip);
     
-    // Get total count for pagination
     const countResult = await db.get(countQuery, countParams);
     const total = countResult.total;
     
-    // Get the actual changes
     const changes = await db.all(query, params);
     
-    // Parse JSON fields and format dates
     const formattedChanges = changes.map(change => ({
       id: change.id,
       timestamp: new Date(change.timestamp),
@@ -951,12 +957,10 @@ async function getSettingsChanges(userId, options = {}) {
   }
 }
 
-// Helper function to parse JSON strings or return original value
 function parseJsonOrValue(value) {
   if (!value) return value;
   
   try {
-    // If it looks like JSON, parse it
     if (value.startsWith('{') || value.startsWith('[')) {
       return JSON.parse(value);
     }
@@ -967,62 +971,58 @@ function parseJsonOrValue(value) {
   return value;
 }
 
-// Handle incoming MQTT messages
-// Handle incoming MQTT messages
+// ================ COMPLETE ENHANCED MQTT MESSAGE HANDLING ================
+
 async function handleMqttMessage(topic, message) {
-  // Keep circular buffer of messages but with reduced size in learner mode
   const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
   
-  // Limit message size to prevent memory issues
   const messageStr = message.toString();
-  const maxMessageSize = 10000; // Limit to 10KB
+  const maxMessageSize = 10000;
   
-  // Truncate extremely large messages
   const truncatedMessage = messageStr.length > maxMessageSize 
     ? messageStr.substring(0, maxMessageSize) + '... [truncated]' 
     : messageStr;
   
   const formattedMessage = `${topic}: ${truncatedMessage}`;
   
-  // Add to the circular buffer of messages with proper size control
   incomingMessages.push(formattedMessage);
-  while (incomingMessages.length > bufferSize) {
-    incomingMessages.shift();
+  if (incomingMessages.length > bufferSize) {
+    const excess = incomingMessages.length - bufferSize;
+    incomingMessages.splice(0, excess); // ✅ Remove multiple items at once
   }
 
-  // Parse message content with size limits
   let messageContent;
   try {
     messageContent = messageStr;
     
-    // Try to parse as JSON if it looks like JSON and isn't too large
     if (messageStr.length < maxMessageSize && messageStr.startsWith('{') && messageStr.endsWith('}')) {
       messageContent = JSON.parse(messageStr);
     }
   } catch (error) {
-    // If not JSON, keep as string
     messageContent = messageStr;
   }
 
-  // Extract the specific topic part after the prefix
   const topicPrefix = options.mqtt_topic_prefix || '';
   let specificTopic = topic;
   if (topic.startsWith(topicPrefix)) {
-    specificTopic = topic.substring(topicPrefix.length + 1); // +1 for the slash
+    specificTopic = topic.substring(topicPrefix.length + 1);
   }
 
-  // Track if this message should trigger rule processing
   let shouldProcessRules = false;
 
-  // ========= UPDATE CURRENT SETTINGS STATE IN MEMORY =========
   // Extract inverter ID from the topic
-  let inverterId = "inverter_1"; // Default
+  let inverterId = "inverter_1";
   const inverterMatch = specificTopic.match(/inverter_(\d+)/);
   if (inverterMatch) {
     inverterId = `inverter_${inverterMatch[1]}`;
   }
   
-  // Update settings based on topic patterns
+  // Enhanced inverter type detection based on MQTT messages
+  detectInverterType(inverterId, specificTopic, messageContent);
+
+  // ========= UPDATE CURRENT SETTINGS STATE IN MEMORY WITH ENHANCED SUPPORT =========
+  
+  // Handle legacy grid_charge settings
   if (specificTopic.includes('/grid_charge/')) {
     if (!currentSettingsState.grid_charge[inverterId]) {
       currentSettingsState.grid_charge[inverterId] = {};
@@ -1030,6 +1030,8 @@ async function handleMqttMessage(topic, message) {
     currentSettingsState.grid_charge[inverterId].value = messageContent;
     currentSettingsState.grid_charge[inverterId].lastUpdated = new Date();
   } 
+  
+  // Handle legacy energy_pattern settings
   else if (specificTopic.includes('/energy_pattern/')) {
     if (!currentSettingsState.energy_pattern[inverterId]) {
       currentSettingsState.energy_pattern[inverterId] = {};
@@ -1037,8 +1039,45 @@ async function handleMqttMessage(topic, message) {
     currentSettingsState.energy_pattern[inverterId].value = messageContent;
     currentSettingsState.energy_pattern[inverterId].lastUpdated = new Date();
   }
+  
+  // Handle NEW charger_source_priority settings
+  else if (specificTopic.includes('/charger_source_priority/')) {
+    if (!currentSettingsState.charger_source_priority[inverterId]) {
+      currentSettingsState.charger_source_priority[inverterId] = {};
+    }
+    currentSettingsState.charger_source_priority[inverterId].value = messageContent;
+    currentSettingsState.charger_source_priority[inverterId].lastUpdated = new Date();
+    
+    // Also update equivalent legacy grid_charge value for compatibility
+    const equivalentGridCharge = mapChargerSourcePriorityToGridCharge(messageContent);
+    if (!currentSettingsState.grid_charge[inverterId]) {
+      currentSettingsState.grid_charge[inverterId] = {};
+    }
+    currentSettingsState.grid_charge[inverterId].value = equivalentGridCharge;
+    currentSettingsState.grid_charge[inverterId].lastUpdated = new Date();
+    currentSettingsState.grid_charge[inverterId].mappedFrom = 'charger_source_priority';
+  }
+  
+  // Handle NEW output_source_priority settings
+  else if (specificTopic.includes('/output_source_priority/')) {
+    if (!currentSettingsState.output_source_priority[inverterId]) {
+      currentSettingsState.output_source_priority[inverterId] = {};
+    }
+    currentSettingsState.output_source_priority[inverterId].value = messageContent;
+    currentSettingsState.output_source_priority[inverterId].lastUpdated = new Date();
+    
+    // Also update equivalent legacy energy_pattern value for compatibility
+    const equivalentEnergyPattern = mapOutputSourcePriorityToEnergyPattern(messageContent);
+    if (!currentSettingsState.energy_pattern[inverterId]) {
+      currentSettingsState.energy_pattern[inverterId] = {};
+    }
+    currentSettingsState.energy_pattern[inverterId].value = equivalentEnergyPattern;
+    currentSettingsState.energy_pattern[inverterId].lastUpdated = new Date();
+    currentSettingsState.energy_pattern[inverterId].mappedFrom = 'output_source_priority';
+  }
+  
+  // Handle voltage point settings
   else if (specificTopic.match(/\/voltage_point_\d+\//)) {
-    // Extract voltage point number (e.g., voltage_point_1, voltage_point_2)
     const voltagePointMatch = specificTopic.match(/voltage_point_(\d+)/);
     if (voltagePointMatch) {
       const pointNumber = voltagePointMatch[1];
@@ -1053,7 +1092,7 @@ async function handleMqttMessage(topic, message) {
     }
   }
   
-  // Work Mode Settings
+  // Handle work mode settings
   else if (specificTopic.includes('/work_mode/') && !specificTopic.includes('work_mode_timer')) {
     if (!currentSettingsState.work_mode[inverterId]) {
       currentSettingsState.work_mode[inverterId] = {};
@@ -1139,7 +1178,7 @@ async function handleMqttMessage(topic, message) {
     currentSettingsState.grid_trickle_feed[inverterId].lastUpdated = new Date();
   }
   
-  // Battery Charging Settings
+  // Handle battery charging settings
   else if (specificTopic.includes('/max_discharge_current/')) {
     if (!currentSettingsState.max_discharge_current[inverterId]) {
       currentSettingsState.max_discharge_current[inverterId] = {};
@@ -1190,28 +1229,25 @@ async function handleMqttMessage(topic, message) {
     currentSettingsState.battery_equalization_charge_voltage[inverterId].lastUpdated = new Date();
   }
 
- // Specification data handlers
-else if (specificTopic.includes('/serial_number/')) {
-  if (!currentSettingsState.serial_number[inverterId]) {
-    currentSettingsState.serial_number[inverterId] = {};
+  // Handle specification data
+  else if (specificTopic.includes('/serial_number/')) {
+    if (!currentSettingsState.serial_number[inverterId]) {
+      currentSettingsState.serial_number[inverterId] = {};
+    }
+    currentSettingsState.serial_number[inverterId].value = messageContent;
+    currentSettingsState.serial_number[inverterId].lastUpdated = new Date();
   }
-  currentSettingsState.serial_number[inverterId].value = messageContent;
-  currentSettingsState.serial_number[inverterId].lastUpdated = new Date();
-}
-else if (specificTopic.includes('/power_saving/')) {
-  if (!currentSettingsState.power_saving[inverterId]) {
-    currentSettingsState.power_saving[inverterId] = {};
+  else if (specificTopic.includes('/power_saving/')) {
+    if (!currentSettingsState.power_saving[inverterId]) {
+      currentSettingsState.power_saving[inverterId] = {};
+    }
+    currentSettingsState.power_saving[inverterId].value = messageContent;
+    currentSettingsState.power_saving[inverterId].lastUpdated = new Date();
   }
-  currentSettingsState.power_saving[inverterId].value = messageContent;
-  currentSettingsState.power_saving[inverterId].lastUpdated = new Date();
-}
 
-  
-  // Update the global timestamp
   currentSettingsState.lastUpdated = new Date();
-  // ========= END OF CURRENT SETTINGS STATE UPDATES =========
 
-  // Update system state for key metrics - always do this regardless of learner mode
+  // Update system state for key metrics with enhanced tracking
   if (specificTopic.includes('total/battery_state_of_charge')) {
     currentSystemState.battery_soc = parseFloat(messageContent);
     currentSystemState.timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -1228,69 +1264,72 @@ else if (specificTopic.includes('/power_saving/')) {
   } else if (specificTopic.includes('total/grid_power')) {
     currentSystemState.grid_power = parseFloat(messageContent);
     shouldProcessRules = true;
-    
   } else if (specificTopic.includes('inverter_state') || specificTopic.includes('device_mode')) {
     currentSystemState.inverter_state = messageContent;
     shouldProcessRules = true;
   }
 
-  else if (specificTopic.includes('total/battery_power')) {
-    currentSystemState.battery_power = parseFloat(messageContent);
-    shouldProcessRules = true;
-  }
-
-  // ========= DYNAMIC PRICING INTEGRATION =========
-  // Check for key system metrics that should trigger dynamic pricing evaluation
-  // IMPORTANT: Dynamic pricing commands will only be sent when Learner Mode is active
-if (topic.includes('battery_state_of_charge') || 
-    topic.includes('grid_voltage') || 
-    topic.includes('pv_power') ||
-    topic.includes('load_power') ||
-    topic.includes('battery_power')) {  // ADD THIS LINE
-  
-  if (dynamicPricingInstance && 
-      dynamicPricingInstance.enabled && 
-      dynamicPricingInstance.isReady() &&
-      learnerModeActive) {
+  // ========= ENHANCED DYNAMIC PRICING INTEGRATION WITH INTELLIGENT INVERTER TYPE SUPPORT =========
+  if (topic.includes('battery_state_of_charge') || 
+      topic.includes('grid_voltage') || 
+      topic.includes('pv_power') ||
+      topic.includes('load_power')) {
     
-    try {
-      const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+    if (dynamicPricingInstance && 
+        dynamicPricingInstance.enabled && 
+        dynamicPricingInstance.isReady() &&
+        learnerModeActive) {
       
-      if (shouldCharge !== null) {
-        const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
+      try {
+        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
         
-        if (commandSent) {
-          const action = shouldCharge ? 'enabled' : 'disabled';
-          const reason = shouldCharge 
-            ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
-            : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
+        if (shouldCharge !== null) {
+          const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
           
-          console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
-          
-          const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-          dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
+          if (commandSent) {
+            const action = shouldCharge ? 'enabled' : 'disabled';
+            const reason = shouldCharge 
+              ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
+              : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
+            
+            console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
+            
+            const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+            dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
+          }
         }
+      } catch (error) {
+        console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
       }
-    } catch (error) {
-      console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
+    } else if (dynamicPricingInstance && 
+               dynamicPricingInstance.enabled && 
+               dynamicPricingInstance.isReady() &&
+               !learnerModeActive) {
+      console.log('Enhanced Dynamic Pricing: Would have evaluated charging decision with intelligent inverter type detection, but learner mode is not active');
     }
   }
-}
-  // ========= END OF DYNAMIC PRICING INTEGRATION =========
 
   // Batch changes to be processed together for better performance
   const settingsChanges = [];
 
-  // Check if this topic is in our monitored settings
+  // Check if this topic is in our monitored settings with enhanced detection
   let matchedSetting = null;
   
   try {
-    // First check specific patterns that have dedicated handlers
+    // Check for legacy settings first
     if (specificTopic.includes('grid_charge')) {
       matchedSetting = 'grid_charge';
     } else if (specificTopic.includes('energy_pattern')) {
       matchedSetting = 'energy_pattern';
-    } else if (specificTopic.includes('voltage_point')) {
+    } 
+    // Check for new inverter settings
+    else if (specificTopic.includes('charger_source_priority')) {
+      matchedSetting = 'charger_source_priority';
+    } else if (specificTopic.includes('output_source_priority')) {
+      matchedSetting = 'output_source_priority';
+    } 
+    // Check for other settings
+    else if (specificTopic.includes('voltage_point')) {
       matchedSetting = 'voltage_point';
     } else if (specificTopic.includes('max_discharge_current')) {
       matchedSetting = 'max_discharge_current';
@@ -1331,7 +1370,6 @@ if (topic.includes('battery_state_of_charge') ||
     } else if (specificTopic.includes('grid_trickle_feed')) {
       matchedSetting = 'grid_trickle_feed';
     } else {
-      // If not matched yet, check against the full list of monitored settings
       for (const setting of settingsToMonitor) {
         if (specificTopic.includes(setting)) {
           matchedSetting = setting;
@@ -1340,9 +1378,7 @@ if (topic.includes('battery_state_of_charge') ||
       }
     }
     
-    // If we found a match, check if the value changed
     if (matchedSetting && previousSettings[specificTopic] !== messageContent) {
-      // Only process if the value actually changed
       const changeData = {
         timestamp: new Date(),
         topic: specificTopic,
@@ -1354,38 +1390,28 @@ if (topic.includes('battery_state_of_charge') ||
         mqtt_username: mqttConfig.username
       };
       
-      // Add to batch of changes
       settingsChanges.push(changeData);
-      
-      // Update previous settings
       previousSettings[specificTopic] = messageContent;
-      
-      // This should trigger rule processing
       shouldProcessRules = true;
     }
   } catch (error) {
-    console.error('Error handling MQTT message:', error.message);
+    console.error('Error handling enhanced MQTT message with inverter type support:', error.message);
   }
 
-  // Batch save all changes to database
   if (settingsChanges.length > 0 && dbConnected) {
     try {
-      // Queue the batch save operation through our rate limiter
       queueSettingsChanges(settingsChanges);
     } catch (error) {
-      console.error('Error queuing settings changes:', error.message);
-      // Try to reconnect to database in background
+      console.error('Error queuing enhanced settings changes:', error.message);
       retryDatabaseConnection();
     }
   }
 
-  // Only process rules if something changed that could trigger a rule
   if (shouldProcessRules) {
     try {
-      // Use our debounced version to avoid excessive rule processing
       debouncedProcessRules();
     } catch (error) {
-      console.error('Error processing rules:', error.message);
+      console.error('Error processing enhanced rules with inverter type support:', error.message);
     }
   }
 }
@@ -1394,33 +1420,27 @@ if (topic.includes('battery_state_of_charge') ||
 const settingsChangesQueue = [];
 const MAX_QUEUE_SIZE = 500;
 let processingQueue = false;
-const PROCESSING_INTERVAL = 1000; // Process at most once per second
+const PROCESSING_INTERVAL = 1000;
 
 function queueSettingsChanges(changes) {
-  // Prevent queue from growing too large
   if (settingsChangesQueue.length + changes.length > MAX_QUEUE_SIZE) {
     console.warn(`Settings changes queue exceeding limit (${MAX_QUEUE_SIZE}). Dropping oldest items.`);
-    // Keep only the newest changes
     const totalToKeep = MAX_QUEUE_SIZE - changes.length;
     if (totalToKeep > 0) {
       settingsChangesQueue.splice(0, settingsChangesQueue.length - totalToKeep);
     } else {
-      settingsChangesQueue.length = 0; // Clear the entire queue if necessary
+      settingsChangesQueue.length = 0;
     }
   }
   
-  // Add all changes to the queue
   settingsChangesQueue.push(...changes);
   
-  // Start processing if not already running
   if (!processingQueue) {
     processingQueue = true;
-    setTimeout(processSettingsChangesQueue, 50); // Start soon but not immediately
+    setTimeout(processSettingsChangesQueue, 50);
   }
 }
 
-
-// 8. Add a mutex pattern for better database operation coordination
 class Mutex {
   constructor() {
     this.locked = false;
@@ -1448,10 +1468,8 @@ class Mutex {
   }
 }
 
-// Create a database mutex
 const dbMutex = new Mutex();
 
-// Helper function to execute with mutex
 async function executeWithDbMutex(operation) {
   await dbMutex.acquire();
   try {
@@ -1468,19 +1486,14 @@ async function processSettingsChangesQueue() {
   }
 
   try {
-    // Take a batch from the queue, up to 50 items
     const batchSize = Math.min(50, settingsChangesQueue.length);
     const currentBatch = settingsChangesQueue.splice(0, batchSize);
     
-    // Process this batch
     if (dbConnected) {
       await batchSaveSettingsChanges(currentBatch);
-      
-      // Check if we need to prune old records after adding new ones
       await pruneOldSettingsChanges();
     }
     
-    // If there are more items, schedule the next batch
     if (settingsChangesQueue.length > 0) {
       setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL);
     } else {
@@ -1488,31 +1501,26 @@ async function processSettingsChangesQueue() {
     }
   } catch (error) {
     console.error('Error processing settings changes queue:', error.message);
-    // Even on error, continue processing the queue after a delay
-    setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL * 2);
+    processingQueue = false; // ✅ Reset the flag
+    setTimeout(() => {
+      processSettingsChangesQueue(); // ✅ Retry after delay
+    }, PROCESSING_INTERVAL * 2);
   }
 }
 
-
-
-// Function to batch save settings changes
 async function batchSaveSettingsChanges(changes) {
   if (!dbConnected || changes.length === 0) return;
   
-  // Use the mutex pattern for transaction control
   return executeWithDbMutex(async () => {
     let transactionStarted = false;
     
     try {
-      // Begin a transaction
       await db.run('BEGIN TRANSACTION');
       transactionStarted = true;
       
       for (const change of changes) {
-        // Convert system_state object to JSON string
         const systemStateJson = JSON.stringify(change.system_state || {});
         
-        // Convert values to strings for SQLite
         const oldValueStr = typeof change.old_value === 'object' ? 
           JSON.stringify(change.old_value) : 
           String(change.old_value || '');
@@ -1521,7 +1529,6 @@ async function batchSaveSettingsChanges(changes) {
           JSON.stringify(change.new_value) : 
           String(change.new_value || '');
         
-        // Insert into SQLite with retry on error
         try {
           await db.run(`
             INSERT INTO settings_changes 
@@ -1539,21 +1546,17 @@ async function batchSaveSettingsChanges(changes) {
           ]);
         } catch (insertError) {
           console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
-          // Continue with other changes
         }
       }
       
-      // Commit the transaction
       await db.run('COMMIT');
       transactionStarted = false;
       return true;
     } catch (error) {
-      // Rollback on error, but only if we started a transaction
       if (transactionStarted) {
         try {
           await db.run('ROLLBACK');
         } catch (rollbackError) {
-          // Only log the error if it's not "no transaction is active"
           if (!rollbackError.message.includes('no transaction is active')) {
             console.error('Error rolling back transaction:', rollbackError.message);
           }
@@ -1566,32 +1569,40 @@ async function batchSaveSettingsChanges(changes) {
   });
 }
 
-// Rate-limited API for fetching settings changes
-const API_REQUEST_LIMIT = {};
-const API_REQUEST_INTERVAL = 2000; // 2 seconds between requests
+const API_REQUEST_LIMIT = new Map();
+const MAX_RATE_LIMIT_ENTRIES = 1000;
 
 function canMakeRequest(endpoint, userId) {
   const key = `${endpoint}:${userId}`;
   const now = Date.now();
   
-  if (!API_REQUEST_LIMIT[key]) {
-    API_REQUEST_LIMIT[key] = now;
+  // Clean old entries periodically
+  if (API_REQUEST_LIMIT.size > MAX_RATE_LIMIT_ENTRIES) {
+    const cutoff = now - (API_REQUEST_INTERVAL * 10);
+    for (const [k, v] of API_REQUEST_LIMIT.entries()) {
+      if (v < cutoff) {
+        API_REQUEST_LIMIT.delete(k);
+      }
+    }
+  }
+  
+  if (!API_REQUEST_LIMIT.has(key)) {
+    API_REQUEST_LIMIT.set(key, now);
     return true;
   }
   
-  const timeSinceLastRequest = now - API_REQUEST_LIMIT[key];
+  const timeSinceLastRequest = now - API_REQUEST_LIMIT.get(key);
   if (timeSinceLastRequest < API_REQUEST_INTERVAL) {
     return false;
   }
   
-  API_REQUEST_LIMIT[key] = now;
+  API_REQUEST_LIMIT.set(key, now);
   return true;
 }
 
-// Add this middleware to the API routes that need rate limiting
 function apiRateLimiter(req, res, next) {
-  const endpoint = req.originalUrl.split('?')[0]; // Get just the path without query params
-  const userId = USER_ID; // Using the global user ID
+  const endpoint = req.originalUrl.split('?')[0];
+  const userId = USER_ID;
   
   if (!canMakeRequest(endpoint, userId)) {
     return res.status(429).json({ 
@@ -1603,13 +1614,11 @@ function apiRateLimiter(req, res, next) {
   next();
 }
 
-// 3. Create a debounced version of processRules to avoid excessive processing
-// This function should be defined near the top of your file, after your imports
 const debouncedProcessRules = (() => {
   let timeout = null;
   let pendingRuleProcess = false;
   let lastProcessTime = 0;
-  const MIN_INTERVAL = 5000; // Minimum 5 seconds between processing
+  const MIN_INTERVAL = 5000;
   
   return function() {
     if (timeout) {
@@ -1618,7 +1627,6 @@ const debouncedProcessRules = (() => {
     
     const now = Date.now();
     
-    // If we recently processed rules, wait longer
     if (now - lastProcessTime < MIN_INTERVAL) {
       timeout = setTimeout(() => {
         pendingRuleProcess = false;
@@ -1627,7 +1635,6 @@ const debouncedProcessRules = (() => {
       return;
     }
     
-    // If we already have a pending rule process, just mark that we need another one
     if (pendingRuleProcess) {
       return;
     }
@@ -1635,20 +1642,16 @@ const debouncedProcessRules = (() => {
     pendingRuleProcess = true;
     lastProcessTime = now;
     
-    // Process immediately but wait before allowing another process
     processRules().catch(error => {
       console.error('Error in rule processing:', error);
     }).finally(() => {
       timeout = setTimeout(() => {
         pendingRuleProcess = false;
-      }, 1000); // 1 second cooldown
+      }, 1000);
     });
   };
 })();
 
-
-
-// Modify notification functions to not use console.log
 function sendGridChargeNotification(changeData) {
 }
 
@@ -1664,7 +1667,6 @@ function sendBatteryChargingNotification(changeData) {
 function sendWorkModeNotification(changeData) {
 }
 
-// Function to generate category options
 function generateCategoryOptions(inverterNumber, batteryNumber) {
   const categories = ['all', 'loadPower', 'gridPower', 'pvPower', 'total']
 
@@ -1688,7 +1690,7 @@ function getCurrentTimezone() {
     const data = fs.readFileSync(timezonePath, 'utf8')
     return JSON.parse(data).timezone
   } catch (error) {
-    return 'Europe/Berlin' // Default timezone
+    return 'Europe/Berlin'
   }
 }
 
@@ -1699,14 +1701,12 @@ function setCurrentTimezone(timezone) {
 let currentTimezone = getCurrentTimezone()
 
 function getSelectedZone(req) {
-    // First, check if a zone is provided in the query
     if (req.query.zone) {
       return req.query.zone;
     }
     return null;
   }
 
-// Function to filter messages by category
 function filterMessagesByCategory(category) {
     if (category === 'all') {
       return incomingMessages
@@ -1739,7 +1739,6 @@ function filterMessagesByCategory(category) {
     })
   }
 
-
 // ================ INVERTER AND BATTERY CHECKING================
 
 function checkInverterMessages(messages, expectedInverters) {
@@ -1760,7 +1759,6 @@ function checkInverterMessages(messages, expectedInverters) {
   }
   
   function checkBatteryInformation(messages) {
-    // More flexible battery pattern that matches various battery topic formats
     const batteryPatterns = [
       new RegExp(`${mqttTopicPrefix}/battery_\\d+/`),
       new RegExp(`${mqttTopicPrefix}/battery/`),
@@ -1768,12 +1766,10 @@ function checkInverterMessages(messages, expectedInverters) {
       new RegExp(`${mqttTopicPrefix}/\\w+/battery`),
     ]
   
-    // Check if any message matches any of the battery patterns
     const hasBatteryInfo = messages.some((message) =>
       batteryPatterns.some((pattern) => pattern.test(message))
     )
   
-    // Add debug logging to help troubleshoot
     if (!hasBatteryInfo) {
       console.log(
         'Debug: No battery messages found. Current messages:',
@@ -1785,7 +1781,6 @@ function checkInverterMessages(messages, expectedInverters) {
     return null
   }
   
-  // Helper function to see what battery messages are being received
   function debugBatteryMessages(messages) {
     const batteryMessages = messages.filter((msg) =>
       msg.toLowerCase().includes('battery')
@@ -1798,15 +1793,12 @@ function checkInverterMessages(messages, expectedInverters) {
 
 const DASHBOARD_CONFIG_PATH = path.join(__dirname, 'grafana', 'provisioning', 'dashboards', 'solar_power_dashboard.json');
 
-// API endpoint to get solar data from the JSON file
 app.get('/api/solar-data', (req, res) => {
   try {
       const dashboardData = JSON.parse(fs.readFileSync(DASHBOARD_CONFIG_PATH, 'utf8'));
       
-      // Extract the necessary panel information from the dashboard config
       const solarData = {};
       
-      // Parse through panels and extract configuration
       dashboardData.panels.forEach(panel => {
           const panelId = panel.id.toString();
           const title = panel.title;
@@ -1824,7 +1816,6 @@ app.get('/api/solar-data', (req, res) => {
               }
           };
           
-          // Add any special configurations based on panel type
           if (panel.type === 'gauge') {
               solarData[panelId].gaugeConfig = {
                   showThresholdLabels: panel.options?.showThresholdLabels || false,
@@ -1844,7 +1835,6 @@ app.get('/api/solar-data', (req, res) => {
   }
 });
 
-// API endpoint to update panel configuration including thresholds
 app.post('/api/update-panel-config', (req, res) => {
   try {
       const { panelId, min, max, thresholds } = req.body;
@@ -1856,10 +1846,8 @@ app.post('/api/update-panel-config', (req, res) => {
           });
       }
       
-      // Read the current dashboard config
       const dashboardData = JSON.parse(fs.readFileSync(DASHBOARD_CONFIG_PATH, 'utf8'));
       
-      // Find the specific panel by ID
       const panel = dashboardData.panels.find(p => p.id.toString() === panelId);
       
       if (!panel) {
@@ -1869,31 +1857,25 @@ app.post('/api/update-panel-config', (req, res) => {
           });
       }
       
-      // Ensure the fieldConfig structure exists
       if (!panel.fieldConfig) panel.fieldConfig = {};
       if (!panel.fieldConfig.defaults) panel.fieldConfig.defaults = {};
       
-      // Update the min and max values
       panel.fieldConfig.defaults.min = min;
       panel.fieldConfig.defaults.max = max;
       
-      // Update thresholds if provided
       if (thresholds && Array.isArray(thresholds)) {
-          // Ensure thresholds structure exists
           if (!panel.fieldConfig.defaults.thresholds) {
               panel.fieldConfig.defaults.thresholds = { mode: 'absolute', steps: [] };
           }
           
-          // Convert thresholds array to the format expected by Grafana
           panel.fieldConfig.defaults.thresholds.steps = thresholds.map((threshold, index) => {
               return {
                   color: threshold.color,
-                  value: index === 0 ? null : threshold.value // First threshold has null value in Grafana
+                  value: index === 0 ? null : threshold.value
               };
           });
       }
       
-      // Write the updated config back to the file
       fs.writeFileSync(DASHBOARD_CONFIG_PATH, JSON.stringify(dashboardData, null, 2), 'utf8');
       
       res.json({ 
@@ -1918,503 +1900,460 @@ app.post('/api/update-panel-config', (req, res) => {
 
 
 
-
-
 // ================ ROUTERS ================
 
 app.get('/', async (req, res) => {
 
-  const expectedInverters = parseInt(options.inverter_number) || 1
-  const inverterWarning = checkInverterMessages(
-    incomingMessages,
-    expectedInverters)
-
-  const batteryWarning = checkBatteryInformation(incomingMessages)
-  try {
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    const selectedZone = settings.selectedZone;
-    
-    if (!selectedZone) {
-      // Redirect to settings page if zone is not configured
-      return res.redirect('/settings?message=Please configure your zone first');
-    }
-    
-    let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
-    let isLoading = false;
-    let error = null;
-    
+    const expectedInverters = parseInt(options.inverter_number) || 1
+    const inverterWarning = checkInverterMessages(
+      incomingMessages,
+      expectedInverters)
+  
+    const batteryWarning = checkBatteryInformation(incomingMessages)
     try {
-      // Check if we have cached carbon intensity data
-      const cacheKey = selectedZone;
-      const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
-                      (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+      const selectedZone = settings.selectedZone;
       
-      if (isCached) {
-        historyData = carbonIntensityCacheByZone.get(cacheKey).data;
-      } else {
-        // Set loading state
-        isLoading = true;
+      if (!selectedZone) {
+        return res.redirect('/settings?message=Please configure your zone first');
       }
       
-      // Fetch energy data from InfluxDB
-      [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
-        queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
-        queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-        queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
-      ]);
+      let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+      let isLoading = false;
+      let error = null;
       
-      // If not cached, fetch carbon intensity data
-      if (!isCached) {
-        historyData = await fetchCarbonIntensityHistory(selectedZone);
-        isLoading = false;
-      }
-    } catch (e) {
-      console.error('Error fetching data:', e);
-      error = 'Error fetching data. Please try again later.';
-      isLoading = false;
-      
-    }
-    
-    // Calculate emissions data for the period
-    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
-    
-    // Get today's data (last item in the array) using current date
-    const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
-      date: moment().format('YYYY-MM-DD'),
-      unavoidableEmissions: 0,
-      avoidedEmissions: 0,
-      selfSufficiencyScore: 0,
-      gridEnergy: 0,
-      solarEnergy: 0,
-      carbonIntensity: 0
-    };
-    
-    // Calculate totals for different time periods
-    const weekData = emissionsData.slice(-7);
-    const monthData = emissionsData.slice(-30);
-    
-    const summaryData = {
-      today: todayData,
-      week: {
-        unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-        avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-        selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
-      },
-      month: {
-        unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-        avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-        selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
-      }
-    };
-    
-    // Render the welcome page with the data
-    res.render('energy-dashboard', {
-      selectedZone,
-      todayData: {
-        ...todayData,
-        date: moment().format('YYYY-MM-DD') // Explicitly set to current date
-      },
-      summaryData,
-      isLoading,
-      error,
-      ingress_path: process.env.INGRESS_PATH || '',
-      mqtt_host: options.mqtt_host, // Include mqtt_host here
-      inverterWarning,
-      batteryWarning,
-      batteryMessages: debugBatteryMessages(incomingMessages), // Add this for debugging in the view
-      username: options.mqtt_username || 'User'
-    });
-  } catch (error) {
-    console.error('Error rendering welcome page:', error);
-    res.status(500).render('error', { error: 'Error loading welcome page' });
-  }
-});
-
-
-
-
-app.get('/analytics', async (req, res) => {
-  try {
-    const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
-    let carbonIntensityData = [];
-
-    if (selectedZone) {
       try {
-        carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
-      } catch (error) {
-        console.error('Error fetching carbon intensity data:', error);
-      }
-    }
-    
-    const [
-      loadPowerData, 
-      pvPowerData, 
-      batteryStateOfChargeData, 
-      batteryPowerData, 
-      gridPowerData, 
-      gridVoltageData,
-      loadPowerYear,
-      pvPowerYear,
-      batteryStateOfChargeYear,
-      batteryPowerYear,
-      gridPowerYear,
-      gridVoltageYear,
-      loadPowerDecade,
-      pvPowerDecade,
-      batteryStateOfChargeDecade,
-      batteryPowerDecade,
-      gridPowerDecade,
-      gridVoltageDecade
-    ] = await Promise.all([
-      queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-      queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/load_energy/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/pv_energy/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-      queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-      queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-    ]);
-
-    // Get the list of zones to pass to the template
-    const zones = await getZones();
-
-    const data = {
-      loadPowerData,
-      pvPowerData,
-      batteryStateOfChargeData,
-      batteryPowerData,
-      gridPowerData,
-      gridVoltageData,
-      carbonIntensityData,
-      selectedZone,
-      zones, // Add zones to the data object
-      loadPowerYear,
-      pvPowerYear,
-      batteryStateOfChargeYear,
-      batteryPowerYear,
-      gridPowerYear,
-      gridVoltageYear,
-      loadPowerDecade,
-      pvPowerDecade,
-      batteryStateOfChargeDecade,
-      batteryPowerDecade,
-      gridPowerDecade,
-      gridVoltageDecade
-    };
-
-    res.render('analytics', {
-      data,
-      ingress_path: process.env.INGRESS_PATH || '',
-      selectedZone // Pass selectedZone to the template for pre-selecting in dropdowns
-    })
-  } catch (error) {
-    console.error('Error fetching analytics data:', error);
-    res.status(500).json({ 
-      error: 'Error fetching analytics data',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-})
-
-
-
-app.get('/results', async (req, res) => {
-  try {
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    const selectedZone = req.query.zone || settings.selectedZone;
-    const zones = await getZones();
-
-    let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
-    let error = null;
-    let isLoading = false;
-
-    if (selectedZone) {
-      try {
-        // Check if we have cached data
-        const cacheKey = `${selectedZone}`; // Corrected template literal
+        const cacheKey = selectedZone;
         const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
-                         (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
-
+                        (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+        
         if (isCached) {
           historyData = carbonIntensityCacheByZone.get(cacheKey).data;
         } else {
-          // Set loading state
           isLoading = true;
         }
-
-        // Fetch InfluxDB data in parallel
+        
         [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
           queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
           queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
         ]);
-
-        // If not cached, fetch carbon intensity data
+        
         if (!isCached) {
           historyData = await fetchCarbonIntensityHistory(selectedZone);
-          carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() }); // Update cache
           isLoading = false;
         }
       } catch (e) {
         console.error('Error fetching data:', e);
         error = 'Error fetching data. Please try again later.';
         isLoading = false;
+        
       }
-    }
-
-    // Today's date in YYYY-MM-DD format
-    const currentDate = moment().format('YYYY-MM-DD');
-
-    // Process the data
-    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
-
-    // Update the last entry with today's date if it exists
-    if (emissionsData.length > 0) {
-      emissionsData[emissionsData.length - 1].date = currentDate;
-    }
-
-    // Find today's data specifically
-    const todayData = emissionsData.find(item => item.date === currentDate) || {
-      date: currentDate,
-      unavoidableEmissions: 0,
-      avoidedEmissions: 0,
-      selfSufficiencyScore: 0,
-      gridEnergy: 0,
-      solarEnergy: 0,
-      carbonIntensity: 0,
-      formattedDate: moment(currentDate).format('MMM D, YYYY')
-    };
-
-    // Create periods including today as its own period
-    const periods = {
-      today: [todayData], // Today's data as a single-item array
-      week: emissionsData.slice(-7),
-      month: emissionsData.slice(-30),
-      quarter: emissionsData.slice(-90),
-      year: emissionsData
-    };
-
-    // Pass all needed date formats to the template
-    res.render('results', {
-      selectedZone,
-      zones,
-      periods,
-      todayData,
-      error,
-      isLoading,
-      unavoidableEmissions: todayData.unavoidableEmissions,
-      avoidedEmissions: todayData.avoidedEmissions,
-      selfSufficiencyScore: todayData.selfSufficiencyScore,
-      currentDate: currentDate,
-      formattedDate: moment(currentDate).format('MMM D, YYYY'),
-      dateString: moment(currentDate).format('MMM D, YYYY'),
-      ingress_path: process.env.INGRESS_PATH || '',
-    });
-  } catch (error) {
-    console.error('Server error:', error); // Log the error for debugging
-    res.status(500).render('error', { error: 'Error loading results' });
-  }
-});
-
-app.post('/save-zone', (req, res) => {
-  const { zone } = req.body;
-  console.log(`Zone saved: ${zone}`);
-  res.json({ success: true, message: 'Zone saved successfully' });
-});
-
-
-app.get('/settings', async (req, res) => {
-  try {
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    const zonesResponse = await getZones();
-    
-    res.render('settings', { 
-      settings,
-      ingress_path: process.env.INGRESS_PATH || '',
-      zones: zonesResponse.zones,
-      message: req.query.message,
-      error: zonesResponse.error
-    });
-  } catch (error) {
-    res.status(500).render('error', { error: 'Error loading settings' });
-  }
-});
-
-app.post('/settings', async (req, res) => {
-  try {
-    const { timezone, apiKey, selectedZone } = req.body;
-    
-    // Read current settings
-    let currentSettings = {};
-    try {
-      const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
-      currentSettings = JSON.parse(settingsData);
-    } catch (err) {
-      // If settings file doesn't exist yet, use empty defaults
-      currentSettings = {
-        apiKey: '',
-        selectedZone: '',
-        timezone: ''
+      
+      const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+      
+      const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
+        date: moment().format('YYYY-MM-DD'),
+        unavoidableEmissions: 0,
+        avoidedEmissions: 0,
+        selfSufficiencyScore: 0,
+        gridEnergy: 0,
+        solarEnergy: 0,
+        carbonIntensity: 0
       };
+      
+      const weekData = emissionsData.slice(-7);
+      const monthData = emissionsData.slice(-30);
+      
+      const summaryData = {
+        today: todayData,
+        week: {
+          unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+          avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+          selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
+        },
+        month: {
+          unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+          avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+          selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
+        }
+      };
+      
+      res.render('energy-dashboard', {
+        selectedZone,
+        todayData: {
+          ...todayData,
+          date: moment().format('YYYY-MM-DD')
+        },
+        summaryData,
+        isLoading,
+        error,
+        ingress_path: process.env.INGRESS_PATH || '',
+        mqtt_host: options.mqtt_host,
+        inverterWarning,
+        batteryWarning,
+        batteryMessages: debugBatteryMessages(incomingMessages),
+        username: options.mqtt_username || 'User'
+      });
+    } catch (error) {
+      console.error('Error rendering welcome page:', error);
+      res.status(500).render('error', { error: 'Error loading welcome page' });
     }
-    
-    // Update only the provided fields
-    const settings = {
-      apiKey: apiKey !== undefined ? apiKey : currentSettings.apiKey,
-      selectedZone: selectedZone !== undefined ? selectedZone : currentSettings.selectedZone,
-      timezone: timezone !== undefined ? timezone : currentSettings.timezone
-    };
-
-    // Validate that we have at least one valid field
-    if (!settings.selectedZone && !settings.apiKey) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one of API key or zone must be provided'
+  });
+  
+  app.get('/analytics', async (req, res) => {
+    try {
+      const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
+      let carbonIntensityData = [];
+  
+      if (selectedZone) {
+        try {
+          carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
+        } catch (error) {
+          console.error('Error fetching carbon intensity data:', error);
+        }
+      }
+      
+      const [
+        loadPowerData, 
+        pvPowerData, 
+        batteryStateOfChargeData, 
+        batteryPowerData, 
+        gridPowerData, 
+        gridVoltageData,
+        loadPowerYear,
+        pvPowerYear,
+        batteryStateOfChargeYear,
+        batteryPowerYear,
+        gridPowerYear,
+        gridVoltageYear,
+        loadPowerDecade,
+        pvPowerDecade,
+        batteryStateOfChargeDecade,
+        batteryPowerDecade,
+        gridPowerDecade,
+        gridVoltageDecade
+      ] = await Promise.all([
+        queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/load_energy/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/pv_energy/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+        queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
+      ]);
+  
+      const zones = await getZones();
+  
+      const data = {
+        loadPowerData,
+        pvPowerData,
+        batteryStateOfChargeData,
+        batteryPowerData,
+        gridPowerData,
+        gridVoltageData,
+        carbonIntensityData,
+        selectedZone,
+        zones,
+        loadPowerYear,
+        pvPowerYear,
+        batteryStateOfChargeYear,
+        batteryPowerYear,
+        gridPowerYear,
+        gridVoltageYear,
+        loadPowerDecade,
+        pvPowerDecade,
+        batteryStateOfChargeDecade,
+        batteryPowerDecade,
+        gridPowerDecade,
+        gridVoltageDecade
+      };
+  
+      res.render('analytics', {
+        data,
+        ingress_path: process.env.INGRESS_PATH || '',
+        selectedZone
+      })
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      res.status(500).json({ 
+        error: 'Error fetching analytics data',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
-
-    // Save the settings to the settings file
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-
-    // Update the current timezone if provided
-    if (timezone) {
-      currentTimezone = timezone;
-      setCurrentTimezone(timezone);
-    }
-
-    res.json({
-      success: true,
-      message: 'Settings saved successfully'
-    });
-  } catch (error) {
-    console.error('Error saving settings:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to save settings'
-    });
-  }
-});
-
-app.post('/save-zone', (req, res) => {
-  try {
-      const { zone } = req.body;
+  })
+  
+  app.get('/results', async (req, res) => {
+    try {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-      settings.selectedZone = zone;
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-      console.log(`Zone saved: ${zone}`);
-      res.json({ success: true, message: 'Zone saved successfully' });
-  } catch (error) {
-      console.error('Error saving zone:', error);
-      res.status(500).json({ success: false, error: 'Failed to save zone' });
-  }
-});
-
-app.get('/api/messages', (req, res) => {
-    const category = req.query.category
-    const filteredMessages = filterMessagesByCategory(category)
-    res.json(filteredMessages)
-  })
-
-
-
-  app.get('/api/timezone', (req, res) => {
-    res.json({ timezone: currentTimezone })
-  })
+      const selectedZone = req.query.zone || settings.selectedZone;
+      const zones = await getZones();
   
-  app.post('/api/timezone', (req, res) => {
-    const { timezone } = req.body
-    if (moment.tz.zone(timezone)) {
-      currentTimezone = timezone
-      setCurrentTimezone(timezone)
-      res.json({ success: true, timezone: currentTimezone })
-    } else {
-      res.status(400).json({ error: 'Invalid timezone' })
+      let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+      let error = null;
+      let isLoading = false;
+  
+      if (selectedZone) {
+        try {
+          const cacheKey = `${selectedZone}`;
+          const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
+                           (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+  
+          if (isCached) {
+            historyData = carbonIntensityCacheByZone.get(cacheKey).data;
+          } else {
+            isLoading = true;
+          }
+  
+          [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
+            queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
+            queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
+            queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
+          ]);
+  
+          if (!isCached) {
+            historyData = await fetchCarbonIntensityHistory(selectedZone);
+            carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() });
+            isLoading = false;
+          }
+        } catch (e) {
+          console.error('Error fetching data:', e);
+          error = 'Error fetching data. Please try again later.';
+          isLoading = false;
+        }
+      }
+  
+      const currentDate = moment().format('YYYY-MM-DD');
+  
+      const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+  
+      if (emissionsData.length > 0) {
+        emissionsData[emissionsData.length - 1].date = currentDate;
+      }
+  
+      const todayData = emissionsData.find(item => item.date === currentDate) || {
+        date: currentDate,
+        unavoidableEmissions: 0,
+        avoidedEmissions: 0,
+        selfSufficiencyScore: 0,
+        gridEnergy: 0,
+        solarEnergy: 0,
+        carbonIntensity: 0,
+        formattedDate: moment(currentDate).format('MMM D, YYYY')
+      };
+  
+      const periods = {
+        today: [todayData],
+        week: emissionsData.slice(-7),
+        month: emissionsData.slice(-30),
+        quarter: emissionsData.slice(-90),
+        year: emissionsData
+      };
+  
+      res.render('results', {
+        selectedZone,
+        zones,
+        periods,
+        todayData,
+        error,
+        isLoading,
+        unavoidableEmissions: todayData.unavoidableEmissions,
+        avoidedEmissions: todayData.avoidedEmissions,
+        selfSufficiencyScore: todayData.selfSufficiencyScore,
+        currentDate: currentDate,
+        formattedDate: moment(currentDate).format('MMM D, YYYY'),
+        dateString: moment(currentDate).format('MMM D, YYYY'),
+        ingress_path: process.env.INGRESS_PATH || '',
+      });
+    } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).render('error', { error: 'Error loading results' });
     }
-  })
+  });
   
+  app.post('/save-zone', (req, res) => {
+    const { zone } = req.body;
+    console.log(`Zone saved: ${zone}`);
+    res.json({ success: true, message: 'Zone saved successfully' });
+  });
   
-app.get('/messages', (req, res) => {
-  res.render('messages', {
-    ingress_path: process.env.INGRESS_PATH || '',
-    categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
-  })
-})
-
-
-app.get('/chart', (req, res) => {
-  res.render('chart', {
-    ingress_path: process.env.INGRESS_PATH || '',
-    mqtt_host: options.mqtt_host, // Include mqtt_host here
-  })
-})
-
-
-app.get('/api/carbon-intensity/:zone', async (req, res) => {
-  try {
-    const { zone } = req.params;
-    if (!zone) {
-      return res.status(400).json({ error: 'Zone parameter is required' });
+  app.get('/settings', async (req, res) => {
+    try {
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+      const zonesResponse = await getZones();
+      
+      res.render('settings', { 
+        settings,
+        ingress_path: process.env.INGRESS_PATH || '',
+        zones: zonesResponse.zones,
+        message: req.query.message,
+        error: zonesResponse.error
+      });
+    } catch (error) {
+      res.status(500).render('error', { error: 'Error loading settings' });
     }
-    
-    // Check if data is already cached
-    const cacheKey = zone;
-    if (carbonIntensityCacheByZone.has(cacheKey)) {
-      const cachedData = carbonIntensityCacheByZone.get(cacheKey);
-      if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
-        return res.json({ 
-          data: cachedData.data,
-          cached: true,
-          cacheAge: Math.round((Date.now() - cachedData.timestamp) / 60000) + ' minutes'
+  });
+  
+  app.post('/settings', async (req, res) => {
+    try {
+      const { timezone, apiKey, selectedZone } = req.body;
+      
+      let currentSettings = {};
+      try {
+        const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+        currentSettings = JSON.parse(settingsData);
+      } catch (err) {
+        currentSettings = {
+          apiKey: '',
+          selectedZone: '',
+          timezone: ''
+        };
+      }
+      
+      const settings = {
+        apiKey: apiKey !== undefined ? apiKey : currentSettings.apiKey,
+        selectedZone: selectedZone !== undefined ? selectedZone : currentSettings.selectedZone,
+        timezone: timezone !== undefined ? timezone : currentSettings.timezone
+      };
+  
+      if (!settings.selectedZone && !settings.apiKey) {
+        return res.status(400).json({
+          success: false,
+          error: 'At least one of API key or zone must be provided'
         });
       }
+  
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  
+      if (timezone) {
+        currentTimezone = timezone;
+        setCurrentTimezone(timezone);
+      }
+  
+      res.json({
+        success: true,
+        message: 'Settings saved successfully'
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save settings'
+      });
     }
+  });
+  
+  app.post('/save-zone', (req, res) => {
+    try {
+        const { zone } = req.body;
+        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+        settings.selectedZone = zone;
+        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+        console.log(`Zone saved: ${zone}`);
+        res.json({ success: true, message: 'Zone saved successfully' });
+    } catch (error) {
+        console.error('Error saving zone:', error);
+        res.status(500).json({ success: false, error: 'Failed to save zone' });
+    }
+  });
+  
+  app.get('/api/messages', (req, res) => {
+      const category = req.query.category
+      const filteredMessages = filterMessagesByCategory(category)
+      res.json(filteredMessages)
+    })
+  
+    app.get('/api/timezone', (req, res) => {
+      res.json({ timezone: currentTimezone })
+    })
     
-    // Otherwise return a status indicating data is being fetched
-    res.json({ 
-      status: 'fetching',
-      message: 'Data is being fetched. Please try again in a moment.'
-    });
+    app.post('/api/timezone', (req, res) => {
+      const { timezone } = req.body
+      if (moment.tz.zone(timezone)) {
+        currentTimezone = timezone
+        setCurrentTimezone(timezone)
+        res.json({ success: true, timezone: currentTimezone })
+      } else {
+        res.status(400).json({ error: 'Invalid timezone' })
+      }
+    })
     
-    // Trigger a background fetch if not already in progress
-    setTimeout(() => fetchCarbonIntensityHistory(zone), 0);
     
-  } catch (error) {
-    console.error('Error in carbon intensity API:', error);
-    res.status(500).json({ error: 'Failed to fetch carbon intensity data' });
-  }
-});
-
-app.get('/api/grid-voltage', async (req, res) => {
-  try {
-    const result = await influx.query(`
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
-    `)
-    res.json({ voltage: result[0]?.value || 0 })
-  } catch (error) {
-    console.error('Error fetching grid voltage:', error)
-    res.status(500).json({ error: 'Failed to fetch grid voltage' })
-  }
-})
-
-// ================ CARBON INTENSITY ================
-
-  // Cache for carbon intensity data
+  app.get('/messages', (req, res) => {
+    res.render('messages', {
+      ingress_path: process.env.INGRESS_PATH || '',
+      categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
+    })
+  })
+  
+  app.get('/chart', (req, res) => {
+    res.render('chart', {
+      ingress_path: process.env.INGRESS_PATH || '',
+      mqtt_host: options.mqtt_host,
+    })
+  })
+  
+  app.get('/api/carbon-intensity/:zone', async (req, res) => {
+    try {
+      const { zone } = req.params;
+      if (!zone) {
+        return res.status(400).json({ error: 'Zone parameter is required' });
+      }
+      
+      const cacheKey = zone;
+      if (carbonIntensityCacheByZone.has(cacheKey)) {
+        const cachedData = carbonIntensityCacheByZone.get(cacheKey);
+        if (Date.now() - cachedData.timestamp < CACHE_DURATION) {
+          return res.json({ 
+            data: cachedData.data,
+            cached: true,
+            cacheAge: Math.round((Date.now() - cachedData.timestamp) / 60000) + ' minutes'
+          });
+        }
+      }
+      
+      res.json({ 
+        status: 'fetching',
+        message: 'Data is being fetched. Please try again in a moment.'
+      });
+      
+      setTimeout(() => fetchCarbonIntensityHistory(zone), 0);
+      
+    } catch (error) {
+      console.error('Error in carbon intensity API:', error);
+      res.status(500).json({ error: 'Failed to fetch carbon intensity data' });
+    }
+  });
+  
+  app.get('/api/grid-voltage', async (req, res) => {
+    try {
+      const result = await influx.query(`
+        SELECT last("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${mqttTopicPrefix}/total/grid_voltage/state'
+      `)
+      res.json({ voltage: result[0]?.value || 0 })
+    } catch (error) {
+      console.error('Error fetching grid voltage:', error)
+      res.status(500).json({ error: 'Failed to fetch grid voltage' })
+    }
+  })
+  
+  // ================ CARBON INTENSITY ================
+  
   const carbonIntensityCacheByZone = new Map();
   
-  // Utility Functions
   async function getZones() {
     try {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
@@ -2464,8 +2403,7 @@ app.get('/api/grid-voltage', async (req, res) => {
       };
     }
   }
-
-
+  
   async function fetchCarbonIntensityHistory(selectedZone) {
     if (!selectedZone) return [];
   
@@ -2474,7 +2412,6 @@ app.get('/api/grid-voltage', async (req, res) => {
       throw new Error('API key not configured');
     }
   
-    // Check if we have a cached version for this zone
     const cacheKey = `${selectedZone}`;
     if (carbonIntensityCacheByZone.has(cacheKey)) {
       const cachedData = carbonIntensityCacheByZone.get(cacheKey);
@@ -2488,8 +2425,7 @@ app.get('/api/grid-voltage', async (req, res) => {
     const today = moment();
     const oneYearAgo = moment().subtract(1, 'year');
     
-    // Increase batch size for fewer API calls
-    const batchSize = 30; // Fetch a month at a time
+    const batchSize = 30;
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   
     console.time('Carbon intensity data fetch');
@@ -2510,13 +2446,12 @@ app.get('/api/grid-voltage', async (req, res) => {
           }).then(response => response.data)
             .catch(error => {
               console.error(`Error fetching data for ${date}:`, error.message);
-              return { history: [] }; // Return empty history on error
+              return { history: [] };
             })
         );
       }
   
       try {
-        // Process batches with some delay between them to avoid rate limiting
         const batchResults = await Promise.all(batchPromises);
         batchResults.forEach((data, index) => {
           if (data.history && data.history.length > 0) {
@@ -2527,7 +2462,6 @@ app.get('/api/grid-voltage', async (req, res) => {
           }
         });
         
-        // Add a small delay between batches to avoid overwhelming the API
         if (m.clone().add(batchSize, 'days').isBefore(today)) {
           await delay(500);
         }
@@ -2538,7 +2472,6 @@ app.get('/api/grid-voltage', async (req, res) => {
   
     console.timeEnd('Carbon intensity data fetch');
   
-    // Cache the entire year's data for this zone
     carbonIntensityCacheByZone.set(cacheKey, {
       data: historyData,
       timestamp: Date.now()
@@ -2553,98 +2486,93 @@ app.get('/api/grid-voltage', async (req, res) => {
     
     return historyData;
   }
-
-
-// Comprehensive emissions calculation matching analytics page exactly
-function calculateEmissionsForPeriod(
-  historyData,
-  gridEnergyIn,
-  pvEnergy,
-  gridVoltage
-) {
-  if (!historyData || !historyData.length || !gridEnergyIn || !pvEnergy) {
-    console.log("Missing required data arrays for emissions calculation");
-    return [];
-  }
-
-  console.log(`History data length: ${historyData.length}, Grid data length: ${gridEnergyIn.length}, PV data length: ${pvEnergy.length}`);
-  if (gridEnergyIn.length > 0) {
-    console.log(`Grid energy sample: ${JSON.stringify(gridEnergyIn[0])}`);
-  }
-  if (pvEnergy.length > 0) {
-    console.log(`PV energy sample: ${JSON.stringify(pvEnergy[0])}`);
-  }
-
-  return historyData.map((dayData, index) => {
-    const carbonIntensity = dayData.carbonIntensity || 0;
-    const currentGridVoltage = gridVoltage[index]?.value || 0;
-
-    const historyDate = new Date(dayData.date).toISOString().split('T')[0];
-
-    let gridEnergyForDay = null,
-      pvEnergyForDay = null,
-      previousGridEnergy = null,
-      previousPvEnergy = null;
-
-    gridEnergyIn.forEach((entry, i) => {
-      const entryDate = new Date(entry.time).toISOString().split('T')[0];
-      if (entryDate === historyDate) {
-        gridEnergyForDay = entry.value;
-        if (i > 0) previousGridEnergy = gridEnergyIn[i - 1].value;
+  
+  function calculateEmissionsForPeriod(
+    historyData,
+    gridEnergyIn,
+    pvEnergy,
+    gridVoltage
+  ) {
+    if (!historyData || !historyData.length || !gridEnergyIn || !pvEnergy) {
+      console.log("Missing required data arrays for emissions calculation");
+      return [];
+    }
+  
+    console.log(`History data length: ${historyData.length}, Grid data length: ${gridEnergyIn.length}, PV data length: ${pvEnergy.length}`);
+    if (gridEnergyIn.length > 0) {
+      console.log(`Grid energy sample: ${JSON.stringify(gridEnergyIn[0])}`);
+    }
+    if (pvEnergy.length > 0) {
+      console.log(`PV energy sample: ${JSON.stringify(pvEnergy[0])}`);
+    }
+  
+    return historyData.map((dayData, index) => {
+      const carbonIntensity = dayData.carbonIntensity || 0;
+      const currentGridVoltage = gridVoltage[index]?.value || 0;
+  
+      const historyDate = new Date(dayData.date).toISOString().split('T')[0];
+  
+      let gridEnergyForDay = null,
+        pvEnergyForDay = null,
+        previousGridEnergy = null,
+        previousPvEnergy = null;
+  
+      gridEnergyIn.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          gridEnergyForDay = entry.value;
+          if (i > 0) previousGridEnergy = gridEnergyIn[i - 1].value;
+        }
+      });
+  
+      pvEnergy.forEach((entry, i) => {
+        const entryDate = new Date(entry.time).toISOString().split('T')[0];
+        if (entryDate === historyDate) {
+          pvEnergyForDay = entry.value;
+          if (i > 0) previousPvEnergy = pvEnergy[i - 1].value;
+        }
+      });
+  
+      if (gridEnergyForDay === null && index < gridEnergyIn.length) {
+        gridEnergyForDay = gridEnergyIn[index]?.value || 0;
+        previousGridEnergy = index > 0 ? gridEnergyIn[index - 1]?.value || 0 : null;
       }
-    });
-
-    pvEnergy.forEach((entry, i) => {
-      const entryDate = new Date(entry.time).toISOString().split('T')[0];
-      if (entryDate === historyDate) {
-        pvEnergyForDay = entry.value;
-        if (i > 0) previousPvEnergy = pvEnergy[i - 1].value;
+  
+      if (pvEnergyForDay === null && index < pvEnergy.length) {
+        pvEnergyForDay = pvEnergy[index]?.value || 0;
+        previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
       }
+  
+      let dailyGridEnergy = gridEnergyForDay;
+      let dailyPvEnergy = pvEnergyForDay;
+  
+      if (
+        previousGridEnergy !== null &&
+        previousPvEnergy !== null &&
+        gridEnergyForDay > previousGridEnergy &&
+        pvEnergyForDay > previousPvEnergy
+      ) {
+        dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
+        dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
+      }
+  
+      const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
+      const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
+      const totalEnergy = dailyGridEnergy + dailyPvEnergy;
+      const selfSufficiencyScore = totalEnergy > 0 ? (dailyPvEnergy / totalEnergy) * 100 : 0;
+  
+      return {
+        date: dayData.date,
+        carbonIntensity: carbonIntensity,
+        gridVoltage: currentGridVoltage,
+        gridEnergy: dailyGridEnergy,
+        solarEnergy: dailyPvEnergy,
+        unavoidableEmissions: unavoidableEmissions,
+        avoidedEmissions: avoidedEmissions,
+        selfSufficiencyScore: selfSufficiencyScore,
+      };
     });
-
-    if (gridEnergyForDay === null && index < gridEnergyIn.length) {
-      gridEnergyForDay = gridEnergyIn[index]?.value || 0;
-      previousGridEnergy = index > 0 ? gridEnergyIn[index - 1]?.value || 0 : null;
-    }
-
-    if (pvEnergyForDay === null && index < pvEnergy.length) {
-      pvEnergyForDay = pvEnergy[index]?.value || 0;
-      previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
-    }
-
-    let dailyGridEnergy = gridEnergyForDay;
-    let dailyPvEnergy = pvEnergyForDay;
-
-    // Apply your conditions
-    if (
-      previousGridEnergy !== null &&
-      previousPvEnergy !== null &&
-      gridEnergyForDay > previousGridEnergy &&
-      pvEnergyForDay > previousPvEnergy
-    ) {
-      dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
-      dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
-    }
-
-    const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
-    const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
-    const totalEnergy = dailyGridEnergy + dailyPvEnergy;
-    const selfSufficiencyScore = totalEnergy > 0 ? (dailyPvEnergy / totalEnergy) * 100 : 0;
-
-    return {
-      date: dayData.date,
-      carbonIntensity: carbonIntensity,
-      gridVoltage: currentGridVoltage,
-      gridEnergy: dailyGridEnergy,
-      solarEnergy: dailyPvEnergy,
-      unavoidableEmissions: unavoidableEmissions,
-      avoidedEmissions: avoidedEmissions,
-      selfSufficiencyScore: selfSufficiencyScore,
-    };
-  });
-}
-
-  // Function to prefetch data in the background after server start
+  }
   
   async function prefetchCarbonIntensityData() {
     try {
@@ -2659,2431 +2587,2976 @@ function calculateEmissionsForPeriod(
     }
   }
   
-
-// ================ FORWARDING MESSAGES TO OUR BACKEND ================
-
-// Make sure this variable is declared at the top of your file with other globals
-let heartbeatInterval = null;
-
-// WebSocket Connection & MQTT Message Forwarding
-const connectToWebSocketBroker = async () => {
-  let wsClient = null;
-  let reconnectAttempts = 0;
-  const maxReconnectAttempts = 10; // Try 10 times, then back off
-  const reconnectTimeout = 5000; // 5 seconds reconnection delay
-
-  const startHeartbeat = (client) => {
-    // Stop existing heartbeat if any
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-    
-    // Start new heartbeat
-    heartbeatInterval = setInterval(() => {
-      if (client && client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(JSON.stringify({ type: 'ping' }));
-        } catch (error) {
-          console.error('Error sending heartbeat:', error.message);
+  // ================ FORWARDING MESSAGES TO OUR BACKEND ================
+  
+  let heartbeatInterval = null;
+  
+  const connectToWebSocketBroker = async () => {
+    let wsClient = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectTimeout = 5000;
+  
+    const startHeartbeat = (client) => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
+      
+      heartbeatInterval = setInterval(() => {
+        if (client && client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(JSON.stringify({ type: 'ping' }));
+          } catch (error) {
+            console.error('Error sending heartbeat:', error.message);
+            stopHeartbeat();
+          }
+        } else {
           stopHeartbeat();
         }
-      } else {
-        // Clear interval if client is disconnected
-        stopHeartbeat();
+      }, 30000);
+    };
+  
+    const stopHeartbeat = () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
       }
-    }, 30000); // Send ping every 30 seconds
-  };
-
-  const stopHeartbeat = () => {
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-  };
-
-  const connect = async () => {
-    // Only attempt reconnection if we haven't exceeded the max attempts
-    if (reconnectAttempts >= maxReconnectAttempts) {
-      console.log(`Reached maximum reconnection attempts (${maxReconnectAttempts}). Disabling WebSocket broker.`);
-      return; // Don't attempt to reconnect anymore
-    }
-    
-    reconnectAttempts++;
-    
-    // Calculate backoff time based on attempt number (exponential backoff)
-    const currentReconnectTimeout = reconnectAttempts > 3 ? 
-      reconnectTimeout * Math.pow(2, Math.min(reconnectAttempts - 3, 5)) : 
-      reconnectTimeout;
-    
-    // Properly clean up any existing connection before creating a new one
-    if (wsClient) {
-      try {
-        stopHeartbeat();
-        
-        // Use a try-catch here specifically to handle the error
-        try {
-          wsClient.removeAllListeners();
-          wsClient.terminate();
-        } catch (e) {
-          console.error('Error during WebSocket cleanup (expected if connection failed):', e.message);
-        }
-        
-        wsClient = null;
-      } catch (e) {
-        console.error('Error cleaning up WebSocket connection:', e);
+    };
+  
+    const connect = async () => {
+      if (reconnectAttempts >= maxReconnectAttempts) {
+        console.log(`Reached maximum reconnection attempts (${maxReconnectAttempts}). Disabling WebSocket broker.`);
+        return;
       }
-    }
-    
-    try {
-      console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
       
-      const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+      reconnectAttempts++;
       
-      // Create a connection with error handling
-      wsClient = new WebSocket(brokerServerUrl);
-
-      // Add timeout to prevent connection hanging
-      const connectionTimeout = setTimeout(() => {
-        if (wsClient && wsClient.readyState !== WebSocket.OPEN) {
-          console.log('WebSocket connection timeout. Closing and retrying...');
+      const currentReconnectTimeout = reconnectAttempts > 3 ? 
+        reconnectTimeout * Math.pow(2, Math.min(reconnectAttempts - 3, 5)) : 
+        reconnectTimeout;
+      
+        if (wsClient) {
           try {
-            wsClient.terminate();
-          } catch (e) {
-            console.log('Error terminating timed-out connection:', e.message);
-          }
-        }
-      }, 15000); // 15 second timeout
-      
-      wsClient.on('open', async () => {
-        console.log('Connected to WebSocket broker');
-        clearTimeout(connectionTimeout);
-        
-        // Reset reconnect attempts on successful connection
-        reconnectAttempts = 0;
-        
-        try {
-          const isUser = await AuthenticateUser(options);
-          console.log('Authentication Result:', { isUser });
-
-          if (isUser) {
-            startHeartbeat(wsClient);
-
-            // Set up message forwarding
-            mqttClient.on('message', (topic, message) => {
-              if (wsClient.readyState === WebSocket.OPEN) {
-                try {
-                  // Limit message size
-                  const messageStr = message.toString();
-                  const maxSize = 10000; // 10KB max
-                  const truncatedMessage = messageStr.length > maxSize ? 
-                    messageStr.substring(0, maxSize) + '...[truncated]' : 
-                    messageStr;
-                  
-                  wsClient.send(
-                    JSON.stringify({
-                      mqttTopicPrefix,
-                      topic,
-                      message: truncatedMessage,
-                      userId: isUser,
-                      timestamp: new Date().toISOString()
-                    })
-                  );
-                } catch (sendError) {
-                  console.error('Error sending message to WebSocket:', sendError);
-                }
+            stopHeartbeat();
+            
+            // Set ready state to closing to prevent new messages
+            if (wsClient.readyState === WebSocket.OPEN) {
+              wsClient.close(1000, 'Normal closure');
+            }
+            
+            // Remove all listeners
+            wsClient.removeAllListeners();
+            
+            // Give it a moment to close gracefully, then terminate
+            setTimeout(() => {
+              if (wsClient.readyState !== WebSocket.CLOSED) {
+                wsClient.terminate();
               }
-            });
-          } else {
-            console.warn('Authentication failed. Message forwarding disabled.');
+            }, 1000);
+            
+            wsClient = null;
+          } catch (e) {
+            console.error('Error cleaning up WebSocket connection:', e);
           }
-        } catch (authError) {
-          console.error('Authentication error:', authError);
         }
-      });
-
-      wsClient.on('error', (error) => {
-        clearTimeout(connectionTimeout);
-        console.error('WebSocket Error:', error.message);
-        stopHeartbeat();
-        
-        // Don't try to terminate or close on error, since that's what's causing the crash
-        // The 'close' event will fire automatically
-      });
-
-      wsClient.on('close', (code, reason) => {
-        clearTimeout(connectionTimeout);
-        console.log(`WebSocket closed with code ${code}: ${reason || 'No reason provided'}. Reconnecting...`);
-        stopHeartbeat();
-        
-        // Schedule reconnection with backoff
-        setTimeout(connect, currentReconnectTimeout);
-      });
-
-    } catch (error) {
-      console.error('Connection setup error:', error.message);
-      setTimeout(connect, currentReconnectTimeout);
-    }
-  };
-
-  connect();
-  
-  // Return function to reset connection attempts
-  return {
-    resetConnectionAttempts: () => {
-      reconnectAttempts = 0;
-      console.log('WebSocket broker connection attempts reset');
-    }
-  };
-};
-
-// ================ AUTOMATION RULES ENGINE ================
-
-// Function to check if current time is within the specified time range
-let _cachedTimeCheck = null;
-
-// Replace the isWithinTimeRange function around line 1375
-function isWithinTimeRange(startTime, endTime) {
-  if (!startTime || !endTime) return true;
-  
-  // Cache the current time - computed once per rule evaluation cycle
-  if (!_cachedTimeCheck) {
-    _cachedTimeCheck = {
-      time: moment().tz(currentTimezone),
-      lastUpdated: Date.now()
-    };
-  } else if (Date.now() - _cachedTimeCheck.lastUpdated > 1000) {
-    // Update cache if it's older than 1 second
-    _cachedTimeCheck = {
-      time: moment().tz(currentTimezone),
-      lastUpdated: Date.now()
-    };
-  }
-  
-  const currentTime = _cachedTimeCheck.time;
-  const start = moment.tz(startTime, 'HH:mm', currentTimezone);
-  const end = moment.tz(endTime, 'HH:mm', currentTimezone);
-  
-  // Handle cases where the time range spans midnight
-  if (end.isBefore(start)) {
-    // Return true if current time is after start OR before end
-    return currentTime.isAfter(start) || currentTime.isBefore(end);
-  }
-  
-  // Normal case: check if current time is between start and end
-  return currentTime.isBetween(start, end, null, '[]');
-}
-
-// Function to check if current day is in the allowed days
-function isAllowedDay(allowedDays) {
-  if (!allowedDays || allowedDays.length === 0) return true;
-  
-  // Use the current timezone for day calculation
-  const currentDay = moment().tz(currentTimezone).format('dddd').toLowerCase();
-  return allowedDays.includes(currentDay);
-}
-
-// Function to evaluate a condition
-function evaluateCondition(condition) {
-  const { parameter, operator, value } = condition;
-  let currentValue;
-  
-  // Get the current value based on parameter - use in-memory state for speed
-  switch (parameter) {
-    case 'battery_soc':
-      currentValue = currentSystemState.battery_soc;
-      break;
-    case 'pv_power':
-      currentValue = currentSystemState.pv_power;
-      break;
-    case 'load':
-      currentValue = currentSystemState.load;
-      break;
-    case 'grid_voltage':
-      currentValue = currentSystemState.grid_voltage;
-      break;
-    case 'grid_power':
-      currentValue = currentSystemState.grid_power;
-      break;
-    default:
-      // If we don't track this parameter, condition can't be evaluated
-      return false;
-  }
-  
-  // If we don't have the value yet, return false
-  if (currentValue === null || currentValue === undefined) {
-    return false;
-  }
-  
-  // Evaluate the condition
-  switch (operator) {
-    case 'gt': // greater than
-      return currentValue > value;
-    case 'lt': // less than
-      return currentValue < value;
-    case 'eq': // equal to
-      return currentValue === value;
-    case 'gte': // greater than or equal to
-      return currentValue >= value;
-    case 'lte': // less than or equal to
-      return currentValue <= value;
-    default:
-      return false;
-  }
-}
-
-
-// Function to apply an action
-function applyAction(action) {
-  // Only allow sending commands when learner mode is active
-  if (!learnerModeActive) {
-    return false;
-  }
-
-  const { setting, value, inverter } = action;
-  const inverters = [];
-  
-  // Determine which inverters to apply the action to
-  if (inverter === 'all') {
-    // Apply to all inverters
-    for (let i = 1; i <= inverterNumber; i++) {
-      inverters.push(`inverter_${i}`);
-    }
-  } else {
-    // Apply to a specific inverter
-    inverters.push(inverter);
-  }
-  
-  // Apply the action to each inverter
-  for (const inv of inverters) {
-    let topic, mqttValue;
-    
-    // Construct the topic and value based on the setting
-    switch (setting) {
-      // Existing settings
-      case 'grid_charge':
-        topic = `${mqttTopicPrefix}/${inv}/grid_charge/set`;
-        mqttValue = value;
-        break;
-      case 'energy_pattern':
-        topic = `${mqttTopicPrefix}/${inv}/energy_pattern/set`;
-        mqttValue = value;
-        break;
       
-      // Battery charging settings
-      case 'max_discharge_current':
-        topic = `${mqttTopicPrefix}/${inv}/max_discharge_current/set`;
-        mqttValue = value;
-        break;
-      case 'max_charge_current':
-        topic = `${mqttTopicPrefix}/${inv}/max_charge_current/set`;
-        mqttValue = value;
-        break;
-      case 'max_grid_charge_current':
-        topic = `${mqttTopicPrefix}/${inv}/max_grid_charge_current/set`;
-        mqttValue = value;
-        break;
-      case 'max_generator_charge_current':
-        topic = `${mqttTopicPrefix}/${inv}/max_generator_charge_current/set`;
-        mqttValue = value;
-        break;
-      case 'battery_float_charge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/battery_float_charge_voltage/set`;
-        mqttValue = value;
-        break;
-      case 'battery_absorption_charge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/battery_absorption_charge_voltage/set`;
-        mqttValue = value;
-        break;
-      case 'battery_equalization_charge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/battery_equalization_charge_voltage/set`;
-        mqttValue = value;
-        break;
+      try {
+        console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
         
-      // Work mode settings
-      case 'remote_switch':
-        topic = `${mqttTopicPrefix}/${inv}/remote_switch/set`;
-        mqttValue = value;
-        break;
-      case 'generator_charge':
-        topic = `${mqttTopicPrefix}/${inv}/generator_charge/set`;
-        mqttValue = value;
-        break;
-      case 'force_generator_on':
-        topic = `${mqttTopicPrefix}/${inv}/force_generator_on/set`;
-        mqttValue = value;
-        break;
-      case 'output_shutdown_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/output_shutdown_voltage/set`;
-        mqttValue = value;
-        break;
-      case 'stop_battery_discharge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/stop_battery_discharge_voltage/set`;
-        mqttValue = value;
-        break;
-      case 'start_battery_discharge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/start_battery_discharge_voltage/set`;
-        mqttValue = value;
-        break;
-      case 'start_grid_charge_voltage':
-        topic = `${mqttTopicPrefix}/${inv}/start_grid_charge_voltage/set`;
-        mqttValue = value;
-        break;
+        const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
         
-      // Work mode detail settings
-      case 'work_mode':
-        topic = `${mqttTopicPrefix}/${inv}/work_mode/set`;
-        mqttValue = value;
-        break;
-      case 'solar_export_when_battery_full':
-        topic = `${mqttTopicPrefix}/${inv}/solar_export_when_battery_full/set`;
-        mqttValue = value;
-        break;
-      case 'max_sell_power':
-        topic = `${mqttTopicPrefix}/${inv}/max_sell_power/set`;
-        mqttValue = value;
-        break;
-      case 'max_solar_power':
-        topic = `${mqttTopicPrefix}/${inv}/max_solar_power/set`;
-        mqttValue = value;
-        break;
-      case 'grid_trickle_feed':
-        topic = `${mqttTopicPrefix}/${inv}/grid_trickle_feed/set`;
-        mqttValue = value;
-        break;
+        wsClient = new WebSocket(brokerServerUrl);
+  
+        const connectionTimeout = setTimeout(() => {
+          if (wsClient && wsClient.readyState !== WebSocket.OPEN) {
+            console.log('WebSocket connection timeout. Closing and retrying...');
+            try {
+              wsClient.terminate();
+            } catch (e) {
+              console.log('Error terminating timed-out connection:', e.message);
+            }
+          }
+        }, 15000);
         
-      // Voltage point settings (existing)
-      case 'voltage_point_1':
-      case 'voltage_point_2':
-      case 'voltage_point_3':
-      case 'voltage_point_4':
-      case 'voltage_point_5':
-      case 'voltage_point_6':
-        topic = `${mqttTopicPrefix}/${inv}/${setting}/set`;
-        mqttValue = value;
+        wsClient.on('open', async () => {
+          console.log('Connected to WebSocket broker');
+          clearTimeout(connectionTimeout);
+          
+          reconnectAttempts = 0;
+          
+          try {
+            const isUser = await AuthenticateUser(options);
+            console.log('Authentication Result:', { isUser });
+  
+            if (isUser) {
+              startHeartbeat(wsClient);
+  
+              mqttClient.on('message', (topic, message) => {
+                if (wsClient.readyState === WebSocket.OPEN) {
+                  try {
+                    const messageStr = message.toString();
+                    const maxSize = 10000;
+                    const truncatedMessage = messageStr.length > maxSize ? 
+                      messageStr.substring(0, maxSize) + '...[truncated]' : 
+                      messageStr;
+                    
+                    wsClient.send(
+                      JSON.stringify({
+                        mqttTopicPrefix,
+                        topic,
+                        message: truncatedMessage,
+                        userId: isUser,
+                        timestamp: new Date().toISOString()
+                      })
+                    );
+                  } catch (sendError) {
+                    console.error('Error sending message to WebSocket:', sendError);
+                  }
+                }
+              });
+            } else {
+              console.warn('Authentication failed. Message forwarding disabled.');
+            }
+          } catch (authError) {
+            console.error('Authentication error:', authError);
+          }
+        });
+  
+        wsClient.on('error', (error) => {
+          clearTimeout(connectionTimeout);
+          console.error('WebSocket Error:', error.message);
+          stopHeartbeat();
+        });
+  
+        wsClient.on('close', (code, reason) => {
+          clearTimeout(connectionTimeout);
+          console.log(`WebSocket closed with code ${code}: ${reason || 'No reason provided'}. Reconnecting...`);
+          stopHeartbeat();
+          
+          setTimeout(connect, currentReconnectTimeout);
+        });
+  
+      } catch (error) {
+        console.error('Connection setup error:', error.message);
+        setTimeout(connect, currentReconnectTimeout);
+      }
+    };
+  
+    connect();
+    
+    return {
+      resetConnectionAttempts: () => {
+        reconnectAttempts = 0;
+        console.log('WebSocket broker connection attempts reset');
+      }
+    };
+  };
+  
+  // ================ AUTOMATION RULES ENGINE ================
+  
+  let _cachedTimeCheck = null;
+  
+  function isWithinTimeRange(startTime, endTime) {
+    if (!startTime || !endTime) return true;
+    
+    if (!_cachedTimeCheck) {
+      _cachedTimeCheck = {
+        time: moment().tz(currentTimezone),
+        lastUpdated: Date.now()
+      };
+    } else if (Date.now() - _cachedTimeCheck.lastUpdated > 1000) {
+      _cachedTimeCheck = {
+        time: moment().tz(currentTimezone),
+        lastUpdated: Date.now()
+      };
+    }
+    
+    const currentTime = _cachedTimeCheck.time;
+    const start = moment.tz(startTime, 'HH:mm', currentTimezone);
+    const end = moment.tz(endTime, 'HH:mm', currentTimezone);
+    
+    if (end.isBefore(start)) {
+      return currentTime.isAfter(start) || currentTime.isBefore(end);
+    }
+    
+    return currentTime.isBetween(start, end, null, '[]');
+  }
+  
+  function isAllowedDay(allowedDays) {
+    if (!allowedDays || allowedDays.length === 0) return true;
+    
+    const currentDay = moment().tz(currentTimezone).format('dddd').toLowerCase();
+    return allowedDays.includes(currentDay);
+  }
+  
+  function evaluateCondition(condition) {
+    const { parameter, operator, value } = condition;
+    let currentValue;
+    
+    switch (parameter) {
+      case 'battery_soc':
+        currentValue = currentSystemState.battery_soc;
+        break;
+      case 'pv_power':
+        currentValue = currentSystemState.pv_power;
+        break;
+      case 'load':
+        currentValue = currentSystemState.load;
+        break;
+      case 'grid_voltage':
+        currentValue = currentSystemState.grid_voltage;
+        break;
+      case 'grid_power':
+        currentValue = currentSystemState.grid_power;
         break;
       default:
         return false;
     }
     
-    // Send the command via MQTT - with reduced logging
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false });
+    if (currentValue === null || currentValue === undefined) {
+      return false;
+    }
+    
+    switch (operator) {
+      case 'gt':
+        return currentValue > value;
+      case 'lt':
+        return currentValue < value;
+      case 'eq':
+        return currentValue === value;
+      case 'gte':
+        return currentValue >= value;
+      case 'lte':
+        return currentValue <= value;
+      default:
+        return false;
     }
   }
   
-  return true;
-}
-
-// Function to process all rules
-async function processRules() {
-  if (!dbConnected) return;
+  // ================ ENHANCED RULE APPLICATION WITH INVERTER TYPE DETECTION ================
   
-  try {
-    // Reset time cache for this evaluation cycle
-    _cachedTimeCheck = null;
-    
-    // Skip processing if no system state is available
-    if (Object.keys(currentSystemState).every(key => 
-      currentSystemState[key] === null || currentSystemState[key] === undefined)) {
-      return;
+  function applyAction(action) {
+    if (!learnerModeActive) {
+      return false;
     }
-    
-    // Check for warnings based on current system state - BUT DON'T SEND NOTIFICATIONS
-    const triggeredWarnings = warningService.checkWarnings(currentSystemState);
-    
-    // Only send notifications if user has explicitly configured them
-    for (const warning of triggeredWarnings) {
-      try {
-        // Check if this warning type should trigger a notification (user-configured)
-        if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
-          const message = telegramService.formatWarningMessage(warning, currentSystemState);
-          await telegramService.broadcastMessage(message);
-          console.log(`User-configured warning notification sent: ${warning.title}`);
-        }
-      } catch (notifyError) {
-        console.error(`Error sending user-configured warning notification for ${warning.title}:`, notifyError);
-      }
-    }
-    
-    // Get all active rules for the current user
-    const rules = await getAllRules(USER_ID, { active: true });
-    console.log(`Processing ${rules.length} active rules`);
-    
-    // Batch update for triggered rules
-    const rulesToUpdate = [];
-    
-    // Current time in the user's timezone for time-based rules
-    const now = moment().tz(currentTimezone);
-    const currentDay = now.format('dddd').toLowerCase();
-    
-    for (const rule of rules) {
-      // Skip inactive rules
-      if (rule.active !== true) {
-        continue;
-      }
-      
-      // Skip processing if rule has time restrictions that don't match current time
-      if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
-        const { days, startTime, endTime } = rule.timeRestrictions;
-        
-        // Check day of week restrictions
-        if (days && days.length > 0 && !days.includes(currentDay)) {
-          continue; // Skip this rule if not an allowed day
-        }
-        
-        // Check time range restrictions
-        if (startTime && endTime && !isWithinTimeRange(startTime, endTime)) {
-          continue; // Skip this rule if outside time range
-        }
-        
-        // Check specific dates (if configured)
-        if (rule.timeRestrictions.specificDates && 
-            rule.timeRestrictions.specificDates.length > 0) {
-          const today = now.format('YYYY-MM-DD');
-          if (!rule.timeRestrictions.specificDates.includes(today)) {
-            continue; // Skip if today is not in the specific dates list
-          }
-        }
-      }
-      
-      // Check if all conditions are met
-      let allConditionsMet = true;
-      
-      if (rule.conditions && rule.conditions.length > 0) {
-        for (const condition of rule.conditions) {
-          if (!evaluateCondition(condition)) {
-            allConditionsMet = false;
-            break; // No need to check further conditions
-          }
-        }
-      }
-      
-      if (allConditionsMet) {
-        console.log(`Rule "${rule.name}" conditions met, applying actions`);
-        
-        // Apply actions if learner mode is active
-        if (learnerModeActive && rule.actions && rule.actions.length > 0) {
-          for (const action of rule.actions) {
-            applyAction(action);
-          }
-        }
-        
-        // Always update rule statistics
-        rule.lastTriggered = new Date();
-        rule.triggerCount = (rule.triggerCount || 0) + 1;
-        rulesToUpdate.push(rule);
-        
-        // Only send notification if user has explicitly configured it
-        try {
-          if (telegramService.shouldNotifyForRule(rule.id)) {
-            const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
-            await telegramService.broadcastMessage(message);
-            console.log(`User-configured rule notification sent: ${rule.name}`);
-          }
-        } catch (notifyError) {
-          console.error(`Error sending user-configured rule notification for ${rule.name}:`, notifyError);
-        }
-      }
-    }
-    
-    // Batch update all triggered rules
-    if (rulesToUpdate.length > 0) {
-      console.log(`Updating statistics for ${rulesToUpdate.length} triggered rules`);
-      await batchUpdateRules(rulesToUpdate);
-    }
-  } catch (error) {
-    console.error('Error processing rules:', error);
-  }
-}
-
-// Function to check and prune old settings changes
-async function pruneOldSettingsChanges() {
-  if (!dbConnected) return;
   
-  try {
-    // Count total records
-    const countResult = await db.get('SELECT COUNT(*) as total FROM settings_changes');
-    const totalRecords = countResult.total;
+    const { setting, value, inverter } = action;
+    const inverters = [];
     
-    // If we have more than 5000 records, delete the oldest ones
-    if (totalRecords > 5000) {
-      // Calculate how many records to delete
-      const recordsToDelete = totalRecords - 5000;
-      
-      console.log(`Pruning ${recordsToDelete} old settings changes from database to maintain limit of 5000 records`);
-      
-      // Delete oldest records
-      await db.run(`
-        DELETE FROM settings_changes 
-        WHERE id IN (
-          SELECT id FROM settings_changes 
-          ORDER BY timestamp ASC 
-          LIMIT ?
-        )
-      `, [recordsToDelete]);
-      
-      console.log(`Successfully pruned ${recordsToDelete} old records`);
+    if (inverter === 'all') {
+      for (let i = 1; i <= inverterNumber; i++) {
+        inverters.push(`inverter_${i}`);
+      }
+    } else {
+      inverters.push(inverter);
     }
     
-    // Also prune by age - delete records older than 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const oldRecordsResult = await db.run(`
-      DELETE FROM settings_changes 
-      WHERE timestamp < ?
-    `, [thirtyDaysAgo.toISOString()]);
-    
-    if (oldRecordsResult.changes > 0) {
-      console.log(`Pruned ${oldRecordsResult.changes} records older than 30 days`);
+    // Apply the action to each inverter based on its type
+    for (const inv of inverters) {
+      const inverterType = getInverterType(inv);
+      let topic, mqttValue;
+      
+      // Handle energy pattern setting
+      if (setting === 'energy_pattern') {
+        if (inverterType === 'new' || inverterType === 'hybrid') {
+          // Use new output_source_priority for new inverters
+          const mappedValue = mapEnergyPatternToOutputSourcePriority(value);
+          topic = `${mqttTopicPrefix}/${inv}/output_source_priority/set`;
+          mqttValue = mappedValue;
+          console.log(`Mapping legacy energy_pattern "${value}" to output_source_priority "${mappedValue}" for ${inv} (type: ${inverterType})`);
+        } else {
+          // Use legacy energy_pattern for legacy inverters
+          topic = `${mqttTopicPrefix}/${inv}/energy_pattern/set`;
+          mqttValue = value;
+        }
+      }
+      
+      // Handle grid charge setting
+      else if (setting === 'grid_charge') {
+        if (inverterType === 'new' || inverterType === 'hybrid') {
+          // Use new charger_source_priority for new inverters
+          const mappedValue = mapGridChargeToChargerSourcePriority(value);
+          topic = `${mqttTopicPrefix}/${inv}/charger_source_priority/set`;
+          mqttValue = mappedValue;
+          console.log(`Mapping legacy grid_charge "${value}" to charger_source_priority "${mappedValue}" for ${inv} (type: ${inverterType})`);
+        } else {
+          // Use legacy grid_charge for legacy inverters
+          topic = `${mqttTopicPrefix}/${inv}/grid_charge/set`;
+          mqttValue = value;
+        }
+      }
+      
+      // Handle new inverter settings directly
+      else if (setting === 'charger_source_priority') {
+        if (inverterType === 'new' || inverterType === 'hybrid' || inverterType === 'unknown') {
+          topic = `${mqttTopicPrefix}/${inv}/charger_source_priority/set`;
+          mqttValue = value;
+        } else {
+          // Map to legacy grid_charge for legacy inverters
+          const mappedValue = mapChargerSourcePriorityToGridCharge(value);
+          topic = `${mqttTopicPrefix}/${inv}/grid_charge/set`;
+          mqttValue = mappedValue;
+          console.log(`Mapping charger_source_priority "${value}" to legacy grid_charge "${mappedValue}" for ${inv} (type: ${inverterType})`);
+        }
+      }
+      
+      else if (setting === 'output_source_priority') {
+        if (inverterType === 'new' || inverterType === 'hybrid' || inverterType === 'unknown') {
+          topic = `${mqttTopicPrefix}/${inv}/output_source_priority/set`;
+          mqttValue = value;
+        } else {
+          // Map to legacy energy_pattern for legacy inverters
+          const mappedValue = mapOutputSourcePriorityToEnergyPattern(value);
+          topic = `${mqttTopicPrefix}/${inv}/energy_pattern/set`;
+          mqttValue = mappedValue;
+          console.log(`Mapping output_source_priority "${value}" to legacy energy_pattern "${mappedValue}" for ${inv} (type: ${inverterType})`);
+        }
+      }
+      
+      // Handle all other existing settings (these work for both inverter types)
+      else {
+        switch (setting) {
+          case 'max_discharge_current':
+          case 'max_charge_current':
+          case 'max_grid_charge_current':
+          case 'max_generator_charge_current':
+          case 'battery_float_charge_voltage':
+          case 'battery_absorption_charge_voltage':
+          case 'battery_equalization_charge_voltage':
+          case 'remote_switch':
+          case 'generator_charge':
+          case 'force_generator_on':
+          case 'output_shutdown_voltage':
+          case 'stop_battery_discharge_voltage':
+          case 'start_battery_discharge_voltage':
+          case 'start_grid_charge_voltage':
+          case 'work_mode':
+          case 'solar_export_when_battery_full':
+          case 'max_sell_power':
+          case 'max_solar_power':
+          case 'grid_trickle_feed':
+          case 'voltage_point_1':
+          case 'voltage_point_2':
+          case 'voltage_point_3':
+          case 'voltage_point_4':
+          case 'voltage_point_5':
+          case 'voltage_point_6':
+            topic = `${mqttTopicPrefix}/${inv}/${setting}/set`;
+            mqttValue = value;
+            break;
+          default:
+            return false;
+        }
+      }
+      
+      // Send the command via MQTT
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false });
+        console.log(`Action applied: ${topic} = ${mqttValue} (inverter type: ${inverterType})`);
+      }
     }
-  } catch (error) {
-    console.error('Error pruning old settings changes:', error.message);
+    
+    return true;
   }
-}
-
-// Function to create a default set of rules if none exist
-async function createDefaultRules() {
-  if (!dbConnected) return;
   
-  try {
-    // Check if this user already has rules
-    const count = await countRules(USER_ID);
-    
-    if (count === 0) {
-      console.log('Creating default rules for user:', USER_ID);
-      
-      // Rule 1: If load is lower than 5000W, change energy pattern to battery first
-      const rule1 = {
-        name: 'Low Load Battery First',
-        description: 'If load is lower than 5000W, change energy pattern to battery first',
-        active: true,
-        conditions: [{
-          parameter: 'load',
-          operator: 'lt',
-          value: 5000
-        }],
-        actions: [{
-          setting: 'energy_pattern',
-          value: 'Battery first',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      await saveRule(rule1);
-      
-      // Rule 2: If SOC is lower than 20%, turn Grid charge on
-      const rule2 = {
-        name: 'Low Battery Enable Grid Charge',
-        description: 'If SOC is lower than 20%, turn Grid charge on',
-        active: true,
-        conditions: [{
-          parameter: 'battery_soc',
-          operator: 'lt',
-          value: 20
-        }],
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Enabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      await saveRule(rule2);
-      
-      // Rule 3: Turn Grid charge off on weekends
-      const rule3 = {
-        name: 'Weekend Grid Charge Off',
-        description: 'Turn Grid charge off every Saturday and Sunday',
-        active: true,
-        timeRestrictions: {
-          days: ['saturday', 'sunday'],
-          enabled: true
-        },
-        conditions: [],
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      await saveRule(rule3);
-      
-      // Rule 4: Complex condition for grid charge
-      const rule4 = {
-        name: 'Smart Grid Charge Management',
-        description: 'If SOC < 70% AND Load < 10000W AND PV > 8000W, turn Grid charge ON',
-        active: true,
-        conditions: [
-          {
-            parameter: 'battery_soc',
-            operator: 'lt',
-            value: 70
-          },
-          {
-            parameter: 'load',
-            operator: 'lt',
-            value: 10000
-          },
-          {
-            parameter: 'pv_power',
-            operator: 'gt',
-            value: 8000
-          }
-        ],
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Enabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      await saveRule(rule4);
-      
-      // Rule 5: Emergency grid charge off
-      const rule5 = {
-        name: 'Emergency Grid Charge Off',
-        description: 'If load > 13000W OR PV < 8000W, turn Grid charge OFF (9:00-17:00)',
-        active: true,
-        timeRestrictions: {
-          startTime: '09:00',
-          endTime: '17:00',
-          enabled: true
-        },
-        conditions: [
-          {
-            parameter: 'load',
-            operator: 'gt',
-            value: 13000
-          }
-        ],
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      await saveRule(rule5);
-      
-      console.log('Default rules created for user:', USER_ID);
-    }
-  } catch (error) {
-    console.error('Error creating default rules:', error.message);
-  }
-}
-
-  // Function to create extended set of automation rules
-  async function createExtendedAutomationRules() {
+  async function processRules() {
     if (!dbConnected) return;
     
     try {
-      // Check if this user already has extended rules
-      const count = await db.get(`
-        SELECT COUNT(*) as count FROM rules 
-        WHERE user_id = ? AND name LIKE '%Extended%'
-      `, [USER_ID]);
+      _cachedTimeCheck = null;
       
-      if (count.count === 0) {
-        console.log('Creating extended automation rules for user:', USER_ID);
-        
-        // ===== Morning Energy Pattern Rules (00:05 to 12:00) =====
-        const morningEnergyPatternLowSoc = {
-          name: 'Extended - Morning Energy Pattern (Low SOC)',
-          description: 'Set energy pattern to Battery First from 00:05-12:00 when SOC is 0-35%',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '12:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 35
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningEnergyPatternLowSoc);
-        
-        const morningEnergyPatternHighSoc = {
-          name: 'Extended - Morning Energy Pattern (High SOC)',
-          description: 'Set energy pattern to Load First from 00:05-12:00 when SOC is 41-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '12:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 41
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Load first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningEnergyPatternHighSoc);
-        
-        // ===== Afternoon Energy Pattern Rules (12:00 to 17:00) =====
-        const afternoonEnergyPatternLowSoc = {
-          name: 'Extended - Afternoon Energy Pattern (Low SOC)',
-          description: 'Set energy pattern to Battery First from 12:00-17:00 when SOC is 0-79%',
-          active: true,
-          timeRestrictions: {
-            startTime: '12:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonEnergyPatternLowSoc);
-        
-        const afternoonEnergyPatternHighSoc = {
-          name: 'Extended - Afternoon Energy Pattern (High SOC)',
-          description: 'Set energy pattern to Load First from 12:00-17:00 when SOC is 80-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '12:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Load first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonEnergyPatternHighSoc);
-        
-        // ===== Evening Energy Pattern Rules (17:01 to 23:55) =====
-        const eveningEnergyPatternLowSoc = {
-          name: 'Extended - Evening Energy Pattern (Low SOC)',
-          description: 'Set energy pattern to Battery First from 17:01-23:55 when SOC is 1-40%',
-          active: true,
-          timeRestrictions: {
-            startTime: '17:01',
-            endTime: '23:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 40
-            },
-            {
-              parameter: 'battery_soc',
-              operator: 'gt',
-              value: 0
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Battery first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(eveningEnergyPatternLowSoc);
-        
-        const eveningEnergyPatternHighSoc = {
-          name: 'Extended - Evening Energy Pattern (High SOC)',
-          description: 'Set energy pattern to Load First from 17:01-23:55 when SOC is 41-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '17:01',
-            endTime: '23:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 41
-            }
-          ],
-          actions: [{
-            setting: 'energy_pattern',
-            value: 'Load first',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(eveningEnergyPatternHighSoc);
-        
-        // ===== Afternoon Grid Charge Point 1 Rules (13:00 to 17:00) =====
-        const afternoonGridChargePoint1LowSoc = {
-          name: 'Extended - Afternoon Grid Charge Point 1 (Low SOC)',
-          description: 'Enable Grid Charge Point 1 from 13:00-17:00 when SOC is 0-80%',
-          active: true,
-          timeRestrictions: {
-            startTime: '13:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge', // Replace with the correct setting for grid charge point 1
-            value: 'Enabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonGridChargePoint1LowSoc);
-        
-        const afternoonGridChargePoint1HighSoc = {
-          name: 'Extended - Afternoon Grid Charge Point 1 (High SOC)',
-          description: 'Disable Grid Charge Point 1 from 13:00-17:00 when SOC is 81-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '13:00',
-            endTime: '17:00',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gt',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(afternoonGridChargePoint1HighSoc);
-        
-        // ===== Evening Grid Charge Point 1 Rules (17:01 to 23:55) =====
-        const eveningGridChargePoint1LowSoc = {
-          name: 'Extended - Evening Grid Charge Point 1 (Low SOC)',
-          description: 'Enable Grid Charge Point 1 from 17:01-23:55 when SOC is 0-80%',
-          active: true,
-          timeRestrictions: {
-            startTime: '17:01',
-            endTime: '23:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge',
-            value: 'Enabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(eveningGridChargePoint1LowSoc);
-        
-        const eveningGridChargePoint1HighSoc = {
-          name: 'Extended - Evening Grid Charge Point 1 (High SOC)',
-          description: 'Disable Grid Charge Point 1 from 17:01-23:55 when SOC is 81-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '17:01',
-            endTime: '23:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gt',
-              value: 80
-            }
-          ],
-          actions: [{
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(eveningGridChargePoint1HighSoc);
-        
-        // ===== Early Morning Grid Charge Point 2 Rules (00:05 to 08:55) =====
-        const earlyMorningGridChargePoint2LowSoc = {
-          name: 'Extended - Early Morning Grid Charge Point 2 (Low SOC)',
-          description: 'Enable Grid Charge Point 2 from 00:05-08:55 when SOC is 0-40%',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '08:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lte',
-              value: 40
-            }
-          ],
-          actions: [{
-            setting: 'voltage_point_1', // Using voltage_point_1 for grid charge point 2
-            value: '1',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(earlyMorningGridChargePoint2LowSoc);
-        
-        const earlyMorningGridChargePoint2HighSoc = {
-          name: 'Extended - Early Morning Grid Charge Point 2 (High SOC)',
-          description: 'Disable Grid Charge Point 2 from 00:05-08:55 when SOC is 41-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:05',
-            endTime: '08:55',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gt',
-              value: 40
-            }
-          ],
-          actions: [{
-            setting: 'voltage_point_1',
-            value: '0',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(earlyMorningGridChargePoint2HighSoc);
-        
-        // ===== Morning Grid Charge Point 2 Rules (09:00 to 12:59) =====
-        const morningGridChargePoint2LowSoc = {
-          name: 'Extended - Morning Grid Charge Point 2 (Low SOC)',
-          description: 'Enable Grid Charge Point 2 from 09:00-12:59 when SOC is 0-74%',
-          active: true,
-          timeRestrictions: {
-            startTime: '09:00',
-            endTime: '12:59',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'lt',
-              value: 75
-            }
-          ],
-          actions: [{
-            setting: 'voltage_point_1',
-            value: '1',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningGridChargePoint2LowSoc);
-        
-        const morningGridChargePoint2HighSoc = {
-          name: 'Extended - Morning Grid Charge Point 2 (High SOC)',
-          description: 'Disable Grid Charge Point 2 from 09:00-12:59 when SOC is 75-100%',
-          active: true,
-          timeRestrictions: {
-            startTime: '09:00',
-            endTime: '12:59',
-            enabled: true
-          },
-          conditions: [
-            {
-              parameter: 'battery_soc',
-              operator: 'gte',
-              value: 75
-            }
-          ],
-          actions: [{
-            setting: 'voltage_point_1',
-            value: '0',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(morningGridChargePoint2HighSoc);
-        
-        // ===== Timer Disabling Rule =====
-        const disableTimerEarlyMorning = {
-          name: 'Extended - Disable Timer Early Morning',
-          description: 'Disable Use Timer from 00:00 to 06:00',
-          active: true,
-          timeRestrictions: {
-            startTime: '00:00',
-            endTime: '06:00',
-            enabled: true
-          },
-          conditions: [],
-          actions: [{
-            setting: 'work_mode_timer',
-            value: 'Disabled',
-            inverter: 'all'
-          }],
-          user_id: USER_ID,
-          mqtt_username: mqttConfig.username
-        };
-        await saveRule(disableTimerEarlyMorning);
-        
-        console.log(`Extended automation rules created for user: ${USER_ID}`);
-      }
-    } catch (error) {
-      console.error('Error creating extended automation rules:', error.message);
-    }
-  }
-
-
-// ================ NIGHT CHARGING RULES ================
-
-// Create a rule for night charging to 95% SOC
-async function createNightChargingRule() {
-  if (!dbConnected) return;
-  
-  try {
-    // Check if the rule already exists
-    const existingRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Night Battery Charging to 95%' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (existingRule) {
-      console.log('Night charging rule already exists, updating it...');
-      
-      // Update the existing rule to exclude weekends
-      const updatedRule = {
-        name: 'Night Battery Charging to 95%',
-        description: 'Charges the battery at night (11PM to 6AM) to 95% SOC on weekdays only',
-        active: true,
-        conditions: [
-          {
-            parameter: 'battery_soc',
-            operator: 'lt',
-            value: 95
-          }
-        ],
-        timeRestrictions: {
-          startTime: '23:00',
-          endTime: '06:00',
-          enabled: true,
-          // Only apply on weekdays, not weekends
-          days: ['monday', 'tuesday', 'wednesday', 'thursday']
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Enabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(existingRule.id, updatedRule);
-      console.log('Night charging rule updated successfully');
-    } else {
-      // Create a new rule that excludes weekends
-      const nightChargingRule = {
-        name: 'Night Battery Charging to 95%',
-        description: 'Charges the battery at night (11PM to 6AM) to 95% SOC on weekdays only',
-        active: true,
-        conditions: [
-          {
-            parameter: 'battery_soc',
-            operator: 'lt',
-            value: 95
-          }
-        ],
-        timeRestrictions: {
-          startTime: '23:00',
-          endTime: '06:00',
-          enabled: true,
-          // Only apply on weekdays, not weekends
-          days: ['monday', 'tuesday', 'wednesday', 'thursday']
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Enabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(nightChargingRule);
-      console.log('Night charging rule created successfully');
-    }
-    
-    // Create a complementary rule to turn OFF grid charging after 6AM on weekdays
-    const existingComplementaryRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Disable Grid Charging After 6AM' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (existingComplementaryRule) {
-      console.log('Complementary rule already exists, updating it...');
-      
-      // Update the existing rule to exclude weekends
-      const updatedComplementaryRule = {
-        name: 'Disable Grid Charging After 6AM',
-        description: 'Disables grid charging after 6AM until 11PM (daytime) on weekdays',
-        active: true,
-        conditions: [], // No condition on battery SOC for this rule
-        timeRestrictions: {
-          startTime: '06:01',
-          endTime: '22:59',
-          enabled: true,
-          // Only apply on weekdays, not weekends
-          days: ['monday', 'tuesday', 'wednesday', 'thursday']
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(existingComplementaryRule.id, updatedComplementaryRule);
-      console.log('Complementary rule updated successfully');
-    } else {
-      // Create the complementary rule excluding weekends
-      const complementaryRule = {
-        name: 'Disable Grid Charging After 6AM',
-        description: 'Disables grid charging after 6AM until 11PM (daytime) on weekdays',
-        active: true,
-        conditions: [], // No condition on battery SOC for this rule
-        timeRestrictions: {
-          startTime: '06:01',
-          endTime: '22:59',
-          enabled: true,
-          // Only apply on weekdays, not weekends
-          days: ['monday', 'tuesday', 'wednesday', 'thursday']
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(complementaryRule);
-      console.log('Complementary rule created successfully');
-    }
-    
-    // Create a battery full rule (applies all days)
-    const existingEmergencyRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Disable Grid Charging When Battery Full' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (existingEmergencyRule) {
-      console.log('Battery full rule already exists, updating it...');
-      
-      // Update the existing rule - this applies all days including weekends
-      const updatedEmergencyRule = {
-        name: 'Disable Grid Charging When Battery Full',
-        description: 'Disables grid charging when battery SOC reaches 95% or higher',
-        active: true,
-        conditions: [
-          {
-            parameter: 'battery_soc',
-            operator: 'gte',
-            value: 95
-          }
-        ],
-        timeRestrictions: {
-          enabled: false // This rule applies at all times
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(existingEmergencyRule.id, updatedEmergencyRule);
-      console.log('Battery full rule updated successfully');
-    } else {
-      // Create the battery full rule
-      const emergencyRule = {
-        name: 'Disable Grid Charging When Battery Full',
-        description: 'Disables grid charging when battery SOC reaches 95% or higher',
-        active: true,
-        conditions: [
-          {
-            parameter: 'battery_soc',
-            operator: 'gte',
-            value: 95
-          }
-        ],
-        timeRestrictions: {
-          enabled: false // This rule applies at all times
-        },
-        actions: [
-          {
-            setting: 'grid_charge',
-            value: 'Disabled',
-            inverter: 'all'
-          }
-        ],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(emergencyRule);
-      console.log('Battery full rule created successfully');
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating night charging rules:', error.message);
-    return false;
-  }
-}
-
-
-// Function to create weekend grid charge rules
-async function createWeekendGridChargeRules() {
-  if (!dbConnected) return;
-  
-  try {
-    // Create Friday evening rule
-    const fridayRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Weekend Grid Charge Off - Friday Evening' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (fridayRule) {
-      // Update existing rule
-      const updatedFridayRule = {
-        name: 'Weekend Grid Charge Off - Friday Evening',
-        description: 'Turns Grid charge off every Friday from 6PM until midnight',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['friday'],
-          startTime: '18:00', // 6PM
-          endTime: '23:59',
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(fridayRule.id, updatedFridayRule);
-      console.log('Friday evening grid charge rule updated successfully');
-    } else {
-      // Create new Friday rule
-      const newFridayRule = {
-        name: 'Weekend Grid Charge Off - Friday Evening',
-        description: 'Turns Grid charge off every Friday from 6PM until midnight',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['friday'],
-          startTime: '18:00', // 6PM
-          endTime: '23:59',
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(newFridayRule);
-      console.log('Friday evening grid charge rule created successfully');
-    }
-    
-    // Create Saturday rule
-    const saturdayRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Weekend Grid Charge Off - Saturday' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (saturdayRule) {
-      // Update existing rule
-      const updatedSaturdayRule = {
-        name: 'Weekend Grid Charge Off - Saturday',
-        description: 'Turns Grid charge off for all of Saturday',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['saturday'],
-          startTime: '00:00',
-          endTime: '23:59',
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(saturdayRule.id, updatedSaturdayRule);
-      console.log('Saturday grid charge rule updated successfully');
-    } else {
-      // Create new Saturday rule
-      const newSaturdayRule = {
-        name: 'Weekend Grid Charge Off - Saturday',
-        description: 'Turns Grid charge off for all of Saturday',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['saturday'],
-          startTime: '00:00',
-          endTime: '23:59',
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(newSaturdayRule);
-      console.log('Saturday grid charge rule created successfully');
-    }
-    
-    // Create Sunday rule
-    const sundayRule = await db.get(`
-      SELECT * FROM rules 
-      WHERE name = 'Weekend Grid Charge Off - Sunday' AND user_id = ?
-    `, [USER_ID]);
-    
-    if (sundayRule) {
-      // Update existing rule
-      const updatedSundayRule = {
-        name: 'Weekend Grid Charge Off - Sunday',
-        description: 'Turns Grid charge off on Sunday until 6PM',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['sunday'],
-          startTime: '00:00',
-          endTime: '18:00', // 6PM
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await updateRule(sundayRule.id, updatedSundayRule);
-      console.log('Sunday grid charge rule updated successfully');
-    } else {
-      // Create new Sunday rule
-      const newSundayRule = {
-        name: 'Weekend Grid Charge Off - Sunday',
-        description: 'Turns Grid charge off on Sunday until 6PM',
-        active: true,
-        conditions: [],
-        timeRestrictions: {
-          days: ['sunday'],
-          startTime: '00:00',
-          endTime: '18:00', // 6PM
-          enabled: true
-        },
-        actions: [{
-          setting: 'grid_charge',
-          value: 'Disabled',
-          inverter: 'all'
-        }],
-        user_id: USER_ID,
-        mqtt_username: mqttConfig.username
-      };
-      
-      await saveRule(newSundayRule);
-      console.log('Sunday grid charge rule created successfully');
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating weekend grid charge rules:', error.message);
-    return false;
-  }
-}
-
-
-async function initializeDynamicPricingData() {
-  try {
-    console.log('Initializing dynamic pricing data...');
-    
-    // Load the dynamic pricing configuration
-    const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-    
-    let config = null;
-    if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-      const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-      config = JSON.parse(configData);
-    }
-    
-    if (!config) {
-      console.log('No dynamic pricing config found, creating default...');
-      // Create default config with sample data
-      config = {
-        enabled: false,
-        country: 'DE',
-        market: 'DE', 
-        apiKey: '',
-        priceThreshold: 0.10,
-        minimumSoC: 20,
-        targetSoC: 80,
-        scheduledCharging: false,
-        chargingHours: [],
-        lastUpdate: null,
-        pricingData: [],
-        timezone: 'Europe/Berlin'
-      };
-    }
-    
-    // Check if pricing data exists and is recent
-    const hasData = config.pricingData && config.pricingData.length > 0;
-    const isRecent = config.lastUpdate && 
-      (Date.now() - new Date(config.lastUpdate).getTime()) < (6 * 60 * 60 * 1000); // 6 hours
-    
-    if (!hasData || !isRecent) {
-      console.log('Generating initial pricing data...');
-      
-      // Generate initial sample data
-      config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
-      config.lastUpdate = new Date().toISOString();
-      
-      // Ensure config directory exists
-      const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
+      if (Object.keys(currentSystemState).every(key => 
+        currentSystemState[key] === null || currentSystemState[key] === undefined)) {
+        return;
       }
       
-      // Save the updated config
-      fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-      
-      console.log(`✅ Initial pricing data generated: ${config.pricingData.length} data points`);
-    } else {
-      console.log('✅ Existing pricing data is recent, no generation needed');
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error initializing dynamic pricing data:', error);
-    return false;
-  }
-}
-
-
-function generateInitialSampleData(timezone = 'Europe/Berlin') {
-  const prices = [];
-  
-  // Get current time in the target timezone
-  const now = new Date();
-  const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-  
-  // Start from the beginning of current hour
-  const startHour = new Date(nowInTimezone);
-  startHour.setMinutes(0, 0, 0);
-  
-  // Generate 48 hours of data
-  for (let i = 0; i < 48; i++) {
-    const timestamp = new Date(startHour);
-    timestamp.setHours(timestamp.getHours() + i);
-    
-    const hour = timestamp.getHours();
-    const dayOfWeek = timestamp.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    
-    let basePrice = 0.10;
-    
-    // Create realistic price patterns
-    if (hour >= 7 && hour <= 9) {
-      basePrice = 0.18; // Morning peak
-    } else if (hour >= 17 && hour <= 21) {
-      basePrice = 0.20; // Evening peak
-    } else if (hour >= 1 && hour <= 5) {
-      basePrice = 0.06; // Night valley
-    } else if (hour >= 11 && hour <= 14) {
-      basePrice = 0.08; // Midday valley
-    }
-    
-    if (isWeekend) {
-      basePrice *= 0.85;
-    }
-    
-    // Add randomness
-    const randomFactor = 0.85 + (Math.random() * 0.3);
-    const price = basePrice * randomFactor;
-    
-    prices.push({
-      timestamp: timestamp.toISOString(),
-      price: parseFloat(price.toFixed(4)),
-      currency: 'EUR',
-      unit: 'kWh',
-      timezone: timezone,
-      localHour: hour
-    });
-  }
-  
-  return prices;
-}
-
-// Function to refresh pricing data (for cron job)
-function refreshPricingData() {
-  try {
-    console.log('Running scheduled pricing data refresh...');
-    
-    const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-    
-    if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-      const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-      const config = JSON.parse(configData);
-      
-      if (config) {
-        // Generate fresh sample data
-        config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
-        config.lastUpdate = new Date().toISOString();
-        
-        // Save updated config
-        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-        
-        console.log(`✅ Scheduled pricing data refresh completed: ${config.pricingData.length} data points for timezone ${config.timezone}`);
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error in scheduled pricing data refresh:', error);
-  }
-}
-
-// ================  ROUTES ================
-
-
-// === Add routes for viewing battery charging and work mode settings ===
-
-// Update the battery charging settings API
-app.post('/api/battery-charging/set', (req, res) => {
-  try {
-    // Check if learner mode is active
-    if (!learnerModeActive) {
-      return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
-    }
-    
-    const { inverter, setting, value } = req.body;
-    
-    if (!inverter || !setting || value === undefined) {
-      return res.status(400).json({ error: 'Missing inverter, setting, or value' });
-    }
-    
-    if (!mqttClient || !mqttClient.connected) {
-      return res.status(503).json({ error: 'MQTT client not connected' });
-    }
-    
-    // Validate settings that are allowed to be changed
-    const allowedSettings = [
-      'max_discharge_current',
-      'max_charge_current',
-      'max_grid_charge_current',
-      'max_generator_charge_current',
-      'battery_float_charge_voltage',
-      'battery_absorption_charge_voltage',
-      'battery_equalization_charge_voltage'
-    ];
-    
-    if (!allowedSettings.includes(setting)) {
-      return res.status(400).json({ error: `Invalid setting: ${setting}. Allowed settings are: ${allowedSettings.join(', ')}` });
-    }
-    
-    // Validate inverter ID
-    const inverterID = inverter.replace('inverter_', '');
-    if (isNaN(inverterID) || parseInt(inverterID) < 1 || parseInt(inverterID) > inverterNumber) {
-      return res.status(400).json({ error: `Invalid inverter ID. Valid values: 1-${inverterNumber}` });
-    }
-    
-    // Validate value ranges based on the setting type
-    let isValid = true;
-    let validationError = '';
-    
-    switch (setting) {
-      case 'max_discharge_current':
-      case 'max_charge_current':
-      case 'max_grid_charge_current':
-      case 'max_generator_charge_current':
-        // Current values are typically between 0-100A
-        if (parseFloat(value) < 0 || parseFloat(value) > 100) {
-          isValid = false;
-          validationError = `${setting} must be between 0 and 100 A`;
-        }
-        break;
-      case 'battery_float_charge_voltage':
-      case 'battery_absorption_charge_voltage':
-      case 'battery_equalization_charge_voltage':
-        // Voltage values are typically between 40-60V for 48V systems
-        if (parseFloat(value) < 40 || parseFloat(value) > 60) {
-          isValid = false;
-          validationError = `${setting} must be between 40 and 60 V`;
-        }
-        break;
-    }
-    
-    if (!isValid) {
-      return res.status(400).json({ error: validationError });
-    }
-    
-    // Construct MQTT topic
-    const topic = `${mqttTopicPrefix}/${inverter}/${setting}/set`;
-    
-    // Publish to MQTT
-    mqttClient.publish(topic, value.toString(), { qos: 1, retain: false }, (err) => {
-      if (err) {
-        console.error(`Error publishing to ${topic}: ${err.message}`);
-        return res.status(500).json({ error: err.message });
-      }
-      
-      console.log(`Battery Charging command sent: ${topic} = ${value}`);
-      res.json({ success: true, message: `Command sent: ${topic} = ${value}` });
-    });
-  } catch (error) {
-    console.error('Error sending battery charging command:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-
-// Fix API endpoints for manually changing work mode settings from UI
-app.post('/api/work-mode/set', (req, res) => {
-  try {
-    // Check if learner mode is active
-    if (!learnerModeActive) {
-      return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
-    }
-    
-    const { inverter, setting, value } = req.body;
-    
-    if (!inverter || !setting || value === undefined) {
-      return res.status(400).json({ error: 'Missing inverter, setting, or value' });
-    }
-    
-    if (!mqttClient || !mqttClient.connected) {
-      return res.status(503).json({ error: 'MQTT client not connected' });
-    }
-    
-    // Validate settings that are allowed to be changed
-    const allowedSettings = [
-      'remote_switch',
-      'generator_charge',
-      'force_generator_on',
-      'output_shutdown_voltage',
-      'stop_battery_discharge_voltage',
-      'start_battery_discharge_voltage',
-      'start_grid_charge_voltage',
-      'work_mode',
-      'solar_export_when_battery_full',
-      'max_sell_power',
-      'max_solar_power',
-      'grid_trickle_feed'
-    ];
-    
-    if (!allowedSettings.includes(setting)) {
-      return res.status(400).json({ error: `Invalid setting: ${setting}. Allowed settings are: ${allowedSettings.join(', ')}` });
-    }
-    
-    // Validate inverter ID
-    const inverterID = inverter.replace('inverter_', '');
-    if (isNaN(inverterID) || parseInt(inverterID) < 1 || parseInt(inverterID) > inverterNumber) {
-      return res.status(400).json({ error: `Invalid inverter ID. Valid values: 1-${inverterNumber}` });
-    }
-    
-    // Validate value based on setting type
-    let isValid = true;
-    let validationError = '';
-    
-    switch (setting) {
-      case 'remote_switch':
-      case 'generator_charge':
-      case 'force_generator_on':
-      case 'solar_export_when_battery_full':
-        // Boolean settings
-        if (value !== 'Enabled' && value !== 'Disabled' && value !== 'true' && value !== 'false' && value !== '1' && value !== '0') {
-          isValid = false;
-          validationError = `${setting} must be one of: Enabled, Disabled, true, false, 1, 0`;
-        }
-        break;
-      case 'work_mode':
-        // Enumeration settings
-        const validWorkModes = ['Battery first', 'Grid first', 'Solar first', 'Solar + Battery', 'Solar + Grid'];
-        if (!validWorkModes.includes(value)) {
-          isValid = false;
-          validationError = `${setting} must be one of: ${validWorkModes.join(', ')}`;
-        }
-        break;
-      case 'output_shutdown_voltage':
-      case 'stop_battery_discharge_voltage':
-      case 'start_battery_discharge_voltage':
-      case 'start_grid_charge_voltage':
-        // Voltage values typically between 40-60V for 48V systems
-        if (parseFloat(value) < 40 || parseFloat(value) > 60) {
-          isValid = false;
-          validationError = `${setting} must be between 40 and 60 V`;
-        }
-        break;
-      case 'max_sell_power':
-      case 'max_solar_power':
-        // Power values in Watts, typical range 0-15000W
-        if (parseFloat(value) < 0 || parseFloat(value) > 15000) {
-          isValid = false;
-          validationError = `${setting} must be between 0 and 15000 W`;
-        }
-        break;
-      case 'grid_trickle_feed':
-        // Typically a percentage or small value
-        if (parseFloat(value) < 0 || parseFloat(value) > 100) {
-          isValid = false;
-          validationError = `${setting} must be between 0 and 100`;
-        }
-        break;
-    }
-    
-    if (!isValid) {
-      return res.status(400).json({ error: validationError });
-    }
-    
-    // Construct MQTT topic
-    const topic = `${mqttTopicPrefix}/${inverter}/${setting}/set`;
-    
-    // Publish to MQTT
-    mqttClient.publish(topic, value.toString(), { qos: 1, retain: false }, (err) => {
-      if (err) {
-        console.error(`Error publishing to ${topic}: ${err.message}`);
-        return res.status(500).json({ error: err.message });
-      }
-      
-      console.log(`Work Mode command sent: ${topic} = ${value}`);
-      res.json({ success: true, message: `Command sent: ${topic} = ${value}` });
-    });
-  } catch (error) {
-    console.error('Error sending work mode command:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// Add this line where you set up your other routes
-app.use('/api/notifications', notificationRoutes);
-
-// Add this line to your server.js or app.js file to make the processRules function available globally
-global.processRules = processRules;
-
-// Add to your initialization function
-async function initializeConnections() {
-  // Connect to MQTT broker
-  connectToMqtt();
-  
-  // Connect to WebSocket broker
-  connectToWebSocketBroker();
-  
-  // Initialize warning service
-  const warningService = require('./services/warningService');
-  console.log('✅ Warning service initialized');
-  
-  // Initialize Telegram service
-  const telegramService = require('./services/telegramService');
-  console.log('✅ Telegram notification service initialized');
-  
-  // Connect to database
-  try {
-    await connectToDatabase();
-    
-    // Create default rules if connected to DB
-    if (dbConnected) {
-      // Replace the original createDefaultRules() call with our enhanced initialization
-      await initializeAutomationRules();
-    }
-  } catch (err) {
-    console.error('❌ Initial database connection failed:', err);
-    // Continue app startup even if DB fails initially
-    setTimeout(retryDatabaseConnection, 10000);
-  }
-}
-
-// Add a periodic check for warnings
-function setupWarningChecks() {
-  // Check for warnings every 5 minutes
-  cron.schedule('*/5 * * * *', async () => {
-    try {
-      console.log('Running scheduled warning check...');
-      
-      // Check for warnings based on the current system state
       const triggeredWarnings = warningService.checkWarnings(currentSystemState);
       
-      if (triggeredWarnings.length > 0) {
-        console.log(`Found ${triggeredWarnings.length} warning(s) to process`);
-      }
-      
-      // Only send notifications if user has explicitly configured them
       for (const warning of triggeredWarnings) {
         try {
           if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
             const message = telegramService.formatWarningMessage(warning, currentSystemState);
-            const sent = await telegramService.broadcastMessage(message);
-            
-            if (sent) {
-              console.log(`User-configured warning notification sent: ${warning.title}`);
-            } else {
-              console.error(`Failed to send user-configured notification for warning: ${warning.title}`);
-            }
-          } else {
-            console.log(`Skipping notification for warning (${warning.title}) - not configured by user`);
+            await telegramService.broadcastMessage(message);
+            console.log(`User-configured warning notification sent: ${warning.title}`);
           }
         } catch (notifyError) {
-          console.error(`Error in user-configured warning notification process:`, notifyError);
+          console.error(`Error sending user-configured warning notification for ${warning.title}:`, notifyError);
+        }
+      }
+      
+      const rules = await getAllRules(USER_ID, { active: true });
+      console.log(`Processing ${rules.length} active rules`);
+      
+      const rulesToUpdate = [];
+      
+      const now = moment().tz(currentTimezone);
+      const currentDay = now.format('dddd').toLowerCase();
+      
+      for (const rule of rules) {
+        if (rule.active !== true) {
+          continue;
+        }
+        
+        if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+          const { days, startTime, endTime } = rule.timeRestrictions;
+          
+          if (days && days.length > 0 && !days.includes(currentDay)) {
+            continue;
+          }
+          
+          if (startTime && endTime && !isWithinTimeRange(startTime, endTime)) {
+            continue;
+          }
+          
+          if (rule.timeRestrictions.specificDates && 
+              rule.timeRestrictions.specificDates.length > 0) {
+            const today = now.format('YYYY-MM-DD');
+            if (!rule.timeRestrictions.specificDates.includes(today)) {
+              continue;
+            }
+          }
+        }
+        
+        let allConditionsMet = true;
+        
+        if (rule.conditions && rule.conditions.length > 0) {
+          for (const condition of rule.conditions) {
+            if (!evaluateCondition(condition)) {
+              allConditionsMet = false;
+              break;
+            }
+          }
+        }
+        
+        if (allConditionsMet) {
+          console.log(`Rule "${rule.name}" conditions met, applying actions`);
+          
+          if (learnerModeActive && rule.actions && rule.actions.length > 0) {
+            for (const action of rule.actions) {
+              applyAction(action);
+            }
+          }
+          
+          rule.lastTriggered = new Date();
+          rule.triggerCount = (rule.triggerCount || 0) + 1;
+          rulesToUpdate.push(rule);
+          
+          try {
+            if (telegramService.shouldNotifyForRule(rule.id)) {
+              const message = telegramService.formatRuleTriggerMessage(rule, currentSystemState);
+              await telegramService.broadcastMessage(message);
+              console.log(`User-configured rule notification sent: ${rule.name}`);
+            }
+          } catch (notifyError) {
+            console.error(`Error sending user-configured rule notification for ${rule.name}:`, notifyError);
+          }
+        }
+      }
+      
+      if (rulesToUpdate.length > 0) {
+        console.log(`Updating statistics for ${rulesToUpdate.length} triggered rules`);
+        await batchUpdateRules(rulesToUpdate);
+      }
+    } catch (error) {
+      console.error('Error processing rules:', error);
+    }
+  }
+  
+  async function pruneOldSettingsChanges() {
+    if (!dbConnected) return;
+    
+    try {
+      const countResult = await db.get('SELECT COUNT(*) as total FROM settings_changes');
+      const totalRecords = countResult.total;
+      
+      if (totalRecords > 5000) {
+        const recordsToDelete = totalRecords - 5000;
+        
+        console.log(`Pruning ${recordsToDelete} old settings changes from database to maintain limit of 5000 records`);
+        
+        await db.run(`
+          DELETE FROM settings_changes 
+          WHERE id IN (
+            SELECT id FROM settings_changes 
+            ORDER BY timestamp ASC 
+            LIMIT ?
+          )
+        `, [recordsToDelete]);
+        
+        console.log(`Successfully pruned ${recordsToDelete} old records`);
+      }
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const oldRecordsResult = await db.run(`
+        DELETE FROM settings_changes 
+        WHERE timestamp < ?
+      `, [thirtyDaysAgo.toISOString()]);
+      
+      if (oldRecordsResult.changes > 0) {
+        console.log(`Pruned ${oldRecordsResult.changes} records older than 30 days`);
+      }
+    } catch (error) {
+      console.error('Error pruning old settings changes:', error.message);
+    }
+  }
+  
+
+
+// ================ DYNAMIC RULE CREATION BASED ON INVERTER TYPES ================
+
+async function createDefaultRules() {
+  if (!dbConnected) return;
+  
+  try {
+      const count = await countRules(USER_ID);
+      
+      if (count === 0) {
+          console.log('Creating dynamic default rules based on detected inverter types...');
+          
+          // Analyze detected inverter types
+          const detectedTypes = analyzeInverterTypes();
+          console.log(`Detected inverter environment: ${detectedTypes.summary}`);
+          
+          // Create rules based on detected types
+          const rules = [];
+          
+          // Rule 1: Adaptive Low Load Management
+          if (detectedTypes.hasAny) {
+              rules.push({
+                  name: 'Adaptive Low Load Management',
+                  description: `When load < 5000W, optimize energy usage (supports ${detectedTypes.summary})`,
+                  active: true,
+                  conditions: [{
+                      parameter: 'load',
+                      operator: 'lt',
+                      value: 5000
+                  }],
+                  actions: generateAdaptiveActions('energy_optimization', 'Battery first', detectedTypes),
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 2: Smart Battery Protection
+          rules.push({
+              name: 'Smart Battery Protection',
+              description: `Enable charging when SOC < 20% (auto-adapts to ${detectedTypes.summary})`,
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 20
+              }],
+              actions: generateAdaptiveActions('charging', 'Enabled', detectedTypes),
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Rule 3: Peak Solar Optimization (for new/hybrid inverters)
+          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
+              rules.push({
+                  name: 'Peak Solar Optimization',
+                  description: 'Prioritize solar during peak production (new inverters)',
+                  active: true,
+                  conditions: [{
+                      parameter: 'pv_power',
+                      operator: 'gt',
+                      value: 8000
+                  }],
+                  timeRestrictions: {
+                      startTime: '10:00',
+                      endTime: '16:00',
+                      enabled: true
+                  },
+                  actions: [{
+                      setting: 'output_source_priority',
+                      value: 'Solar first',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 4: Legacy Grid Management (for legacy inverters)
+          if (detectedTypes.hasLegacy) {
+              rules.push({
+                  name: 'Legacy Grid Management',
+                  description: 'Traditional grid charge control for legacy inverters',
+                  active: true,
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'lt',
+                      value: 50
+                  }, {
+                      parameter: 'pv_power',
+                      operator: 'lt',
+                      value: 3000
+                  }],
+                  actions: [{
+                      setting: 'grid_charge',
+                      value: 'Enabled',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Rule 5: Universal High Load Response
+          rules.push({
+              name: 'High Load Response',
+              description: `Disable grid export when load > 12000W (all inverter types)`,
+              active: true,
+              conditions: [{
+                  parameter: 'load',
+                  operator: 'gt',
+                  value: 12000
+              }],
+              actions: [
+                  {
+                      setting: 'max_sell_power',
+                      value: '0',
+                      inverter: 'all'
+                  },
+                  ...generateAdaptiveActions('high_load', 'Grid first', detectedTypes)
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Save all rules
+          for (const rule of rules) {
+              await saveRule(rule);
+              console.log(`Created rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${rules.length} dynamic default rules for ${detectedTypes.summary}`);
+      }
+  } catch (error) {
+      console.error('Error creating dynamic default rules:', error.message);
+  }
+}
+
+async function createExtendedAutomationRules() {
+  if (!dbConnected) return;
+  
+  try {
+      const count = await db.get(`
+          SELECT COUNT(*) as count FROM rules 
+          WHERE user_id = ? AND name LIKE '%Extended%'
+      `, [USER_ID]);
+      
+      if (count.count === 0) {
+          console.log('Creating extended automation rules based on inverter types...');
+          
+          const detectedTypes = analyzeInverterTypes();
+          const rules = [];
+          
+          // Time-based optimization rules
+          if (detectedTypes.hasLegacy || detectedTypes.hasHybrid) {
+              // Morning optimization for legacy systems
+              rules.push({
+                  name: 'Extended - Morning Energy Optimization',
+                  description: 'Optimize morning energy usage (legacy compatible)',
+                  active: true,
+                  timeRestrictions: {
+                      startTime: '06:00',
+                      endTime: '10:00',
+                      enabled: true
+                  },
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'gt',
+                      value: 40
+                  }],
+                  actions: [{
+                      setting: 'energy_pattern',
+                      value: 'Load first',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
+              // Advanced charging strategies for new inverters
+              rules.push({
+                  name: 'Extended - Smart Charging Strategy',
+                  description: 'Advanced charging control for new inverters',
+                  active: true,
+                  conditions: [
+                      {
+                          parameter: 'battery_soc',
+                          operator: 'lt',
+                          value: 60
+                      },
+                      {
+                          parameter: 'pv_power',
+                          operator: 'gt',
+                          value: 4000
+                      }
+                  ],
+                  actions: [{
+                      setting: 'charger_source_priority',
+                      value: 'Solar and utility simultaneously',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+              
+              // Evening optimization for new inverters
+              rules.push({
+                  name: 'Extended - Evening Battery Priority',
+                  description: 'Optimize evening energy usage (new inverters)',
+                  active: true,
+                  timeRestrictions: {
+                      startTime: '18:00',
+                      endTime: '22:00',
+                      enabled: true
+                  },
+                  conditions: [{
+                      parameter: 'battery_soc',
+                      operator: 'gt',
+                      value: 50
+                  }],
+                  actions: [{
+                      setting: 'output_source_priority',
+                      value: 'Solar/Battery/Utility',
+                      inverter: 'all'
+                  }],
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Universal battery protection
+          rules.push({
+              name: 'Extended - Deep Discharge Protection',
+              description: 'Protect battery from deep discharge (all types)',
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 25
+              }],
+              actions: [
+                  {
+                      setting: 'max_discharge_current',
+                      value: '20',
+                      inverter: 'all'
+                  },
+                  ...generateAdaptiveActions('emergency_charge', 'Enabled', detectedTypes)
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Save all extended rules
+          for (const rule of rules) {
+              await saveRule(rule);
+              console.log(`Created extended rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${rules.length} extended automation rules for ${detectedTypes.summary}`);
+      }
+  } catch (error) {
+      console.error('Error creating extended automation rules:', error.message);
+  }
+}
+
+async function createNightChargingRule() {
+  if (!dbConnected) return;
+  
+  try {
+      const detectedTypes = analyzeInverterTypes();
+      
+      // Check if night charging rule exists
+      const existingRule = await db.get(`
+          SELECT * FROM rules 
+          WHERE name LIKE 'Night Charging%' AND user_id = ?
+      `, [USER_ID]);
+      
+      if (!existingRule) {
+          const nightRule = {
+              name: `Night Charging Strategy (${detectedTypes.primary})`,
+              description: `Intelligent night charging for ${detectedTypes.summary}`,
+              active: true,
+              conditions: [{
+                  parameter: 'battery_soc',
+                  operator: 'lt',
+                  value: 85
+              }],
+              timeRestrictions: {
+                  startTime: '23:00',
+                  endTime: '05:00',
+                  enabled: true,
+                  days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+              },
+              actions: [],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          };
+          
+          // Add appropriate actions based on inverter types
+          if (detectedTypes.hasNew) {
+              nightRule.actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+              nightRule.actions.push({
+                  setting: 'max_grid_charge_current',
+                  value: '80',
+                  inverter: 'all'
+              });
+          } else {
+              nightRule.actions.push({
+                  setting: 'grid_charge',
+                  value: 'Enabled',
+                  inverter: 'all'
+              });
+          }
+          
+          await saveRule(nightRule);
+          console.log('Created dynamic night charging rule');
+          
+          // Create complementary daytime rule
+          const daytimeRule = {
+              name: `Daytime Solar Priority (${detectedTypes.primary})`,
+              description: `Disable grid charging during day for ${detectedTypes.summary}`,
+              active: true,
+              timeRestrictions: {
+                  startTime: '06:00',
+                  endTime: '22:00',
+                  enabled: true
+              },
+              conditions: [{
+                  parameter: 'pv_power',
+                  operator: 'gt',
+                  value: 1000
+              }],
+              actions: generateAdaptiveActions('solar_priority', 'Disabled', detectedTypes),
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          };
+          
+          await saveRule(daytimeRule);
+          console.log('Created complementary daytime rule');
+      }
+  } catch (error) {
+      console.error('Error creating night charging rules:', error.message);
+  }
+}
+
+async function createWeekendGridChargeRules() {
+  if (!dbConnected) return;
+  
+  try {
+      const detectedTypes = analyzeInverterTypes();
+      
+      // Check if weekend rules exist
+      const existingWeekendRule = await db.get(`
+          SELECT * FROM rules 
+          WHERE name LIKE '%Weekend%' AND user_id = ?
+      `, [USER_ID]);
+      
+      if (!existingWeekendRule) {
+          const weekendRules = [];
+          
+          // Weekend optimization rule
+          weekendRules.push({
+              name: `Weekend Solar Maximization (${detectedTypes.primary})`,
+              description: `Maximize solar usage on weekends for ${detectedTypes.summary}`,
+              active: true,
+              timeRestrictions: {
+                  days: ['saturday', 'sunday'],
+                  enabled: true
+              },
+              conditions: [{
+                  parameter: 'pv_power',
+                  operator: 'gt',
+                  value: 2000
+              }],
+              actions: [
+                  ...generateAdaptiveActions('weekend_solar', 'Disabled', detectedTypes),
+                  {
+                      setting: 'solar_export_when_battery_full',
+                      value: 'Enabled',
+                      inverter: 'all'
+                  }
+              ],
+              user_id: USER_ID,
+              mqtt_username: mqttConfig.username
+          });
+          
+          // Weekend battery preservation
+          if (detectedTypes.hasAny) {
+              weekendRules.push({
+                  name: `Weekend Battery Preservation (${detectedTypes.primary})`,
+                  description: 'Preserve battery on weekends when solar is available',
+                  active: true,
+                  timeRestrictions: {
+                      days: ['saturday', 'sunday'],
+                      startTime: '09:00',
+                      endTime: '17:00',
+                      enabled: true
+                  },
+                  conditions: [
+                      {
+                          parameter: 'battery_soc',
+                          operator: 'gt',
+                          value: 70
+                      },
+                      {
+                          parameter: 'pv_power',
+                          operator: 'gt',
+                          value: 5000
+                      }
+                  ],
+                  actions: generateAdaptiveActions('battery_preserve', 'Load first', detectedTypes),
+                  user_id: USER_ID,
+                  mqtt_username: mqttConfig.username
+              });
+          }
+          
+          // Save weekend rules
+          for (const rule of weekendRules) {
+              await saveRule(rule);
+              console.log(`Created weekend rule: ${rule.name}`);
+          }
+          
+          console.log(`Created ${weekendRules.length} weekend rules for ${detectedTypes.summary}`);
+      }
+  } catch (error) {
+      console.error('Error creating weekend rules:', error.message);
+  }
+}
+
+// ================ HELPER FUNCTIONS FOR DYNAMIC RULE GENERATION ================
+
+function analyzeInverterTypes() {
+  const analysis = {
+      hasLegacy: false,
+      hasNew: false,
+      hasHybrid: false,
+      hasUnknown: false,
+      hasAny: false,
+      primary: 'unknown',
+      summary: 'no inverters',
+      counts: {
+          legacy: 0,
+          new: 0,
+          hybrid: 0,
+          unknown: 0
+      }
+  };
+  
+  if (!inverterTypes || Object.keys(inverterTypes).length === 0) {
+      // If no types detected yet, assume we might have any type
+      analysis.hasAny = true;
+      analysis.hasLegacy = true;
+      analysis.hasNew = true;
+      analysis.primary = 'universal';
+      analysis.summary = 'all types (detection pending)';
+      return analysis;
+  }
+  
+  // Count inverter types
+  Object.values(inverterTypes).forEach(inv => {
+      const type = inv.type || 'unknown';
+      analysis.counts[type] = (analysis.counts[type] || 0) + 1;
+      
+      switch (type) {
+          case 'legacy':
+              analysis.hasLegacy = true;
+              analysis.hasAny = true;
+              break;
+          case 'new':
+              analysis.hasNew = true;
+              analysis.hasAny = true;
+              break;
+          case 'hybrid':
+              analysis.hasHybrid = true;
+              analysis.hasAny = true;
+              break;
+          case 'unknown':
+              analysis.hasUnknown = true;
+              analysis.hasAny = true;
+              break;
+      }
+  });
+  
+  // Determine primary type
+  const types = Object.entries(analysis.counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]);
+  
+  if (types.length > 0) {
+      analysis.primary = types[0][0];
+  }
+  
+  // Create summary
+  const summaryParts = [];
+  if (analysis.counts.legacy > 0) summaryParts.push(`${analysis.counts.legacy}x legacy`);
+  if (analysis.counts.new > 0) summaryParts.push(`${analysis.counts.new}x new`);
+  if (analysis.counts.hybrid > 0) summaryParts.push(`${analysis.counts.hybrid}x hybrid`);
+  if (analysis.counts.unknown > 0) summaryParts.push(`${analysis.counts.unknown}x unknown`);
+  
+  analysis.summary = summaryParts.join(', ') || 'no inverters';
+  
+  return analysis;
+}
+
+function generateAdaptiveActions(actionType, value, detectedTypes) {
+  const actions = [];
+  
+  switch (actionType) {
+      case 'charging':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              const mappedValue = value === 'Enabled' ? 'Solar and utility simultaneously' : 'Solar first';
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: mappedValue,
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'energy_optimization':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              const mappedValue = mapEnergyPatternToOutputSourcePriority(value);
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: mappedValue,
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'weekend_solar':
+      case 'solar_priority':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Solar only',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'battery_preserve':
+          if (detectedTypes.hasLegacy) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: 'Solar first',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'emergency_charge':
+          if (detectedTypes.hasLegacy || detectedTypes.hasUnknown) {
+              actions.push({
+                  setting: 'grid_charge',
+                  value: 'Enabled',
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'charger_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+          }
+          break;
+          
+      case 'high_load':
+          if (detectedTypes.hasLegacy) {
+              actions.push({
+                  setting: 'energy_pattern',
+                  value: value,
+                  inverter: 'all'
+              });
+          }
+          if (detectedTypes.hasNew) {
+              actions.push({
+                  setting: 'output_source_priority',
+                  value: 'Utility first',
+                  inverter: 'all'
+              });
+          }
+          break;
+  }
+  
+  // Remove duplicates
+  const uniqueActions = [];
+  const seen = new Set();
+  
+  actions.forEach(action => {
+      const key = `${action.setting}-${action.value}`;
+      if (!seen.has(key)) {
+          seen.add(key);
+          uniqueActions.push(action);
+      }
+  });
+  
+  return uniqueActions.length > 0 ? uniqueActions : [{
+      setting: 'remote_switch',
+      value: 'Enabled',
+      inverter: 'all'
+  }];
+}
+  
+
+  
+  function generateInitialSampleData(timezone = 'Europe/Berlin') {
+    const prices = [];
+    
+    const now = new Date();
+    const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+    
+    const startHour = new Date(nowInTimezone);
+    startHour.setMinutes(0, 0, 0);
+    
+    for (let i = 0; i < 48; i++) {
+      const timestamp = new Date(startHour);
+      timestamp.setHours(timestamp.getHours() + i);
+      
+      const hour = timestamp.getHours();
+      const dayOfWeek = timestamp.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      
+      let basePrice = 0.10;
+      
+      if (hour >= 7 && hour <= 9) {
+        basePrice = 0.18;
+      } else if (hour >= 17 && hour <= 21) {
+        basePrice = 0.20;
+      } else if (hour >= 1 && hour <= 5) {
+        basePrice = 0.06;
+      } else if (hour >= 11 && hour <= 14) {
+        basePrice = 0.08;
+      }
+      
+      if (isWeekend) {
+        basePrice *= 0.85;
+      }
+      
+      const randomFactor = 0.85 + (Math.random() * 0.3);
+      const price = basePrice * randomFactor;
+      
+      prices.push({
+        timestamp: timestamp.toISOString(),
+        price: parseFloat(price.toFixed(4)),
+        currency: 'EUR',
+        unit: 'kWh',
+        timezone: timezone,
+        localHour: hour
+      });
+    }
+    
+    return prices;
+  }
+  
+  function refreshPricingData() {
+    try {
+      console.log('Running scheduled pricing data refresh...');
+      
+      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+      
+      if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
+        const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
+        const config = JSON.parse(configData);
+        
+        if (config) {
+          config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
+          config.lastUpdate = new Date().toISOString();
+          
+          fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+          
+          console.log(`✅ Scheduled pricing data refresh completed: ${config.pricingData.length} data points for timezone ${config.timezone}`);
         }
       }
     } catch (error) {
-      console.error('Error checking for warnings:', error);
+      console.error('❌ Error in scheduled pricing data refresh:', error);
+    }
+  }
+  
+  // ================ ENHANCED API ROUTES WITH INVERTER TYPE SUPPORT ================
+  
+  // Enhanced battery charging settings API with new inverter support
+  app.post('/api/battery-charging/set', (req, res) => {
+    try {
+      if (!learnerModeActive) {
+        return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
+      }
+      
+      const { inverter, setting, value } = req.body;
+      
+      if (!inverter || !setting || value === undefined) {
+        return res.status(400).json({ error: 'Missing inverter, setting, or value' });
+      }
+      
+      if (!mqttClient || !mqttClient.connected) {
+        return res.status(503).json({ error: 'MQTT client not connected' });
+      }
+      
+      const allowedSettings = [
+        'max_discharge_current',
+        'max_charge_current',
+        'max_grid_charge_current',
+        'max_generator_charge_current',
+        'battery_float_charge_voltage',
+        'battery_absorption_charge_voltage',
+        'battery_equalization_charge_voltage'
+      ];
+      
+      if (!allowedSettings.includes(setting)) {
+        return res.status(400).json({ error: `Invalid setting: ${setting}. Allowed settings are: ${allowedSettings.join(', ')}` });
+      }
+      
+      const inverterID = inverter.replace('inverter_', '');
+      if (isNaN(inverterID) || parseInt(inverterID) < 1 || parseInt(inverterID) > inverterNumber) {
+        return res.status(400).json({ error: `Invalid inverter ID. Valid values: 1-${inverterNumber}` });
+      }
+      
+      let isValid = true;
+      let validationError = '';
+      
+      switch (setting) {
+        case 'max_discharge_current':
+        case 'max_charge_current':
+        case 'max_grid_charge_current':
+        case 'max_generator_charge_current':
+          if (parseFloat(value) < 0 || parseFloat(value) > 100) {
+            isValid = false;
+            validationError = `${setting} must be between 0 and 100 A`;
+          }
+          break;
+        case 'battery_float_charge_voltage':
+        case 'battery_absorption_charge_voltage':
+        case 'battery_equalization_charge_voltage':
+          if (parseFloat(value) < 40 || parseFloat(value) > 60) {
+            isValid = false;
+            validationError = `${setting} must be between 40 and 60 V`;
+          }
+          break;
+      }
+      
+      if (!isValid) {
+        return res.status(400).json({ error: validationError });
+      }
+      
+      const topic = `${mqttTopicPrefix}/${inverter}/${setting}/set`;
+      
+      mqttClient.publish(topic, value.toString(), { qos: 1, retain: false }, (err) => {
+        if (err) {
+          console.error(`Error publishing to ${topic}: ${err.message}`);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`Battery Charging command sent: ${topic} = ${value}`);
+        res.json({ success: true, message: `Command sent: ${topic} = ${value}` });
+      });
+    } catch (error) {
+      console.error('Error sending battery charging command:', error);
+      res.status(500).json({ error: error.message });
     }
   });
   
-  console.log('✅ Warning check scheduler initialized (user-controlled notifications)');
-}
+  // Enhanced work mode settings API with new inverter support
+  app.post('/api/work-mode/set', (req, res) => {
+    try {
+      if (!learnerModeActive) {
+        return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
+      }
+      
+      const { inverter, setting, value } = req.body;
+      
+      if (!inverter || !setting || value === undefined) {
+        return res.status(400).json({ error: 'Missing inverter, setting, or value' });
+      }
+      
+      if (!mqttClient || !mqttClient.connected) {
+        return res.status(503).json({ error: 'MQTT client not connected' });
+      }
+      
+      // Enhanced allowed settings including new inverter types
+      const allowedSettings = [
+        'remote_switch',
+        'generator_charge',
+        'force_generator_on',
+        'output_shutdown_voltage',
+        'stop_battery_discharge_voltage',
+        'start_battery_discharge_voltage',
+        'start_grid_charge_voltage',
+        'work_mode',
+        'solar_export_when_battery_full',
+        'max_sell_power',
+        'max_solar_power',
+        'grid_trickle_feed',
+        // New inverter settings
+        'charger_source_priority',
+        'output_source_priority',
+        // Legacy settings
+        'energy_pattern',
+        'grid_charge'
+      ];
+      
+      if (!allowedSettings.includes(setting)) {
+        return res.status(400).json({ error: `Invalid setting: ${setting}. Allowed settings are: ${allowedSettings.join(', ')}` });
+      }
+      
+      const inverterID = inverter.replace('inverter_', '');
+      if (isNaN(inverterID) || parseInt(inverterID) < 1 || parseInt(inverterID) > inverterNumber) {
+        return res.status(400).json({ error: `Invalid inverter ID. Valid values: 1-${inverterNumber}` });
+      }
+      
+      let isValid = true;
+      let validationError = '';
+      
+      // Enhanced validation for new inverter settings
+      switch (setting) {
+        case 'remote_switch':
+        case 'generator_charge':
+        case 'force_generator_on':
+        case 'solar_export_when_battery_full':
+        case 'grid_charge':
+          if (value !== 'Enabled' && value !== 'Disabled' && value !== 'true' && value !== 'false' && value !== '1' && value !== '0') {
+            isValid = false;
+            validationError = `${setting} must be one of: Enabled, Disabled, true, false, 1, 0`;
+          }
+          break;
+        case 'work_mode':
+          const validWorkModes = ['Battery first', 'Grid first', 'Solar first', 'Solar + Battery', 'Solar + Grid'];
+          if (!validWorkModes.includes(value)) {
+            isValid = false;
+            validationError = `${setting} must be one of: ${validWorkModes.join(', ')}`;
+          }
+          break;
+        case 'energy_pattern':
+          const validEnergyPatterns = ['Battery first', 'Load first', 'Grid first', 'Solar first'];
+          if (!validEnergyPatterns.includes(value)) {
+            isValid = false;
+            validationError = `${setting} must be one of: ${validEnergyPatterns.join(', ')}`;
+          }
+          break;
+        case 'charger_source_priority':
+          const validChargerPriorities = ['Solar first', 'Solar and utility simultaneously', 'Solar only', 'Utility first'];
+          if (!validChargerPriorities.includes(value)) {
+            isValid = false;
+            validationError = `${setting} must be one of: ${validChargerPriorities.join(', ')}`;
+          }
+          break;
+        case 'output_source_priority':
+          const validOutputPriorities = ['Solar/Battery/Utility', 'Solar first', 'Utility first', 'Solar/Utility/Battery'];
+          if (!validOutputPriorities.includes(value)) {
+            isValid = false;
+            validationError = `${setting} must be one of: ${validOutputPriorities.join(', ')}`;
+          }
+          break;
+        case 'output_shutdown_voltage':
+        case 'stop_battery_discharge_voltage':
+        case 'start_battery_discharge_voltage':
+        case 'start_grid_charge_voltage':
+          if (parseFloat(value) < 40 || parseFloat(value) > 60) {
+            isValid = false;
+            validationError = `${setting} must be between 40 and 60 V`;
+          }
+          break;
+        case 'max_sell_power':
+        case 'max_solar_power':
+          if (parseFloat(value) < 0 || parseFloat(value) > 15000) {
+            isValid = false;
+            validationError = `${setting} must be between 0 and 15000 W`;
+          }
+          break;
+        case 'grid_trickle_feed':
+          if (parseFloat(value) < 0 || parseFloat(value) > 100) {
+            isValid = false;
+            validationError = `${setting} must be between 0 and 100`;
+          }
+          break;
+      }
+      
+      if (!isValid) {
+        return res.status(400).json({ error: validationError });
+      }
+      
+      // Get inverter type and apply auto-mapping if needed
+      const inverterType = getInverterType(inverter);
+      let topic, mqttValue;
+      
+      // Apply intelligent mapping based on inverter type
+      if (setting === 'energy_pattern') {
+        if (inverterType === 'new' || inverterType === 'hybrid') {
+          const mappedValue = mapEnergyPatternToOutputSourcePriority(value);
+          topic = `${mqttTopicPrefix}/${inverter}/output_source_priority/set`;
+          mqttValue = mappedValue;
+          console.log(`API: Mapping energy_pattern "${value}" to output_source_priority "${mappedValue}" for ${inverter} (type: ${inverterType})`);
+        } else {
+          topic = `${mqttTopicPrefix}/${inverter}/energy_pattern/set`;
+          mqttValue = value;
+        }
+      } else if (setting === 'grid_charge') {
+        if (inverterType === 'new' || inverterType === 'hybrid') {
+          const mappedValue = mapGridChargeToChargerSourcePriority(value);
+          topic = `${mqttTopicPrefix}/${inverter}/charger_source_priority/set`;
+          mqttValue = mappedValue;
+          console.log(`API: Mapping grid_charge "${value}" to charger_source_priority "${mappedValue}" for ${inverter} (type: ${inverterType})`);
+        } else {
+          topic = `${mqttTopicPrefix}/${inverter}/grid_charge/set`;
+          mqttValue = value;
+        }
+      } else if (setting === 'charger_source_priority') {
+        if (inverterType === 'legacy') {
+          const mappedValue = mapChargerSourcePriorityToGridCharge(value);
+          topic = `${mqttTopicPrefix}/${inverter}/grid_charge/set`;
+          mqttValue = mappedValue;
+          console.log(`API: Mapping charger_source_priority "${value}" to grid_charge "${mappedValue}" for ${inverter} (type: ${inverterType})`);
+        } else {
+          topic = `${mqttTopicPrefix}/${inverter}/charger_source_priority/set`;
+          mqttValue = value;
+        }
+      } else if (setting === 'output_source_priority') {
+        if (inverterType === 'legacy') {
+          const mappedValue = mapOutputSourcePriorityToEnergyPattern(value);
+          topic = `${mqttTopicPrefix}/${inverter}/energy_pattern/set`;
+          mqttValue = mappedValue;
+          console.log(`API: Mapping output_source_priority "${value}" to energy_pattern "${mappedValue}" for ${inverter} (type: ${inverterType})`);
+        } else {
+          topic = `${mqttTopicPrefix}/${inverter}/output_source_priority/set`;
+          mqttValue = value;
+        }
+      } else {
+        // All other settings work the same for both inverter types
+        topic = `${mqttTopicPrefix}/${inverter}/${setting}/set`;
+        mqttValue = value;
+      }
+      
+      mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, (err) => {
+        if (err) {
+          console.error(`Error publishing to ${topic}: ${err.message}`);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`Work Mode command sent: ${topic} = ${mqttValue}`);
+        res.json({ success: true, message: `Command sent: ${topic} = ${mqttValue}` });
+      });
+    } catch (error) {
+      console.error('Error sending work mode command:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Enhanced current settings API with inverter type information
+  app.get('/api/current-settings', (req, res) => {
+    try {
+      // Include inverter type information in the response
+      const settingsWithTypes = {
+        ...currentSettingsState,
+        inverterTypes: inverterTypes
+      };
+      
+      res.json({
+        success: true,
+        currentSettings: settingsWithTypes,
+        inverterCount: inverterNumber,
+        batteryCount: batteryNumber,
+        timestamp: new Date(),
+        systemState: currentSystemState
+      });
+    } catch (error) {
+      console.error('Error retrieving current settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve current settings' });
+    }
+  });
+  
+  // Enhanced API to get inverter type information
+  app.get('/api/inverter-types', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        inverterTypes: inverterTypes,
+        totalInverters: inverterNumber,
+        detectionCriteria: {
+          legacy: 'Supports energy_pattern and grid_charge settings',
+          new: 'Supports charger_source_priority and output_source_priority settings',
+          hybrid: 'Supports both legacy and new settings',
+          unknown: 'No settings detected yet'
+        }
+      });
+    } catch (error) {
+      console.error('Error retrieving inverter types:', error);
+      res.status(500).json({ error: 'Failed to retrieve inverter type information' });
+    }
+  });
+  
+  // Add notification routes
+  app.use('/api/notifications', notificationRoutes);
+  
+  global.processRules = processRules;
 
+  // ================ ENHANCED INVERTER SETTINGS PAGE ================
 
-// Complete route handler for inverter-settings page
 app.get('/inverter-settings', async (req, res) => {
-  try {
-    // Get current settings count if database is connected
-    let settingsCount = 0;
-    if (dbConnected) {
+    try {
+      let settingsCount = 0;
+      if (dbConnected) {
+        try {
+          const result = await db.get(`
+            SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
+          `, [USER_ID]);
+          settingsCount = result.count || 0;
+        } catch (dbError) {
+          console.error('Error getting settings count:', dbError);
+        }
+      }
+  
+      const systemState = {
+        battery_soc: currentSystemState.battery_soc || null,
+        pv_power: currentSystemState.pv_power || null,
+        load: currentSystemState.load || null,
+        grid_voltage: currentSystemState.grid_voltage || null,
+        grid_power: currentSystemState.grid_power || null,
+        inverter_state: currentSystemState.inverter_state || null,
+        timestamp: currentSystemState.timestamp || new Date().toISOString()
+      };
+  
+      // Enhanced settings with both legacy and new inverter support
+      const settings = {
+        // Legacy settings
+        grid_charge: currentSettingsState.grid_charge || {},
+        energy_pattern: currentSettingsState.energy_pattern || {},
+        
+        // New inverter settings
+        charger_source_priority: currentSettingsState.charger_source_priority || {},
+        output_source_priority: currentSettingsState.output_source_priority || {},
+        
+        // Common settings
+        voltage_point: currentSettingsState.voltage_point || {},
+        work_mode: currentSettingsState.work_mode || {},
+        remote_switch: currentSettingsState.remote_switch || {},
+        generator_charge: currentSettingsState.generator_charge || {},
+        force_generator_on: currentSettingsState.force_generator_on || {},
+        output_shutdown_voltage: currentSettingsState.output_shutdown_voltage || {},
+        stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage || {},
+        start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage || {},
+        start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage || {},
+        solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full || {},
+        max_sell_power: currentSettingsState.max_sell_power || {},
+        max_solar_power: currentSettingsState.max_solar_power || {},
+        grid_trickle_feed: currentSettingsState.grid_trickle_feed || {},
+        
+        // Battery charging settings
+        max_discharge_current: currentSettingsState.max_discharge_current || {},
+        max_charge_current: currentSettingsState.max_charge_current || {},
+        max_grid_charge_current: currentSettingsState.max_grid_charge_current || {},
+        max_generator_charge_current: currentSettingsState.max_generator_charge_current || {},
+        battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage || {},
+        battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage || {},
+        battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage || {},
+        
+        // Additional inverter info
+        serial_number: currentSettingsState.serial_number || {},
+        power_saving: currentSettingsState.power_saving || {},
+        firmware_version: currentSettingsState.firmware_version || {},
+        
+        lastUpdated: currentSettingsState.lastUpdated
+      };
+  
+      const config = {
+        inverterNumber: inverterNumber || 1,
+        batteryNumber: batteryNumber || 1,
+        mqttTopicPrefix: options.mqtt_topic_prefix || 'energy',
+        mqttHost: options.mqtt_host || 'localhost',
+        mqttUsername: options.mqtt_username || 'User'
+      };
+  
+      const expectedInverters = parseInt(options.inverter_number) || 1;
+      const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
+      const batteryWarning = checkBatteryInformation(incomingMessages);
+  
+      res.render('inverter-settings', { 
+        // Learner mode and system status
+        active: learnerModeActive,
+        db_connected: dbConnected,
+        
+        // Current system state (real-time data)
+        currentSystemState: systemState,
+        
+        // Current inverter settings (enhanced with both types)
+        currentSettings: settings,
+        
+        // Inverter type detection information
+        inverterTypes: inverterTypes,
+        
+        // Configuration
+        numInverters: config.inverterNumber,
+        numBatteries: config.batteryNumber,
+        mqtt_topic_prefix: config.mqttTopicPrefix,
+        mqtt_host: config.mqttHost,
+        mqtt_username: config.mqttUsername,
+        
+        // User identification
+        user_id: USER_ID,
+        
+        // Settings statistics
+        settings_count: settingsCount,
+        
+        // System warnings
+        inverterWarning: inverterWarning,
+        batteryWarning: batteryWarning,
+        
+        // Ingress path for Home Assistant add-on compatibility
+        ingress_path: process.env.INGRESS_PATH || '',
+        
+        // Additional metadata
+        timestamp: new Date(),
+        serverPort: port,
+        
+        // Flags for frontend
+        useInMemorySettings: true,
+        realTimeUpdates: true,
+        
+        // MQTT connection status
+        mqttConnected: mqttClient ? mqttClient.connected : false,
+        
+        // Recent messages sample for debugging (limited to last 10)
+        recentMessages: incomingMessages.slice(-10),
+        
+        // Dynamic pricing status (if available)
+        dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false,
+        
+        // Enhanced support flags
+        supportsLegacySettings: true,
+        supportsNewSettings: true,
+        autoDetection: true
+      });
+  
+    } catch (error) {
+      console.error('Error rendering inverter-settings page:', error);
+      
       try {
-        const result = await db.get(`
-          SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-        `, [USER_ID]);
-        settingsCount = result.count || 0;
-      } catch (dbError) {
-        console.error('Error getting settings count:', dbError);
+        res.status(500).render('error', { 
+          error: 'Error loading inverter settings page',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          ingress_path: process.env.INGRESS_PATH || ''
+        });
+      } catch (renderError) {
+        res.status(500).send(`
+          <h1>Error Loading Inverter Settings</h1>
+          <p>An error occurred while loading the inverter settings page.</p>
+          <p><a href="/">Return to Home</a></p>
+        `);
       }
     }
-
-    // Prepare current system state with fallback values
-    const systemState = {
-      battery_soc: currentSystemState.battery_soc || null,
-      pv_power: currentSystemState.pv_power || null,
-      load: currentSystemState.load || null,
-      grid_voltage: currentSystemState.grid_voltage || null,
-      grid_power: currentSystemState.grid_power || null,
-      inverter_state: currentSystemState.inverter_state || null,
-      timestamp: currentSystemState.timestamp || new Date().toISOString()
-    };
-
-    // Prepare current settings with fallback structure
-    const settings = {
-      // Grid charge settings
-      grid_charge: currentSettingsState.grid_charge || {},
-      
-      // Energy pattern settings
-      energy_pattern: currentSettingsState.energy_pattern || {},
-      
-      // Voltage point settings
-      voltage_point: currentSettingsState.voltage_point || {},
-      
-      // Work mode settings
-      work_mode: currentSettingsState.work_mode || {},
-      remote_switch: currentSettingsState.remote_switch || {},
-      generator_charge: currentSettingsState.generator_charge || {},
-      force_generator_on: currentSettingsState.force_generator_on || {},
-      output_shutdown_voltage: currentSettingsState.output_shutdown_voltage || {},
-      stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage || {},
-      start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage || {},
-      start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage || {},
-      solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full || {},
-      max_sell_power: currentSettingsState.max_sell_power || {},
-      max_solar_power: currentSettingsState.max_solar_power || {},
-      grid_trickle_feed: currentSettingsState.grid_trickle_feed || {},
-      
-      // Battery charging settings
-      max_discharge_current: currentSettingsState.max_discharge_current || {},
-      max_charge_current: currentSettingsState.max_charge_current || {},
-      max_grid_charge_current: currentSettingsState.max_grid_charge_current || {},
-      max_generator_charge_current: currentSettingsState.max_generator_charge_current || {},
-      battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage || {},
-      battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage || {},
-      battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage || {},
-      
-      // Additional inverter info
-      serial_number: currentSettingsState.serial_number || {},
-      power_saving: currentSettingsState.power_saving || {},
-      firmware_version: currentSettingsState.firmware_version || {},
-      
-      // Last updated timestamp
-      lastUpdated: currentSettingsState.lastUpdated
-    };
-
-    // Get configuration values with fallbacks
-    const config = {
-      inverterNumber: inverterNumber || 1,
-      batteryNumber: batteryNumber || 1,
-      mqttTopicPrefix: options.mqtt_topic_prefix || 'energy',
-      mqttHost: options.mqtt_host || 'localhost',
-      mqttUsername: options.mqtt_username || 'User'
-    };
-
-    // Check for any warnings about inverter or battery configuration
-    const expectedInverters = parseInt(options.inverter_number) || 1;
-    const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-    const batteryWarning = checkBatteryInformation(incomingMessages);
-
-    // Render the inverter-settings template with all necessary data
-    res.render('inverter-settings', { 
-      // Learner mode and system status
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      
-      // Current system state (real-time data)
-      currentSystemState: systemState,
-      
-      // Current inverter settings
-      currentSettings: settings,
-      
-      // Configuration
-      numInverters: config.inverterNumber,
-      numBatteries: config.batteryNumber,
-      mqtt_topic_prefix: config.mqttTopicPrefix,
-      mqtt_host: config.mqttHost,
-      mqtt_username: config.mqttUsername,
-      
-      // User identification
-      user_id: USER_ID,
-      
-      // Settings statistics
-      settings_count: settingsCount,
-      
-      // System warnings
-      inverterWarning: inverterWarning,
-      batteryWarning: batteryWarning,
-      
-      // Ingress path for Home Assistant add-on compatibility
-      ingress_path: process.env.INGRESS_PATH || '',
-      
-      // Additional metadata
-      timestamp: new Date(),
-      serverPort: port,
-      
-      // Flags for frontend
-      useInMemorySettings: true,
-      realTimeUpdates: true,
-      
-      // MQTT connection status
-      mqttConnected: mqttClient ? mqttClient.connected : false,
-      
-      // Recent messages sample for debugging (limited to last 10)
-      recentMessages: incomingMessages.slice(-10),
-      
-      // Dynamic pricing status (if available)
-      dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false
-    });
-
-  } catch (error) {
-    console.error('Error rendering inverter-settings page:', error);
-    
-    // Fallback error response
+  });
+  
+  // ================ ENHANCED API ROUTES ================
+  
+  // Enhanced current settings API with inverter type mapping
+  app.get('/api/grid-charge-changes', (req, res) => {
     try {
-      res.status(500).render('error', { 
-        error: 'Error loading inverter settings page',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        ingress_path: process.env.INGRESS_PATH || ''
+      // Combine both legacy and new settings for compatibility
+      const gridChargeSettings = {
+        grid_charge: currentSettingsState.grid_charge,
+        charger_source_priority: currentSettingsState.charger_source_priority, // Include new setting
+        max_grid_charge_current: currentSettingsState.max_grid_charge_current
+      };
+      
+      res.json({
+        success: true,
+        currentSettings: gridChargeSettings,
+        inverterCount: inverterNumber,
+        timestamp: new Date(),
+        fromMemory: true,
+        inverterTypes: inverterTypes // Include inverter type info
       });
-    } catch (renderError) {
-      // If even the error template fails, send a basic error response
-      res.status(500).send(`
-        <h1>Error Loading Inverter Settings</h1>
-        <p>An error occurred while loading the inverter settings page.</p>
-        <p><a href="/">Return to Home</a></p>
-      `);
+    } catch (error) {
+      console.error('Error retrieving grid charge settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve grid charge settings' });
     }
-  }
-});
-
-
-// ================ UPDATED API ROUTES ================
-
-// Replace your current '/api/current-settings' endpoint
-app.get('/api/current-settings', (req, res) => {
-  try {
-    res.json({
-      success: true,
-      currentSettings: currentSettingsState,
-      inverterCount: inverterNumber,
-      batteryCount: batteryNumber,
-      timestamp: new Date(),
-      systemState: currentSystemState
-    });
-  } catch (error) {
-    console.error('Error retrieving current settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve current settings' });
-  }
-});
-
-// Replace your current '/api/grid-charge-changes' endpoint
-app.get('/api/grid-charge-changes', (req, res) => {
-  try {
-    // Instead of fetching from database, return the current in-memory state
-    const gridChargeSettings = {
-      grid_charge: currentSettingsState.grid_charge,
-      max_grid_charge_current: currentSettingsState.max_grid_charge_current
-    };
-    
-    res.json({
-      success: true,
-      currentSettings: gridChargeSettings,
-      inverterCount: inverterNumber,
-      timestamp: new Date(),
-      fromMemory: true // Flag to indicate this is current data, not historical
-    });
-  } catch (error) {
-    console.error('Error retrieving grid charge settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve grid charge settings' });
-  }
-});
-
-// Replace your current '/api/energy-pattern-changes' endpoint
-app.get('/api/energy-pattern-changes', (req, res) => {
-  try {
-    // Instead of fetching from database, return the current in-memory state
-    res.json({
-      success: true,
-      currentSettings: {
-        energy_pattern: currentSettingsState.energy_pattern
-      },
-      inverterCount: inverterNumber,
-      timestamp: new Date(),
-      fromMemory: true
-    });
-  } catch (error) {
-    console.error('Error retrieving energy pattern settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve energy pattern settings' });
-  }
-});
-
-// Replace your current '/api/voltage-point-changes' endpoint
-app.get('/api/voltage-point-changes', (req, res) => {
-  try {
-    // Instead of fetching from database, return the current in-memory state
-    res.json({
-      success: true,
-      currentSettings: {
-        voltage_point: currentSettingsState.voltage_point
-      },
-      inverterCount: inverterNumber,
-      timestamp: new Date(),
-      fromMemory: true
-    });
-  } catch (error) {
-    console.error('Error retrieving voltage point settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve voltage point settings' });
-  }
-});
-
-// Replace your current '/api/work-mode-changes' endpoint
-app.get('/api/work-mode-changes', (req, res) => {
-  try {
-    // Combine all relevant work mode settings
-    const workModeSettings = {
-      work_mode: currentSettingsState.work_mode,
-      remote_switch: currentSettingsState.remote_switch,
-      generator_charge: currentSettingsState.generator_charge,
-      force_generator_on: currentSettingsState.force_generator_on,
-      output_shutdown_voltage: currentSettingsState.output_shutdown_voltage,
-      stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage,
-      start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage,
-      start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage,
-      solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full,
-      max_sell_power: currentSettingsState.max_sell_power,
-      max_solar_power: currentSettingsState.max_solar_power,
-      grid_trickle_feed: currentSettingsState.grid_trickle_feed
-    };
-    
-    res.json({
-      success: true,
-      currentSettings: workModeSettings,
-      inverterCount: inverterNumber,
-      timestamp: new Date(),
-      fromMemory: true
-    });
-  } catch (error) {
-    console.error('Error retrieving work mode settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve work mode settings' });
-  }
-});
-
-// Replace your current '/api/battery-charging-changes' endpoint
-app.get('/api/battery-charging-changes', (req, res) => {
-  try {
-    // Combine all relevant battery charging settings
-    const batteryChargingSettings = {
-      max_discharge_current: currentSettingsState.max_discharge_current,
-      max_charge_current: currentSettingsState.max_charge_current,
-      max_grid_charge_current: currentSettingsState.max_grid_charge_current,
-      max_generator_charge_current: currentSettingsState.max_generator_charge_current,
-      battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage,
-      battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage,
-      battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage
-    };
-    
-    res.json({
-      success: true,
-      currentSettings: batteryChargingSettings,
-      inverterCount: inverterNumber,
-      timestamp: new Date(),
-      fromMemory: true
-    });
-  } catch (error) {
-    console.error('Error retrieving battery charging settings:', error);
-    res.status(500).json({ error: 'Failed to retrieve battery charging settings' });
-  }
-});
-
-
-app.get('/notifications', async (req, res) => {
-  try {
-    res.render('notifications', {
+  });
+  
+  app.get('/api/energy-pattern-changes', (req, res) => {
+    try {
+      // Combine both legacy and new settings for compatibility
+      const energyPatternSettings = {
+        energy_pattern: currentSettingsState.energy_pattern,
+        output_source_priority: currentSettingsState.output_source_priority // Include new setting
+      };
+      
+      res.json({
+        success: true,
+        currentSettings: energyPatternSettings,
+        inverterCount: inverterNumber,
+        timestamp: new Date(),
+        fromMemory: true,
+        inverterTypes: inverterTypes // Include inverter type info
+      });
+    } catch (error) {
+      console.error('Error retrieving energy pattern settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve energy pattern settings' });
+    }
+  });
+  
+  app.get('/api/voltage-point-changes', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        currentSettings: {
+          voltage_point: currentSettingsState.voltage_point
+        },
+        inverterCount: inverterNumber,
+        timestamp: new Date(),
+        fromMemory: true,
+        inverterTypes: inverterTypes
+      });
+    } catch (error) {
+      console.error('Error retrieving voltage point settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve voltage point settings' });
+    }
+  });
+  
+  app.get('/api/work-mode-changes', (req, res) => {
+    try {
+      const workModeSettings = {
+        work_mode: currentSettingsState.work_mode,
+        remote_switch: currentSettingsState.remote_switch,
+        generator_charge: currentSettingsState.generator_charge,
+        force_generator_on: currentSettingsState.force_generator_on,
+        output_shutdown_voltage: currentSettingsState.output_shutdown_voltage,
+        stop_battery_discharge_voltage: currentSettingsState.stop_battery_discharge_voltage,
+        start_battery_discharge_voltage: currentSettingsState.start_battery_discharge_voltage,
+        start_grid_charge_voltage: currentSettingsState.start_grid_charge_voltage,
+        solar_export_when_battery_full: currentSettingsState.solar_export_when_battery_full,
+        max_sell_power: currentSettingsState.max_sell_power,
+        max_solar_power: currentSettingsState.max_solar_power,
+        grid_trickle_feed: currentSettingsState.grid_trickle_feed
+      };
+      
+      res.json({
+        success: true,
+        currentSettings: workModeSettings,
+        inverterCount: inverterNumber,
+        timestamp: new Date(),
+        fromMemory: true,
+        inverterTypes: inverterTypes
+      });
+    } catch (error) {
+      console.error('Error retrieving work mode settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve work mode settings' });
+    }
+  });
+  
+  app.get('/api/battery-charging-changes', (req, res) => {
+    try {
+      const batteryChargingSettings = {
+        max_discharge_current: currentSettingsState.max_discharge_current,
+        max_charge_current: currentSettingsState.max_charge_current,
+        max_grid_charge_current: currentSettingsState.max_grid_charge_current,
+        max_generator_charge_current: currentSettingsState.max_generator_charge_current,
+        battery_float_charge_voltage: currentSettingsState.battery_float_charge_voltage,
+        battery_absorption_charge_voltage: currentSettingsState.battery_absorption_charge_voltage,
+        battery_equalization_charge_voltage: currentSettingsState.battery_equalization_charge_voltage
+      };
+      
+      res.json({
+        success: true,
+        currentSettings: batteryChargingSettings,
+        inverterCount: inverterNumber,
+        timestamp: new Date(),
+        fromMemory: true,
+        inverterTypes: inverterTypes
+      });
+    } catch (error) {
+      console.error('Error retrieving battery charging settings:', error);
+      res.status(500).json({ error: 'Failed to retrieve battery charging settings' });
+    }
+  });
+  
+  app.get('/notifications', async (req, res) => {
+    try {
+      res.render('notifications', {
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID
+      });
+    } catch (error) {
+      console.error('Error rendering notifications page:', error);
+      res.status(500).send('Error loading notifications page');
+    }
+  });
+  
+  app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const setting = req.params.setting;
+      const days = parseInt(req.query.days) || 7;
+      
+      const dateThreshold = new Date();
+      dateThreshold.setDate(dateThreshold.getDate() - days);
+      
+      const changes = await db.all(`
+        SELECT * FROM settings_changes 
+        WHERE (topic LIKE ? OR change_type = ?) 
+        AND timestamp >= ? 
+        AND user_id = ?
+        ORDER BY timestamp ASC
+        LIMIT 1000
+      `, [`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID]);
+      
+      const formattedData = changes.map(change => ({
+        timestamp: new Date(change.timestamp),
+        value: parseJsonOrValue(change.new_value),
+        old_value: parseJsonOrValue(change.old_value),
+        system_state: JSON.parse(change.system_state || '{}')
+      }));
+      
+      res.json({
+        success: true,
+        setting,
+        data: formattedData,
+        count: formattedData.length
+      });
+    } catch (error) {
+      console.error(`Error retrieving ${req.params.setting} history:`, error);
+      res.status(500).json({ error: 'Failed to retrieve setting history' });
+    }
+  });
+  
+  app.get('/dynamic-pricing', (req, res) => {
+    res.render('dynamic-pricing', {
       ingress_path: process.env.INGRESS_PATH || '',
       user_id: USER_ID
     });
-  } catch (error) {
-    console.error('Error rendering notifications page:', error);
-    res.status(500).send('Error loading notifications page');
-  }
+  });
+  
+  
+  // ================ RULES MANAGEMENT API ================
+  
+  app.get('/wizard', async (req, res) => {
+    try {
+        const editParam = req.query.edit;
+        
+        // Get enhanced system state
+        const systemState = { ...currentSystemState };
+        
+        // Get detailed inverter information
+        const detailedInverterTypes = {};
+        Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+            detailedInverterTypes[inverterId] = {
+                ...info,
+                capabilities: getInverterCapabilities(info.type),
+                supportedSettings: getSupportedSettings(info.type),
+                lastSeen: getLastSeenTimestamp(inverterId),
+                confidenceScore: calculateConfidenceScore(info),
+                mappingInfo: getMappingInfo(info.type)
+            };
+        });
+        
+        res.render('wizard', { 
+            editParam,
+            systemState,
+            numInverters: inverterNumber,
+            db_connected: dbConnected,
+            ingress_path: process.env.INGRESS_PATH || '',
+            user_id: USER_ID,
+            
+            // Enhanced wizard data
+            inverterTypes: detailedInverterTypes,
+            inverterTypesJson: JSON.stringify(detailedInverterTypes),
+            totalInverters: inverterNumber,
+            detectionSummary: {
+                legacy: Object.values(detailedInverterTypes).filter(inv => inv.type === 'legacy').length,
+                new: Object.values(detailedInverterTypes).filter(inv => inv.type === 'new').length,
+                hybrid: Object.values(detailedInverterTypes).filter(inv => inv.type === 'hybrid').length,
+                unknown: Object.values(detailedInverterTypes).filter(inv => inv.type === 'unknown').length
+            },
+            
+            // Feature flags
+            supportsLegacySettings: true,
+            supportsNewSettings: true,
+            autoMapping: true,
+            smartTemplates: true,
+            
+            // Available settings based on detected inverters
+            availableSettings: getAllAvailableSettings(),
+            
+            // Smart rule templates
+            ruleTemplates: generateSmartRuleTemplates()
+        });
+    } catch (error) {
+        console.error('Error rendering dynamic wizard page:', error);
+        res.status(500).send('Error loading dynamic wizard page');
+    }
 });
-
-
-// 5. Add API endpoint for retrieving setting history to create charts/graphs in UI
-app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+  
+  app.put('/api/rules/:id', async (req, res) => {
+    try {
+      const ruleId = req.params.id;
+      
+      console.log(`Attempting to update rule with ID: ${ruleId}`);
+      console.log('Request body:', req.body);
+      
+      if (!dbConnected) {
+        console.log('Database not connected, cannot update rule');
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database not connected', 
+          status: 'disconnected' 
+        });
+      }
+      
+      const { name, description, active, conditions, timeRestrictions, actions } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Rule name is required' 
+        });
+      }
+      
+      if (!actions || actions.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'At least one action is required' 
+        });
+      }
+      
+      const rule = await getRuleById(ruleId, USER_ID);
+      
+      if (!rule) {
+        console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Rule not found' 
+        });
+      }
+      
+      const updatedRule = {
+        ...rule,
+        name,
+        description,
+        active: active !== undefined ? !!active : rule.active,
+        conditions: conditions || [],
+        timeRestrictions: timeRestrictions || {},
+        actions
+      };
+      
+      console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
+      
+      const success = await updateRule(ruleId, updatedRule);
+      
+      if (!success) {
+        console.log(`Failed to update rule with ID ${ruleId}`);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to update rule' 
+        });
+      }
+      
+      console.log(`Successfully updated rule with ID ${ruleId}`);
+      return res.status(200).json({
+        success: true,
+        message: 'Rule updated successfully',
+        rule: updatedRule
+      });
+    } catch (error) {
+      console.error('Error in update rule endpoint:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error: ' + error.message 
+      });
+    }
+  });
+  
+  app.post('/api/rules/:id/duplicate', async (req, res) => {
+    try {
+      const ruleId = req.params.id;
+      
+      console.log(`Attempting to duplicate rule with ID: ${ruleId}`);
+      
+      if (!dbConnected) {
+        console.log('Database not connected, cannot duplicate rule');
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database not connected', 
+          status: 'disconnected' 
+        });
+      }
+      
+      const originalRule = await getRuleById(ruleId, USER_ID);
+      
+      if (!originalRule) {
+        console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Rule not found' 
+        });
+      }
+      
+      const newRule = {
+        name: `Copy of ${originalRule.name}`,
+        description: originalRule.description,
+        active: originalRule.active,
+        conditions: originalRule.conditions,
+        timeRestrictions: originalRule.timeRestrictions,
+        actions: originalRule.actions,
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      };
+      
+      console.log(`Duplicating rule "${originalRule.name}"`, newRule);
+      
+      const savedRule = await saveRule(newRule);
+      
+      if (!savedRule) {
+        console.log(`Failed to duplicate rule with ID ${ruleId}`);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to duplicate rule' 
+        });
+      }
+      
+      console.log(`Successfully duplicated rule with ID ${ruleId} to new rule ID ${savedRule.id}`);
+      return res.status(201).json({
+        success: true,
+        message: `Rule "${originalRule.name}" duplicated successfully`,
+        rule: savedRule
+      });
+    } catch (error) {
+      console.error('Error in duplicate rule endpoint:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error: ' + error.message 
+      });
+    }
+  });
+  
+  app.get('/rule-history', async (req, res) => {
+    try {
+      let ruleHistory = [];
+      let systemState = { ...currentSystemState };
+      
+      if (dbConnected) {
+        ruleHistory = await db.all(`
+          SELECT * FROM rules
+          WHERE last_triggered IS NOT NULL
+          AND user_id = ?
+          ORDER BY last_triggered DESC
+        `, [USER_ID]);
+        
+        ruleHistory = ruleHistory.map(rule => ({
+          id: rule.id,
+          name: rule.name,
+          description: rule.description,
+          active: rule.active === 1,
+          conditions: JSON.parse(rule.conditions || '[]'),
+          timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
+          actions: JSON.parse(rule.actions || '[]'),
+          createdAt: new Date(rule.created_at),
+          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
+          triggerCount: rule.trigger_count,
+          user_id: rule.user_id,
+          mqtt_username: rule.mqtt_username
+        }));
+      }
+      
+      res.render('rule-history', {
+        ruleHistory,
+        db_connected: dbConnected,
+        system_state: systemState,
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID
+      });
+    } catch (error) {
+      console.error('Error rendering rule history page:', error);
+      res.status(500).send('Error loading rule history page');
+    }
+  });
+  
+  app.get('/api/rules/history', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = parseInt(req.query.skip) || 0;
+      const sortBy = req.query.sortBy || 'last_triggered';
+      const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+      
+      const ruleHistory = await db.all(`
+        SELECT id, name, description, last_triggered, trigger_count, conditions, actions, time_restrictions
+        FROM rules
+        WHERE last_triggered IS NOT NULL
+        AND user_id = ?
+        ORDER BY ${sortBy} ${sortOrder}
+        LIMIT ? OFFSET ?
+      `, [USER_ID, limit, skip]);
+      
+      const countResult = await db.get(`
+        SELECT COUNT(*) as total
+        FROM rules
+        WHERE last_triggered IS NOT NULL
+        AND user_id = ?
+      `, [USER_ID]);
+      
+      const totalCount = countResult.total;
+      
+      const formattedRules = ruleHistory.map(rule => ({
+        id: rule.id,
+        name: rule.name,
+        description: rule.description,
+        lastTriggered: new Date(rule.last_triggered),
+        triggerCount: rule.trigger_count,
+        conditions: JSON.parse(rule.conditions || '[]'),
+        actions: JSON.parse(rule.actions || '[]'),
+        timeRestrictions: JSON.parse(rule.time_restrictions || '{}')
+      }));
+      
+      res.json({
+        rules: formattedRules,
+        pagination: {
+          total: totalCount,
+          limit,
+          skip,
+          hasMore: skip + limit < totalCount
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching rule history:', error);
+      res.status(500).json({ error: 'Failed to retrieve rule history' });
+    }
+  });
+  
+  app.get('/api/rules/statistics', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ 
+          totalRules: 0,
+          totalExecutions: 0,
+          last24Hours: 0,
+          mostActiveRule: 'None'
+        });
+      }
+      
+      const totalRulesResult = await db.get(`
+        SELECT COUNT(*) as count FROM rules WHERE user_id = ?
+      `, [USER_ID]);
+      
+      const totalExecutionsResult = await db.get(`
+        SELECT SUM(trigger_count) as total FROM rules WHERE user_id = ?
+      `, [USER_ID]);
+      
+      const mostActiveRuleResult = await db.get(`
+        SELECT name, trigger_count FROM rules 
+        WHERE user_id = ? AND trigger_count > 0
+        ORDER BY trigger_count DESC
+        LIMIT 1
+      `, [USER_ID]);
+      
+      const now = new Date();
+      const oneDayAgo = new Date(now);
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      const last24HoursResult = await db.get(`
+        SELECT COUNT(*) as count FROM rules 
+        WHERE user_id = ? 
+        AND last_triggered IS NOT NULL 
+        AND last_triggered >= ?
+      `, [USER_ID, oneDayAgo.toISOString()]);
+      
+      res.json({
+        totalRules: totalRulesResult.count || 0,
+        totalExecutions: totalExecutionsResult.total || 0,
+        last24Hours: last24HoursResult.count || 0,
+        mostActiveRule: mostActiveRuleResult ? mostActiveRuleResult.name : 'None'
+      });
+    } catch (error) {
+      console.error('Error fetching rule statistics:', error);
+      res.json({
+        totalRules: 0,
+        totalExecutions: 0,
+        last24Hours: 0,
+        mostActiveRule: 'None'
+      });
+    }
+  });
+  
+  app.get('/api/rules/:id/execution-history', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const rule = await getRuleById(req.params.id, USER_ID);
+      
+      if (!rule) {
+        return res.status(404).json({ error: 'Rule not found' });
+      }
+      
+      if (!rule.lastTriggered) {
+        return res.json({
+          rule: {
+            id: rule.id,
+            name: rule.name,
+            description: rule.description,
+            active: rule.active
+          },
+          executionHistory: []
+        });
+      }
+      
+      const ruleDetails = {
+        id: rule.id,
+        name: rule.name,
+        description: rule.description,
+        active: rule.active,
+        conditions: rule.conditions,
+        actions: rule.actions,
+        timeRestrictions: rule.timeRestrictions,
+        lastTriggered: rule.lastTriggered,
+        triggerCount: rule.triggerCount || 0
+      };
+      
+      res.json({
+        rule: ruleDetails
+      });
+    } catch (error) {
+      console.error('Error fetching rule execution history:', error);
+      res.status(500).json({ error: 'Failed to retrieve rule execution history' });
+    }
+  });
+  
+  app.post('/api/rules/:id/execute', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      if (!learnerModeActive) {
+        return res.status(403).json({ error: 'Learner mode is not active. Cannot execute rules.' });
+      }
+      
+      const rule = await getRuleById(req.params.id, USER_ID);
+      
+      if (!rule) {
+        return res.status(404).json({ error: 'Rule not found' });
+      }
+      
+      if (rule.actions && rule.actions.length > 0) {
+        let allActionsApplied = true;
+        
+        rule.actions.forEach(action => {
+          const actionApplied = applyAction(action);
+          if (!actionApplied) {
+            allActionsApplied = false;
+          }
+        });
+        
+        if (!allActionsApplied) {
+          return res.status(403).json({ error: 'Some or all actions could not be applied because learner mode is inactive' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Rule has no actions to execute' });
+      }
+      
+      rule.lastTriggered = new Date();
+      rule.triggerCount = (rule.triggerCount || 0) + 1;
+      await updateRule(rule.id, rule);
+      
+      res.json({ 
+        message: `Rule "${rule.name}" executed successfully`, 
+        execution: {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          timestamp: rule.lastTriggered,
+          triggerCount: rule.triggerCount,
+          actions: rule.actions.map(action => ({
+            setting: action.setting,
+            value: action.value,
+            inverter: action.inverter
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('Error executing rule:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get('/rules', async (req, res) => {
+    try {
+      let rulesCount = 0;
+      let activeRulesCount = 0;
+      let systemState = { ...currentSystemState };
+      let recentlyTriggered = [];
+      
+      if (dbConnected) {
+        const rulesCountResult = await db.get(`
+          SELECT COUNT(*) as count FROM rules WHERE user_id = ?
+        `, [USER_ID]);
+        
+        rulesCount = rulesCountResult.count;
+        
+        const activeRulesCountResult = await db.get(`
+          SELECT COUNT(*) as count FROM rules WHERE active = 1 AND user_id = ?
+        `, [USER_ID]);
+        
+        activeRulesCount = activeRulesCountResult.count;
+        
+        const recentlyTriggeredResults = await db.all(`
+          SELECT id, name, last_triggered
+          FROM rules
+          WHERE last_triggered IS NOT NULL
+          AND user_id = ?
+          ORDER BY last_triggered DESC
+          LIMIT 5
+        `, [USER_ID]);
+        
+        recentlyTriggered = recentlyTriggeredResults.map(rule => ({
+          id: rule.id,
+          name: rule.name,
+          lastTriggered: new Date(rule.last_triggered)
+        }));
+      }
+      
+      res.render('rules', { 
+        db_connected: dbConnected,
+        rules_count: rulesCount,
+        active_rules_count: activeRulesCount,
+        system_state: systemState,
+        recently_triggered: recentlyTriggered,
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID,
+        // Enhanced rules page with inverter type support
+        inverterTypes: inverterTypes,
+        supportsLegacySettings: true,
+        supportsNewSettings: true,
+        autoMapping: true
+      });
+    } catch (error) {
+      console.error('Error rendering rules page:', error);
+      res.status(500).send('Error loading page data');
+    }
+  });
+    
+  app.get('/api/rules', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const activeFilter = req.query.active;
+      let queryOptions = { sort: { field: 'name', order: 'ASC' } };
+      
+      if (activeFilter !== undefined) {
+        const activeBoolean = activeFilter === 'true' || activeFilter === '1';
+        queryOptions.active = activeBoolean;
+      }
+      
+      const rules = await getAllRules(USER_ID, queryOptions);
+      
+      const rulesWithStatus = rules.map(rule => ({
+        ...rule,
+        active: rule.active === true,
+        isActive: rule.active === true
+      }));
+      
+      res.json(rulesWithStatus);
+    } catch (error) {
+      console.error('Error retrieving rules:', error);
+      res.status(500).json({ error: 'Failed to retrieve rules' });
+    }
+  });
+  
+  app.delete('/api/rules/:id', async (req, res) => {
+    try {
+      const ruleId = req.params.id;
+      
+      console.log(`Attempting to delete rule with ID: ${ruleId}`);
+      
+      if (!dbConnected) {
+        console.log('Database not connected, cannot delete rule');
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database not connected', 
+          status: 'disconnected' 
+        });
+      }
+      
+      const rule = await getRuleById(ruleId, USER_ID);
+      
+      if (!rule) {
+        console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Rule not found' 
+        });
+      }
+      
+      console.log(`Found rule "${rule.name}" with ID ${ruleId}, proceeding with deletion`);
+      const success = await deleteRule(ruleId, USER_ID);
+      
+      if (!success) {
+        console.log(`Failed to delete rule with ID ${ruleId}`);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Rule found but could not be deleted' 
+        });
+      }
+      
+      console.log(`Successfully deleted rule with ID ${ruleId}`);
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Rule deleted successfully' 
+      });
+    } catch (error) {
+      console.error('Error in delete rule endpoint:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error: ' + error.message 
+      });
+    }
+  });
+  
+  app.get('/api/rules/:id', async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const rule = await getRuleById(req.params.id, USER_ID);
+      
+      if (!rule) {
+        return res.status(404).json({ error: 'Rule not found' });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      console.error('Error retrieving rule:', error);
+      res.status(500).json({ error: 'Failed to retrieve rule' });
+    }
+  });
+  
+  app.get('/api/system-state', (req, res) => {
+    res.json({ 
+      current_state: currentSystemState,
+      timestamp: new Date()
+    });
+  });
+  
+  app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const changeType = req.query.type;
+      const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+      const skip = parseInt(req.query.skip) || 0;
+      
+      let query = `SELECT * FROM settings_changes WHERE user_id = ?`;
+      const params = [USER_ID];
+      
+      if (changeType) {
+        query += ` AND change_type = ?`;
+        params.push(changeType);
+      }
+      
+      query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
+      params.push(limit, skip);
+      
+      const changes = await db.all(query, params);
+      
+      const totalCountQuery = `SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?` + 
+        (changeType ? ` AND change_type = ?` : ``);
+      
+      const totalParams = changeType ? [USER_ID, changeType] : [USER_ID];
+      const totalResult = await db.get(totalCountQuery, totalParams);
+      
+      const formattedChanges = changes.map(change => ({
+        id: change.id,
+        timestamp: new Date(change.timestamp),
+        topic: change.topic,
+        old_value: parseJsonOrValue(change.old_value),
+        new_value: parseJsonOrValue(change.new_value),
+        system_state: {
+          battery_soc: JSON.parse(change.system_state || '{}').battery_soc,
+          pv_power: JSON.parse(change.system_state || '{}').pv_power,
+          load: JSON.parse(change.system_state || '{}').load,
+          grid_power: JSON.parse(change.system_state || '{}').grid_power,
+          timestamp: JSON.parse(change.system_state || '{}').timestamp
+        },
+        change_type: change.change_type,
+        user_id: change.user_id
+      }));
+      
+      res.json({
+        changes: formattedChanges,
+        pagination: {
+          total: totalResult.total,
+          limit,
+          skip,
+          hasMore: skip + limit < totalResult.total
+        }
+      });
+    } catch (error) {
+      console.error('Error retrieving settings changes:', error);
+      res.status(500).json({ error: 'Failed to retrieve data' });
+    }
+  });
+  
+  app.get('/api/learner/status', (req, res) => {
+    res.json({ 
+      active: learnerModeActive,
+      change_detection: 'always',
+      action_execution: learnerModeActive ? 'enabled' : 'disabled',
+      monitored_settings: settingsToMonitor,
+      current_system_state: currentSystemState,
+      db_connected: dbConnected,
+      // Enhanced learner status with inverter type info
+      inverter_types: inverterTypes,
+      supports_legacy: true,
+      supports_new: true,
+      auto_mapping: true
+    });
+  });
+  
+  app.post('/api/learner/toggle', (req, res) => {
+    learnerModeActive = !learnerModeActive;
+    
+    global.learnerModeActive = learnerModeActive;
+    
+    console.log(`Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`);
+    
+    if (dynamicPricingInstance && dynamicPricingInstance.enabled) {
+      const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+      const action = learnerModeActive 
+        ? 'Dynamic pricing commands now ENABLED (learner mode active)'
+        : 'Dynamic pricing commands now DISABLED (learner mode inactive)';
+      dynamicPricingIntegration.logAction(action);
     }
     
-    const setting = req.params.setting;
-    const days = parseInt(req.query.days) || 7; // Default to 7 days
-    
-    // Calculate date threshold (e.g., past 7 days)
-    const dateThreshold = new Date();
-    dateThreshold.setDate(dateThreshold.getDate() - days);
-    
-    // Find all changes for this setting
-    const changes = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE (topic LIKE ? OR change_type = ?) 
-      AND timestamp >= ? 
-      AND user_id = ?
-      ORDER BY timestamp ASC
-      LIMIT 1000
-    `, [`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID]);
-    
-    // Format data for charting (timestamp + value pairs)
-    const formattedData = changes.map(change => ({
-      timestamp: new Date(change.timestamp),
-      value: parseJsonOrValue(change.new_value),
-      old_value: parseJsonOrValue(change.old_value),
-      system_state: JSON.parse(change.system_state || '{}')
-    }));
-    
-    res.json({
-      success: true,
-      setting,
-      data: formattedData,
-      count: formattedData.length
+    res.json({ 
+      success: true, 
+      active: learnerModeActive,
+      message: `Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`,
+      note: "Commands will be intelligently mapped to appropriate inverter types.",
+      inverter_types: inverterTypes
     });
-  } catch (error) {
-    console.error(`Error retrieving ${req.params.setting} history:`, error);
-    res.status(500).json({ error: 'Failed to retrieve setting history' });
-  }
-});
-
-app.get('/dynamic-pricing', (req, res) => {
-  res.render('dynamic-pricing', {
-    ingress_path: process.env.INGRESS_PATH || '',
-    user_id: USER_ID // Use your global user ID variable
   });
-});
-
-
-
-app.get('/wizard', async (req, res) => {
-  try {
-    // Check if editing an existing rule (optional)
-    const editParam = req.query.edit;
-    
-    // Get current system state for reference
-    const systemState = { ...currentSystemState };
-    
-    // Get the number of inverters from config
-    const numInverters = inverterNumber || 1;
-    
-    res.render('wizard', { 
-      editParam,  // Pass the edit parameter to the template
-      systemState,
-      numInverters,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
+  
+  app.get('/api/learner/changes', apiRateLimiter, async (req, res) => {
+    try {
+      if (!dbConnected) {
+        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      }
+      
+      const limit = parseInt(req.query.limit) || 50;
+      
+      const changes = await db.all(`
+        SELECT * FROM settings_changes 
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+      `, [USER_ID, limit]);
+      
+      const formattedChanges = changes.map(change => ({
+        id: change.id,
+        timestamp: new Date(change.timestamp),
+        topic: change.topic,
+        old_value: parseJsonOrValue(change.old_value),
+        new_value: parseJsonOrValue(change.new_value),
+        system_state: JSON.parse(change.system_state || '{}'),
+        change_type: change.change_type,
+        user_id: change.user_id,
+        mqtt_username: change.mqtt_username
+      }));
+      
+      res.json(formattedChanges);
+    } catch (error) {
+      console.error('Error retrieving learner changes:', error);
+      res.status(500).json({ error: 'Failed to retrieve data' });
+    }
+  });
+  
+  app.get('/api/database/status', (req, res) => {
+    res.json({
+      connected: dbConnected,
+      type: 'SQLite',
+      file: DB_FILE.replace(/^.*[\\\/]/, '')
     });
-  } catch (error) {
-    console.error('Error rendering wizard page:', error);
-    res.status(500).send('Error loading wizard page');
-  }
+  });
+  
+  app.get('/learner', async (req, res) => {
+    try {
+      let changesCount = 0;
+      if (dbConnected) {
+        const result = await db.get(`
+          SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
+        `, [USER_ID]);
+        
+        changesCount = result.count;
+      }
+      
+      res.render('learner', { 
+        active: learnerModeActive,
+        change_detection: 'always',
+        monitored_settings: settingsToMonitor,
+        changes_count: changesCount,
+        db_connected: dbConnected,
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID,
+        // Enhanced learner page with inverter support
+        inverterTypes: inverterTypes,
+        supportsLegacySettings: true,
+        supportsNewSettings: true,
+        autoMapping: true
+      });
+    } catch (error) {
+      console.error('Error rendering learner page:', error);
+      res.status(500).send('Error loading page data');
+    }
+  });
+  
+  // Enhanced command injection route with inverter type auto-mapping
+  app.post('/api/command', (req, res) => {
+    try {
+      if (!learnerModeActive) {
+        return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
+      }
+      
+      const { topic, value } = req.body;
+      
+      if (!topic || !value) {
+        return res.status(400).json({ error: 'Missing topic or value' });
+      }
+      
+      if (!mqttClient || !mqttClient.connected) {
+        return res.status(503).json({ error: 'MQTT client not connected' });
+      }
+      
+      // Enhanced command processing with auto-mapping logic
+      let finalTopic = topic;
+      let finalValue = value;
+      
+      // Check if this is a legacy command that might need mapping
+      const topicParts = topic.split('/');
+      if (topicParts.length >= 3) {
+        const inverterId = topicParts[1]; // e.g., inverter_1
+        const setting = topicParts[2]; // e.g., energy_pattern
+        
+        if (inverterId && setting) {
+          const inverterType = getInverterType(inverterId);
+          
+          // Apply auto-mapping if needed
+          if (setting === 'energy_pattern' && (inverterType === 'new' || inverterType === 'hybrid')) {
+            const mappedValue = mapEnergyPatternToOutputSourcePriority(value);
+            finalTopic = topic.replace('/energy_pattern/', '/output_source_priority/');
+            finalValue = mappedValue;
+            console.log(`API Command: Auto-mapped energy_pattern "${value}" to output_source_priority "${mappedValue}" for ${inverterId} (type: ${inverterType})`);
+          } else if (setting === 'grid_charge' && (inverterType === 'new' || inverterType === 'hybrid')) {
+            const mappedValue = mapGridChargeToChargerSourcePriority(value);
+            finalTopic = topic.replace('/grid_charge/', '/charger_source_priority/');
+            finalValue = mappedValue;
+            console.log(`API Command: Auto-mapped grid_charge "${value}" to charger_source_priority "${mappedValue}" for ${inverterId} (type: ${inverterType})`);
+          } else if (setting === 'charger_source_priority' && inverterType === 'legacy') {
+            const mappedValue = mapChargerSourcePriorityToGridCharge(value);
+            finalTopic = topic.replace('/charger_source_priority/', '/grid_charge/');
+            finalValue = mappedValue;
+            console.log(`API Command: Auto-mapped charger_source_priority "${value}" to grid_charge "${mappedValue}" for ${inverterId} (type: ${inverterType})`);
+          } else if (setting === 'output_source_priority' && inverterType === 'legacy') {
+            const mappedValue = mapOutputSourcePriorityToEnergyPattern(value);
+            finalTopic = topic.replace('/output_source_priority/', '/energy_pattern/');
+            finalValue = mappedValue;
+            console.log(`API Command: Auto-mapped output_source_priority "${value}" to energy_pattern "${mappedValue}" for ${inverterId} (type: ${inverterType})`);
+          }
+        }
+      }
+      
+      mqttClient.publish(finalTopic, finalValue.toString(), { qos: 1, retain: false }, (err) => {
+        if (err) {
+          console.error(`Error publishing to ${finalTopic}: ${err.message}`);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`Command sent through API: ${finalTopic} = ${finalValue}`);
+        res.json({ 
+          success: true, 
+          message: `Command sent: ${finalTopic} = ${finalValue}`,
+          originalCommand: { topic, value },
+          appliedCommand: { topic: finalTopic, value: finalValue },
+          autoMapped: finalTopic !== topic || finalValue !== value
+        });
+      });
+    } catch (error) {
+      console.error('Error sending command:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get('/api/inverter-info/:inverter', (req, res) => {
+    try {
+      const inverterId = req.params.inverter;
+      
+      const info = {
+        serial_number: currentSettingsState.serial_number?.[inverterId]?.value,
+        power_saving: currentSettingsState.power_saving?.[inverterId]?.value,
+        firmware_version: currentSettingsState.firmware_version?.[inverterId]?.value
+      };
+      
+      const filteredInfo = {};
+      Object.keys(info).forEach(key => {
+        const value = info[key];
+        if (value !== undefined && 
+            value !== null && 
+            value !== 'N/A' && 
+            value !== '' && 
+            value !== 'Unknown' &&
+            value !== 'Loading...' &&
+            value !== '0' &&
+            value !== 0) {
+          filteredInfo[key] = value;
+        }
+      });
+      
+      res.json({ 
+        success: Object.keys(filteredInfo).length > 0, 
+        info: filteredInfo 
+      });
+    } catch (error) {
+      console.error('Error getting inverter info:', error);
+      res.status(500).json({ error: 'Failed to get inverter info' });
+    }
+  });
+  
+  app.get('/api/grid-settings/:inverter', (req, res) => {
+    try {
+      const inverterId = req.params.inverter;
+      
+      const settings = {
+        grid_type: currentSettingsState.grid_type?.[inverterId]?.value,
+        grid_voltage_high: currentSettingsState.grid_voltage_high?.[inverterId]?.value,
+        grid_voltage_low: currentSettingsState.grid_voltage_low?.[inverterId]?.value,
+        grid_frequency: currentSettingsState.grid_frequency?.[inverterId]?.value,
+        grid_frequency_high: currentSettingsState.grid_frequency_high?.[inverterId]?.value,
+        grid_frequency_low: currentSettingsState.grid_frequency_low?.[inverterId]?.value
+      };
+      
+      const filteredSettings = {};
+      Object.keys(settings).forEach(key => {
+        const value = settings[key];
+        if (value !== undefined && 
+            value !== null && 
+            value !== 'N/A' && 
+            value !== '' && 
+            value !== 'Unknown' &&
+            value !== 'Loading...' &&
+            value !== '0' &&
+            value !== 0) {
+          filteredSettings[key] = value;
+        }
+      });
+      
+      res.json({ 
+        success: Object.keys(filteredSettings).length > 0, 
+        settings: filteredSettings 
+      });
+    } catch (error) {
+      console.error('Error getting grid settings:', error);
+      res.status(500).json({ error: 'Failed to get grid settings' });
+    }
+  });
+  
+  app.get('/api/inverter-types/detailed', async (req, res) => {
+    try {
+        // Get current inverter types with additional metadata
+        const detailedTypes = {};
+        
+        Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+            detailedTypes[inverterId] = {
+                ...info,
+                // Add capability information
+                capabilities: getInverterCapabilities(info.type),
+                // Add supported settings
+                supportedSettings: getSupportedSettings(info.type),
+                // Add last seen timestamp from current settings
+                lastSeen: getLastSeenTimestamp(inverterId),
+                // Add confidence score
+                confidenceScore: calculateConfidenceScore(info),
+                // Add mapping information
+                mappingInfo: getMappingInfo(info.type)
+            };
+        });
+        
+        res.json({
+            success: true,
+            inverterTypes: detailedTypes,
+            totalInverters: inverterNumber,
+            detectionSummary: {
+                legacy: Object.values(detailedTypes).filter(inv => inv.type === 'legacy').length,
+                new: Object.values(detailedTypes).filter(inv => inv.type === 'new').length,
+                hybrid: Object.values(detailedTypes).filter(inv => inv.type === 'hybrid').length,
+                unknown: Object.values(detailedTypes).filter(inv => inv.type === 'unknown').length
+            },
+            recommendations: generateInverterRecommendations(detailedTypes)
+        });
+    } catch (error) {
+        console.error('Error getting detailed inverter types:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve detailed inverter information',
+            fallback: {
+                inverterTypes: {},
+                totalInverters: inverterNumber,
+                detectionSummary: { legacy: 0, new: 0, hybrid: 0, unknown: inverterNumber }
+            }
+        });
+    }
 });
 
-// ================ RULES MANAGEMENT API ================
+// Dynamic settings API based on inverter types
+app.get('/api/settings/available/:inverterId?', async (req, res) => {
+    try {
+        const inverterId = req.params.inverterId;
+        let availableSettings = {};
+        
+        if (inverterId && inverterTypes[inverterId]) {
+            // Get settings for specific inverter
+            availableSettings = getAvailableSettingsForInverter(inverterId);
+        } else {
+            // Get combined settings for all inverters
+            availableSettings = getAllAvailableSettings();
+        }
+        
+        res.json({
+            success: true,
+            settings: availableSettings,
+            inverterId: inverterId || 'all',
+            mappingInfo: getMappingInfoForSettings(availableSettings)
+        });
+    } catch (error) {
+        console.error('Error getting available settings:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve available settings' 
+        });
+    }
+});
 
-// Get all rules
+// Smart rule templates API
+app.get('/api/rules/templates', async (req, res) => {
+    try {
+        const templates = generateSmartRuleTemplates();
+        
+        res.json({
+            success: true,
+            templates: templates,
+            categories: {
+                'charging': templates.filter(t => t.category === 'charging'),
+                'energy_management': templates.filter(t => t.category === 'energy_management'),
+                'protection': templates.filter(t => t.category === 'protection'),
+                'optimization': templates.filter(t => t.category === 'optimization')
+            }
+        });
+    } catch (error) {
+        console.error('Error getting rule templates:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve rule templates' 
+        });
+    }
+});
+
+// Rule validation API for dynamic wizard
+app.post('/api/rules/validate', async (req, res) => {
+    try {
+        const { rule } = req.body;
+        const validationResult = validateRuleForInverterTypes(rule);
+        
+        res.json({
+            success: true,
+            validation: validationResult,
+            warnings: validationResult.warnings || [],
+            suggestions: validationResult.suggestions || [],
+            compatibility: validationResult.compatibility || {}
+        });
+    } catch (error) {
+        console.error('Error validating rule:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to validate rule' 
+        });
+    }
+});
+
+// Enhanced rule preview API
+app.post('/api/rules/preview', async (req, res) => {
+    try {
+        const { rule } = req.body;
+        const preview = generateRulePreview(rule);
+        
+        res.json({
+            success: true,
+            preview: preview,
+            mappingDetails: preview.mappingDetails,
+            estimatedImpact: preview.estimatedImpact
+        });
+    } catch (error) {
+        console.error('Error generating rule preview:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to generate rule preview' 
+        });
+    }
+});
+
 app.post('/api/rules', async (req, res) => {
   try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    // Validate the request body
-    const { name, description, active, conditions, timeRestrictions, actions } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ error: 'Rule name is required' });
-    }
-    
-    if (!actions || actions.length === 0) {
-      return res.status(400).json({ error: 'At least one action is required' });
-    }
-    
-    // Create the rule with user identification
-    const rule = {
-      name,
-      description,
-      active: active !== undefined ? active : true,
-      conditions: conditions || [],
-      timeRestrictions: timeRestrictions || {},
-      actions,
-      // Add user identification
-      user_id: USER_ID,
-      mqtt_username: mqttConfig.username
-    };
-    
-    const savedRule = await saveRule(rule);
-    
-    // Log the creation
-    console.log(`Rule "${name}" created successfully`);
-    
-    res.status(201).json(savedRule);
-  } catch (error) {
-    console.error('Error creating rule:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Get a specific rule
-app.put('/api/rules/:id', async (req, res) => {
-  try {
-    const ruleId = req.params.id;
-    
-    console.log(`Attempting to update rule with ID: ${ruleId}`);
-    console.log('Request body:', req.body);
+    console.log('Creating new rule with data:', req.body);
     
     if (!dbConnected) {
-      console.log('Database not connected, cannot update rule');
       return res.status(503).json({ 
         success: false, 
         error: 'Database not connected', 
@@ -5093,7 +5566,7 @@ app.put('/api/rules/:id', async (req, res) => {
     
     const { name, description, active, conditions, timeRestrictions, actions } = req.body;
     
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({ 
         success: false, 
         error: 'Rule name is required' 
@@ -5107,115 +5580,37 @@ app.put('/api/rules/:id', async (req, res) => {
       });
     }
     
-    // Find the rule filtered by both ID and user_id to ensure it belongs to this user
-    const rule = await getRuleById(ruleId, USER_ID);
-    
-    if (!rule) {
-      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Rule not found' 
-      });
-    }
-    
-    // Update the rule
-    const updatedRule = {
-      ...rule,
-      name,
-      description,
-      // Ensure active is a proper boolean, default to current state if undefined
-      active: active !== undefined ? !!active : rule.active,
-      conditions: conditions || [],
-      timeRestrictions: timeRestrictions || {},
-      actions
-    };
-    
-    console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
-    
-    const success = await updateRule(ruleId, updatedRule);
-    
-    if (!success) {
-      console.log(`Failed to update rule with ID ${ruleId}`);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to update rule' 
-      });
-    }
-    
-    console.log(`Successfully updated rule with ID ${ruleId}`);
-    return res.status(200).json({
-      success: true,
-      message: 'Rule updated successfully',
-      rule: updatedRule
-    });
-  } catch (error) {
-    console.error('Error in update rule endpoint:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Server error: ' + error.message 
-    });
-  }
-});
-
-app.post('/api/rules/:id/duplicate', async (req, res) => {
-  try {
-    const ruleId = req.params.id;
-    
-    console.log(`Attempting to duplicate rule with ID: ${ruleId}`);
-    
-    if (!dbConnected) {
-      console.log('Database not connected, cannot duplicate rule');
-      return res.status(503).json({ 
-        success: false, 
-        error: 'Database not connected', 
-        status: 'disconnected' 
-      });
-    }
-    
-    // Find the original rule filtered by both ID and user_id
-    const originalRule = await getRuleById(ruleId, USER_ID);
-    
-    if (!originalRule) {
-      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Rule not found' 
-      });
-    }
-    
-    // Create a new rule based on the original
     const newRule = {
-      name: `Copy of ${originalRule.name}`,
-      description: originalRule.description,
-      active: originalRule.active,
-      conditions: originalRule.conditions,
-      timeRestrictions: originalRule.timeRestrictions,
-      actions: originalRule.actions,
-      // Add user identification
+      name: name.trim(),
+      description: description || '',
+      active: active !== undefined ? !!active : true,
+      conditions: conditions || [],
+      timeRestrictions: timeRestrictions || { enabled: false },
+      actions: actions,
       user_id: USER_ID,
       mqtt_username: mqttConfig.username
     };
     
-    console.log(`Duplicating rule "${originalRule.name}"`, newRule);
+    console.log(`Creating new rule "${newRule.name}" with ${newRule.actions.length} action(s) and ${newRule.conditions.length} condition(s)`);
     
     const savedRule = await saveRule(newRule);
     
     if (!savedRule) {
-      console.log(`Failed to duplicate rule with ID ${ruleId}`);
+      console.log(`Failed to create new rule "${newRule.name}"`);
       return res.status(500).json({ 
         success: false, 
-        error: 'Failed to duplicate rule' 
+        error: 'Failed to create rule' 
       });
     }
     
-    console.log(`Successfully duplicated rule with ID ${ruleId} to new rule ID ${savedRule.id}`);
+    console.log(`Successfully created new rule with ID ${savedRule.id}`);
     return res.status(201).json({
       success: true,
-      message: `Rule "${originalRule.name}" duplicated successfully`,
+      message: 'Rule created successfully',
       rule: savedRule
     });
   } catch (error) {
-    console.error('Error in duplicate rule endpoint:', error);
+    console.error('Error in create rule endpoint:', error);
     return res.status(500).json({ 
       success: false, 
       error: 'Server error: ' + error.message 
@@ -5223,1006 +5618,1174 @@ app.post('/api/rules/:id/duplicate', async (req, res) => {
   }
 });
 
-// Add this route to display rule history
-app.get('/rule-history', async (req, res) => {
-  try {
-    let ruleHistory = [];
-    let systemState = { ...currentSystemState };
-    
-    if (dbConnected) {
-      // Get all rules with their trigger history for this user
-      ruleHistory = await db.all(`
-        SELECT * FROM rules
-        WHERE last_triggered IS NOT NULL
-        AND user_id = ?
-        ORDER BY last_triggered DESC
-      `, [USER_ID]);
-      
-      // Parse JSON fields and format dates
-      ruleHistory = ruleHistory.map(rule => ({
-        id: rule.id,
-        name: rule.name,
-        description: rule.description,
-        active: rule.active === 1,
-        conditions: JSON.parse(rule.conditions || '[]'),
-        timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-        actions: JSON.parse(rule.actions || '[]'),
-        createdAt: new Date(rule.created_at),
-        lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-        triggerCount: rule.trigger_count,
-        user_id: rule.user_id,
-        mqtt_username: rule.mqtt_username
-      }));
-    }
-    
-    res.render('rule-history', {
-      ruleHistory,
-      db_connected: dbConnected,
-      system_state: systemState,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
-    });
-  } catch (error) {
-    console.error('Error rendering rule history page:', error);
-    res.status(500).send('Error loading rule history page');
-  }
-});
+// ================ HELPER FUNCTIONS FOR DYNAMIC WIZARD ================
 
-// API route to get rule execution history
-app.get('/api/rules/history', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const limit = parseInt(req.query.limit) || 50;
-    const skip = parseInt(req.query.skip) || 0;
-    const sortBy = req.query.sortBy || 'last_triggered';
-    const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
-    
-    // Get rules that have been triggered for the current user
-    const ruleHistory = await db.all(`
-      SELECT id, name, description, last_triggered, trigger_count, conditions, actions, time_restrictions
-      FROM rules
-      WHERE last_triggered IS NOT NULL
-      AND user_id = ?
-      ORDER BY ${sortBy} ${sortOrder}
-      LIMIT ? OFFSET ?
-    `, [USER_ID, limit, skip]);
-    
-    // Get total count for pagination
-    const countResult = await db.get(`
-      SELECT COUNT(*) as total
-      FROM rules
-      WHERE last_triggered IS NOT NULL
-      AND user_id = ?
-    `, [USER_ID]);
-    
-    const totalCount = countResult.total;
-    
-    // Parse JSON fields and format dates
-    const formattedRules = ruleHistory.map(rule => ({
-      id: rule.id,
-      name: rule.name,
-      description: rule.description,
-      lastTriggered: new Date(rule.last_triggered),
-      triggerCount: rule.trigger_count,
-      conditions: JSON.parse(rule.conditions || '[]'),
-      actions: JSON.parse(rule.actions || '[]'),
-      timeRestrictions: JSON.parse(rule.time_restrictions || '{}')
-    }));
-    
-    res.json({
-      rules: formattedRules,
-      pagination: {
-        total: totalCount,
-        limit,
-        skip,
-        hasMore: skip + limit < totalCount
+function getInverterCapabilities(inverterType) {
+  const capabilities = {
+      legacy: {
+          gridCharging: true,
+          energyPattern: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true
+      },
+      new: {
+          chargerSourcePriority: true,
+          outputSourcePriority: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true,
+          advancedControl: true
+      },
+      hybrid: {
+          gridCharging: true,
+          energyPattern: true,
+          chargerSourcePriority: true,
+          outputSourcePriority: true,
+          voltagePoints: true,
+          workMode: true,
+          remoteSwitch: true,
+          batterySettings: true,
+          solarExport: true,
+          advancedControl: true,
+          dualMode: true
+      },
+      unknown: {
+          basicControl: true,
+          batterySettings: true,
+          remoteSwitch: true
       }
-    });
-  } catch (error) {
-    console.error('Error fetching rule history:', error);
-    res.status(500).json({ error: 'Failed to retrieve rule history' });
+  };
+  
+  return capabilities[inverterType] || capabilities.unknown;
+}
+
+function getSupportedSettings(inverterType) {
+  const settingsMap = {
+      legacy: [
+          'grid_charge',
+          'energy_pattern',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      new: [
+          'charger_source_priority',
+          'output_source_priority',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      hybrid: [
+          'grid_charge',
+          'energy_pattern',
+          'charger_source_priority',
+          'output_source_priority',
+          'work_mode',
+          'remote_switch',
+          'generator_charge',
+          'voltage_point_1',
+          'voltage_point_2',
+          'voltage_point_3',
+          'voltage_point_4',
+          'voltage_point_5',
+          'voltage_point_6',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current',
+          'solar_export_when_battery_full',
+          'max_sell_power'
+      ],
+      unknown: [
+          'work_mode',
+          'remote_switch',
+          'max_discharge_current',
+          'max_charge_current'
+      ]
+  };
+  
+  return settingsMap[inverterType] || settingsMap.unknown;
+}
+
+function getLastSeenTimestamp(inverterId) {
+  let lastSeen = null;
+  
+  // Check all setting categories for the most recent timestamp
+  Object.keys(currentSettingsState).forEach(category => {
+      if (typeof currentSettingsState[category] === 'object' && 
+          currentSettingsState[category][inverterId] &&
+          currentSettingsState[category][inverterId].lastUpdated) {
+          
+          const timestamp = new Date(currentSettingsState[category][inverterId].lastUpdated);
+          if (!lastSeen || timestamp > lastSeen) {
+              lastSeen = timestamp;
+          }
+      }
+  });
+  
+  return lastSeen;
+}
+
+function calculateConfidenceScore(inverterInfo) {
+  let score = inverterInfo.detectionConfidence || 0;
+  
+  // Boost confidence for consistent detection
+  if (inverterInfo.type !== 'unknown') {
+      score += 20;
   }
-});
-
-
-app.get('/api/rules/statistics', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ 
-        totalRules: 0,
-        totalExecutions: 0,
-        last24Hours: 0,
-        mostActiveRule: 'None'
-      });
-    }
-    
-    // Get total rules count for the current user
-    const totalRulesResult = await db.get(`
-      SELECT COUNT(*) as count FROM rules WHERE user_id = ?
-    `, [USER_ID]);
-    
-    // Calculate total executions
-    const totalExecutionsResult = await db.get(`
-      SELECT SUM(trigger_count) as total FROM rules WHERE user_id = ?
-    `, [USER_ID]);
-    
-    // Find most active rule
-    const mostActiveRuleResult = await db.get(`
-      SELECT name, trigger_count FROM rules 
-      WHERE user_id = ? AND trigger_count > 0
-      ORDER BY trigger_count DESC
-      LIMIT 1
-    `, [USER_ID]);
-    
-    // Calculate executions in the last 24 hours
-    const now = new Date();
-    const oneDayAgo = new Date(now);
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-    
-    const last24HoursResult = await db.get(`
-      SELECT COUNT(*) as count FROM rules 
-      WHERE user_id = ? 
-      AND last_triggered IS NOT NULL 
-      AND last_triggered >= ?
-    `, [USER_ID, oneDayAgo.toISOString()]);
-    
-    // Send simplified response with just the data needed for the dashboard
-    res.json({
-      totalRules: totalRulesResult.count || 0,
-      totalExecutions: totalExecutionsResult.total || 0,
-      last24Hours: last24HoursResult.count || 0,
-      mostActiveRule: mostActiveRuleResult ? mostActiveRuleResult.name : 'None'
-    });
-  } catch (error) {
-    console.error('Error fetching rule statistics:', error);
-    // Return default values if error occurs
-    res.json({
-      totalRules: 0,
-      totalExecutions: 0,
-      last24Hours: 0,
-      mostActiveRule: 'None'
-    });
+  
+  // Boost for hybrid detection (requires seeing both types)
+  if (inverterInfo.type === 'hybrid') {
+      score += 10;
   }
-});
+  
+  return Math.min(score, 100);
+}
 
-// Add a route to get full details for a specific rule's execution history
-app.get('/api/rules/:id/execution-history', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const rule = await getRuleById(req.params.id, USER_ID);
-    
-    if (!rule) {
-      return res.status(404).json({ error: 'Rule not found' });
-    }
-    
-    // If the rule has never been triggered, return an empty history
-    if (!rule.lastTriggered) {
-      return res.json({
-        rule: {
-          id: rule.id,
-          name: rule.name,
-          description: rule.description,
-          active: rule.active
-        },
-        executionHistory: []
+function getMappingInfo(inverterType) {
+  const mappingInfo = {
+      legacy: {
+          canReceive: ['charger_source_priority', 'output_source_priority'],
+          canSend: ['grid_charge', 'energy_pattern'],
+          autoMapping: true,
+          mappingRules: {
+              'charger_source_priority': 'Maps to grid_charge with intelligent translation',
+              'output_source_priority': 'Maps to energy_pattern with intelligent translation'
+          }
+      },
+      new: {
+          canReceive: ['grid_charge', 'energy_pattern'],
+          canSend: ['charger_source_priority', 'output_source_priority'],
+          autoMapping: true,
+          mappingRules: {
+              'grid_charge': 'Maps to charger_source_priority with intelligent translation',
+              'energy_pattern': 'Maps to output_source_priority with intelligent translation'
+          }
+      },
+      hybrid: {
+          canReceive: ['grid_charge', 'energy_pattern', 'charger_source_priority', 'output_source_priority'],
+          canSend: ['grid_charge', 'energy_pattern', 'charger_source_priority', 'output_source_priority'],
+          autoMapping: true,
+          nativeSupport: true,
+          mappingRules: {
+              'grid_charge': 'Native support with fallback to charger_source_priority',
+              'energy_pattern': 'Native support with fallback to output_source_priority',
+              'charger_source_priority': 'Native support with fallback to grid_charge',
+              'output_source_priority': 'Native support with fallback to energy_pattern'
+          }
+      },
+      unknown: {
+          canReceive: ['work_mode', 'remote_switch'],
+          canSend: ['work_mode', 'remote_switch'],
+          autoMapping: false,
+          limitedSupport: true,
+          mappingRules: {}
+      }
+  };
+  
+  return mappingInfo[inverterType] || mappingInfo.unknown;
+}
+
+function generateInverterRecommendations(detailedTypes) {
+  const recommendations = [];
+  
+  // Check for mixed environments
+  const types = Object.values(detailedTypes).map(inv => inv.type);
+  const uniqueTypes = [...new Set(types)];
+  
+  if (uniqueTypes.length > 1 && uniqueTypes.includes('legacy') && uniqueTypes.includes('new')) {
+      recommendations.push({
+          type: 'compatibility',
+          level: 'info',
+          title: 'Mixed Inverter Environment Detected',
+          message: 'You have both legacy and new inverters. Commands will be automatically translated for compatibility.',
+          action: 'Use universal settings when possible for consistent behavior.'
       });
-    }
-    
-    // Get rule details and execution history
-    const ruleDetails = {
-      id: rule.id,
+  }
+  
+  // Check for unknown types
+  const unknownCount = types.filter(t => t === 'unknown').length;
+  if (unknownCount > 0) {
+      recommendations.push({
+          type: 'detection',
+          level: 'warning',
+          title: `${unknownCount} Inverter(s) Not Yet Detected`,
+          message: 'Some inverters haven\'t been fully identified yet. Detection improves with MQTT activity.',
+          action: 'Monitor system activity or manually send test commands to improve detection.'
+      });
+  }
+  
+  // Check for low confidence
+  const lowConfidence = Object.values(detailedTypes)
+      .filter(inv => inv.confidenceScore < 50).length;
+  
+  if (lowConfidence > 0) {
+      recommendations.push({
+          type: 'confidence',
+          level: 'info',
+          title: 'Low Detection Confidence',
+          message: `${lowConfidence} inverter(s) have low detection confidence.`,
+          action: 'Increase MQTT activity or verify inverter responses to improve confidence.'
+      });
+  }
+  
+  return recommendations;
+}
+
+function getAvailableSettingsForInverter(inverterId) {
+  const inverterInfo = inverterTypes[inverterId];
+  if (!inverterInfo) {
+      return getDefaultAvailableSettings();
+  }
+  
+  const supportedSettings = getSupportedSettings(inverterInfo.type);
+  const capabilities = getInverterCapabilities(inverterInfo.type);
+  const mappingInfo = getMappingInfo(inverterInfo.type);
+  
+  return {
+      supported: supportedSettings,
+      capabilities: capabilities,
+      mapping: mappingInfo,
+      type: inverterInfo.type,
+      confidence: calculateConfidenceScore(inverterInfo)
+  };
+}
+
+function getAllAvailableSettings() {
+  const allSettings = {
+      universal: [],
+      legacy: [],
+      new: [],
+      mapping: {}
+  };
+  
+  // Collect all unique settings from all inverters
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      const supported = getSupportedSettings(info.type);
+      
+      supported.forEach(setting => {
+          if (info.type === 'legacy' && !allSettings.legacy.includes(setting)) {
+              allSettings.legacy.push(setting);
+          } else if (info.type === 'new' && !allSettings.new.includes(setting)) {
+              allSettings.new.push(setting);
+          }
+          
+          // Add to universal if supported by multiple types
+          if (!allSettings.universal.includes(setting)) {
+              const supportCount = Object.values(inverterTypes)
+                  .filter(inv => getSupportedSettings(inv.type).includes(setting)).length;
+              
+              if (supportCount >= Object.keys(inverterTypes).length * 0.5) {
+                  allSettings.universal.push(setting);
+              }
+          }
+      });
+      
+      // Add mapping information
+      const mappingInfo = getMappingInfo(info.type);
+      allSettings.mapping[inverterId] = mappingInfo;
+  });
+  
+  return allSettings;
+}
+
+function getDefaultAvailableSettings() {
+  return {
+      supported: [
+          'work_mode',
+          'remote_switch',
+          'max_discharge_current',
+          'max_charge_current',
+          'max_grid_charge_current'
+      ],
+      capabilities: getInverterCapabilities('unknown'),
+      mapping: getMappingInfo('unknown'),
+      type: 'unknown',
+      confidence: 0
+  };
+}
+
+function getMappingInfoForSettings(availableSettings) {
+  const mappingInfo = {};
+  
+  if (availableSettings.mapping) {
+      Object.entries(availableSettings.mapping).forEach(([inverterId, info]) => {
+          mappingInfo[inverterId] = {
+              autoMapping: info.autoMapping,
+              mappingRules: info.mappingRules,
+              canReceive: info.canReceive,
+              canSend: info.canSend
+          };
+      });
+  }
+  
+  return mappingInfo;
+}
+
+function generateSmartRuleTemplates() {
+  const templates = [
+      // Charging Templates
+      {
+          id: 'nighttime_grid_charging',
+          name: 'Nighttime Grid Charging',
+          description: 'Enable grid charging during off-peak hours (10PM-6AM)',
+          category: 'charging',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 80 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '22:00',
+              endTime: '06:00',
+              days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+          },
+          actions: [
+              { setting: 'grid_charge', value: 'Enabled', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'solar_priority_charging',
+          name: 'Solar Priority Charging',
+          description: 'Prioritize solar charging when PV production is high',
+          category: 'charging',
+          inverterCompatibility: ['new', 'hybrid'],
+          conditions: [
+              { parameter: 'pv_power', operator: 'gt', value: 5000 },
+              { parameter: 'battery_soc', operator: 'lt', value: 90 }
+          ],
+          actions: [
+              { setting: 'charger_source_priority', value: 'Solar first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'grid_charge', value: 'Disabled', inverter: 'all' }
+          ]
+      },
+      
+      // Energy Management Templates
+      {
+          id: 'load_first_pattern',
+          name: 'Load First Energy Pattern',
+          description: 'Prioritize direct solar consumption during peak production',
+          category: 'energy_management',
+          inverterCompatibility: ['legacy', 'hybrid'],
+          conditions: [
+              { parameter: 'pv_power', operator: 'gt', value: 8000 },
+              { parameter: 'battery_soc', operator: 'gt', value: 60 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '10:00',
+              endTime: '16:00'
+          },
+          actions: [
+              { setting: 'energy_pattern', value: 'Load first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'output_source_priority', value: 'Solar first', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'battery_first_evening',
+          name: 'Battery First Evening Mode',
+          description: 'Use battery power during evening hours to save on grid costs',
+          category: 'energy_management',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'gt', value: 40 }
+          ],
+          timeRestrictions: {
+              enabled: true,
+              startTime: '18:00',
+              endTime: '22:00'
+          },
+          actions: [
+              { setting: 'energy_pattern', value: 'Battery first', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'output_source_priority', value: 'Solar/Battery/Utility', inverter: 'all' }
+          ]
+      },
+      
+      // Protection Templates
+      {
+          id: 'low_battery_protection',
+          name: 'Low Battery Protection',
+          description: 'Reduce discharge current when battery is low to extend life',
+          category: 'protection',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 30 }
+          ],
+          actions: [
+              { setting: 'max_discharge_current', value: '30', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'emergency_grid_charging',
+          name: 'Emergency Grid Charging',
+          description: 'Enable aggressive grid charging when battery is critically low',
+          category: 'protection',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'battery_soc', operator: 'lt', value: 15 }
+          ],
+          actions: [
+              { setting: 'grid_charge', value: 'Enabled', inverter: 'all' },
+              { setting: 'max_grid_charge_current', value: '80', inverter: 'all' }
+          ],
+          fallbackActions: [
+              { setting: 'charger_source_priority', value: 'Utility first', inverter: 'all' }
+          ]
+      },
+      
+      // Optimization Templates
+      {
+          id: 'high_load_optimization',
+          name: 'High Load Optimization',
+          description: 'Optimize energy distribution during high load periods',
+          category: 'optimization',
+          inverterCompatibility: ['all'],
+          conditions: [
+              { parameter: 'load', operator: 'gt', value: 12000 }
+          ],
+          actions: [
+              { setting: 'max_sell_power', value: '0', inverter: 'all' },
+              { setting: 'solar_export_when_battery_full', value: 'Disabled', inverter: 'all' }
+          ]
+      },
+      {
+          id: 'weekend_eco_mode',
+          name: 'Weekend Eco Mode',
+          description: 'Optimize for maximum solar utilization on weekends',
+          category: 'optimization',
+          inverterCompatibility: ['all'],
+          timeRestrictions: {
+              enabled: true,
+              days: ['saturday', 'sunday']
+          },
+          actions: [
+              { setting: 'solar_export_when_battery_full', value: 'Enabled', inverter: 'all' },
+              { setting: 'max_charge_current', value: '100', inverter: 'all' }
+          ]
+      }
+  ];
+  
+  // Filter templates based on current inverter types
+  return templates.map(template => {
+      // Add compatibility information
+      template.compatibleInverters = getCompatibleInverters(template.inverterCompatibility);
+      template.mappingRequired = checkMappingRequired(template.actions);
+      template.estimatedEffectiveness = calculateTemplateEffectiveness(template);
+      
+      return template;
+  });
+}
+
+function getCompatibleInverters(compatibility) {
+  const compatibleList = [];
+  
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      if (compatibility.includes('all') || 
+          compatibility.includes(info.type)) {
+          compatibleList.push({
+              id: inverterId,
+              type: info.type,
+              confidence: calculateConfidenceScore(info)
+          });
+      }
+  });
+  
+  return compatibleList;
+}
+
+function checkMappingRequired(actions) {
+  const mappingRequired = {};
+  
+  actions.forEach(action => {
+      if (action.inverter === 'all') {
+          Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+              const needsMapping = willRequireMapping(action.setting, info.type);
+              if (needsMapping) {
+                  mappingRequired[inverterId] = {
+                      from: action.setting,
+                      to: getMappedSetting(action.setting, info.type),
+                      type: info.type
+                  };
+              }
+          });
+      } else {
+          const inverterInfo = inverterTypes[action.inverter];
+          if (inverterInfo) {
+              const needsMapping = willRequireMapping(action.setting, inverterInfo.type);
+              if (needsMapping) {
+                  mappingRequired[action.inverter] = {
+                      from: action.setting,
+                      to: getMappedSetting(action.setting, inverterInfo.type),
+                      type: inverterInfo.type
+                  };
+              }
+          }
+      }
+  });
+  
+  return Object.keys(mappingRequired).length > 0 ? mappingRequired : null;
+}
+
+function willRequireMapping(setting, inverterType) {
+  const legacySettings = ['grid_charge', 'energy_pattern'];
+  const newSettings = ['charger_source_priority', 'output_source_priority'];
+  
+  return (legacySettings.includes(setting) && (inverterType === 'new')) ||
+         (newSettings.includes(setting) && (inverterType === 'legacy'));
+}
+
+function getMappedSetting(setting, inverterType) {
+  const mappings = {
+      'grid_charge': {
+          'new': 'charger_source_priority',
+          'hybrid': 'charger_source_priority'
+      },
+      'energy_pattern': {
+          'new': 'output_source_priority', 
+          'hybrid': 'output_source_priority'
+      },
+      'charger_source_priority': {
+          'legacy': 'grid_charge'
+      },
+      'output_source_priority': {
+          'legacy': 'energy_pattern'
+      }
+  };
+  
+  return mappings[setting] && mappings[setting][inverterType] || setting;
+}
+
+function calculateTemplateEffectiveness(template) {
+  let score = 50; // Base score
+  
+  // Boost for time restrictions (more targeted)
+  if (template.timeRestrictions && template.timeRestrictions.enabled) {
+      score += 20;
+  }
+  
+  // Boost for multiple conditions (more precise)
+  if (template.conditions && template.conditions.length > 1) {
+      score += 15;
+  }
+  
+  // Boost for universal compatibility
+  if (template.inverterCompatibility.includes('all')) {
+      score += 10;
+  }
+  
+  // Reduce for mapping requirements (slight overhead)
+  if (template.mappingRequired) {
+      score -= 5;
+  }
+  
+  return Math.min(Math.max(score, 0), 100);
+}
+
+function validateRuleForInverterTypes(rule) {
+  const validation = {
+      valid: true,
+      warnings: [],
+      suggestions: [],
+      compatibility: {},
+      mappingInfo: {}
+  };
+  
+  // Validate actions against inverter types
+  rule.actions.forEach((action, index) => {
+      const actionValidation = validateActionForInverters(action);
+      
+      if (!actionValidation.valid) {
+          validation.valid = false;
+          validation.warnings.push(`Action ${index + 1}: ${actionValidation.error}`);
+      }
+      
+      if (actionValidation.mappingRequired) {
+          validation.mappingInfo[`action_${index}`] = actionValidation.mappingRequired;
+      }
+      
+      if (actionValidation.suggestions) {
+          validation.suggestions.push(...actionValidation.suggestions);
+      }
+  });
+  
+  // Check compatibility across all targeted inverters
+  const compatibilityCheck = checkRuleCompatibility(rule);
+  validation.compatibility = compatibilityCheck;
+  
+  return validation;
+}
+
+function validateActionForInverters(action) {
+  const validation = {
+      valid: true,
+      warnings: [],
+      suggestions: [],
+      mappingRequired: null
+  };
+  
+  const targetInverters = action.inverter === 'all' ? 
+      Object.keys(inverterTypes) : [action.inverter];
+  
+  targetInverters.forEach(inverterId => {
+      const inverterInfo = inverterTypes[inverterId];
+      if (!inverterInfo) {
+          validation.warnings.push(`Inverter ${inverterId} not found`);
+          return;
+      }
+      
+      const supportedSettings = getSupportedSettings(inverterInfo.type);
+      
+      if (!supportedSettings.includes(action.setting)) {
+          // Check if mapping is possible
+          const mappedSetting = getMappedSetting(action.setting, inverterInfo.type);
+          
+          if (supportedSettings.includes(mappedSetting)) {
+              if (!validation.mappingRequired) {
+                  validation.mappingRequired = {};
+              }
+              validation.mappingRequired[inverterId] = {
+                  from: action.setting,
+                  to: mappedSetting,
+                  inverterType: inverterInfo.type
+              };
+          } else {
+              validation.valid = false;
+              validation.warnings.push(`Setting ${action.setting} not supported by ${inverterId} (${inverterInfo.type})`);
+          }
+      }
+  });
+  
+  return validation;
+}
+
+function checkRuleCompatibility(rule) {
+  const compatibility = {
+      universal: true,
+      inverterSpecific: {},
+      mixedEnvironment: false,
+      recommendedApproach: 'universal'
+  };
+  
+  const detectedTypes = [...new Set(Object.values(inverterTypes).map(inv => inv.type))];
+  compatibility.mixedEnvironment = detectedTypes.length > 1;
+  
+  if (compatibility.mixedEnvironment) {
+      compatibility.recommendedApproach = 'adaptive';
+      compatibility.universal = false;
+  }
+  
+  // Check each inverter's compatibility
+  Object.entries(inverterTypes).forEach(([inverterId, info]) => {
+      const inverterCompatibility = {
+          supported: true,
+          mappingRequired: false,
+          confidence: calculateConfidenceScore(info),
+          recommendations: []
+      };
+      
+      rule.actions.forEach(action => {
+          if (action.inverter === 'all' || action.inverter === inverterId) {
+              const supportedSettings = getSupportedSettings(info.type);
+              
+              if (!supportedSettings.includes(action.setting)) {
+                  const mappedSetting = getMappedSetting(action.setting, info.type);
+                  
+                  if (supportedSettings.includes(mappedSetting)) {
+                      inverterCompatibility.mappingRequired = true;
+                      inverterCompatibility.recommendations.push(
+                          `${action.setting} will be mapped to ${mappedSetting}`
+                      );
+                  } else {
+                      inverterCompatibility.supported = false;
+                      inverterCompatibility.recommendations.push(
+                          `${action.setting} is not supported by this inverter type`
+                      );
+                  }
+              }
+          }
+      });
+      
+      compatibility.inverterSpecific[inverterId] = inverterCompatibility;
+  });
+  
+  return compatibility;
+}
+
+function generateRulePreview(rule) {
+  const preview = {
+      summary: generateRuleSummary(rule),
+      mappingDetails: generateMappingDetails(rule),
+      estimatedImpact: estimateRuleImpact(rule),
+      executionFlow: generateExecutionFlow(rule),
+      compatibility: checkRuleCompatibility(rule)
+  };
+  
+  return preview;
+}
+
+function generateRuleSummary(rule) {
+  return {
       name: rule.name,
       description: rule.description,
       active: rule.active,
-      conditions: rule.conditions,
-      actions: rule.actions,
-      timeRestrictions: rule.timeRestrictions,
-      lastTriggered: rule.lastTriggered,
-      triggerCount: rule.triggerCount || 0
-    };
-    
-    res.json({
-      rule: ruleDetails
-    });
-  } catch (error) {
-    console.error('Error fetching rule execution history:', error);
-    res.status(500).json({ error: 'Failed to retrieve rule execution history' });
-  }
-});
+      conditionCount: rule.conditions ? rule.conditions.length : 0,
+      actionCount: rule.actions ? rule.actions.length : 0,
+      hasTimeRestrictions: rule.timeRestrictions && rule.timeRestrictions.enabled,
+      targetInverters: getTargetInverters(rule.actions),
+      complexity: calculateRuleComplexity(rule)
+  };
+}
 
-
-app.post('/api/rules/:id/execute', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    // Check if learner mode is active
-    if (!learnerModeActive) {
-      return res.status(403).json({ error: 'Learner mode is not active. Cannot execute rules.' });
-    }
-    
-    // Find the rule filtered by both ID and user_id
-    const rule = await getRuleById(req.params.id, USER_ID);
-    
-    if (!rule) {
-      return res.status(404).json({ error: 'Rule not found' });
-    }
-    
-    // Force execution regardless of conditions
-    if (rule.actions && rule.actions.length > 0) {
-      let allActionsApplied = true;
+function generateMappingDetails(rule) {
+  const mappingDetails = {};
+  
+  rule.actions.forEach((action, index) => {
+      const targetInverters = action.inverter === 'all' ? 
+          Object.keys(inverterTypes) : [action.inverter];
       
-      rule.actions.forEach(action => {
-        const actionApplied = applyAction(action);
-        if (!actionApplied) {
-          allActionsApplied = false;
-        }
+      targetInverters.forEach(inverterId => {
+          const inverterInfo = inverterTypes[inverterId];
+          if (inverterInfo && willRequireMapping(action.setting, inverterInfo.type)) {
+              if (!mappingDetails[inverterId]) {
+                  mappingDetails[inverterId] = [];
+              }
+              
+              mappingDetails[inverterId].push({
+                  actionIndex: index,
+                  originalSetting: action.setting,
+                  mappedSetting: getMappedSetting(action.setting, inverterInfo.type),
+                  inverterType: inverterInfo.type,
+                  confidence: calculateConfidenceScore(inverterInfo)
+              });
+          }
       });
-      
-      if (!allActionsApplied) {
-        return res.status(403).json({ error: 'Some or all actions could not be applied because learner mode is inactive' });
-      }
-    } else {
-      return res.status(400).json({ error: 'Rule has no actions to execute' });
-    }
-    
-    // Update rule statistics
-    rule.lastTriggered = new Date();
-    rule.triggerCount = (rule.triggerCount || 0) + 1;
-    await updateRule(rule.id, rule);
-    
-    // Log removed: console.log(`Rule "${rule.name}" manually executed at ${rule.lastTriggered}`);
-    
-    res.json({ 
-      message: `Rule "${rule.name}" executed successfully`, 
-      execution: {
-        ruleId: rule.id,
-        ruleName: rule.name,
-        timestamp: rule.lastTriggered,
-        triggerCount: rule.triggerCount,
-        actions: rule.actions.map(action => ({
-          setting: action.setting,
-          value: action.value,
-          inverter: action.inverter
-        }))
-      }
-    });
-  } catch (error) {
-    console.error('Error executing rule:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// Enhance the rules page with additional data
-app.get('/rules', async (req, res) => {
-  try {
-    let rulesCount = 0;
-    let activeRulesCount = 0;
-    let systemState = { ...currentSystemState };
-    let recentlyTriggered = [];
-    
-    if (dbConnected) {
-      const rulesCountResult = await db.get(`
-        SELECT COUNT(*) as count FROM rules WHERE user_id = ?
-      `, [USER_ID]);
-      
-      rulesCount = rulesCountResult.count;
-      
-      const activeRulesCountResult = await db.get(`
-        SELECT COUNT(*) as count FROM rules WHERE active = 1 AND user_id = ?
-      `, [USER_ID]);
-      
-      activeRulesCount = activeRulesCountResult.count;
-      
-      // Get recently triggered rules
-      const recentlyTriggeredResults = await db.all(`
-        SELECT id, name, last_triggered
-        FROM rules
-        WHERE last_triggered IS NOT NULL
-        AND user_id = ?
-        ORDER BY last_triggered DESC
-        LIMIT 5
-      `, [USER_ID]);
-      
-      recentlyTriggered = recentlyTriggeredResults.map(rule => ({
-        id: rule.id,
-        name: rule.name,
-        lastTriggered: new Date(rule.last_triggered)
-      }));
-    }
-    
-    res.render('rules', { 
-      db_connected: dbConnected,
-      rules_count: rulesCount,
-      active_rules_count: activeRulesCount,
-      system_state: systemState,
-      recently_triggered: recentlyTriggered,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
-    });
-  } catch (error) {
-    console.error('Error rendering rules page:', error);
-    res.status(500).send('Error loading page data');
-  }
-});
+  });
   
+  return mappingDetails;
+}
 
-app.get('/api/rules', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    // Allow filtering by active status in the API
-    const activeFilter = req.query.active;
-    let queryOptions = { sort: { field: 'name', order: 'ASC' } };
-    
-    // Only add the active filter if it's explicitly provided
-    if (activeFilter !== undefined) {
-      // Convert string 'true'/'false' to boolean
-      const activeBoolean = activeFilter === 'true' || activeFilter === '1';
-      queryOptions.active = activeBoolean;
-    }
-    
-    const rules = await getAllRules(USER_ID, queryOptions);
-    
-    // Add explicit indication of active status in response
-    const rulesWithStatus = rules.map(rule => ({
-      ...rule,
-      active: rule.active === true, // Ensure it's a boolean
-      isActive: rule.active === true // Additional explicit field
-    }));
-    
-    res.json(rulesWithStatus);
-  } catch (error) {
-    console.error('Error retrieving rules:', error);
-    res.status(500).json({ error: 'Failed to retrieve rules' });
-  }
-});
+function estimateRuleImpact(rule) {
+  return {
+      energyImpact: estimateEnergyImpact(rule),
+      systemLoad: estimateSystemLoad(rule),
+      batteryImpact: estimateBatteryImpact(rule),
+      costImpact: estimateCostImpact(rule)
+  };
+}
 
-app.delete('/api/rules/:id', async (req, res) => {
-  try {
-    const ruleId = req.params.id;
-    
-    console.log(`Attempting to delete rule with ID: ${ruleId}`);
-    
-    if (!dbConnected) {
-      console.log('Database not connected, cannot delete rule');
-      return res.status(503).json({ 
-        success: false, 
-        error: 'Database not connected', 
-        status: 'disconnected' 
+function generateExecutionFlow(rule) {
+  const flow = [];
+  
+  // Add condition evaluation
+  if (rule.conditions && rule.conditions.length > 0) {
+      flow.push({
+          step: 'condition_evaluation',
+          description: `Evaluate ${rule.conditions.length} condition(s)`,
+          conditions: rule.conditions
       });
-    }
-    
-    // First check if the rule exists and belongs to this user
-    const rule = await getRuleById(ruleId, USER_ID);
-    
-    if (!rule) {
-      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Rule not found' 
+  }
+  
+  // Add time restriction check
+  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+      flow.push({
+          step: 'time_check',
+          description: 'Check time restrictions',
+          restrictions: rule.timeRestrictions
       });
-    }
-    
-    // Proceed with deletion
-    console.log(`Found rule "${rule.name}" with ID ${ruleId}, proceeding with deletion`);
-    const success = await deleteRule(ruleId, USER_ID);
-    
-    if (!success) {
-      console.log(`Failed to delete rule with ID ${ruleId}`);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Rule found but could not be deleted' 
+  }
+  
+  // Add action execution
+  rule.actions.forEach((action, index) => {
+      flow.push({
+          step: 'action_execution',
+          description: `Execute action ${index + 1}: Set ${action.setting} to ${action.value}`,
+          action: action,
+          targetInverters: action.inverter === 'all' ? 
+              Object.keys(inverterTypes) : [action.inverter]
       });
-    }
-    
-    console.log(`Successfully deleted rule with ID ${ruleId}`);
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Rule deleted successfully' 
-    });
-  } catch (error) {
-    console.error('Error in delete rule endpoint:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Server error: ' + error.message 
-    });
-  }
-});
-
-app.get('/api/rules/:id', async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    // Find the rule filtered by both ID and user_id
-    const rule = await getRuleById(req.params.id, USER_ID);
-    
-    if (!rule) {
-      return res.status(404).json({ error: 'Rule not found' });
-    }
-    
-    res.json(rule);
-  } catch (error) {
-    console.error('Error retrieving rule:', error);
-    res.status(500).json({ error: 'Failed to retrieve rule' });
-  }
-});
-
-// API endpoint for current system state
-app.get('/api/system-state', (req, res) => {
-  res.json({ 
-    current_state: currentSystemState,
-    timestamp: new Date()
   });
-});
+  
+  return flow;
+}
 
-app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const changeType = req.query.type;
-    // Enforce smaller limits on result sets
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100 items, default 50
-    const skip = parseInt(req.query.skip) || 0;
-    
-    let query = `SELECT * FROM settings_changes WHERE user_id = ?`;
-    const params = [USER_ID];
-    
-    if (changeType) {
-      query += ` AND change_type = ?`;
-      params.push(changeType);
-    }
-    
-    query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
-    params.push(limit, skip);
-    
-    const changes = await db.all(query, params);
-    
-    const totalCountQuery = `SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?` + 
-      (changeType ? ` AND change_type = ?` : ``);
-    
-    const totalParams = changeType ? [USER_ID, changeType] : [USER_ID];
-    const totalResult = await db.get(totalCountQuery, totalParams);
-    
-    // Parse JSON fields and format dates
-    const formattedChanges = changes.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      // Only include a limited portion of system state to save memory
-      system_state: {
-        battery_soc: JSON.parse(change.system_state || '{}').battery_soc,
-        pv_power: JSON.parse(change.system_state || '{}').pv_power,
-        load: JSON.parse(change.system_state || '{}').load,
-        grid_power: JSON.parse(change.system_state || '{}').grid_power,
-        timestamp: JSON.parse(change.system_state || '{}').timestamp
-      },
-      change_type: change.change_type,
-      user_id: change.user_id
-    }));
-    
-    res.json({
-      changes: formattedChanges,
-      pagination: {
-        total: totalResult.total,
-        limit,
-        skip,
-        hasMore: skip + limit < totalResult.total
+function getTargetInverters(actions) {
+  const targets = new Set();
+  
+  actions.forEach(action => {
+      if (action.inverter === 'all') {
+          Object.keys(inverterTypes).forEach(id => targets.add(id));
+      } else {
+          targets.add(action.inverter);
       }
-    });
-  } catch (error) {
-    console.error('Error retrieving settings changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
-  }
-});
-
-
-app.get('/api/learner/status', (req, res) => {
-  res.json({ 
-    active: learnerModeActive,
-    change_detection: 'always', // Indicating that changes are always detected
-    action_execution: learnerModeActive ? 'enabled' : 'disabled', // Only execute actions when learner mode is active
-    monitored_settings: settingsToMonitor,
-    current_system_state: currentSystemState,
-    db_connected: dbConnected
   });
-});
+  
+  return Array.from(targets);
+}
 
-app.post('/api/learner/toggle', (req, res) => {
-  learnerModeActive = !learnerModeActive;
+function calculateRuleComplexity(rule) {
+  let complexity = 0;
   
-  // Update the global variable as well
-  global.learnerModeActive = learnerModeActive;
+  // Conditions add complexity
+  complexity += (rule.conditions || []).length * 2;
   
-  console.log(`Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`);
+  // Actions add complexity
+  complexity += (rule.actions || []).length * 3;
   
-  // Log the state change for dynamic pricing
-  if (dynamicPricingInstance && dynamicPricingInstance.enabled) {
-    const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-    const action = learnerModeActive 
-      ? 'Dynamic pricing commands now ENABLED (learner mode active)'
-      : 'Dynamic pricing commands now DISABLED (learner mode inactive)';
-    dynamicPricingIntegration.logAction(action);
+  // Time restrictions add complexity
+  if (rule.timeRestrictions && rule.timeRestrictions.enabled) {
+      complexity += 5;
   }
   
-  res.json({ 
-    success: true, 
-    active: learnerModeActive,
-    message: `Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`,
-    note: "Dynamic pricing commands will only be sent when learner mode is active."
+  // Multiple target inverters add complexity
+  const targetCount = getTargetInverters(rule.actions).length;
+  complexity += targetCount * 1;
+  
+  return Math.min(complexity, 100);
+}
+
+function estimateEnergyImpact(rule) {
+  // Simplified energy impact estimation
+  const impacts = [];
+  
+  rule.actions.forEach(action => {
+      switch (action.setting) {
+          case 'grid_charge':
+          case 'charger_source_priority':
+              impacts.push(action.value.includes('Enabled') || action.value.includes('first') ? 'medium_increase' : 'medium_decrease');
+              break;
+          case 'energy_pattern':
+          case 'output_source_priority':
+              impacts.push('medium_change');
+              break;
+          case 'max_charge_current':
+          case 'max_discharge_current':
+              impacts.push('low_change');
+              break;
+          default:
+              impacts.push('minimal_change');
+      }
   });
-});
+  
+  return {
+      level: impacts.includes('medium_increase') ? 'medium' : 'low',
+      description: 'Estimated based on action types',
+      factors: impacts
+  };
+}
 
-app.get('/api/learner/changes', apiRateLimiter, async (req, res) => {
-  try {
-    if (!dbConnected) {
-      return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-    }
-    
-    const limit = parseInt(req.query.limit) || 50;
-    
-    const changes = await db.all(`
-      SELECT * FROM settings_changes 
-      WHERE user_id = ?
-      ORDER BY timestamp DESC
-      LIMIT ?
-    `, [USER_ID, limit]);
-    
-    // Parse JSON fields and format dates
-    const formattedChanges = changes.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
-    }));
-    
-    res.json(formattedChanges);
-  } catch (error) {
-    console.error('Error retrieving learner changes:', error);
-    res.status(500).json({ error: 'Failed to retrieve data' });
+function estimateSystemLoad(rule) {
+  const actionCount = rule.actions ? rule.actions.length : 0;
+  const conditionCount = rule.conditions ? rule.conditions.length : 0;
+  
+  let load = 'low';
+  if (actionCount > 3 || conditionCount > 5) {
+      load = 'medium';
   }
-});
-
-app.get('/api/database/status', (req, res) => {
-  res.json({
-    connected: dbConnected,
-    type: 'SQLite',
-    file: DB_FILE.replace(/^.*[\\\/]/, '') // Just the filename, not the full path
-  });
-});
-
-app.get('/learner', async (req, res) => {
-  try {
-    let changesCount = 0;
-    if (dbConnected) {
-      const result = await db.get(`
-        SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-      `, [USER_ID]);
-      
-      changesCount = result.count;
-    }
-    
-    res.render('learner', { 
-      active: learnerModeActive,
-      change_detection: 'always', // New property to inform the front-end
-      monitored_settings: settingsToMonitor,
-      changes_count: changesCount,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID // Pass user ID to template
-    });
-  } catch (error) {
-    console.error('Error rendering learner page:', error);
-    res.status(500).send('Error loading page data');
+  if (actionCount > 6 || conditionCount > 10) {
+      load = 'high';
   }
-});
+  
+  return {
+      level: load,
+      description: `Based on ${actionCount} actions and ${conditionCount} conditions`
+  };
+}
 
-// Update the direct MQTT command injection route
-app.post('/api/command', (req, res) => {
-  try {
-    // Check if learner mode is active
-    if (!learnerModeActive) {
-      return res.status(403).json({ error: 'Learner mode is not active. Cannot send commands.' });
-    }
-    
-    const { topic, value } = req.body;
-    
-    if (!topic || !value) {
-      return res.status(400).json({ error: 'Missing topic or value' });
-    }
-    
-    if (!mqttClient || !mqttClient.connected) {
-      return res.status(503).json({ error: 'MQTT client not connected' });
-    }
-    
-    mqttClient.publish(topic, value.toString(), { qos: 1, retain: false }, (err) => {
-      if (err) {
-        console.error(`Error publishing to ${topic}: ${err.message}`);
-        return res.status(500).json({ error: err.message });
-      }
-      
-     // Uncomment or add this line:
-  console.log(`Command sent through API: ${topic} = ${value}`);
-  res.json({ success: true, message: `Command sent: ${topic} = ${value}` });
-    });
-  } catch (error) {
-    console.error('Error sending command:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+function estimateBatteryImpact(rule) {
+  const batteryActions = rule.actions.filter(action => 
+      action.setting.includes('charge') || 
+      action.setting.includes('battery') ||
+      action.setting.includes('discharge')
+  );
+  
+  return {
+      level: batteryActions.length > 0 ? 'medium' : 'low',
+      description: `${batteryActions.length} battery-related actions`,
+      affectedSettings: batteryActions.map(a => a.setting)
+  };
+}
+
+function estimateCostImpact(rule) {
+  const costImpactActions = rule.actions.filter(action => 
+      action.setting === 'grid_charge' ||
+      action.setting === 'charger_source_priority' ||
+      action.setting.includes('sell')
+  );
+  
+  return {
+      level: costImpactActions.length > 0 ? 'medium' : 'low',
+      description: `${costImpactActions.length} cost-affecting actions`,
+      potentialSavings: costImpactActions.length > 0 ? 'possible' : 'minimal'
+  };
+}
 
 
-app.get('/inverter-settings', async (req, res) => {
-  try {
-    res.render('inverter-settings', { 
-      active: learnerModeActive,
-      db_connected: dbConnected,
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID,
-      numInverters: inverterNumber || 1,
-      currentSystemState: currentSystemState,
-      mqtt_topic_prefix: options.mqtt_topic_prefix || 'energy',
-      // Pass current settings to template
-      currentSettings: currentSettingsState
-    });
-  } catch (error) {
-    console.error('Error rendering inverter-settings page:', error);
-    res.status(500).send('Error loading inverter settings page');
-  }
-});
-
-// Dynamic inverter info API - only returns data that exists
-app.get('/api/inverter-info/:inverter', (req, res) => {
-  try {
-    const inverterId = req.params.inverter;
-    
-    // Get dynamic data from currentSettingsState
-    const info = {
-      serial_number: currentSettingsState.serial_number?.[inverterId]?.value,
-      power_saving: currentSettingsState.power_saving?.[inverterId]?.value,
-      firmware_version: currentSettingsState.firmware_version?.[inverterId]?.value
-    };
-    
-    // Only include fields that have actual valid data
-    const filteredInfo = {};
-    Object.keys(info).forEach(key => {
-      const value = info[key];
-      if (value !== undefined && 
-          value !== null && 
-          value !== 'N/A' && 
-          value !== '' && 
-          value !== 'Unknown' &&
-          value !== 'Loading...' &&
-          value !== '0' &&
-          value !== 0) {
-        filteredInfo[key] = value;
-      }
-    });
-    
-    res.json({ 
-      success: Object.keys(filteredInfo).length > 0, 
-      info: filteredInfo 
-    });
-  } catch (error) {
-    console.error('Error getting inverter info:', error);
-    res.status(500).json({ error: 'Failed to get inverter info' });
-  }
-});
-
-// Dynamic grid settings API - only returns data that exists
-app.get('/api/grid-settings/:inverter', (req, res) => {
-  try {
-    const inverterId = req.params.inverter;
-    
-    // Get dynamic grid data from currentSettingsState
-    const settings = {
-      grid_type: currentSettingsState.grid_type?.[inverterId]?.value,
-      grid_voltage_high: currentSettingsState.grid_voltage_high?.[inverterId]?.value,
-      grid_voltage_low: currentSettingsState.grid_voltage_low?.[inverterId]?.value,
-      grid_frequency: currentSettingsState.grid_frequency?.[inverterId]?.value,
-      grid_frequency_high: currentSettingsState.grid_frequency_high?.[inverterId]?.value,
-      grid_frequency_low: currentSettingsState.grid_frequency_low?.[inverterId]?.value
-    };
-    
-    // Only include fields that have actual valid data
-    const filteredSettings = {};
-    Object.keys(settings).forEach(key => {
-      const value = settings[key];
-      if (value !== undefined && 
-          value !== null && 
-          value !== 'N/A' && 
-          value !== '' && 
-          value !== 'Unknown' &&
-          value !== 'Loading...' &&
-          value !== '0' &&
-          value !== 0) {
-        filteredSettings[key] = value;
-      }
-    });
-    
-    res.json({ 
-      success: Object.keys(filteredSettings).length > 0, 
-      settings: filteredSettings 
-    });
-  } catch (error) {
-    console.error('Error getting grid settings:', error);
-    res.status(500).json({ error: 'Failed to get grid settings' });
-  }
-});
-
-// ================ MQTT and CRON SCHEDULING ================
+  // ================ MQTT and CRON SCHEDULING ================
 
 // Connect to MQTT with robust error handling
 function connectToMqtt() {
-  mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
-    username: mqttConfig.username,
-    password: mqttConfig.password,
-    clientId: mqttConfig.clientId,
-    reconnectPeriod: mqttConfig.reconnectPeriod,
-    connectTimeout: mqttConfig.connectTimeout
-  })
-
-  mqttClient.on('connect', () => {
-    console.log('✅ Connected to MQTT broker')
-    // Subscribe to all topics with the prefix
-    mqttClient.subscribe(`${mqttTopicPrefix}/#`, (err) => {
-      if (err) {
-        console.error('Error subscribing to topics:', err.message)
-      } else {
-        console.log(`📡 Subscribed to ${mqttTopicPrefix}/#`)
+    mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
+      username: mqttConfig.username,
+      password: mqttConfig.password,
+      clientId: mqttConfig.clientId,
+      reconnectPeriod: mqttConfig.reconnectPeriod,
+      connectTimeout: mqttConfig.connectTimeout
+    })
+  
+    mqttClient.on('connect', async () => {
+      try {
+        console.log('✅ Connected to MQTT broker')
+        await new Promise((resolve, reject) => {
+          mqttClient.subscribe(`${mqttTopicPrefix}/#`, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        console.log(`📡 Subscribed to ${mqttTopicPrefix}/#`);
+      } catch (error) {
+        console.error('Error subscribing to topics:', error.message);
       }
     })
-  })
-
-mqttClient.on('message', (topic, message) => {
-  const formattedMessage = `${topic}: ${message.toString()}`
-  incomingMessages.push(formattedMessage)
-  if (incomingMessages.length > MAX_MESSAGES) {
-    incomingMessages.shift()
-  }
   
-  // Call the handleMqttMessage function to process and save to MongoDB
-  handleMqttMessage(topic, message)
-  
-  // Always save messages to InfluxDB regardless of learner mode
-  saveMessageToInfluxDB(topic, message)
-})
-
-  mqttClient.on('error', (err) => {
-    console.error('MQTT error:', err.message)
-  })
-  
-  mqttClient.on('disconnect', () => {
-    console.log('Disconnected from MQTT broker')
-  })
-  
-  mqttClient.on('reconnect', () => {
-    console.log('Reconnecting to MQTT broker...')
-  })
-}
-
-// Save MQTT message to InfluxDB with better error handling
-async function saveMessageToInfluxDB(topic, message) {
-  try {
-    const parsedMessage = parseFloat(message.toString())
-
-    if (isNaN(parsedMessage)) {
-      return
-    }
-
-    const timestamp = new Date().getTime()
-    const dataPoint = {
-      measurement: 'state',
-      fields: { value: parsedMessage },
-      tags: { topic: topic },
-      timestamp: timestamp * 1000000,
-    }
-
-    await retry(
-      async () => {
-        await influx.writePoints([dataPoint])
-      },
-      {
-        retries: 5,
-        minTimeout: 1000,
+    mqttClient.on('message', (topic, message) => {
+      const formattedMessage = `${topic}: ${message.toString()}`
+      incomingMessages.push(formattedMessage)
+      if (incomingMessages.length > MAX_MESSAGES) {
+        incomingMessages.shift()
       }
-    )
-  } catch (err) {
-    console.error(
-      'Error saving message to InfluxDB:',
-      err.response ? err.response.body : err.message
-    )
+      
+      // Call the enhanced MQTT message handler with inverter type detection
+      handleMqttMessage(topic, message)
+      
+      // Always save messages to InfluxDB regardless of learner mode
+      saveMessageToInfluxDB(topic, message)
+    })
+  
+    mqttClient.on('error', (err) => {
+      console.error('MQTT error:', err.message)
+    })
+    
+    mqttClient.on('disconnect', () => {
+      console.log('Disconnected from MQTT broker')
+    })
+    
+    mqttClient.on('reconnect', () => {
+      console.log('Reconnecting to MQTT broker...')
+    })
   }
-}
-
-
-// Fetch analytics data from InfluxDB
-async function queryInfluxDB(topic) {
-    const query = `
+  
+  // Save MQTT message to InfluxDB with better error handling
+  async function saveMessageToInfluxDB(topic, message) {
+    try {
+      const parsedMessage = parseFloat(message.toString())
+  
+      if (isNaN(parsedMessage)) {
+        return
+      }
+  
+      const timestamp = new Date().getTime()
+      const dataPoint = {
+        measurement: 'state',
+        fields: { value: parsedMessage },
+        tags: { topic: topic },
+        timestamp: timestamp * 1000000,
+      }
+  
+      await retry(
+        async () => {
+          await influx.writePoints([dataPoint])
+        },
+        {
+          retries: 5,
+          minTimeout: 1000,
+        }
+      )
+    } catch (err) {
+      console.error(
+        'Error saving message to InfluxDB:',
+        err.response ? err.response.body : err.message
+      )
+    }
+  }
+  
+  // Fetch analytics data from InfluxDB
+  async function queryInfluxDB(topic) {
+      const query = `
+          SELECT last("value") AS "value"
+          FROM "state"
+          WHERE "topic" = '${topic}'
+          AND time >= now() - 30d
+          GROUP BY time(1d) tz('${currentTimezone}')
+      `
+      try {
+        return await influx.query(query)
+      } catch (error) {
+        console.error(
+          `Error querying InfluxDB for topic ${topic}:`,
+          error.toString()
+        )
+        throw error
+      }
+    }
+    
+    async function queryInfluxDBForYear(topic) {
+      const query = `
         SELECT last("value") AS "value"
         FROM "state"
         WHERE "topic" = '${topic}'
-        AND time >= now() - 30d
+        AND time >= now() - 365d
         GROUP BY time(1d) tz('${currentTimezone}')
-    `
-    try {
-      return await influx.query(query)
-    } catch (error) {
-      console.error(
-        `Error querying InfluxDB for topic ${topic}:`,
-        error.toString()
-      )
-      throw error
+      `
+      try {
+        return await influx.query(query)
+      } catch (error) {
+        console.error(
+          `Error querying InfluxDB for topic ${topic}:`,
+          error.toString()
+        )
+        throw error
+      }
     }
-  }
+    
+    async function queryInfluxDBForDecade(topic) {
+      const query = `
+        SELECT last("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${topic}'
+        AND time >= now() - 3650d
+        GROUP BY time(1d) tz('${currentTimezone}')
+      `
+      try {
+        return await influx.query(query)
+      } catch (error) {
+        console.error(
+          `Error querying InfluxDB for topic ${topic}:`,
+          error.toString()
+        )
+        throw error
+      }
+    }
   
-  // Function to query InfluxDB for the last 12 months of data
-  async function queryInfluxDBForYear(topic) {
-    const query = `
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${topic}'
-      AND time >= now() - 365d
-      GROUP BY time(1d) tz('${currentTimezone}')
-    `
-    try {
-      return await influx.query(query)
-    } catch (error) {
-      console.error(
-        `Error querying InfluxDB for topic ${topic}:`,
-        error.toString()
-      )
-      throw error
+    async function queryInfluxData(topic, duration = '365d') {
+      const query = `
+        SELECT mean("value") AS "value"
+        FROM "state"
+        WHERE "topic" = '${topic}'
+        AND time >= now() - ${duration}
+        GROUP BY time(1d) tz('${currentTimezone}')
+      `
+      try {
+        return await influx.query(query)
+      } catch (error) {
+        console.error(
+          `Error querying InfluxDB for topic ${topic}:`,
+          error.toString()
+        )
+        throw error
+      }
     }
-  }
   
-  async function queryInfluxDBForDecade(topic) {
-    const query = `
-      SELECT last("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${topic}'
-      AND time >= now() - 3650d
-      GROUP BY time(1d) tz('${currentTimezone}')
-    `
-    try {
-      return await influx.query(query)
-    } catch (error) {
-      console.error(
-        `Error querying InfluxDB for topic ${topic}:`,
-        error.toString()
-      )
-      throw error
-    }
-  }
-
-  async function queryInfluxData(topic, duration = '365d') {
-    const query = `
-      SELECT mean("value") AS "value"
-      FROM "state"
-      WHERE "topic" = '${topic}'
-      AND time >= now() - ${duration}
-      GROUP BY time(1d) tz('${currentTimezone}')
-    `
-    try {
-      return await influx.query(query)
-    } catch (error) {
-      console.error(
-        `Error querying InfluxDB for topic ${topic}:`,
-        error.toString()
-      )
-      throw error
-    }
-  }
-
-
-
-// Periodic rule evaluation (every minute)
-cron.schedule('* * * * *', () => {
+// Enhanced periodic rule evaluation with inverter type awareness
+cron.schedule('*/5 * * * *', () => {
   console.log('Running scheduled rule evaluation...')
   processRules()
 })
-
-// Weekend rules scheduling
-cron.schedule('0 0 * * 6', () => {
-  // console.log('It\'s Saturday! Applying weekend settings...')
-  // Can add specific weekend settings here if needed
-})
-
-cron.schedule('0 0 * * 1', () => {
-  // console.log('It\'s Monday! Reverting weekend settings...')
-  // Can add specific weekday settings here if needed
-})
-
-
-// Run database maintenance once per day
-cron.schedule('0 0 * * *', async () => {
-  console.log('Running scheduled database maintenance...');
-  if (dbConnected) {
-    await pruneOldSettingsChanges();
-  }
-});
-
-
-cron.schedule('0 */4 * * *', cleanupCurrentSettingsState); // Every 4 hours
-
-// Graceful shutdown function
-function gracefulShutdown() {
-  console.log('Starting graceful shutdown...');
   
-  // Set a timeout to force exit if graceful shutdown takes too long
-  const forceExitTimeout = setTimeout(() => {
-    console.error('Forced exit after timeout');
-    process.exit(1);
-  }, 10000); // 10 seconds
+  // Weekend rules scheduling
+  cron.schedule('0 0 * * 6', () => {
+    console.log('Saturday: Weekend settings may apply based on rules')
+  })
   
-  // Close database connection
-  if (db) {
-    console.log('Closing SQLite connection');
-    db.close().catch(err => console.error('Error closing SQLite:', err));
-  }
+  cron.schedule('0 0 * * 1', () => {
+    console.log('Monday: Weekday settings may apply based on rules')
+  })
   
-  // Close MQTT connection
-  if (mqttClient) {
-    console.log('Closing MQTT connection');
-    mqttClient.end(true, () => {
-      console.log('MQTT connection closed');
+  // Run database maintenance once per day
+  cron.schedule('0 0 * * *', async () => {
+    console.log('Running scheduled database maintenance...');
+    if (dbConnected) {
+      await pruneOldSettingsChanges();
+    }
+  });
+  
+  // Clean up stale settings state every 4 hours
+  cron.schedule('0 */4 * * *', cleanupCurrentSettingsState);
+  
+  // Enhanced inverter type detection cleanup - every 6 hours
+  cron.schedule('0 */6 * * *', () => {
+    console.log('Running inverter type detection cleanup...');
+    
+    // Clean up inverter types that haven't been seen in 24 hours
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    Object.keys(inverterTypes).forEach(inverterId => {
+      const inverterData = inverterTypes[inverterId];
+      
+      // Check if this inverter has recent activity in current settings
+      let hasRecentActivity = false;
+      Object.keys(currentSettingsState).forEach(category => {
+        if (typeof currentSettingsState[category] === 'object' && 
+            currentSettingsState[category][inverterId] &&
+            currentSettingsState[category][inverterId].lastUpdated) {
+          const lastUpdated = new Date(currentSettingsState[category][inverterId].lastUpdated).getTime();
+          if (lastUpdated > oneDayAgo) {
+            hasRecentActivity = true;
+          }
+        }
+      });
+      
+      // Remove inverter type data if no recent activity
+      if (!hasRecentActivity && inverterData.detectionConfidence < 20) {
+        delete inverterTypes[inverterId];
+        console.log(`Removed stale inverter type data for ${inverterId}`);
+      }
     });
-  }
+  });
   
-  // Clear any intervals or timeouts
-  if (heartbeatInterval) {
-    console.log('Clearing heartbeat interval');
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-  }
+
+
   
-  // Clean up any other resources
-  // Release memory
-  incomingMessages = [];
-  settingsChangesQueue.length = 0;
-  
-  // Clear the force exit timeout and exit normally
-  clearTimeout(forceExitTimeout);
-  console.log('Shutdown complete');
-  process.exit(0);
-}
+// ================ COMPLETE ENHANCED INITIALIZATION FUNCTION ================
 
-// Register signal handlers
-process.on('SIGTERM', gracefulShutdown)
-process.on('SIGINT', gracefulShutdown)
-
-
-
-// Initialize connections to external services
 async function initializeConnections() {
-  // Create data directory if it doesn't exist
+  // Create required directories
   const dataDir = path.join(__dirname, 'data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
   
-  // Create logs directory if it doesn't exist
   const logsDir = path.join(__dirname, 'logs');
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
@@ -6245,68 +6808,177 @@ async function initializeConnections() {
   // Initialize dynamic pricing data BEFORE dynamic pricing integration
   await initializeDynamicPricingData();
   
-  // Initialize dynamic pricing integration
+  // Initialize dynamic pricing integration with inverter type support
   try {
     const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
     dynamicPricingInstance = await dynamicPricingIntegration.initializeDynamicPricing(app, mqttClient, currentSystemState);
     
-    // Make it globally available for API routes
     global.dynamicPricingInstance = dynamicPricingInstance;
     global.mqttClient = mqttClient;
     global.currentSystemState = currentSystemState;
+    global.inverterTypes = inverterTypes; // Make inverter types available globally for dynamic pricing
     
-    console.log('✅ Dynamic pricing integration initialized');
+    console.log('✅ Dynamic pricing integration initialized with intelligent inverter type support and automatic command mapping');
   } catch (error) {
     console.error('❌ Error initializing dynamic pricing:', error);
     
-    // Create fallback instance
     dynamicPricingInstance = {
       enabled: false,
       isReady: () => false,
       shouldChargeNow: () => false,
-      sendGridChargeCommand: () => false
+      sendGridChargeCommand: () => false,
+      supportsInverterTypes: false
     };
     global.dynamicPricingInstance = dynamicPricingInstance;
   }
   
-  // Connect to database
   try {
     await connectToDatabase();
     
-    // Create default rules if connected to DB
     if (dbConnected) {
-      // Replace the original createDefaultRules() call with our enhanced initialization
       await initializeAutomationRules();
     }
   } catch (err) {
     console.error('❌ Initial database connection failed:', err);
-    // Continue app startup even if DB fails initially
     setTimeout(retryDatabaseConnection, 10000);
   }
+  
+  console.log('✅ System initialization complete with intelligent inverter type auto-detection support');
 }
+  
 
+  // ================ ENHANCED DYNAMIC PRICING DATA INITIALIZATION ================
+
+  async function initializeDynamicPricingData() {
+    try {
+      console.log('Initializing dynamic pricing data with inverter type support...');
+      
+      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+      
+      let config = null;
+      if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
+        const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
+        config = JSON.parse(configData);
+      }
+      
+      if (!config) {
+        console.log('No dynamic pricing config found, creating default with inverter type support...');
+        config = {
+          enabled: false,
+          country: 'DE',
+          market: 'DE', 
+          apiKey: '',
+          priceBasedCharging: {
+            enabled: true,
+            maxPriceThreshold: 0.25,
+            useTibberLevels: true,
+            lowPriceLevels: ['VERY_CHEAP', 'CHEAP']
+          },
+          battery: {
+            targetSoC: 80,
+            minimumSoC: 20,
+            emergencySoC: 10,
+            maxSoC: 95
+          },
+          conditions: {
+            weather: {
+              enabled: false,
+              chargeOnCloudyDays: true,
+              chargeBeforeStorm: true,
+              weatherApiKey: '',
+              location: { lat: 52.5200, lon: 13.4050 }
+            },
+            time: {
+              enabled: true,
+              preferNightCharging: false,
+              nightStart: '22:00',
+              nightEnd: '06:00',
+              avoidPeakHours: true,
+              peakStart: '17:00',
+              peakEnd: '21:00'
+            },
+            power: {
+              load: { enabled: false, maxLoadForCharging: 8000, minLoadForCharging: 0 },
+              pv: { enabled: false, minPvForCharging: 5000, maxPvForCharging: 50000, pvPriority: true },
+              battery: { enabled: false, maxBatteryPowerForCharging: 3000, preferLowBatteryPower: true }
+            }
+          },
+          cooldown: {
+            enabled: true,
+            chargingCooldownMinutes: 30,
+            errorCooldownMinutes: 60,
+            maxChargingCyclesPerDay: 6
+          },
+          scheduledCharging: false,
+          chargingHours: [],
+          lastUpdate: null,
+          pricingData: [],
+          timezone: 'Europe/Berlin',
+          currency: 'EUR',
+          // Features
+          inverterSupport: true,
+          autoCommandMapping: true,
+          intelligentCurrentAdjustment: true,
+          supportedInverterTypes: ['legacy', 'new', 'hybrid']
+        };
+      } else {
+        // Ensure features are present in existing config
+        if (!config.inverterSupport) {
+          config.inverterSupport = true;
+          config.autoCommandMapping = true;
+          config.intelligentCurrentAdjustment = true;
+          config.supportedInverterTypes = ['legacy', 'new', 'hybrid'];
+          console.log('✅ Added inverter type support to existing configuration');
+        }
+      }
+      
+      const hasData = config.pricingData && config.pricingData.length > 0;
+      const isRecent = config.lastUpdate && 
+        (Date.now() - new Date(config.lastUpdate).getTime()) < (6 * 60 * 60 * 1000);
+      
+      if (!hasData || !isRecent) {
+        console.log('Generating initial pricing data with inverter type awareness...');
+        
+        config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
+        config.lastUpdate = new Date().toISOString();
+        
+        const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
+        if (!fs.existsSync(configDir)) {
+          fs.mkdirSync(configDir, { recursive: true });
+        }
+        
+        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
+        
+        console.log(`✅ Initial pricing data generated: ${config.pricingData.length} data points with inverter type support`);
+      } else {
+        console.log('✅ Existing pricing data is recent, no generation needed');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error initializing dynamic pricing data:', error);
+      return false;
+    }
+  }
+  
+
+
+// ================ ENHANCED NOTIFICATION SYSTEM INITIALIZATION ================
 
 async function initializeNotificationSystem() {
   try {
-    // Create a default Telegram config if it doesn't exist (NO DEFAULT NOTIFICATION RULES)
     ensureTelegramConfigExists();
-    
-    // Set up warning check schedule
     setupWarningChecks();
-    
-    // Make sure global processRules function is updated
     global.processRules = processRules;
     
-    console.log('✅ User-controlled notification system initialized');
+    console.log('✅ Enhanced user-controlled notification system initialized with inverter type support');
     return true;
   } catch (error) {
-    console.error('❌ Error initializing notification system:', error);
+    console.error('❌ Error initializing enhanced notification system:', error);
     return false;
   }
 }
 
-
-// Make sure Telegram config file exists with proper defaults
 function ensureTelegramConfigExists() {
   const configDir = path.dirname(TELEGRAM_CONFIG_FILE);
   if (!fs.existsSync(configDir)) {
@@ -6314,45 +6986,93 @@ function ensureTelegramConfigExists() {
   }
   
   if (!fs.existsSync(TELEGRAM_CONFIG_FILE)) {
-    // Create initial config with NO notification rules - user must add them manually
     const defaultConfig = {
       enabled: false,
       botToken: '',
       chatIds: [],
-      notificationRules: [] // EMPTY - user must configure manually
+      notificationRules: [],
+      enhancedFeatures: true,
+      inverterTypeSupport: true
     };
     
     fs.writeFileSync(TELEGRAM_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
-    console.log('Created default Telegram configuration file (no automatic notifications)');
+    console.log('Created default enhanced Telegram configuration file with inverter type support (no automatic notifications)');
   }
 }
+  
 
+// ================ ENHANCED WARNING CHECKS WITH INVERTER TYPE SUPPORT ================
 
-// Function that integrates both default and extended rules
+function setupWarningChecks() {
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      console.log('Running scheduled enhanced warning check with inverter type awareness...');
+      
+      const triggeredWarnings = warningService.checkWarnings(currentSystemState);
+      
+      if (triggeredWarnings.length > 0) {
+        console.log(`Found ${triggeredWarnings.length} warning(s) to process with enhanced features`);
+      }
+      
+      for (const warning of triggeredWarnings) {
+        try {
+          if (telegramService.shouldNotifyForWarning(warning.warningTypeId)) {
+            const message = telegramService.formatWarningMessage(warning, currentSystemState);
+            const sent = await telegramService.broadcastMessage(message);
+            
+            if (sent) {
+              console.log(`Enhanced user-configured warning notification sent: ${warning.title}`);
+            } else {
+              console.error(`Failed to send enhanced user-configured notification for warning: ${warning.title}`);
+            }
+          } else {
+            console.log(`Skipping notification for warning (${warning.title}) - not configured by user`);
+          }
+        } catch (notifyError) {
+          console.error(`Error in enhanced user-configured warning notification process:`, notifyError);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for enhanced warnings:', error);
+    }
+  });
+  
+  console.log('✅ Enhanced warning check scheduler initialized with inverter type support (user-controlled notifications)');
+}
+
+// ================ ENHANCED AUTOMATION RULES INITIALIZATION ================
+
 async function initializeAutomationRules() {
   try {
-    // First create the basic default rules
-    await createDefaultRules();
-    
-    // Then create the extended advanced rules
-    await createExtendedAutomationRules();
-
-    // Create the night charging rules (updated to avoid weekend conflicts)
-    await createNightChargingRule();
-    
-    // Create weekend grid charge rules
-    await createWeekendGridChargeRules();
-    
-    console.log('✅ All automation rules initialized successfully');
+      console.log('🔧 Initializing dynamic automation rules based on inverter types...');
+      
+      // Wait a bit for initial inverter type detection
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Analyze current inverter environment
+      const detectedTypes = analyzeInverterTypes();
+      console.log(`📊 Inverter environment: ${detectedTypes.summary}`);
+      
+      // Create rules dynamically based on detected types
+      await createDefaultRules();
+      await createExtendedAutomationRules();
+      await createNightChargingRule();
+      await createWeekendGridChargeRules();
+      
+      console.log('✅ Dynamic automation rules initialized successfully');
+      console.log(`📋 Rules created for: ${detectedTypes.summary}`);
+      
+      if (detectedTypes.hasLegacy && detectedTypes.hasNew) {
+          console.log('🔄 Mixed environment detected - rules will use auto-mapping');
+      }
   } catch (error) {
-    console.error('Error initializing automation rules:', error.message);
+      console.error('Error initializing dynamic automation rules:', error.message);
   }
 }
+  
+  
+// ================ ENHANCED DIRECTORY CREATION ================
 
-// Initialize connections when server starts
-initializeConnections()
-
-// Also add this to ensure the directories exist on startup
 function ensureDirectoriesExist() {
   const directories = [
     path.join(__dirname, 'data'),
@@ -6363,42 +7083,394 @@ function ensureDirectoriesExist() {
   directories.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
-      console.log(`Created directory: ${dir}`);
+      console.log(`Created enhanced directory: ${dir}`);
     }
   });
 }
 
-// Call this early in your server startup
 ensureDirectoriesExist();
+  
+  // Error handling middleware
+  app.use((err, req, res, next) => {
+    console.error('Enhanced system error:', err.stack);
+    
+    // Log enhanced error information
+    if (err.message && err.message.includes('dynamic pricing')) {
+      console.error('Enhanced Dynamic Pricing Error:', {
+        message: err.message,
+        inverterTypes: global.inverterTypes ? Object.keys(global.inverterTypes).length : 0,
+        dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Enhanced system error occurred',
+      enhanced: true,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // 404 handler
+  app.use((req, res, next) => {
+    res.status(404).json({
+      error: "Enhanced route not found",
+      enhanced: true,
+      availableRoutes: [
+        '/api/dynamic-pricing/settings',
+        '/api/dynamic-pricing/pricing-data',
+        '/api/dynamic-pricing/inverter-status',
+        '/api/dynamic-pricing/recommendation'
+      ]
+    });
+  });
+  
+  // Refresh pricing data every 6 hours
+  cron.schedule('0 */6 * * *', () => {
+    refreshPricingData();
+  });
+  
+  // Refresh pricing data every hour during peak hours (7-9 AM and 5-9 PM)
+  cron.schedule('0 7-9,17-21 * * *', () => {
+    console.log('Running peak-hour pricing data refresh...');
+    refreshPricingData();
+  });
+  
+  // Clean up stale settings state every 4 hours
+  cron.schedule('0 */4 * * *', cleanupCurrentSettingsState);
+  
+  console.log('✅ Dynamic pricing cron jobs initialized');
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(500).json({ error: 'Something went wrong!' })
-})
+  // ================ ENHANCED PERIODIC STATUS REPORTING ================
 
-// 404 handler
-app.use((req, res, next) => {
-  res.status(404).send("Sorry, that route doesn't exist.")
-})
-
-// Refresh pricing data every 6 hours
-cron.schedule('0 */6 * * *', () => {
-  refreshPricingData();
+// Enhanced status reporting every 30 minutes
+cron.schedule('0,30 * * * *', () => {
+  try {
+    console.log('📋 Enhanced System Status Report:');
+    
+    // Report inverter type detection status
+    if (global.inverterTypes && Object.keys(global.inverterTypes).length > 0) {
+      const typesSummary = {};
+      Object.values(global.inverterTypes).forEach(inverter => {
+        const type = inverter.type || 'unknown';
+        typesSummary[type] = (typesSummary[type] || 0) + 1;
+      });
+      
+      const summary = Object.entries(typesSummary)
+        .map(([type, count]) => `${count}x${type}`)
+        .join(', ');
+      
+      console.log(`🔍 Current Inverter Types: ${summary}`);
+    } else {
+      console.log('🔍 Inverter Type Detection: Still waiting for MQTT messages');
+    }
+    
+    // Report enhanced dynamic pricing status
+    if (global.enhancedDynamicPricing) {
+      const status = global.enhancedDynamicPricing.getEnhancedStatus();
+      if (status.enabled && status.ready) {
+        console.log(`🔋 Enhanced Dynamic Pricing: Active with ${status.totalInverters} inverter(s) under intelligent control`);
+      } else if (status.enabled) {
+        console.log(`🔋 Enhanced Dynamic Pricing: Enabled but waiting for configuration/data`);
+      } else {
+        console.log(`🔋 Enhanced Dynamic Pricing: Disabled`);
+      }
+    }
+    
+    // Report system health
+    const healthStatus = {
+      database: dbConnected ? '✅' : '❌',
+      mqtt: mqttClient && mqttClient.connected ? '✅' : '❌',
+      learnerMode: learnerModeActive ? '✅' : '❌'
+    };
+    
+    console.log(`💊 System Health: DB ${healthStatus.database} | MQTT ${healthStatus.mqtt} | Learner ${healthStatus.learnerMode}`);
+    
+  } catch (error) {
+    console.error('Error in enhanced status reporting:', error);
+  }
 });
+  
 
-// Refresh pricing data every hour during peak hours (7-9 AM and 5-9 PM)
-cron.schedule('0 7-9,17-21 * * *', () => {
-  console.log('Running peak-hour pricing data refresh...');
-  refreshPricingData();
-});
+// Initialize enhanced connections when server starts
+initializeConnections();
 
-// Clean up stale settings state every 4 hours
-cron.schedule('0 */4 * * *', cleanupCurrentSettingsState);
-
-console.log('✅ Dynamic pricing cron jobs initialized');
-
-// Start the server
+// Enhanced server startup with additional status reporting
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`)
-})
+  console.log(`🚀 Enhanced Energy Monitoring Server running on port ${port}`);
+  console.log(`📊 Monitoring ${inverterNumber} inverter(s) and ${batteryNumber} battery(ies)`);
+  console.log(`📡 MQTT Topic Prefix: ${mqttTopicPrefix}`);
+  console.log(`🔍 Inverter Type Detection: ACTIVE (auto-detects legacy, new, and hybrid)`);
+  console.log(`🔄 Auto-Setting Mapping: ENABLED (intelligent command translation)`);
+  console.log(`💡 Learner Mode: ${learnerModeActive ? 'ACTIVE' : 'INACTIVE'}`);
+  console.log(`🔋 Enhanced Dynamic Pricing: ${dynamicPricingInstance ? (dynamicPricingInstance.enabled ? 'ENABLED' : 'DISABLED') : 'INITIALIZING'}`);
+  
+  // Enhanced status check after 5 seconds
+  setTimeout(() => {
+    console.log('\n📋 ========== ENHANCED SYSTEM STATUS CHECK ==========');
+    
+    // Check inverter type detection status
+    if (global.inverterTypes && Object.keys(global.inverterTypes).length > 0) {
+      const typesSummary = {};
+      Object.values(global.inverterTypes).forEach(inverter => {
+        const type = inverter.type || 'unknown';
+        typesSummary[type] = (typesSummary[type] || 0) + 1;
+      });
+      
+      const summary = Object.entries(typesSummary)
+        .map(([type, count]) => `${count}x ${type}`)
+        .join(', ');
+      
+      console.log(`🔍 Detected Inverter Types: ${summary}`);
+    } else {
+      console.log('🔍 Inverter Type Detection: Waiting for MQTT messages...');
+    }
+    
+    // Check enhanced dynamic pricing status
+    if (global.enhancedDynamicPricing) {
+      const status = global.enhancedDynamicPricing.getEnhancedStatus();
+      console.log(`🔋 Enhanced Dynamic Pricing Status:`);
+      console.log(`   • Enabled: ${status.enabled ? '✅' : '❌'}`);
+      console.log(`   • Ready: ${status.ready ? '✅' : '❌'}`);
+      console.log(`   • Inverter Type Support: ${status.supportsInverterTypes ? '✅' : '❌'}`);
+      console.log(`   • Auto Command Mapping: ${status.autoCommandMapping ? '✅' : '❌'}`);
+      console.log(`   • Total Inverters: ${status.totalInverters || 0}`);
+      console.log(`   • Detection Status: ${status.inverterDetectionStatus || 'unknown'}`);
+      
+      if (status.configuration) {
+        console.log(`   • Country: ${status.configuration.country || 'not set'}`);
+        console.log(`   • Has API Key: ${status.configuration.hasApiKey ? '✅' : '❌'}`);
+        console.log(`   • Data Points: ${status.configuration.dataPoints || 0}`);
+      }
+    }
+    
+    // Check database connection
+    console.log(`🗄️  Database Connection: ${dbConnected ? '✅ Connected' : '❌ Disconnected'}`);
+    
+    // Check MQTT connection
+    console.log(`📡 MQTT Connection: ${mqttClient && mqttClient.connected ? '✅ Connected' : '❌ Disconnected'}`);
+    
+    console.log('======================================================\n');
+    
+    console.log('🎯 Enhanced System Ready!');
+    console.log('   • Auto-detects and manages both legacy and new inverter types');
+    console.log('   • Intelligently maps commands to appropriate MQTT topics');
+    console.log('   • Provides advanced dynamic pricing with inverter type awareness');
+    console.log('   • Maintains backward compatibility with existing systems');
+    console.log('   • Delivers enhanced monitoring and control capabilities\n');
+  }, 5000);
+  
+  console.log('\n🎯 Enhanced system ready to auto-detect and manage all inverter types with intelligent dynamic pricing!');
+});
+  
+ // ================ ENHANCED DYNAMIC PRICING WITH COMPLETE INVERTER TYPE MAPPING ================
+
+// Override the dynamic pricing sendGridChargeCommand to use enhanced inverter type detection
+if (dynamicPricingInstance) {
+  const originalSendCommand = dynamicPricingInstance.sendGridChargeCommand;
+  
+  dynamicPricingInstance.sendGridChargeCommand = function(enable) {
+    if (!learnerModeActive) {
+      console.log('Dynamic pricing: Would send grid charge command with intelligent inverter type detection, but learner mode is not active');
+      return false;
+    }
+    
+    if (!mqttClient || !mqttClient.connected) {
+      console.error('MQTT client is not connected, cannot send grid charge command with inverter type support');
+      return false;
+    }
+    
+    try {
+      const commandValue = enable ? 'Enabled' : 'Disabled';
+      let commandsSent = 0;
+      let totalInverters = 0;
+      let inverterTypesSummary = {
+        legacy: 0,
+        new: 0,
+        hybrid: 0,
+        unknown: 0
+      };
+      
+      console.log(`🔋 Dynamic Pricing: Processing grid charging ${enable ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s) with intelligent type auto-detection`);
+      
+      // Apply to each inverter with type-aware mapping
+      for (let i = 1; i <= inverterNumber; i++) {
+        const inverterId = `inverter_${i}`;
+        const inverterType = getInverterType(inverterId);
+        
+        // Track inverter types for summary
+        inverterTypesSummary[inverterType] = (inverterTypesSummary[inverterType] || 0) + 1;
+        
+        let topic, mqttValue;
+        
+        if (inverterType === 'new' || inverterType === 'hybrid') {
+          // Use new charger_source_priority for new inverters
+          const mappedValue = mapGridChargeToChargerSourcePriority(commandValue);
+          topic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
+          mqttValue = mappedValue;
+          console.log(`🔄 Dynamic Pricing: Auto-mapped grid_charge "${commandValue}" to charger_source_priority "${mappedValue}" for ${inverterId} (type: ${inverterType})`);
+        } else {
+          // Use legacy grid_charge for legacy inverters or unknown types (safer fallback)
+          topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+          mqttValue = commandValue;
+          console.log(`🔄 Dynamic Pricing: Using legacy grid_charge "${commandValue}" for ${inverterId} (type: ${inverterType})`);
+        }
+        
+        mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, (err) => {
+          if (err) {
+            console.error(`❌ Error publishing to ${topic}: ${err.message}`);
+          } else {
+            commandsSent++;
+          }
+        });
+        
+        totalInverters++;
+      }
+      
+      // Generate summary of inverter types for logging
+      const typesSummaryText = Object.entries(inverterTypesSummary)
+        .filter(([type, count]) => count > 0)
+        .map(([type, count]) => `${count}x${type}`)
+        .join(', ');
+      
+      const action = enable ? 'enabled' : 'disabled';
+      console.log(`🔋 Dynamic Pricing: Grid charging ${action} for ${totalInverters} inverter(s) with intelligent type detection (${typesSummaryText}) - Commands sent: ${commandsSent}/${totalInverters}`);
+      
+      // Logging with detailed inverter type information
+      const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+      dynamicPricingIntegration.logAction(`Grid charging ${action} for ${totalInverters} inverter(s) with intelligent type auto-detection (${typesSummaryText}) - command mapping applied`);
+      
+      return commandsSent > 0;
+    } catch (error) {
+      console.error('❌ Error in dynamic pricing grid charge command with inverter type support:', error);
+      return false;
+    }
+  };
+  
+  console.log('✅ Dynamic pricing integration completed with:');
+  console.log('   🔧 Intelligent Inverter Type Auto-Detection');
+  console.log('   🔄 Automatic Command Mapping (legacy ↔ new)');
+  console.log('   ⚡ Current Adjustment');
+  console.log('   📊 Advanced Price Intelligence');
+  console.log('   📝 Detailed Logging with Type Information');
+  console.log('   🎯 Backward Compatibility with All Inverter Types');
+}
+
+// ================ ENHANCED GLOBAL FUNCTIONS FOR DYNAMIC PRICING ================
+
+// Make enhanced functions available globally for other modules
+global.dynamicPricing = {
+  getInstance: () => dynamicPricingInstance,
+  getInverterTypeSummary: () => {
+    try {
+      if (!global.inverterTypes || Object.keys(global.inverterTypes).length === 0) {
+        return '(inverter types: detection pending)';
+      }
+      
+      const typesSummary = {};
+      Object.values(global.inverterTypes).forEach(inverter => {
+        const type = inverter.type || 'unknown';
+        typesSummary[type] = (typesSummary[type] || 0) + 1;
+      });
+      
+      const summary = Object.entries(typesSummary)
+        .map(([type, count]) => `${count}x${type}`)
+        .join(', ');
+      
+      return `(inverter types: ${summary})`;
+    } catch (error) {
+      return '(inverter types: error)';
+    }
+  },
+  sendGridChargeCommand: (enable) => {
+    if (dynamicPricingInstance && dynamicPricingInstance.sendGridChargeCommand) {
+      return dynamicPricingInstance.sendGridChargeCommand(enable);
+    }
+    return false;
+  },
+  setBatteryParameter: (parameter, value) => {
+    if (dynamicPricingInstance && dynamicPricingInstance.setBatteryParameter) {
+      return dynamicPricingInstance.setBatteryParameter(parameter, value);
+    }
+    return false;
+  },
+  setWorkMode: (workMode) => {
+    if (dynamicPricingInstance && dynamicPricingInstance.setWorkMode) {
+      return dynamicPricingInstance.setWorkMode(workMode);
+    }
+    return false;
+  },
+  getStatus: () => {
+    if (dynamicPricingInstance && dynamicPricingInstance.getStatus) {
+      return dynamicPricingInstance.getStatus();
+    }
+    return {
+      enabled: false,
+      ready: false,
+      provider: 'Dynamic Pricing (Not Available)',
+      supportsInverterTypes: true,
+      autoCommandMapping: true
+    };
+  }
+};
+
+// Enhanced logging for startup
+console.log('\n🔋 ========== ENHANCED DYNAMIC PRICING SYSTEM ==========');
+console.log('🔧 Enhanced Features:');
+console.log('   ✅ Intelligent Inverter Type Auto-Detection');
+console.log('   ✅ Automatic Command Mapping (legacy ↔ new)');
+console.log('   ✅ Enhanced Grid Charging Control');
+console.log('   ✅ Smart Current Adjustment');
+console.log('   ✅ Advanced Price Intelligence (Tibber)');
+console.log('   ✅ Real-time Type Adaptation');
+console.log('   ✅ Enhanced Logging & Status Reporting');
+console.log('   ✅ Backward Compatibility');
+console.log('============================================================\n');
+
+function GracefulShutdown() {
+  console.log('🔄 Starting enhanced graceful shutdown...');
+  
+  const forceExitTimeout = setTimeout(() => {
+    console.error('❌ Forced exit after timeout during enhanced shutdown');
+    process.exit(1);
+  }, 15000); // Increased timeout for enhanced cleanup
+  
+  // Enhanced cleanup sequence
+  if (db) {
+    console.log('🗄️  Closing enhanced SQLite connection');
+    db.close().catch(err => console.error('Error closing enhanced SQLite:', err));
+  }
+  
+  if (mqttClient) {
+    console.log('📡 Closing enhanced MQTT connection');
+    mqttClient.end(true, () => {
+      console.log('📡 Enhanced MQTT connection closed');
+    });
+  }
+  
+  if (heartbeatInterval) {
+    console.log('💓 Clearing enhanced heartbeat interval');
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  
+  // Enhanced cleanup
+  incomingMessages = [];
+  settingsChangesQueue.length = 0;
+  
+  // Clear enhanced global variables
+  if (global.enhancedDynamicPricing) {
+    delete global.enhancedDynamicPricing;
+  }
+  
+  if (global.dynamicPricingInstance) {
+    global.dynamicPricingInstance = null;
+  }
+  
+  console.log('✅ Enhanced cleanup completed');
+  clearTimeout(forceExitTimeout);
+  console.log('🔋 Enhanced Energy Monitoring System shutdown complete');
+  process.exit(0);
+}
+
+process.on('SIGTERM', GracefulShutdown);
+process.on('SIGINT', GracefulShutdown);
