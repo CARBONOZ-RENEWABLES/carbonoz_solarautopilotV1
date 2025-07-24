@@ -4726,7 +4726,7 @@ app.get('/inverter-settings', async (req, res) => {
       const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
       
       const ruleHistory = await db.all(`
-        SELECT id, name, description, last_triggered, trigger_count, conditions, actions, time_restrictions
+        SELECT id, name, description, active, last_triggered, trigger_count, conditions, actions, time_restrictions
         FROM rules
         WHERE last_triggered IS NOT NULL
         AND user_id = ?
@@ -4747,6 +4747,7 @@ app.get('/inverter-settings', async (req, res) => {
         id: rule.id,
         name: rule.name,
         description: rule.description,
+        active: rule.active === 1, // ← This line was missing!
         lastTriggered: new Date(rule.last_triggered),
         triggerCount: rule.trigger_count,
         conditions: JSON.parse(rule.conditions || '[]'),
