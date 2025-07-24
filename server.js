@@ -189,6 +189,7 @@ let currentSystemState = {
   load: null,
   grid_voltage: null,
   grid_power: null,
+  battery_power: null,  // Add this line
   inverter_state: null,
   timestamp: null
 }
@@ -281,13 +282,10 @@ function detectInverterType(inverterId, specificTopic, messageContent) {
   // Determine type based on detection
   if (inverterData.hasLegacySettings && !inverterData.hasNewSettings && inverterData.detectionConfidence >= 10) {
     inverterData.type = 'legacy';
-    console.log(`Detected ${inverterId} as LEGACY inverter (energy_pattern/grid_charge)`);
   } else if (inverterData.hasNewSettings && !inverterData.hasLegacySettings && inverterData.detectionConfidence >= 10) {
     inverterData.type = 'new';
-    console.log(`Detected ${inverterId} as NEW inverter (charger_source_priority/output_source_priority)`);
   } else if (inverterData.hasLegacySettings && inverterData.hasNewSettings) {
     inverterData.type = 'hybrid';
-    console.log(`Detected ${inverterId} as HYBRID inverter (supports both legacy and new settings)`);
   }
   
   return inverterData.type;
@@ -1264,6 +1262,9 @@ async function handleMqttMessage(topic, message) {
   } else if (specificTopic.includes('total/grid_power')) {
     currentSystemState.grid_power = parseFloat(messageContent);
     shouldProcessRules = true;
+  } else if (specificTopic.includes('total/battery_power')) { // Add this block
+    currentSystemState.battery_power = parseFloat(messageContent);
+    shouldProcessRules = true;
   } else if (specificTopic.includes('inverter_state') || specificTopic.includes('device_mode')) {
     currentSystemState.inverter_state = messageContent;
     shouldProcessRules = true;
@@ -1271,43 +1272,39 @@ async function handleMqttMessage(topic, message) {
 
   // ========= ENHANCED DYNAMIC PRICING INTEGRATION WITH INTELLIGENT INVERTER TYPE SUPPORT =========
   if (topic.includes('battery_state_of_charge') || 
-      topic.includes('grid_voltage') || 
-      topic.includes('pv_power') ||
-      topic.includes('load_power')) {
+  topic.includes('grid_voltage') || 
+  topic.includes('pv_power') ||
+  topic.includes('load_power') ||
+  topic.includes('battery_power')) {  // Add this line
+
+if (dynamicPricingInstance && 
+    dynamicPricingInstance.enabled && 
+    dynamicPricingInstance.isReady() &&
+    learnerModeActive) {
+  
+  try {
+    const shouldCharge = dynamicPricingInstance.shouldChargeNow();
     
-    if (dynamicPricingInstance && 
-        dynamicPricingInstance.enabled && 
-        dynamicPricingInstance.isReady() &&
-        learnerModeActive) {
+    if (shouldCharge !== null) {
+      const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
       
-      try {
-        const shouldCharge = dynamicPricingInstance.shouldChargeNow();
+      if (commandSent) {
+        const action = shouldCharge ? 'enabled' : 'disabled';
+        const reason = shouldCharge 
+          ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
+          : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
         
-        if (shouldCharge !== null) {
-          const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
-          
-          if (commandSent) {
-            const action = shouldCharge ? 'enabled' : 'disabled';
-            const reason = shouldCharge 
-              ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
-              : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
-            
-            console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
-            
-            const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-            dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
-          }
-        }
-      } catch (error) {
-        console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
+        console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
+        
+        const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+        dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
       }
-    } else if (dynamicPricingInstance && 
-               dynamicPricingInstance.enabled && 
-               dynamicPricingInstance.isReady() &&
-               !learnerModeActive) {
-      console.log('Enhanced Dynamic Pricing: Would have evaluated charging decision with intelligent inverter type detection, but learner mode is not active');
     }
+  } catch (error) {
+    console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
   }
+}
+}
 
   // Batch changes to be processed together for better performance
   const settingsChanges = [];
@@ -2809,6 +2806,9 @@ app.get('/', async (req, res) => {
         break;
       case 'grid_power':
         currentValue = currentSystemState.grid_power;
+        break;
+      case 'battery_power':  // Add this case
+        currentValue = currentSystemState.battery_power;
         break;
       default:
         return false;
