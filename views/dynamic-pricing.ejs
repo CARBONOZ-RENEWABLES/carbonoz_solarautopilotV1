@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Pricing - Solar Autopilot</title>
+    <title>Solar Autopilot</title>
     <link rel="stylesheet" href="<%= ingress_path %>/css/dynamic-pricing.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1281,7 +1281,7 @@ body {
 }
 
 .tab-btn:hover {
-  background: rgba(37, 99, 235, 0.05);
+  background: #fcd34d;
   color: var(--text-primary);
 }
 
@@ -2061,127 +2061,7 @@ color: #f3f4f6;
   animation: fadeIn var(--transition-normal);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .container {
-    padding: var(--spacing-sm);
-  }
-  
-  .header-content {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .header-right {
-    justify-content: center;
-  }
-  
-  .quick-actions {
-    flex-direction: column;
-  }
-  
-  .quick-btn {
-    min-width: auto;
-  }
-  
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-  }
-  
-  .status-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .weather-card {
-    grid-column: span 1;
-  }
-  
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .tabs-header {
-    flex-wrap: wrap;
-  }
-  
-  .tab-btn {
-    flex: none;
-    min-width: 100px;
-  }
-  
-  .tabs-content {
-    padding: var(--spacing-md);
-  }
-  
-  .actions-footer {
-    flex-direction: column;
-  }
-  
-  .actions-left, .actions-right {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .modal-content {
-    width: 95%;
-    margin: var(--spacing-md);
-  }
-  
-  .weather-current {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .weather-details {
-    grid-template-columns: 1fr;
-  }
-  
-  .power-rule-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-  
-  .schedule-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
 
-@media (max-width: 480px) {
-  .header-left h1 {
-    font-size: 1.5rem;
-  }
-  
-  .status-card {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .chart-container {
-    height: 250px;
-  }
-  
-  .chart-legend {
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-sm);
-  }
-  
-  .tibber-status {
-    grid-template-columns: 1fr;
-  }
-  
-  .toast-container {
-    left: var(--spacing-sm);
-    right: var(--spacing-sm);
-  }
-  
-  .toast {
-    min-width: auto;
-  }
-}
 
 /* Print Styles */
 @media print {
@@ -2210,7 +2090,19 @@ color: #f3f4f6;
 .panel-content{
     color: #000;
 }
-.dark-mode  .panel-content,.panel, .chart-panel{
+.panel-content, .chart-panel{
+    color: rgb(32, 36, 41);
+    background-color: #fff;
+}
+
+.panel{
+    background-color: #fff;
+}
+
+.dark-mode .panel{
+    background-color: rgb(32, 36, 41);
+}
+.dark-mode  .panel-content{
     background-color: rgb(32, 36, 41);
     color: #fff;
 }
@@ -2272,7 +2164,7 @@ color: #f3f4f6;
         <!-- Quick Actions Bar -->
         <div class="quick-actions">
             <button class="quick-btn" id="manualChargeBtn" data-action="charge">
-                <i class="fas fa-play"></i> Start Charging
+                <i class="fas fa-play"></i> Test Manual Charging 
             </button>
             <button class="quick-btn" id="manualStopBtn" data-action="stop">
                 <i class="fas fa-stop"></i> Stop Charging
@@ -2876,17 +2768,6 @@ color: #f3f4f6;
 
         <!-- Actions Footer -->
         <div class="actions-footer">
-            <div class="actions-left">
-                <button class="btn btn-outline" id="resetSettingsBtn">
-                    <i class="fas fa-undo"></i> Reset to Defaults
-                </button>
-                <button class="btn btn-outline" id="exportSettingsBtn">
-                    <i class="fas fa-download"></i> Export Settings
-                </button>
-                <button class="btn btn-outline" id="importSettingsBtn">
-                    <i class="fas fa-upload"></i> Import Settings
-                </button>
-            </div>
             <div class="actions-right">
                 <button class="btn btn-secondary" id="disableBtn">
                     <i class="fas fa-power-off"></i> Disable
@@ -3148,7 +3029,7 @@ class DynamicPricingDashboard {
 
     async updateChart(period = '24h') {
         try {
-            const response = await fetch('/api/dynamic-pricing/pricing-data');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
             const data = await response.json();
             
             if (!data.success || !data.data) {
@@ -3316,7 +3197,7 @@ class DynamicPricingDashboard {
 
     async loadConfiguration() {
         try {
-            const response = await fetch('/api/dynamic-pricing/settings');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings');
             const data = await response.json();
             
             if (data.success) {
@@ -3336,7 +3217,7 @@ class DynamicPricingDashboard {
 
     async loadSystemStatus() {
         try {
-            const response = await fetch('/api/dynamic-pricing/status');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/status');
             const data = await response.json();
             
             if (data.success) {
@@ -3357,7 +3238,7 @@ class DynamicPricingDashboard {
 
     async loadCurrentPrice() {
         try {
-            const response = await fetch('/api/dynamic-pricing/current-price');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/current-price');
             const data = await response.json();
             
             if (data.success && data.currentPrice) {
@@ -3628,7 +3509,7 @@ class DynamicPricingDashboard {
 
     async updateCitiesList(countryCode) {
         try {
-            const response = await fetch('/api/dynamic-pricing/countries-cities');
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/countries-cities');
             const data = await response.json();
             
             const citySelect = document.getElementById('city');
@@ -3696,7 +3577,7 @@ class DynamicPricingDashboard {
 
             const config = this.collectConfigurationData();
             
-            const response = await fetch('/api/dynamic-pricing/settings', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3814,7 +3695,7 @@ class DynamicPricingDashboard {
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             button.disabled = true;
 
-            const response = await fetch('/api/dynamic-pricing/manual-charge', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/manual-charge', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3857,7 +3738,7 @@ class DynamicPricingDashboard {
 
     async manualChargeForce(enable) {
         try {
-            const response = await fetch('/api/dynamic-pricing/manual-charge', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/manual-charge', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3892,7 +3773,7 @@ class DynamicPricingDashboard {
                 throw new Error('Please enter a Tibber API key first');
             }
 
-            const response = await fetch('/api/dynamic-pricing/test-tibber', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-tibber', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3939,7 +3820,7 @@ class DynamicPricingDashboard {
                 throw new Error('Please enter a weather API key first');
             }
 
-            const response = await fetch('/api/dynamic-pricing/test-weather', {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-weather', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4072,44 +3953,7 @@ class DynamicPricingDashboard {
         }
     }
 
-    exportSettings() {
-        const dataStr = JSON.stringify(this.config, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'dynamic-pricing-settings.json';
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-        
-        this.showToast('Settings exported successfully', 'success');
-    }
 
-    importSettings() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        
-        input.onchange = (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const settings = JSON.parse(e.target.result);
-                        this.populateConfigurationForm(settings);
-                        this.showToast('Settings imported successfully', 'success');
-                    } catch (error) {
-                        this.showToast('Error importing settings: Invalid file format', 'error');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        };
-        
-        input.click();
-    }
 
     updateWeatherDisplay(weatherData) {
         // Update weather status card
