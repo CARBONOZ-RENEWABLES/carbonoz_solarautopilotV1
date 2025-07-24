@@ -53,8 +53,25 @@
     "maxChargingCyclesPerDay": 6
   },
   "scheduledCharging": false,
-  "chargingHours": [],
-  "lastUpdate": "2025-07-24T14:56:57.822Z",
+  "chargingHours": [
+    {
+      "id": "schedule_1753369800833",
+      "start": "22:00",
+      "end": "06:00",
+      "days": [],
+      "enabled": true,
+      "description": "Schedule 1"
+    },
+    {
+      "id": "schedule_1753369822889",
+      "start": "22:00",
+      "end": "06:00",
+      "days": [],
+      "enabled": true,
+      "description": "Schedule 2"
+    }
+  ],
+  "lastUpdate": "2025-07-24T15:25:19.460Z",
   "pricingData": [
     {
       "timestamp": "2025-07-23T22:00:00.000Z",
