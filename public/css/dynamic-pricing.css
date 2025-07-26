@@ -1,8 +1,5 @@
 
-body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg-color);
-  }
+
 
      :root {
 /* Color Palette */
@@ -14,6 +11,7 @@ body {
 --warning-color: #f59e0b;
 --error-color: #ef4444;
 --info-color: #06b6d4;
+--bg-color: #f5f6fa;
 
 /* Background Colors */
 --bg-primary: #f8fafc;
@@ -73,7 +71,10 @@ body {
 --transition-normal: 300ms ease-in-out;
 --transition-slow: 500ms ease-in-out;
 }
-
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
+}
      
      body, html {
       font-family: Arial, sans-serif;
