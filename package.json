@@ -19,6 +19,7 @@
     "express-session": "^1.18.1",
     "follow-redirects": "^1.15.6",
     "helmet": "^8.0.0",
+    "http-proxy-middleware": "^3.0.5",
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
     "mqtt": "^4.2.8",
