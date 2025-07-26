@@ -13,6 +13,7 @@ const { backOff } = require('exponential-backoff')
 const socketPort = 8000
 const app = express()
 const port = process.env.PORT || 6789
+const GRAFANA_URL = 'http://localhost:3001';
 const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
@@ -21,6 +22,7 @@ const sqlite3 = require('sqlite3').verbose()
 const { open } = require('sqlite')
 const cron = require('node-cron')
 const session = require('express-session');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const { startOfDay } = require('date-fns')
 const { AuthenticateUser } = require('./utils/mongoService')
 const telegramService = require('./services/telegramService');
@@ -28,6 +30,14 @@ const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
 const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
 const dynamicPricingController = require('./services/dynamicPricingController');
+
+
+// Get ingress path from environment variable (set by Home Assistant)
+const INGRESS_PATH = process.env.INGRESS_PATH || '';
+const BASE_PATH = INGRESS_PATH || '';
+
+console.log(`Ingress path: ${INGRESS_PATH}`);
+console.log(`Base path: ${BASE_PATH}`);
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
@@ -38,13 +48,139 @@ app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
-// Read configuration from Home Assistant add-on options
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+
+// Middleware to extract ingress path from headers if not in URL
+app.use((req, res, next) => {
+  const ingressHeader = req.headers['x-ingress-path'];
+  
+  console.log(`Request: ${req.method} ${req.path}`);
+  console.log(`Ingress header: ${ingressHeader}`);
+  console.log(`Original URL: ${req.originalUrl}`);
+  
+  // If we have an ingress header, use it to determine the ingress path
+  if (ingressHeader) {
+    req.ingressPath = ingressHeader;
+    req.basePath = ingressHeader;
+    console.log(`Set ingress path from header: ${ingressHeader}`);
+  } else if (req.path.includes('/hassio_ingress/')) {
+    // Handle case where HA stripped /api but path still contains hassio_ingress
+    const pathParts = req.path.split('/');
+    const ingressIndex = pathParts.indexOf('hassio_ingress');
+    if (ingressIndex >= 0 && pathParts[ingressIndex + 1]) {
+      req.ingressPath = `/api/hassio_ingress/${pathParts[ingressIndex + 1]}`;
+      req.basePath = req.ingressPath;
+      console.log(`Reconstructed ingress path: ${req.ingressPath}`);
+    }
+  } else {
+    req.ingressPath = INGRESS_PATH;
+    req.basePath = BASE_PATH;
+  }
+  
+  next();
+});
+
+
+
+// Handle static files through ingress route
+app.get('/api/hassio_ingress/:token/static/*', (req, res, next) => {
+  const staticPath = req.params[0];
+  const filePath = path.join(__dirname, 'public', staticPath);
+  console.log(`Serving static file: ${staticPath} from ${filePath}`);
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('Static file error:', err);
+      res.status(404).send('File not found');
+    }
+  });
+});
+
+// Health check endpoint (should work from any path)
+app.get('*/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    basePath: req.basePath || BASE_PATH,
+    ingressPath: req.ingressPath || INGRESS_PATH,
+    originalUrl: req.originalUrl,
+    path: req.path
+  });
+});
+
+// Favicon handler to prevent 404s
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).send(); // No content
+});
+
+
+// Grafana proxy middleware with ingress support
+const grafanaProxy = createProxyMiddleware({
+  target: GRAFANA_URL,
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: {
+    '^/grafana': '', // Simple rewrite: /grafana/xyz -> /xyz
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`Proxying to Grafana: ${req.method} ${req.url} -> ${GRAFANA_URL}${req.url.replace('/grafana', '')}`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Remove X-Frame-Options to allow iframe embedding
+    delete proxyRes.headers['x-frame-options'];
+    // Add CORS headers
+    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+    proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+  },
+  onError: (err, req, res) => {
+    console.error('Grafana proxy error:', err);
+    res.status(500).json({ error: 'Grafana proxy error', message: err.message });
+  }
+});
+
+// Apply simple proxy middleware
+app.use('/grafana', grafanaProxy);
+
+// For ingress support, but much simpler
+if (BASE_PATH) {
+  app.use(`${BASE_PATH}/grafana`, grafanaProxy);
 }
+
+// Ingress routes - simplified
+app.use('/api/hassio_ingress/:token/grafana', (req, res, next) => {
+  console.log(`Ingress Grafana request: ${req.url}`);
+  grafanaProxy(req, res, next);
+});
+
+app.use('/hassio_ingress/:token/grafana', (req, res, next) => {
+  console.log(`Stripped ingress Grafana request: ${req.url}`);
+  grafanaProxy(req, res, next);
+});
+
+// Simple status handler
+app.get('/api/status', async (req, res) => {
+  try {
+    const response = await fetch(`${GRAFANA_URL}/api/health`);
+    const status = response.ok ? 'healthy' : 'unhealthy';
+    res.json({
+      grafana: status,
+      server: 'running',
+      timestamp: new Date().toISOString(),
+      grafanaUrl: GRAFANA_URL
+    });
+  } catch (error) {
+    res.json({
+      grafana: 'unreachable',
+      server: 'running',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      grafanaUrl: GRAFANA_URL
+    });
+  }
+});
+
+// Read configuration from Home Assistant add-on options
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number 
@@ -89,12 +225,14 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }))
 
-app.set('trust proxy', 1);
+// Trust proxy headers (important for Home Assistant ingress)
+app.set('trust proxy', true);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100
 });
+
 app.use('/api/', limiter);
 
 // InfluxDB configuration
@@ -125,7 +263,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'core-mosquitto',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -1895,109 +2033,128 @@ app.post('/api/update-panel-config', (req, res) => {
   }
 });
 
-
+// Function to get the correct host for Grafana access
+function getGrafanaHost(req) {
+  const host = req.get('host') || 'localhost:6789';
+  const hostWithoutPort = host.split(':')[0];
+  return hostWithoutPort;
+}
 
 // ================ ROUTERS ================
 
 app.get('/', async (req, res) => {
+  const grafanaHost = getGrafanaHost(req);
 
-    const expectedInverters = parseInt(options.inverter_number) || 1
-    const inverterWarning = checkInverterMessages(
-      incomingMessages,
-      expectedInverters)
-  
-    const batteryWarning = checkBatteryInformation(incomingMessages)
-    try {
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-      const selectedZone = settings.selectedZone;
-      
-      if (!selectedZone) {
-        return res.redirect('/settings?message=Please configure your zone first');
-      }
-      
-      let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
-      let isLoading = false;
-      let error = null;
-      
-      try {
-        const cacheKey = selectedZone;
-        const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
-                        (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
-        
-        if (isCached) {
-          historyData = carbonIntensityCacheByZone.get(cacheKey).data;
-        } else {
-          isLoading = true;
-        }
-        
-        [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
-          queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
-        ]);
-        
-        if (!isCached) {
-          historyData = await fetchCarbonIntensityHistory(selectedZone);
-          isLoading = false;
-        }
-      } catch (e) {
-        console.error('Error fetching data:', e);
-        error = 'Error fetching data. Please try again later.';
-        isLoading = false;
-        
-      }
-      
-      const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
-      
-      const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
-        date: moment().format('YYYY-MM-DD'),
-        unavoidableEmissions: 0,
-        avoidedEmissions: 0,
-        selfSufficiencyScore: 0,
-        gridEnergy: 0,
-        solarEnergy: 0,
-        carbonIntensity: 0
-      };
-      
-      const weekData = emissionsData.slice(-7);
-      const monthData = emissionsData.slice(-30);
-      
-      const summaryData = {
-        today: todayData,
-        week: {
-          unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-          avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-          selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
-        },
-        month: {
-          unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-          avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-          selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
-        }
-      };
-      
-      res.render('energy-dashboard', {
-        selectedZone,
-        todayData: {
-          ...todayData,
-          date: moment().format('YYYY-MM-DD')
-        },
-        summaryData,
-        isLoading,
-        error,
-        ingress_path: process.env.INGRESS_PATH || '',
-        mqtt_host: options.mqtt_host,
-        inverterWarning,
-        batteryWarning,
-        batteryMessages: debugBatteryMessages(incomingMessages),
-        username: options.mqtt_username || 'User'
-      });
-    } catch (error) {
-      console.error('Error rendering welcome page:', error);
-      res.status(500).render('error', { error: 'Error loading welcome page' });
+  const expectedInverters = parseInt(options.inverter_number) || 1
+  const inverterWarning = checkInverterMessages(
+    incomingMessages,
+    expectedInverters)
+
+  const batteryWarning = checkBatteryInformation(incomingMessages)
+  try {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+    const selectedZone = settings.selectedZone;
+    
+    if (!selectedZone) {
+      return res.redirect('/settings?message=Please configure your zone first');
     }
-  });
-  
+    
+    let historyData = [], gridEnergyIn = [], pvEnergy = [], gridVoltage = [];
+    let isLoading = false;
+    let error = null;
+    
+    try {
+      const cacheKey = selectedZone;
+      const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
+                      (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+      
+      if (isCached) {
+        historyData = carbonIntensityCacheByZone.get(cacheKey).data;
+      } else {
+        isLoading = true;
+      }
+      
+      [gridEnergyIn, pvEnergy, gridVoltage] = await Promise.all([
+        queryInfluxData(`${mqttTopicPrefix}/total/grid_energy_in/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/pv_energy/state`, '365d'),
+        queryInfluxData(`${mqttTopicPrefix}/total/grid_voltage/state`, '365d')
+      ]);
+      
+      if (!isCached) {
+        historyData = await fetchCarbonIntensityHistory(selectedZone);
+        isLoading = false;
+      }
+    } catch (e) {
+      console.error('Error fetching data:', e);
+      error = 'Error fetching data. Please try again later.';
+      isLoading = false;
+      
+    }
+    
+    const emissionsData = calculateEmissionsForPeriod(historyData, gridEnergyIn, pvEnergy, gridVoltage);
+    
+    const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
+      date: moment().format('YYYY-MM-DD'),
+      unavoidableEmissions: 0,
+      avoidedEmissions: 0,
+      selfSufficiencyScore: 0,
+      gridEnergy: 0,
+      solarEnergy: 0,
+      carbonIntensity: 0
+    };
+    
+    const weekData = emissionsData.slice(-7);
+    const monthData = emissionsData.slice(-30);
+    
+    const summaryData = {
+      today: todayData,
+      week: {
+        unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
+      },
+      month: {
+        unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
+      }
+    };
+    
+    res.render('energy-dashboard', {
+      selectedZone,
+      todayData: {
+        ...todayData,
+        date: moment().format('YYYY-MM-DD')
+      },
+      summaryData,
+      isLoading,
+      error,
+      ingress_path: process.env.INGRESS_PATH || '',
+      grafanaHost: grafanaHost,  
+      inverterWarning,
+      batteryWarning,
+      batteryMessages: debugBatteryMessages(incomingMessages),
+      username: options.mqtt_username || 'User'
+    });
+  } catch (error) {
+    console.error('Error rendering welcome page:', error);
+    res.status(500).render('error', { error: 'Error loading welcome page' });
+  }
+});
+
+app.get('/api/hassio_ingress/:token/energy-dashboard', (req, res) => {
+  // Redirect to simplified handler
+  req.url = '/energy-dashboard';
+  app._router.handle(req, res);
+});
+
+app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
+  // Redirect to simplified handler
+  req.url = '/energy-dashboard';
+  app._router.handle(req, res);
+});
+
+
   app.get('/analytics', async (req, res) => {
     try {
       const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
@@ -2295,11 +2452,63 @@ app.get('/', async (req, res) => {
   })
   
   app.get('/chart', (req, res) => {
+    const grafanaHost = getGrafanaHost(req);
+    
+    console.log(`Chart route - grafanaHost: ${grafanaHost}`);
+    
     res.render('chart', {
       ingress_path: process.env.INGRESS_PATH || '',
-      mqtt_host: options.mqtt_host,
-    })
-  })
+      grafanaHost: grafanaHost,
+    });
+  });
+
+  // Handle ingress routes simply
+app.get('/api/hassio_ingress/:token/chart', (req, res) => {
+  const grafanaHost = getGrafanaHost(req);
+  
+  res.render('chart', {
+    ingress_path: `/api/hassio_ingress/${req.params.token}`,
+    grafanaHost: grafanaHost,
+  });
+});
+
+app.get('/hassio_ingress/:token/chart', (req, res) => {
+  const grafanaHost = getGrafanaHost(req);
+  
+  res.render('chart', {
+    ingress_path: `/api/hassio_ingress/${req.params.token}`,
+    grafanaHost: grafanaHost,
+  });
+});
+
+  // Also add a route to handle ingress chart requests
+app.get('/api/hassio_ingress/:token/chart', (req, res) => {
+  const ingressToken = req.params.token;
+  console.log(`Ingress chart request with token: ${ingressToken}`);
+  
+  req.ingressPath = `/api/hassio_ingress/${ingressToken}`;
+  req.basePath = req.ingressPath;
+  
+  res.render('chart', {
+    ingress_path: req.ingressPath,
+    basePath: req.basePath,
+  });
+});
+
+app.get('/hassio_ingress/:token/chart', (req, res) => {
+  const ingressToken = req.params.token;
+  console.log(`Stripped ingress chart request with token: ${ingressToken}`);
+  
+  req.ingressPath = `/api/hassio_ingress/${ingressToken}`;
+  req.basePath = req.ingressPath;
+  
+  res.render('chart', {
+    ingress_path: req.ingressPath,
+    basePath: req.basePath,
+  });
+});
+
+
   
   app.get('/api/carbon-intensity/:zone', async (req, res) => {
     try {
@@ -7197,7 +7406,9 @@ initializeConnections();
 
 // Enhanced server startup with additional status reporting
 app.listen(port, () => {
-  console.log(`🚀 Enhanced Energy Monitoring Server running on port ${port}`);
+  console.log(`🚀 CARBONOZ SolarAutopilot Server running on port ${port}`);
+  console.log(`📊 Dashboard available at: http://localhost:${port}${BASE_PATH}`);
+  console.log(`🔗 Grafana proxy available at: http://localhost:${port}${BASE_PATH}/grafana`);
   console.log(`📊 Monitoring ${inverterNumber} inverter(s) and ${batteryNumber} battery(ies)`);
   console.log(`📡 MQTT Topic Prefix: ${mqttTopicPrefix}`);
   console.log(`🔍 Inverter Type Detection: ACTIVE (auto-detects legacy, new, and hybrid)`);
