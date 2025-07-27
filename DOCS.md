@@ -49,11 +49,11 @@ CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of yo
 Configure the add-on using the following YAML structure:
 
 ```yaml
-mqtt_username: ""            # MQTT username (required)
-mqtt_password: ""            # MQTT password (required)
-battery_number:              # Number of batteries in your system
+mqtt_username: ""           # MQTT username (required)
+mqtt_password: ""           # MQTT password (required)
+battery_number:             # Number of batteries in your system
 inverter_number:            # Number of inverters in your system
-mqtt_topic_prefix: ""  # MQTT topic prefix
+mqtt_topic_prefix: ""       # MQTT topic prefix
 clientId: ""                # Your client ID
 clientSecret: ""            # Your client secret
 ```
