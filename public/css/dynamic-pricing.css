@@ -1247,7 +1247,7 @@ margin-bottom: var(--spacing-xl);
 .tabs-header {
 display: flex;
 border-bottom: 1px solid var(--border-light);
-background: var(--bg-tertiary);
+background: #f1f5f9;
 overflow-x: auto;
 }
 
@@ -1257,7 +1257,7 @@ min-width: 120px;
 padding: var(--spacing-md) var(--spacing-lg);
 border: none;
 background: transparent;
-color: #fff;
+color: #000;
 cursor: pointer;
 transition: all var(--transition-fast);
 display: flex;
@@ -1269,13 +1269,8 @@ border-bottom: 3px solid transparent;
 white-space: nowrap;
 }
 
-.tab-btn:hover {
-background: #fcd34d;
-color: var(--text-primary);
-}
-
 .tab-btn.active {
-color: #fff;
+color: #DEAF0B;
 border-bottom-color: var(--primary-color);
 background: rgba(37, 99, 235, 0.05);
 
@@ -1942,6 +1937,8 @@ max-height: 80vh;
 overflow-y: auto;
 }
 
+
+
 .modal-header {
 display: flex;
 justify-content: space-between;
@@ -2042,9 +2039,6 @@ from { opacity: 0; transform: translateY(10px); }
 to { opacity: 1; transform: translateY(0); }
 }
 
-.loading {
-animation: spin 1s linear infinite;
-}
 
 .fade-in {
 animation: fadeIn var(--transition-normal);
@@ -2273,10 +2267,11 @@ color: #f8fafc !important;
 .dark-mode .tab-btn {
 color: #e2e8f0 !important;
 border-bottom: 3px solid transparent;
+background-color: rgba(24, 27, 31, 1);
 }
 
 .dark-mode .tab-btn:hover {
-background: rgba(222, 175, 11, 0.2);
+background-color: rgba(24, 27, 31, 1);
 color: #f8fafc !important;
 }
 
@@ -2292,7 +2287,7 @@ FORM ELEMENTS DARK MODE
 
 .dark-mode .config-input,
 .dark-mode .select-input {
-background-color: #374151 !important;
+background-color: rgb(32, 36, 41) !important;
 color: #f8fafc !important;
 border: 1px solid #4b5563;
 }
@@ -2300,20 +2295,20 @@ border: 1px solid #4b5563;
 .dark-mode .config-input:focus,
 .dark-mode .select-input:focus {
 border-color: #DEAF0B;
-background-color: #374151 !important;
+background-color: rgb(32, 36, 41) !important;
 color: #f8fafc !important;
 box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.1);
 }
 
 .dark-mode .input-addon {
-background: #4b5563;
+background-color: rgb(32, 36, 41) !important;
 color: #e2e8f0;
 border-color: #4b5563;
 }
 
 /* Toggle switches */
 .dark-mode .toggle-slider {
-background-color: #4b5563;
+  background-color: rgb(32, 36, 41)
 }
 
 .dark-mode .toggle-input:checked + .toggle-slider {
@@ -2323,7 +2318,7 @@ background-color: #DEAF0B;
 /* Checkboxes */
 .dark-mode .checkmark {
 border-color: #4b5563;
-background-color: #374151;
+background-color: rgb(32, 36, 41) !important;
 }
 
 .dark-mode .checkbox-label input:checked + .checkmark {
@@ -2383,7 +2378,7 @@ color: #f8fafc;
 }
 
 .dark-mode .tabs-header {
-background: #DEAF0B;
+background-color: rgba(24, 27, 31, 1)!important;
 border-bottom: 1px solid #374151;
 }
 
@@ -2695,7 +2690,7 @@ color: #f8fafc !important;
 
 /* Ensure modal content is visible in dark mode */
 .dark-mode .modal-content {
-background-color: #1f2937;
+background-color: rgba(24, 27, 31, 1);;
 color: #f8fafc;
 }
 
@@ -3518,19 +3513,6 @@ break-inside: avoid;
       font-size: 2rem;
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
