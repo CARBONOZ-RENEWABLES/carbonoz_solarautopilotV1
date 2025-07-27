@@ -53,7 +53,7 @@ mqtt_username: ""            # MQTT username (required)
 mqtt_password: ""            # MQTT password (required)
 battery_number:              # Number of batteries in your system
 inverter_number:            # Number of inverters in your system
-mqtt_topic_prefix: "solar_assistant_DEYE"  # MQTT topic prefix
+mqtt_topic_prefix: ""  # MQTT topic prefix
 clientId: ""                # Your client ID
 clientSecret: ""            # Your client secret
 ```
