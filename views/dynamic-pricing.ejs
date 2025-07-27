@@ -711,9 +711,11 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
+
+    <!-- This is the fixed JavaScript portion that should replace the existing script section in your HTML -->
 <script>
-    // Dynamic Pricing Dashboard JavaScript
-// Enhanced with complete power rules and scheduling functionality
+// Dynamic Pricing Dashboard JavaScript - FIXED VERSION
+// Enhanced with immediate data loading and complete test conditions functionality
 
 class DynamicPricingDashboard {
     constructor() {
@@ -727,6 +729,8 @@ class DynamicPricingDashboard {
         this.schedules = [];
         this.editingRuleId = null;
         this.editingScheduleId = null;
+        this.pricingDataCache = null;
+        this.currentPriceCache = null;
         
         // Initialize the dashboard
         this.init();
@@ -745,9 +749,8 @@ class DynamicPricingDashboard {
             // Initialize chart
             this.initializeChart();
             
-            // Load initial data
-            await this.loadConfiguration();
-            await this.loadSystemStatus();
+            // Load all data in parallel for faster initialization
+            await this.loadAllDataParallel();
             
             // Start periodic updates
             this.startPeriodicUpdates();
@@ -763,10 +766,981 @@ class DynamicPricingDashboard {
         }
     }
 
+    // NEW: Load all data in parallel for faster initialization
+    async loadAllDataParallel() {
+        try {
+            // Show loading indicators
+            this.showDataLoading();
+            
+            // Load all data sources in parallel
+            const [configResult, statusResult, priceResult, chartResult] = await Promise.allSettled([
+                this.loadConfiguration(),
+                this.loadSystemStatus(),
+                this.loadCurrentPrice(),
+                this.loadPricingData()
+            ]);
+
+            // Process results
+            if (configResult.status === 'rejected') {
+                console.error('Failed to load configuration:', configResult.reason);
+            }
+            
+            if (statusResult.status === 'rejected') {
+                console.error('Failed to load system status:', statusResult.reason);
+            }
+            
+            if (priceResult.status === 'rejected') {
+                console.error('Failed to load current price:', priceResult.reason);
+            }
+            
+            if (chartResult.status === 'rejected') {
+                console.error('Failed to load pricing data:', chartResult.reason);
+            }
+
+            // Update chart with loaded data
+            if (this.pricingDataCache) {
+                await this.updateChartWithCache();
+            }
+
+            // Load weather if enabled
+            if (this.config.weatherConditions?.enabled) {
+                this.loadWeatherData();
+            }
+
+        } catch (error) {
+            console.error('Error in parallel data loading:', error);
+        } finally {
+            this.hideDataLoading();
+        }
+    }
+
+    // NEW: Show loading indicators for data
+    showDataLoading() {
+        // Add loading class to status cards
+        document.querySelectorAll('.status-card').forEach(card => {
+            card.classList.add('loading');
+        });
+        
+        // Show loading in price display
+        const priceElement = document.getElementById('currentPrice');
+        if (priceElement) {
+            priceElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+    }
+
+    // NEW: Hide loading indicators
+    hideDataLoading() {
+        document.querySelectorAll('.status-card').forEach(card => {
+            card.classList.remove('loading');
+        });
+    }
+
+    // NEW: Load pricing data separately for immediate chart update
+    async loadPricingData() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                this.pricingDataCache = data.data;
+                
+                // Update last update display
+                const lastUpdateElement = document.getElementById('lastPriceUpdate');
+                if (lastUpdateElement && data.lastUpdate) {
+                    const updateTime = new Date(data.lastUpdate);
+                    lastUpdateElement.textContent = updateTime.toLocaleString();
+                }
+                
+                // Update data points display
+                const dataPointsElement = document.getElementById('dataPoints');
+                if (dataPointsElement) {
+                    dataPointsElement.textContent = data.total || data.data.length;
+                }
+                
+                return data;
+            }
+        } catch (error) {
+            console.error('Error loading pricing data:', error);
+            throw error;
+        }
+    }
+
+    // NEW: Update chart with cached data
+    async updateChartWithCache() {
+        if (!this.pricingDataCache || !this.priceChart) return;
+        
+        const period = document.getElementById('chartPeriod')?.value || '24h';
+        let filteredData = this.pricingDataCache;
+        const now = new Date();
+
+        // Filter data based on period
+        switch (period) {
+            case '24h':
+                filteredData = this.pricingDataCache.slice(0, 24);
+                break;
+            case '48h':
+                filteredData = this.pricingDataCache.slice(0, 48);
+                break;
+            case 'today':
+                filteredData = this.pricingDataCache.filter(item => {
+                    const itemDate = new Date(item.timestamp);
+                    return itemDate.toDateString() === now.toDateString();
+                });
+                break;
+            case 'tomorrow':
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                filteredData = this.pricingDataCache.filter(item => {
+                    const itemDate = new Date(item.timestamp);
+                    return itemDate.toDateString() === tomorrow.toDateString();
+                });
+                break;
+        }
+
+        if (filteredData.length === 0) {
+            console.warn('No data for selected period');
+            return;
+        }
+
+        // Update chart data
+        const labels = filteredData.map(item => {
+            const time = new Date(item.timestamp);
+            return time.getHours().toString().padStart(2, '0') + ':00';
+        });
+
+        const prices = filteredData.map(item => item.price);
+
+        this.priceChart.data.labels = labels;
+        this.priceChart.data.datasets[0].data = prices;
+        this.priceChart.data.datasets[0].rawData = filteredData;
+
+        // Update y-axis range for better visualization
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        const padding = (maxPrice - minPrice) * 0.1;
+        
+        this.priceChart.options.scales.y.min = Math.max(0, minPrice - padding);
+        this.priceChart.options.scales.y.max = maxPrice + padding;
+
+        this.priceChart.update('active');
+        
+        console.log(`📊 Chart updated with ${filteredData.length} cached data points for ${period}`);
+    }
+
+    // FIXED: Load weather data
+    async loadWeatherData() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-conditions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ testType: 'weather' })
+            });
+
+            const data = await response.json();
+            
+            if (data.success && data.result?.success) {
+                this.updateWeatherDisplay(data.result.current);
+                
+                // Update forecast information
+                if (data.result.forecast) {
+                    this.updateWeatherForecast(data.result.forecast);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading weather data:', error);
+        }
+    }
+
+    // NEW: Update weather forecast display
+    updateWeatherForecast(forecast) {
+        if (!forecast || forecast.length === 0) return;
+        
+        // Calculate average cloud cover for next 12 hours
+        const next12Hours = forecast.slice(0, 4);
+        let totalCloudCover = 0;
+        let stormCount = 0;
+        
+        next12Hours.forEach(period => {
+            totalCloudCover += period.clouds?.all || 0;
+            const weather = period.weather?.[0];
+            if (weather?.main === 'Thunderstorm' || 
+                (weather?.main === 'Rain' && weather?.description?.includes('heavy'))) {
+                stormCount++;
+            }
+        });
+        
+        const avgCloudCover = Math.round(totalCloudCover / next12Hours.length);
+        
+        // Update current cloud cover display
+        const cloudCoverElement = document.getElementById('currentCloudCover');
+        if (cloudCoverElement) {
+            cloudCoverElement.textContent = `${avgCloudCover}%`;
+        }
+        
+        // Update weather animation based on forecast
+        const weatherAnimation = document.getElementById('weatherAnimation');
+        if (weatherAnimation) {
+            if (stormCount > 0) {
+                weatherAnimation.className = 'weather-animation storm-warning';
+                weatherAnimation.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Storm expected';
+            } else if (avgCloudCover > 70) {
+                weatherAnimation.className = 'weather-animation cloudy-forecast';
+                weatherAnimation.innerHTML = '<i class="fas fa-cloud"></i> Cloudy conditions';
+            } else {
+                weatherAnimation.className = 'weather-animation clear-forecast';
+                weatherAnimation.innerHTML = '<i class="fas fa-sun"></i> Clear skies';
+            }
+        }
+    }
+
     // =============================================================================
-    // CHART INITIALIZATION AND MANAGEMENT
+    // COMPLETE TEST CONDITIONS MODAL IMPLEMENTATION
     // =============================================================================
 
+    showTestConditionsModal() {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('testConditionsModal');
+        if (!modal) {
+            modal = this.createTestConditionsModal();
+            document.body.appendChild(modal);
+        }
+
+        // Clear previous results
+        this.clearTestResults();
+
+        // Show modal
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        // Run initial test
+        this.runAllConditionTests();
+    }
+
+    createTestConditionsModal() {
+        const modal = document.createElement('div');
+        modal.id = 'testConditionsModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3><i class="fas fa-flask"></i> Test Conditions</h3>
+                    <button class="modal-close" onclick="dashboard.hideTestConditionsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="test-conditions-grid">
+                        <!-- Price Conditions Test -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-euro-sign"></i> Price Conditions</h4>
+                            <div class="test-content" id="priceTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('price')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+
+                        <!-- Weather Conditions Test -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-cloud-sun"></i> Weather Conditions</h4>
+                            <div class="test-content" id="weatherTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('weather')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+
+                        <!-- Time Conditions Test -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-clock"></i> Time Conditions</h4>
+                            <div class="test-content" id="timeTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('time')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+
+                        <!-- Smart Power Conditions Test -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-bolt"></i> Smart Power Conditions</h4>
+                            <div class="test-content" id="smartpowerTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('smartpower')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+
+                        <!-- Cooldown Status -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-hourglass-half"></i> Cooldown Status</h4>
+                            <div class="test-content" id="cooldownTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('cooldown')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+
+                        <!-- Tibber Connection Test -->
+                        <div class="test-section">
+                            <h4><i class="fas fa-plug"></i> Tibber Connection</h4>
+                            <div class="test-content" id="tibberTestContent">
+                                <div class="test-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Testing...
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="dashboard.testCondition('tibber')">
+                                <i class="fas fa-redo"></i> Retest
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Overall Recommendation -->
+                    <div class="test-recommendation" id="testRecommendation">
+                        <h4><i class="fas fa-lightbulb"></i> Overall Recommendation</h4>
+                        <div class="recommendation-content" id="recommendationContent">
+                            <div class="test-loading">
+                                <i class="fas fa-spinner fa-spin"></i> Analyzing...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="dashboard.hideTestConditionsModal()">Close</button>
+                    <button class="btn btn-primary" onclick="dashboard.runAllConditionTests()">
+                        <i class="fas fa-sync"></i> Test All Conditions
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideTestConditionsModal();
+            }
+        });
+
+        return modal;
+    }
+
+    hideTestConditionsModal() {
+        const modal = document.getElementById('testConditionsModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    clearTestResults() {
+        const testSections = ['price', 'weather', 'time', 'smartpower', 'cooldown', 'tibber'];
+        testSections.forEach(section => {
+            const content = document.getElementById(`${section}TestContent`);
+            if (content) {
+                content.innerHTML = '<div class="test-loading"><i class="fas fa-spinner fa-spin"></i> Testing...</div>';
+            }
+        });
+        
+        const recommendationContent = document.getElementById('recommendationContent');
+        if (recommendationContent) {
+            recommendationContent.innerHTML = '<div class="test-loading"><i class="fas fa-spinner fa-spin"></i> Analyzing...</div>';
+        }
+    }
+
+    async runAllConditionTests() {
+        console.log('🧪 Running all condition tests...');
+        
+        // Test all conditions in parallel
+        const testPromises = [
+            this.testCondition('price'),
+            this.testCondition('weather'),
+            this.testCondition('time'),
+            this.testCondition('smartpower'),
+            this.testCondition('cooldown'),
+            this.testCondition('tibber')
+        ];
+
+        await Promise.allSettled(testPromises);
+        
+        // Generate overall recommendation
+        await this.generateTestRecommendation();
+    }
+
+    async testCondition(testType) {
+        const contentElement = document.getElementById(`${testType}TestContent`);
+        if (!contentElement) return;
+
+        try {
+            contentElement.innerHTML = '<div class="test-loading"><i class="fas fa-spinner fa-spin"></i> Testing...</div>';
+
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-conditions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ testType: testType })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.displayTestResult(testType, data.result, contentElement);
+            } else {
+                throw new Error(data.error || 'Test failed');
+            }
+        } catch (error) {
+            console.error(`Error testing ${testType}:`, error);
+            contentElement.innerHTML = `
+                <div class="test-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    displayTestResult(testType, result, contentElement) {
+        let html = '';
+
+        switch (testType) {
+            case 'price':
+                html = this.formatPriceTestResult(result);
+                break;
+            case 'weather':
+                html = this.formatWeatherTestResult(result);
+                break;
+            case 'time':
+                html = this.formatTimeTestResult(result);
+                break;
+            case 'smartpower':
+                html = this.formatSmartPowerTestResult(result);
+                break;
+            case 'cooldown':
+                html = this.formatCooldownTestResult(result);
+                break;
+            case 'tibber':
+                html = this.formatTibberTestResult(result);
+                break;
+        }
+
+        contentElement.innerHTML = html;
+    }
+
+    formatPriceTestResult(result) {
+        if (!result.allow) {
+            return `
+                <div class="test-result fail">
+                    <i class="fas fa-times-circle"></i>
+                    <p><strong>Status:</strong> Not favorable for charging</p>
+                    <p><strong>Reason:</strong> ${result.reason}</p>
+                    ${result.details ? `
+                        <div class="test-details">
+                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} EUR/kWh</p>
+                            <p><strong>Threshold:</strong> ${result.details.threshold?.toFixed(4) || 'N/A'} EUR/kWh</p>
+                            <p><strong>Level:</strong> <span class="price-level ${(result.details.level || '').toLowerCase().replace('_', '-')}">${result.details.level || 'N/A'}</span></p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            return `
+                <div class="test-result pass">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Status:</strong> Favorable for charging</p>
+                    <p><strong>Reason:</strong> ${result.reason}</p>
+                    ${result.details ? `
+                        <div class="test-details">
+                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} EUR/kWh</p>
+                            <p><strong>Level:</strong> <span class="price-level ${(result.details.level || '').toLowerCase().replace('_', '-')}">${result.details.level || 'N/A'}</span></p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+    }
+
+    formatWeatherTestResult(result) {
+        if (result.success === false) {
+            return `
+                <div class="test-result fail">
+                    <i class="fas fa-times-circle"></i>
+                    <p><strong>Status:</strong> Weather API Error</p>
+                    <p><strong>Error:</strong> ${result.error}</p>
+                    ${result.details ? `<p class="text-small">${result.details}</p>` : ''}
+                </div>
+            `;
+        }
+
+        const current = result.current || result;
+        return `
+            <div class="test-result ${result.shouldInfluenceCharging ? 'warning' : 'pass'}">
+                <i class="fas fa-${result.shouldInfluenceCharging ? 'exclamation-triangle' : 'check-circle'}"></i>
+                <p><strong>Status:</strong> ${result.shouldInfluenceCharging ? 'Weather conditions suggest charging' : 'Weather conditions normal'}</p>
+                ${result.reason ? `<p><strong>Reason:</strong> ${result.reason}</p>` : ''}
+                ${current.main ? `
+                    <div class="test-details">
+                        <p><strong>Current:</strong> ${current.weather?.[0]?.description || 'Unknown'}</p>
+                        <p><strong>Temperature:</strong> ${Math.round(current.main.temp)}°C</p>
+                        <p><strong>Cloud Cover:</strong> ${current.clouds?.all || 0}%</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    formatTimeTestResult(result) {
+        const statusClass = result.allow ? 'pass' : 'fail';
+        const icon = result.allow ? 'check-circle' : 'times-circle';
+        
+        return `
+            <div class="test-result ${statusClass}">
+                <i class="fas fa-${icon}"></i>
+                <p><strong>Status:</strong> ${result.allow ? 'Time conditions satisfied' : 'Time restrictions active'}</p>
+                <p><strong>Reason:</strong> ${result.reason}</p>
+                ${result.priority ? `<p><strong>Priority:</strong> ${result.priority.toUpperCase()}</p>` : ''}
+                <div class="test-details">
+                    <p><strong>Current Time:</strong> ${new Date().toLocaleTimeString()}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    formatSmartPowerTestResult(result) {
+        if (result.allow) {
+            return `
+                <div class="test-result pass">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Status:</strong> Power conditions satisfied</p>
+                    <p><strong>Reason:</strong> ${result.reason}</p>
+                    ${result.details?.appliedRule ? `
+                        <div class="test-details">
+                            <p><strong>Applied Rule:</strong> ${result.details.appliedRule.ruleName}</p>
+                            <p><strong>Priority:</strong> ${result.details.appliedRule.priority.toUpperCase()}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            return `
+                <div class="test-result ${result.details?.optional ? 'info' : 'fail'}">
+                    <i class="fas fa-${result.details?.optional ? 'info-circle' : 'times-circle'}"></i>
+                    <p><strong>Status:</strong> ${result.reason}</p>
+                    ${result.details?.failedReasons ? `
+                        <div class="test-details">
+                            <p><strong>Failed conditions:</strong></p>
+                            <ul>
+                                ${result.details.failedReasons.map(reason => `<li>${reason}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    ${result.details?.systemState ? `
+                        <div class="test-details">
+                            <p><strong>Current System State:</strong></p>
+                            <ul>
+                                <li>Battery SoC: ${this.formatNumber(result.details.systemState.battery_soc)}%</li>
+                                <li>PV Power: ${this.formatNumber(result.details.systemState.pv_power)}W</li>
+                                <li>Load: ${this.formatNumber(result.details.systemState.load)}W</li>
+                                <li>Battery Power: ${this.formatNumber(result.details.systemState.battery_power)}W</li>
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+    }
+
+    formatCooldownTestResult(result) {
+        const status = result.status || result;
+        const inCooldown = result.inCooldown || status.inCooldown;
+        
+        return `
+            <div class="test-result ${inCooldown ? 'warning' : 'pass'}">
+                <i class="fas fa-${inCooldown ? 'hourglass-half' : 'check-circle'}"></i>
+                <p><strong>Status:</strong> ${inCooldown ? 'In cooldown period' : 'No cooldown active'}</p>
+                ${status.chargingCyclesUsed !== undefined ? `
+                    <div class="test-details">
+                        <p><strong>Cycles Today:</strong> ${status.chargingCyclesUsed} / ${status.maxCyclesPerDay}</p>
+                        ${status.nextChargingAllowed ? `
+                            <p><strong>Next Charge Allowed:</strong> ${new Date(status.nextChargingAllowed).toLocaleTimeString()}</p>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    formatTibberTestResult(result) {
+        if (result.success) {
+            return `
+                <div class="test-result pass">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Status:</strong> Tibber API Connected</p>
+                    ${result.currentPrice ? `
+                        <div class="test-details">
+                            <p><strong>Current Price:</strong> ${result.currentPrice.toFixed(4)} EUR/kWh</p>
+                            <p><strong>Message:</strong> ${result.message || 'Connection successful'}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            return `
+                <div class="test-result fail">
+                    <i class="fas fa-times-circle"></i>
+                    <p><strong>Status:</strong> Tibber API Error</p>
+                    <p><strong>Error:</strong> ${result.error}</p>
+                </div>
+            `;
+        }
+    }
+
+    async generateTestRecommendation() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/recommendation');
+            const data = await response.json();
+            
+            if (data.success && data.recommendation) {
+                const rec = data.recommendation;
+                const content = document.getElementById('recommendationContent');
+                
+                if (content) {
+                    content.innerHTML = `
+                        <div class="recommendation-result ${rec.shouldCharge ? 'charge' : 'no-charge'}">
+                            <div class="recommendation-icon">
+                                <i class="fas fa-${rec.shouldCharge ? 'battery-full' : 'battery-empty'}"></i>
+                            </div>
+                            <div class="recommendation-text">
+                                <h5>${rec.shouldCharge ? 'CHARGE NOW' : 'DO NOT CHARGE'}</h5>
+                                <p>${rec.reason}</p>
+                                ${rec.priority ? `<p class="priority">Priority: ${rec.priority.toUpperCase()}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="recommendation-details">
+                            ${rec.details ? `
+                                <p><strong>Battery SoC:</strong> ${rec.details.batterySoC || 'N/A'}%</p>
+                                <p><strong>Enhanced Features:</strong></p>
+                                <ul>
+                                    ${rec.tibberIntegration ? '<li>✅ Tibber Real-time Pricing</li>' : '<li>❌ Tibber Integration</li>'}
+                                    ${rec.smartPowerRules ? '<li>✅ Smart Power Rules Active</li>' : '<li>❌ Smart Power Rules</li>'}
+                                    ${data.learnerModeActive ? '<li>✅ Learner Mode Active</li>' : '<li>⚠️ Learner Mode Inactive</li>'}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error generating recommendation:', error);
+            const content = document.getElementById('recommendationContent');
+            if (content) {
+                content.innerHTML = `
+                    <div class="test-error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error generating recommendation: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // =============================================================================
+    // ENHANCED CHART MANAGEMENT
+    // =============================================================================
+
+    async updateChart(period = '24h') {
+        try {
+            // Use cached data if available
+            if (this.pricingDataCache) {
+                await this.updateChartWithCache();
+                return;
+            }
+
+            // Otherwise fetch new data
+            const data = await this.loadPricingData();
+            if (data && data.success) {
+                await this.updateChartWithCache();
+            }
+        } catch (error) {
+            console.error('Error updating chart:', error);
+            this.showToast('Error updating price chart', 'error');
+        }
+    }
+
+    // =============================================================================
+    // OPTIMIZED EVENT LISTENERS
+    // =============================================================================
+
+    setupEventListeners() {
+        // Quick action buttons
+        document.getElementById('manualChargeBtn')?.addEventListener('click', () => {
+            this.manualCharge(true);
+        });
+
+        document.getElementById('manualStopBtn')?.addEventListener('click', () => {
+            this.manualCharge(false);
+        });
+
+        document.getElementById('refreshDataBtn')?.addEventListener('click', () => {
+            this.refreshAllData();
+        });
+
+        document.getElementById('testConditionsBtn')?.addEventListener('click', () => {
+            this.showTestConditionsModal();
+        });
+
+        // Configuration form handlers
+        document.getElementById('saveSettingsBtn')?.addEventListener('click', () => {
+            this.saveConfiguration();
+        });
+
+        document.getElementById('testTibberBtn')?.addEventListener('click', () => {
+            this.testTibberConnection();
+        });
+
+        document.getElementById('testWeatherBtn')?.addEventListener('click', () => {
+            this.testWeatherAPI();
+        });
+
+        // Country/city selectors
+        document.getElementById('country')?.addEventListener('change', (e) => {
+            this.updateCitiesList(e.target.value);
+        });
+
+        // API key toggle
+        document.getElementById('toggleApiKey')?.addEventListener('click', () => {
+            this.togglePasswordField('tibberApiKey');
+        });
+
+        // Conditional field toggles
+        document.getElementById('useTibberLevels')?.addEventListener('change', (e) => {
+            this.toggleTibberLevelsConfig(e.target.checked);
+        });
+
+        // Power Rule Modal handlers
+        document.getElementById('addPowerRuleBtn')?.addEventListener('click', () => {
+            this.showPowerRuleModal();
+        });
+
+        document.getElementById('closePowerRuleModal')?.addEventListener('click', () => {
+            this.hidePowerRuleModal();
+        });
+
+        document.getElementById('saveRuleBtn')?.addEventListener('click', () => {
+            this.savePowerRule();
+        });
+
+        document.getElementById('cancelRuleBtn')?.addEventListener('click', () => {
+            this.hidePowerRuleModal();
+        });
+
+        document.getElementById('addConditionBtn')?.addEventListener('click', () => {
+            this.addConditionRow();
+        });
+
+        // Schedule handlers
+        document.getElementById('addScheduleBtn')?.addEventListener('click', () => {
+            this.addScheduleRow();
+        });
+
+        // Refresh buttons
+        document.getElementById('refreshStatusBtn')?.addEventListener('click', () => {
+            this.loadSystemStatus();
+        });
+
+        // Modal background click to close
+        document.getElementById('powerRuleModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'powerRuleModal') {
+                this.hidePowerRuleModal();
+            }
+        });
+
+        // Refresh pricing data button
+        const refreshPricesBtn = document.createElement('button');
+        refreshPricesBtn.className = 'btn btn-sm btn-secondary';
+        refreshPricesBtn.innerHTML = '<i class="fas fa-sync"></i> Refresh Prices';
+        refreshPricesBtn.onclick = () => this.refreshPricingData();
+        
+        // Add to tibber status section if it exists
+        const tibberStatus = document.getElementById('tibberStatus');
+        if (tibberStatus) {
+            tibberStatus.appendChild(refreshPricesBtn);
+        }
+    }
+
+    // NEW: Refresh pricing data from Tibber
+    async refreshPricingData() {
+        try {
+            const button = event.target;
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            button.disabled = true;
+
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/refresh-prices', {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast(`Successfully refreshed ${data.dataPoints} price points`, 'success');
+                
+                // Reload pricing data and update chart
+                await this.loadPricingData();
+                await this.updateChartWithCache();
+                
+                // Update current price display
+                if (data.currentPrice) {
+                    this.updateCurrentPriceDisplay(data.currentPrice);
+                }
+            } else {
+                throw new Error(data.error || 'Failed to refresh prices');
+            }
+        } catch (error) {
+            console.error('Error refreshing prices:', error);
+            this.showToast('Error refreshing prices: ' + error.message, 'error');
+        } finally {
+            const button = event.target;
+            button.innerHTML = '<i class="fas fa-sync"></i> Refresh Prices';
+            button.disabled = false;
+        }
+    }
+
+    // =============================================================================
+    // OPTIMIZED PERIODIC UPDATES
+    // =============================================================================
+
+    startPeriodicUpdates() {
+        // Update different data at different intervals for efficiency
+        
+        // System status - every 30 seconds
+        this.statusInterval = setInterval(() => {
+            this.loadSystemStatus();
+        }, 30000);
+
+        // Current price - every minute
+        this.priceInterval = setInterval(() => {
+            this.loadCurrentPrice();
+        }, 60000);
+
+        // Chart data - every 5 minutes
+        this.chartInterval = setInterval(() => {
+            this.updateChart();
+        }, 300000);
+
+        // Weather data - every 10 minutes (if enabled)
+        this.weatherInterval = setInterval(() => {
+            if (this.config.weatherConditions?.enabled) {
+                this.loadWeatherData();
+            }
+        }, 600000);
+
+        console.log('🔄 Started optimized periodic updates');
+    }
+
+    stopPeriodicUpdates() {
+        const intervals = ['statusInterval', 'priceInterval', 'chartInterval', 'weatherInterval'];
+        intervals.forEach(interval => {
+            if (this[interval]) {
+                clearInterval(this[interval]);
+                this[interval] = null;
+            }
+        });
+        console.log('⏹️ Stopped periodic updates');
+    }
+
+    // =============================================================================
+    // IMPROVED DATA LOADING
+    // =============================================================================
+
+    async loadCurrentPrice() {
+        try {
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/current-price');
+            const data = await response.json();
+            
+            if (data.success && data.currentPrice) {
+                this.currentPriceCache = data.currentPrice;
+                this.updateCurrentPriceDisplay(data.currentPrice);
+            }
+        } catch (error) {
+            console.warn('Could not load current price:', error);
+            // Use cached price if available
+            if (this.currentPriceCache) {
+                this.updateCurrentPriceDisplay(this.currentPriceCache);
+            }
+        }
+    }
+
+    async testWeatherAPI() {
+        try {
+            const button = document.getElementById('testWeatherBtn');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+
+            const weatherApiKey = document.getElementById('weatherApiKey')?.value;
+            const country = document.getElementById('country')?.value;
+            const city = document.getElementById('city')?.value;
+
+            if (!weatherApiKey) {
+                throw new Error('Please enter a weather API key first');
+            }
+
+            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/test-weather', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    weatherApiKey: weatherApiKey,
+                    country: country,
+                    city: city
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('Weather API connection successful!', 'success');
+                
+                if (data.current) {
+                    this.updateWeatherDisplay(data.current);
+                }
+                
+                if (data.forecast) {
+                    this.updateWeatherForecast(data.forecast);
+                }
+            } else {
+                throw new Error(data.error || 'Weather API test failed');
+            }
+        } catch (error) {
+            console.error('Weather test failed:', error);
+            this.showToast('Weather test failed: ' + error.message, 'error');
+        } finally {
+            const button = document.getElementById('testWeatherBtn');
+            button.textContent = 'Test';
+            button.disabled = false;
+        }
+    }
+
+    // =============================================================================
+    // CHART INITIALIZATION AND MANAGEMENT (keep existing implementation)
+    // =============================================================================
+    
     initializeChart() {
         const ctx = document.getElementById('priceChart');
         if (!ctx) return;
@@ -914,165 +1888,13 @@ class DynamicPricingDashboard {
         return colors[level] || '#3b82f6';
     }
 
-    async updateChart(period = '24h') {
-        try {
-            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/pricing-data');
-            const data = await response.json();
-            
-            if (!data.success || !data.data) {
-                console.warn('No pricing data available');
-                return;
-            }
-
-            let filteredData = data.data;
-            const now = new Date();
-
-            // Filter data based on period
-            switch (period) {
-                case '24h':
-                    filteredData = data.data.slice(0, 24);
-                    break;
-                case '48h':
-                    filteredData = data.data.slice(0, 48);
-                    break;
-                case 'today':
-                    filteredData = data.data.filter(item => {
-                        const itemDate = new Date(item.timestamp);
-                        return itemDate.toDateString() === now.toDateString();
-                    });
-                    break;
-                case 'tomorrow':
-                    const tomorrow = new Date(now);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    filteredData = data.data.filter(item => {
-                        const itemDate = new Date(item.timestamp);
-                        return itemDate.toDateString() === tomorrow.toDateString();
-                    });
-                    break;
-            }
-
-            if (filteredData.length === 0) {
-                console.warn('No data for selected period');
-                return;
-            }
-
-            // Update chart data
-            const labels = filteredData.map(item => {
-                const time = new Date(item.timestamp);
-                return time.getHours().toString().padStart(2, '0') + ':00';
-            });
-
-            const prices = filteredData.map(item => item.price);
-
-            this.priceChart.data.labels = labels;
-            this.priceChart.data.datasets[0].data = prices;
-            this.priceChart.data.datasets[0].rawData = filteredData;
-
-            // Update y-axis range for better visualization
-            const minPrice = Math.min(...prices);
-            const maxPrice = Math.max(...prices);
-            const padding = (maxPrice - minPrice) * 0.1;
-            
-            this.priceChart.options.scales.y.min = Math.max(0, minPrice - padding);
-            this.priceChart.options.scales.y.max = maxPrice + padding;
-
-            this.priceChart.update('active');
-            
-            console.log(`📊 Chart updated with ${filteredData.length} data points for ${period}`);
-        } catch (error) {
-            console.error('Error updating chart:', error);
-            this.showToast('Error updating price chart', 'error');
-        }
-    }
+    // [Keep all other existing methods from the original code...]
+    // Including: setupTabs, showPowerRuleModal, hidePowerRuleModal, etc.
+    // I'm not repeating them here to save space, but they should remain unchanged
 
     // =============================================================================
-    // EVENT LISTENERS
+    // Keep all existing methods below this line (not repeated to save space)
     // =============================================================================
-
-    setupEventListeners() {
-        // Quick action buttons
-        document.getElementById('manualChargeBtn')?.addEventListener('click', () => {
-            this.manualCharge(true);
-        });
-
-        document.getElementById('manualStopBtn')?.addEventListener('click', () => {
-            this.manualCharge(false);
-        });
-
-        document.getElementById('refreshDataBtn')?.addEventListener('click', () => {
-            this.refreshAllData();
-        });
-
-        document.getElementById('testConditionsBtn')?.addEventListener('click', () => {
-            this.showTestConditionsModal();
-        });
-
-        // Configuration form handlers
-        document.getElementById('saveSettingsBtn')?.addEventListener('click', () => {
-            this.saveConfiguration();
-        });
-
-        document.getElementById('testTibberBtn')?.addEventListener('click', () => {
-            this.testTibberConnection();
-        });
-
-        document.getElementById('testWeatherBtn')?.addEventListener('click', () => {
-            this.testWeatherAPI();
-        });
-
-        // Country/city selectors
-        document.getElementById('country')?.addEventListener('change', (e) => {
-            this.updateCitiesList(e.target.value);
-        });
-
-        // API key toggle
-        document.getElementById('toggleApiKey')?.addEventListener('click', () => {
-            this.togglePasswordField('tibberApiKey');
-        });
-
-        // Conditional field toggles
-        document.getElementById('useTibberLevels')?.addEventListener('change', (e) => {
-            this.toggleTibberLevelsConfig(e.target.checked);
-        });
-
-        // Power Rule Modal handlers
-        document.getElementById('addPowerRuleBtn')?.addEventListener('click', () => {
-            this.showPowerRuleModal();
-        });
-
-        document.getElementById('closePowerRuleModal')?.addEventListener('click', () => {
-            this.hidePowerRuleModal();
-        });
-
-        document.getElementById('saveRuleBtn')?.addEventListener('click', () => {
-            this.savePowerRule();
-        });
-
-        document.getElementById('cancelRuleBtn')?.addEventListener('click', () => {
-            this.hidePowerRuleModal();
-        });
-
-        document.getElementById('addConditionBtn')?.addEventListener('click', () => {
-            this.addConditionRow();
-        });
-
-        // Schedule handlers
-        document.getElementById('addScheduleBtn')?.addEventListener('click', () => {
-            this.addScheduleRow();
-        });
-
-        // Refresh buttons
-        document.getElementById('refreshStatusBtn')?.addEventListener('click', () => {
-            this.loadSystemStatus();
-        });
-
-        // Modal background click to close
-        document.getElementById('powerRuleModal')?.addEventListener('click', (e) => {
-            if (e.target.id === 'powerRuleModal') {
-                this.hidePowerRuleModal();
-            }
-        });
-    }
 
     setupTabs() {
         const tabButtons = document.querySelectorAll('.tab-btn');
@@ -1686,38 +2508,6 @@ class DynamicPricingDashboard {
         }
     }
 
-    async loadCurrentPrice() {
-        try {
-            const response = await fetch('<%= ingress_path %>/api/dynamic-pricing/current-price');
-            const data = await response.json();
-            
-            if (data.success && data.currentPrice) {
-                this.updateCurrentPriceDisplay(data.currentPrice);
-            }
-        } catch (error) {
-            console.warn('Could not load current price:', error);
-        }
-    }
-
-    startPeriodicUpdates() {
-        // Update every 30 seconds
-        this.updateInterval = setInterval(() => {
-            this.loadSystemStatus();
-            this.loadCurrentPrice();
-            this.updateChart();
-        }, 30000);
-
-        console.log('🔄 Started periodic updates (30s interval)');
-    }
-
-    stopPeriodicUpdates() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-            console.log('⏹️ Stopped periodic updates');
-        }
-    }
-
     // =============================================================================
     // UI UPDATES
     // =============================================================================
@@ -2256,53 +3046,6 @@ class DynamicPricingDashboard {
         }
     }
 
-    async testWeatherAPI() {
-        try {
-            const button = document.getElementById('testWeatherBtn');
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            button.disabled = true;
-
-            const weatherApiKey = document.getElementById('weatherApiKey')?.value;
-            const country = document.getElementById('country')?.value;
-            const city = document.getElementById('city')?.value;
-
-            if (!weatherApiKey) {
-                throw new Error('Please enter a weather API key first');
-            }
-
-            const response = await fetch('/api/dynamic-pricing/test-weather', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    weatherApiKey: weatherApiKey,
-                    country: country,
-                    city: city
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.showToast('Weather API connection successful!', 'success');
-                
-                if (data.current) {
-                    this.updateWeatherDisplay(data.current);
-                }
-            } else {
-                throw new Error(data.error || 'Weather API test failed');
-            }
-        } catch (error) {
-            console.error('Weather test failed:', error);
-            this.showToast('Weather test failed: ' + error.message, 'error');
-        } finally {
-            const button = document.getElementById('testWeatherBtn');
-            button.textContent = 'Test';
-            button.disabled = false;
-        }
-    }
-
     async refreshAllData() {
         try {
             const button = document.getElementById('refreshDataBtn');
@@ -2311,7 +3054,7 @@ class DynamicPricingDashboard {
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
             button.disabled = true;
 
-            // Refresh all data sources
+            // Refresh all data sources in parallel
             await Promise.all([
                 this.loadConfiguration(),
                 this.loadSystemStatus(),
@@ -2386,11 +3129,6 @@ class DynamicPricingDashboard {
         }
     }
 
-    showTestConditionsModal() {
-        // TODO: Implement test conditions modal
-        this.showToast('Test conditions feature coming soon', 'info');
-    }
-
     updateWeatherDisplay(weatherData) {
         // Update weather status card
         const weatherIcon = document.getElementById('weatherIcon');
@@ -2410,6 +3148,34 @@ class DynamicPricingDashboard {
                 const iconClass = this.getWeatherIconClass(weatherData.weather?.[0]?.main);
                 weatherIcon.innerHTML = `<i class="fas ${iconClass}"></i>`;
                 weatherIcon.className = `weather-icon ${this.getWeatherClass(weatherData.weather?.[0]?.main)}`;
+            }
+
+            // Update detailed weather display in weather tab
+            const currentWeatherTemp = document.getElementById('currentWeatherTemp');
+            const currentWeatherDesc = document.getElementById('currentWeatherDesc');
+            const currentWeatherIcon = document.getElementById('currentWeatherIcon');
+            const currentHumidity = document.getElementById('currentHumidity');
+            const currentWind = document.getElementById('currentWind');
+            
+            if (currentWeatherTemp) {
+                currentWeatherTemp.textContent = `${Math.round(weatherData.main?.temp || 0)}°C`;
+            }
+            
+            if (currentWeatherDesc) {
+                currentWeatherDesc.textContent = weatherData.weather?.[0]?.description || '--';
+            }
+            
+            if (currentWeatherIcon) {
+                const iconClass = this.getWeatherIconClass(weatherData.weather?.[0]?.main);
+                currentWeatherIcon.innerHTML = `<i class="fas ${iconClass}"></i>`;
+            }
+            
+            if (currentHumidity) {
+                currentHumidity.textContent = `${weatherData.main?.humidity || 0}%`;
+            }
+            
+            if (currentWind) {
+                currentWind.textContent = `${weatherData.wind?.speed || 0} m/s`;
             }
         }
     }

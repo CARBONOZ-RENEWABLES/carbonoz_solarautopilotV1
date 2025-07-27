@@ -179,7 +179,12 @@ app.get('/api/status', async (req, res) => {
 });
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 
 // Extract configuration values with defaults

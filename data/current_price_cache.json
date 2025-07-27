@@ -1,0 +1,12 @@
+{
+  "price": {
+    "price": 0.6874,
+    "level": "NORMAL",
+    "currency": "SEK",
+    "timestamp": "2025-07-27T09:00:00.000+02:00",
+    "provider": "Tibber Real-time",
+    "isRealTime": true
+  },
+  "timestamp": "2025-07-27T07:16:43.253Z",
+  "expires": "2025-07-27T08:16:43.253Z"
+}
