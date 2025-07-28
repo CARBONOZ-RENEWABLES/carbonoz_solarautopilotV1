@@ -1,4 +1,4 @@
-// services/pricingApis.js - ENHANCED WITH TIBBER REAL-TIME INTEGRATION
+// services/pricingApis.js - FIXED VERSION WITH EURO CURRENCY CONVERSION
 
 const axios = require('axios');
 const moment = require('moment-timezone');
@@ -63,6 +63,37 @@ const TIBBER_CITIES = {
     { name: 'Leeds', lat: 53.8008, lon: -1.5491 }
   ]
 };
+
+// FIXED: Currency conversion rates (approximate - for display purposes)
+// In a production system, you'd fetch real-time exchange rates
+const CURRENCY_TO_EUR_RATES = {
+  'EUR': 1.000,
+  'SEK': 0.088,   // 1 SEK ≈ 0.088 EUR
+  'NOK': 0.086,   // 1 NOK ≈ 0.086 EUR
+  'DKK': 0.134,   // 1 DKK ≈ 0.134 EUR
+  'GBP': 1.170,   // 1 GBP ≈ 1.170 EUR
+  'USD': 0.920    // 1 USD ≈ 0.920 EUR (fallback)
+};
+
+/**
+ * FIXED: Convert price to EUR for consistent display
+ * @param {number} price - Original price
+ * @param {string} fromCurrency - Source currency
+ * @returns {number} Price in EUR
+ */
+function convertToEUR(price, fromCurrency) {
+  if (!price || typeof price !== 'number') return 0;
+  
+  const rate = CURRENCY_TO_EUR_RATES[fromCurrency?.toUpperCase()] || 1;
+  const convertedPrice = price * rate;
+  
+  // Log conversion for debugging
+  if (fromCurrency !== 'EUR') {
+    console.log(`💱 Currency conversion: ${price} ${fromCurrency} → ${convertedPrice.toFixed(4)} EUR (rate: ${rate})`);
+  }
+  
+  return convertedPrice;
+}
 
 /**
  * Fetch real-time electricity prices from Tibber API
@@ -141,25 +172,35 @@ async function fetchTibberPrices(config) {
     }
 
     const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
-    const currency = priceInfo.current?.currency || 'EUR';
+    const originalCurrency = priceInfo.current?.currency || 'EUR';
 
     // Combine today's and tomorrow's prices
     const allPrices = [...(priceInfo.today || []), ...(priceInfo.tomorrow || [])];
     
-    const formattedPrices = allPrices.map(priceData => ({
-      timestamp: moment(priceData.startsAt).tz(timezone).toISOString(),
-      price: priceData.total, // Use total price including taxes
-      currency: currency,
-      level: priceData.level, // Tibber price level (VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE)
-      energy: priceData.energy,
-      tax: priceData.tax,
-      timezone: timezone,
-      provider: 'Tibber',
-      localHour: moment(priceData.startsAt).tz(timezone).hour()
-    }));
+    const formattedPrices = allPrices.map(priceData => {
+      // FIXED: Convert all prices to EUR for consistent display
+      const originalPrice = priceData.total;
+      const eurPrice = convertToEUR(originalPrice, originalCurrency);
+      const eurEnergy = convertToEUR(priceData.energy, originalCurrency);
+      const eurTax = convertToEUR(priceData.tax, originalCurrency);
+      
+      return {
+        timestamp: moment(priceData.startsAt).tz(timezone).toISOString(),
+        price: eurPrice, // FIXED: Always in EUR
+        currency: 'EUR', // FIXED: Always display as EUR
+        originalPrice: originalPrice,
+        originalCurrency: originalCurrency,
+        level: priceData.level, // Tibber price level (VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE)
+        energy: eurEnergy,
+        tax: eurTax,
+        timezone: timezone,
+        provider: 'Tibber',
+        localHour: moment(priceData.startsAt).tz(timezone).hour()
+      };
+    });
 
     console.log(`✅ Retrieved ${formattedPrices.length} real-time price points from Tibber`);
-    console.log(`💰 Current price: ${priceInfo.current?.total?.toFixed(4)} ${currency}/kWh (Level: ${priceInfo.current?.level})`);
+    console.log(`💰 Current price: ${convertToEUR(priceInfo.current?.total, originalCurrency).toFixed(4)} EUR/kWh (Level: ${priceInfo.current?.level}) [Original: ${priceInfo.current?.total} ${originalCurrency}]`);
 
     return formattedPrices;
   } catch (error) {
@@ -216,10 +257,16 @@ async function getTibberCurrentPrice(config) {
       throw new Error('No current price available from Tibber');
     }
 
+    // FIXED: Convert current price to EUR
+    const originalCurrency = current.currency || 'EUR';
+    const eurPrice = convertToEUR(current.total, originalCurrency);
+
     return {
-      price: current.total,
+      price: eurPrice, // FIXED: Always return EUR price
       level: current.level,
-      currency: current.currency,
+      currency: 'EUR', // FIXED: Always return EUR currency
+      originalPrice: current.total,
+      originalCurrency: originalCurrency,
       timestamp: current.startsAt,
       provider: 'Tibber Real-time',
       isRealTime: true
@@ -351,7 +398,22 @@ async function testTibberConnection(apiKey) {
     }
 
     const homes = viewer.homes || [];
-    const currentPrice = homes[0]?.currentSubscription?.priceInfo?.current;
+    const currentPriceRaw = homes[0]?.currentSubscription?.priceInfo?.current;
+    
+    // FIXED: Convert test price to EUR for consistent display
+    let currentPrice = null;
+    if (currentPriceRaw) {
+      const originalCurrency = currentPriceRaw.currency || 'EUR';
+      const eurPrice = convertToEUR(currentPriceRaw.total, originalCurrency);
+      
+      currentPrice = {
+        price: eurPrice,
+        currency: 'EUR', // FIXED: Always return EUR
+        originalPrice: currentPriceRaw.total,
+        originalCurrency: originalCurrency,
+        level: currentPriceRaw.level
+      };
+    }
 
     return {
       success: true,
@@ -361,11 +423,7 @@ async function testTibberConnection(apiKey) {
         userId: viewer.userId
       },
       homes: homes.length,
-      currentPrice: currentPrice ? {
-        price: currentPrice.total,
-        currency: currentPrice.currency,
-        level: currentPrice.level
-      } : null,
+      currentPrice: currentPrice,
       message: `Connected successfully. Found ${homes.length} home(s).`
     };
   } catch (error) {
@@ -387,7 +445,7 @@ function generateRealisticSampleData(timezone = 'Europe/Berlin') {
   const now = moment().tz(timezone);
   const startHour = now.clone().startOf('hour');
 
-  // Realistic Nordic price patterns
+  // FIXED: Realistic European price patterns in EUR
   const basePrices = {
     night: 0.08,    // 00:00 - 06:00
     morning: 0.15,  // 06:00 - 09:00  
@@ -428,7 +486,7 @@ function generateRealisticSampleData(timezone = 'Europe/Berlin') {
     prices.push({
       timestamp: timestamp.toISOString(),
       price: parseFloat(price.toFixed(4)),
-      currency: 'EUR',
+      currency: 'EUR', // FIXED: Always use EUR for sample data
       level: level,
       timezone: timezone,
       provider: 'Sample Data',
@@ -468,6 +526,26 @@ async function fetchElectricityPrices(config) {
   }
 }
 
+/**
+ * FIXED: Get exchange rate for currency conversion (static rates for demo)
+ * In production, you'd fetch from a real exchange rate API
+ * @param {string} fromCurrency - Source currency
+ * @param {string} toCurrency - Target currency
+ * @returns {number} Exchange rate
+ */
+function getExchangeRate(fromCurrency, toCurrency = 'EUR') {
+  if (fromCurrency === toCurrency) return 1;
+  
+  const rate = CURRENCY_TO_EUR_RATES[fromCurrency?.toUpperCase()];
+  if (rate) {
+    console.log(`💱 Exchange rate ${fromCurrency} → ${toCurrency}: ${rate}`);
+    return rate;
+  }
+  
+  console.warn(`⚠️ No exchange rate found for ${fromCurrency}, using 1:1`);
+  return 1;
+}
+
 module.exports = {
   fetchElectricityPrices,
   fetchTibberPrices,
@@ -476,6 +554,9 @@ module.exports = {
   getLocationByCountryCity,
   testTibberConnection,
   generateRealisticSampleData,
+  convertToEUR, // FIXED: Export conversion function
+  getExchangeRate, // FIXED: Export exchange rate function
   TIBBER_COUNTRY_TIMEZONES,
-  TIBBER_CITIES
+  TIBBER_CITIES,
+  CURRENCY_TO_EUR_RATES // FIXED: Export currency rates
 };
