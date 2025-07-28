@@ -802,6 +802,7 @@ gap: var(--spacing-sm);
 font-size: 1rem;
 opacity: 0.9;
 font-weight: 400;
+color: #fff;
 }
 
 .header-right {
