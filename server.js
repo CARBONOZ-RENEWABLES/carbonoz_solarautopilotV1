@@ -2793,10 +2793,11 @@ app.get('/hassio_ingress/:token/chart', (req, res) => {
       const historyDate = new Date(dayData.date).toISOString().split('T')[0];
   
       let gridEnergyForDay = null,
-        pvEnergyForDay = null,
-        previousGridEnergy = null,
-        previousPvEnergy = null;
+          pvEnergyForDay = null,
+          previousGridEnergy = null,
+          previousPvEnergy = null;
   
+      // Find current day's data and previous day's data
       gridEnergyIn.forEach((entry, i) => {
         const entryDate = new Date(entry.time).toISOString().split('T')[0];
         if (entryDate === historyDate) {
@@ -2823,19 +2824,25 @@ app.get('/hassio_ingress/:token/chart', (req, res) => {
         previousPvEnergy = index > 0 ? pvEnergy[index - 1]?.value || 0 : null;
       }
   
-      let dailyGridEnergy = gridEnergyForDay;
-      let dailyPvEnergy = pvEnergyForDay;
+      // Apply the same logic as analytics table
+      let dailyGridEnergy, dailyPvEnergy;
   
-      if (
-        previousGridEnergy !== null &&
-        previousPvEnergy !== null &&
-        gridEnergyForDay > previousGridEnergy &&
-        pvEnergyForDay > previousPvEnergy
-      ) {
+      // Check if both values are greater than previous values AND previous values are not zero
+      const bothGreaterThanPrevious = 
+          previousGridEnergy !== null && previousGridEnergy > 0 && gridEnergyForDay > previousGridEnergy &&
+          previousPvEnergy !== null && previousPvEnergy > 0 && pvEnergyForDay > previousPvEnergy;
+  
+      if (bothGreaterThanPrevious) {
+        // If both metrics increased, calculate differences (daily consumption/production)
         dailyGridEnergy = Math.max(0, gridEnergyForDay - previousGridEnergy);
         dailyPvEnergy = Math.max(0, pvEnergyForDay - previousPvEnergy);
+      } else {
+        // Otherwise, use current values as is
+        dailyGridEnergy = gridEnergyForDay || 0;
+        dailyPvEnergy = pvEnergyForDay || 0;
       }
   
+      // Calculate emissions
       const unavoidableEmissions = (dailyGridEnergy * carbonIntensity) / 1000;
       const avoidedEmissions = (dailyPvEnergy * carbonIntensity) / 1000;
       const totalEnergy = dailyGridEnergy + dailyPvEnergy;
