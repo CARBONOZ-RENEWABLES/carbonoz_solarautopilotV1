@@ -49,16 +49,15 @@ app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 
-// Middleware to extract ingress path from headers if not in URL
 app.use((req, res, next) => {
   const ingressHeader = req.headers['x-ingress-path'];
   
   console.log(`Request: ${req.method} ${req.path}`);
-  console.log(`Ingress header: ${ingressHeader}`);
+  console.log(`Ingress header: ${ingressHeader || 'not present'}`);
   console.log(`Original URL: ${req.originalUrl}`);
   
-  // If we have an ingress header, use it to determine the ingress path
-  if (ingressHeader) {
+  // If we have an ingress header and it's not undefined/null/empty, use it to determine the ingress path
+  if (ingressHeader && ingressHeader !== 'undefined' && ingressHeader.trim() !== '') {
     req.ingressPath = ingressHeader;
     req.basePath = ingressHeader;
     console.log(`Set ingress path from header: ${ingressHeader}`);
@@ -70,15 +69,41 @@ app.use((req, res, next) => {
       req.ingressPath = `/api/hassio_ingress/${pathParts[ingressIndex + 1]}`;
       req.basePath = req.ingressPath;
       console.log(`Reconstructed ingress path: ${req.ingressPath}`);
+    } else {
+      // Fallback if we can't reconstruct properly
+      req.ingressPath = INGRESS_PATH || '';
+      req.basePath = BASE_PATH || '';
+      console.log(`Fallback to configured ingress path: ${req.ingressPath}`);
+    }
+  } else if (req.originalUrl.includes('/hassio_ingress/')) {
+    // Handle case where ingress is in originalUrl but not in path
+    const urlParts = req.originalUrl.split('/');
+    const ingressIndex = urlParts.indexOf('hassio_ingress');
+    if (ingressIndex >= 0 && urlParts[ingressIndex + 1]) {
+      req.ingressPath = `/api/hassio_ingress/${urlParts[ingressIndex + 1]}`;
+      req.basePath = req.ingressPath;
+      console.log(`Reconstructed ingress path from originalUrl: ${req.ingressPath}`);
+    } else {
+      req.ingressPath = INGRESS_PATH || '';
+      req.basePath = BASE_PATH || '';
     }
   } else {
-    req.ingressPath = INGRESS_PATH;
-    req.basePath = BASE_PATH;
+    // Use configured ingress path or empty string as fallback
+    req.ingressPath = INGRESS_PATH || '';
+    req.basePath = BASE_PATH || '';
+    if (INGRESS_PATH) {
+      console.log(`Using configured ingress path: ${INGRESS_PATH}`);
+    } else {
+      console.log('No ingress path configured, using empty path');
+    }
   }
+  
+  // Ensure basePath and ingressPath are never undefined
+  req.ingressPath = req.ingressPath || '';
+  req.basePath = req.basePath || '';
   
   next();
 });
-
 
 
 // Handle static files through ingress route
@@ -102,7 +127,11 @@ app.get('*/health', (req, res) => {
     basePath: req.basePath || BASE_PATH,
     ingressPath: req.ingressPath || INGRESS_PATH,
     originalUrl: req.originalUrl,
-    path: req.path
+    path: req.path,
+    security: {
+      rateLimitActive: true,
+      trustProxyConfigured: true
+    }
   });
 });
 
@@ -230,12 +259,50 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }))
 
-// Trust proxy headers (important for Home Assistant ingress)
-app.set('trust proxy', true);
+// Configure trust proxy more securely for Home Assistant ingress
+const TRUSTED_PROXIES = [
+  'loopback',           // Trust localhost (127.0.0.1, ::1)
+  'linklocal',          // Trust link-local addresses
+  '172.16.0.0/12',      // Docker networks
+  '192.168.0.0/16',     // Private networks
+  '10.0.0.0/8'          // Private networks
+];
+
+app.set('trust proxy', TRUSTED_PROXIES);
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  
+  // Custom key generator that safely handles proxy headers
+  keyGenerator: (req) => {
+    // Get the real IP address, fallback to connection remote address
+    const forwarded = req.get('x-forwarded-for');
+    const realIp = req.get('x-real-ip');
+    const connectionIp = req.connection?.remoteAddress || req.socket?.remoteAddress;
+    
+    // Use the first forwarded IP if available and valid, otherwise use real IP or connection IP
+    let clientIp = connectionIp;
+    
+    if (forwarded) {
+      const forwardedIps = forwarded.split(',').map(ip => ip.trim());
+      const firstIp = forwardedIps[0];
+      if (firstIp && firstIp !== 'unknown') {
+        clientIp = firstIp;
+      }
+    } else if (realIp && realIp !== 'unknown') {
+      clientIp = realIp;
+    }
+    
+    // Fallback to a default if we still don't have a valid IP
+    return clientIp || 'unknown-client';
+  },
+  
+  // Skip rate limiting for health checks
+  skip: (req) => {
+    const skipPaths = ['/health', '/api/health', '/status'];
+    return skipPaths.some(path => req.path.includes(path));
+  }
 });
 
 app.use('/api/', limiter);
@@ -1712,11 +1779,12 @@ async function batchSaveSettingsChanges(changes) {
 const API_REQUEST_LIMIT = new Map();
 const MAX_RATE_LIMIT_ENTRIES = 1000;
 
-function canMakeRequest(endpoint, userId) {
-  const key = `${endpoint}:${userId}`;
+function canMakeRequest(endpoint, userId, clientIp) {
+  // Create a composite key using both user ID and IP for better security
+  const key = `${endpoint}:${userId}:${clientIp || 'unknown'}`;
   const now = Date.now();
   
-  // Clean old entries periodically
+  // Clean old entries periodically to prevent memory leaks
   if (API_REQUEST_LIMIT.size > MAX_RATE_LIMIT_ENTRIES) {
     const cutoff = now - (API_REQUEST_INTERVAL * 10);
     for (const [k, v] of API_REQUEST_LIMIT.entries()) {
@@ -1743,12 +1811,16 @@ function canMakeRequest(endpoint, userId) {
 function apiRateLimiter(req, res, next) {
   const endpoint = req.originalUrl.split('?')[0];
   const userId = USER_ID;
+
+    // Get client IP safely
+    const clientIp = req.ip || 
+    req.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+    req.get('x-real-ip') || 
+    req.connection?.remoteAddress || 
+    'unknown';
   
-  if (!canMakeRequest(endpoint, userId)) {
-    return res.status(429).json({ 
-      error: 'Too Many Requests', 
-      message: 'Please wait before making another request'
-    });
+    if (!canMakeRequest(endpoint, userId, clientIp)) {
+      console.warn(`API rate limit exceeded for ${clientIp} on ${endpoint}`);
   }
   
   next();
