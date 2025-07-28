@@ -1625,7 +1625,7 @@ gap: var(--spacing-md);
 
 .power-rule-item {
 padding: var(--spacing-lg);
-background: var(--bg-tertiary);
+background: #f1f5f9 !important;
 border-radius: var(--radius-md);
 border: 1px solid var(--border-light);
 display: flex;
@@ -1693,7 +1693,7 @@ display: flex;
 align-items: center;
 gap: var(--spacing-md);
 padding: var(--spacing-md);
-background: var(--bg-tertiary);
+background: #f1f5f9 !important;
 border-radius: var(--radius-md);
 border: 1px solid var(--border-light);
 }
@@ -1945,12 +1945,13 @@ justify-content: space-between;
 align-items: center;
 padding: var(--spacing-lg);
 border-bottom: 1px solid var(--border-light);
+background: #DEAF0B;
 }
 
 .modal-header h3 {
 font-size: 1.25rem;
 font-weight: 600;
-color: var(--text-primary);
+color: #ffff;
 }
 
 .modal-close {
@@ -1969,6 +1970,14 @@ color: var(--text-primary);
 .modal-body {
 padding: var(--spacing-lg);
 }
+.test-conditions-grid{
+  background: #f1f5f9;
+}
+
+.dark-mode .test-conditions-grid{
+  background-color: rgb(32, 36, 41);
+}
+
 
 .modal-footer {
 display: flex;
@@ -2002,6 +2011,7 @@ gap: var(--spacing-sm);
 transform: translateX(100%);
 transition: transform var(--transition-normal);
 }
+
 
 .toast.show {
 transform: translateX(0);
@@ -2287,7 +2297,7 @@ FORM ELEMENTS DARK MODE
 
 .dark-mode .config-input,
 .dark-mode .select-input {
-background-color: rgb(32, 36, 41) !important;
+background-color: rgb(32, 36, 41);
 color: #f8fafc !important;
 border: 1px solid #4b5563;
 }
@@ -2295,7 +2305,7 @@ border: 1px solid #4b5563;
 .dark-mode .config-input:focus,
 .dark-mode .select-input:focus {
 border-color: #DEAF0B;
-background-color: rgb(32, 36, 41) !important;
+background-color: rgb(32, 36, 41) ;
 color: #f8fafc !important;
 box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.1);
 }
@@ -3003,7 +3013,6 @@ break-inside: avoid;
     flex-direction: column;
     gap: var(--spacing-md);
     padding: var(--spacing-lg);
-    background: var(--bg-tertiary);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-light);
     margin-bottom: var(--spacing-md);
@@ -3011,7 +3020,7 @@ break-inside: avoid;
   }
   
   .dark-mode .schedule-item {
-    background-color: rgb(32, 36, 41);
+    background-color: rgb(32, 36, 41) !important;
     border-color: #4b5563;
   }
   
@@ -3176,6 +3185,9 @@ break-inside: avoid;
     color: var(--text-primary);
     font-size: 0.875rem;
     transition: all var(--transition-fast);
+  }
+  .empty-state{
+    background: #f1f5f9;
   }
   
   .dark-mode .schedule-desc {
@@ -3359,7 +3371,7 @@ break-inside: avoid;
   }
   
   .dark-mode .power-rule-item {
-    background-color: rgb(32, 36, 41);
+    background-color: rgb(32, 36, 41) !important;
     border-color: #4b5563;
   }
   
@@ -3596,6 +3608,22 @@ break-inside: avoid;
     margin-bottom: 8px;
     display: block;
 }
+strong{
+  color: #000;
+}
+
+
+.dark-mode strong{
+  color: #fff;
+}
+p{
+  color: #000;
+}
+
+.dark-mode p{
+  color: #fff;
+}
+
 
 .test-result p {
     margin: 5px 0;
@@ -3639,6 +3667,7 @@ break-inside: avoid;
     padding: 20px;
     border: 1px solid var(--border-color);
 }
+
 
 .test-recommendation h4 {
     margin-bottom: 15px;
@@ -3688,6 +3717,7 @@ break-inside: avoid;
     margin: 0 0 8px 0;
     font-size: 1.2rem;
     font-weight: 600;
+    color: #000;
 }
 
 .recommendation-text p {
@@ -3706,6 +3736,10 @@ break-inside: avoid;
     padding: 15px;
     border-radius: 6px;
     font-size: 0.9rem;
+}
+
+.dark-mode .recommendation-details{
+  background-color: rgb(32, 36, 41);
 }
 
 .recommendation-details p {
