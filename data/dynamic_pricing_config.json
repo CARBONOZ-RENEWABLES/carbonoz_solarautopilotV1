@@ -1,12 +1,19 @@
 {
-  "enabled": false,
+  "enabled": true,
+  "tibberApiKey": "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1",
   "country": "DE",
-  "market": "DE",
-  "apiKey": "",
+  "city": "Berlin",
+  "timezone": "Europe/Berlin",
+  "currency": "EUR",
   "priceBasedCharging": {
     "enabled": true,
-    "maxPriceThreshold": 0.25,
+    "useRealTibberPrices": true,
     "useTibberLevels": true,
+    "allowedTibberLevels": [
+      "CHEAP"
+    ],
+    "maxPriceThreshold": 0.25,
+    "preferTibberLevels": true,
     "lowPriceLevels": [
       "VERY_CHEAP",
       "CHEAP"
@@ -18,6 +25,577 @@
     "emergencySoC": 10,
     "maxSoC": 95
   },
+  "smartPowerConditions": {
+    "enabled": false,
+    "rules": []
+  },
+  "weatherConditions": {
+    "enabled": false,
+    "chargeOnCloudyDays": true,
+    "chargeBeforeStorm": true,
+    "cloudCoverThreshold": 70,
+    "weatherApiKey": "",
+    "location": {}
+  },
+  "timeConditions": {
+    "enabled": true,
+    "preferNightCharging": false,
+    "nightStart": "22:00",
+    "nightEnd": "06:00",
+    "avoidPeakHours": true,
+    "peakStart": "17:00",
+    "peakEnd": "21:00"
+  },
+  "cooldown": {
+    "enabled": true,
+    "chargingCooldownMinutes": 30,
+    "errorCooldownMinutes": 60,
+    "maxChargingCyclesPerDay": 6
+  },
+  "scheduledCharging": false,
+  "chargingHours": [],
+  "lastUpdate": "2025-07-28T20:37:51.728Z",
+  "pricingData": [
+    {
+      "timestamp": "2025-07-27T22:00:00.000Z",
+      "price": 0.6851,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.4793,
+      "tax": 0.2058,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 0
+    },
+    {
+      "timestamp": "2025-07-27T23:00:00.000Z",
+      "price": 0.6508,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4518,
+      "tax": 0.199,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 1
+    },
+    {
+      "timestamp": "2025-07-28T00:00:00.000Z",
+      "price": 0.6271,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4329,
+      "tax": 0.1942,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 2
+    },
+    {
+      "timestamp": "2025-07-28T01:00:00.000Z",
+      "price": 0.5982,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4098,
+      "tax": 0.1884,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 3
+    },
+    {
+      "timestamp": "2025-07-28T02:00:00.000Z",
+      "price": 0.6095,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4188,
+      "tax": 0.1907,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 4
+    },
+    {
+      "timestamp": "2025-07-28T03:00:00.000Z",
+      "price": 0.6261,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4321,
+      "tax": 0.194,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 5
+    },
+    {
+      "timestamp": "2025-07-28T04:00:00.000Z",
+      "price": 0.6846,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4788,
+      "tax": 0.2058,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 6
+    },
+    {
+      "timestamp": "2025-07-28T05:00:00.000Z",
+      "price": 0.7716,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5485,
+      "tax": 0.2231,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 7
+    },
+    {
+      "timestamp": "2025-07-28T06:00:00.000Z",
+      "price": 0.7999,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5712,
+      "tax": 0.2287,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 8
+    },
+    {
+      "timestamp": "2025-07-28T07:00:00.000Z",
+      "price": 0.7536,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5341,
+      "tax": 0.2195,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 9
+    },
+    {
+      "timestamp": "2025-07-28T08:00:00.000Z",
+      "price": 0.7441,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5265,
+      "tax": 0.2176,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 10
+    },
+    {
+      "timestamp": "2025-07-28T09:00:00.000Z",
+      "price": 0.69,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4832,
+      "tax": 0.2068,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 11
+    },
+    {
+      "timestamp": "2025-07-28T10:00:00.000Z",
+      "price": 0.6871,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4808,
+      "tax": 0.2063,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 12
+    },
+    {
+      "timestamp": "2025-07-28T11:00:00.000Z",
+      "price": 0.701,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.492,
+      "tax": 0.209,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 13
+    },
+    {
+      "timestamp": "2025-07-28T12:00:00.000Z",
+      "price": 0.7803,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5554,
+      "tax": 0.2249,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 14
+    },
+    {
+      "timestamp": "2025-07-28T13:00:00.000Z",
+      "price": 0.7949,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.5671,
+      "tax": 0.2278,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 15
+    },
+    {
+      "timestamp": "2025-07-28T14:00:00.000Z",
+      "price": 0.9081,
+      "currency": "EUR",
+      "level": "VERY_EXPENSIVE",
+      "energy": 0.6577,
+      "tax": 0.2504,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 16
+    },
+    {
+      "timestamp": "2025-07-28T15:00:00.000Z",
+      "price": 0.849,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.6104,
+      "tax": 0.2386,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 17
+    },
+    {
+      "timestamp": "2025-07-28T16:00:00.000Z",
+      "price": 0.8664,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.6243,
+      "tax": 0.2421,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 18
+    },
+    {
+      "timestamp": "2025-07-28T17:00:00.000Z",
+      "price": 0.8809,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.6359,
+      "tax": 0.245,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 19
+    },
+    {
+      "timestamp": "2025-07-28T18:00:00.000Z",
+      "price": 0.864,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.6224,
+      "tax": 0.2416,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 20
+    },
+    {
+      "timestamp": "2025-07-28T19:00:00.000Z",
+      "price": 0.8047,
+      "currency": "EUR",
+      "level": "EXPENSIVE",
+      "energy": 0.575,
+      "tax": 0.2297,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 21
+    },
+    {
+      "timestamp": "2025-07-28T20:00:00.000Z",
+      "price": 0.6837,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4782,
+      "tax": 0.2055,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 22
+    },
+    {
+      "timestamp": "2025-07-28T21:00:00.000Z",
+      "price": 0.3378,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.2015,
+      "tax": 0.1363,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 23
+    },
+    {
+      "timestamp": "2025-07-28T22:00:00.000Z",
+      "price": 0.3388,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.2022,
+      "tax": 0.1366,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 0
+    },
+    {
+      "timestamp": "2025-07-28T23:00:00.000Z",
+      "price": 0.2202,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1074,
+      "tax": 0.1128,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 1
+    },
+    {
+      "timestamp": "2025-07-29T00:00:00.000Z",
+      "price": 0.1712,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0682,
+      "tax": 0.103,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 2
+    },
+    {
+      "timestamp": "2025-07-29T01:00:00.000Z",
+      "price": 0.1606,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0597,
+      "tax": 0.1009,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 3
+    },
+    {
+      "timestamp": "2025-07-29T02:00:00.000Z",
+      "price": 0.1598,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.059,
+      "tax": 0.1008,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 4
+    },
+    {
+      "timestamp": "2025-07-29T03:00:00.000Z",
+      "price": 0.1726,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0693,
+      "tax": 0.1033,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 5
+    },
+    {
+      "timestamp": "2025-07-29T04:00:00.000Z",
+      "price": 0.1786,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0741,
+      "tax": 0.1045,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 6
+    },
+    {
+      "timestamp": "2025-07-29T05:00:00.000Z",
+      "price": 0.2255,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1116,
+      "tax": 0.1139,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 7
+    },
+    {
+      "timestamp": "2025-07-29T06:00:00.000Z",
+      "price": 0.2364,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1203,
+      "tax": 0.1161,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 8
+    },
+    {
+      "timestamp": "2025-07-29T07:00:00.000Z",
+      "price": 0.4288,
+      "currency": "EUR",
+      "level": "CHEAP",
+      "energy": 0.2742,
+      "tax": 0.1546,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 9
+    },
+    {
+      "timestamp": "2025-07-29T08:00:00.000Z",
+      "price": 0.3777,
+      "currency": "EUR",
+      "level": "CHEAP",
+      "energy": 0.2334,
+      "tax": 0.1443,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 10
+    },
+    {
+      "timestamp": "2025-07-29T09:00:00.000Z",
+      "price": 0.2053,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0954,
+      "tax": 0.1099,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 11
+    },
+    {
+      "timestamp": "2025-07-29T10:00:00.000Z",
+      "price": 0.2145,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1028,
+      "tax": 0.1117,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 12
+    },
+    {
+      "timestamp": "2025-07-29T11:00:00.000Z",
+      "price": 0.1507,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0518,
+      "tax": 0.0989,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 13
+    },
+    {
+      "timestamp": "2025-07-29T12:00:00.000Z",
+      "price": 0.1344,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0387,
+      "tax": 0.0957,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 14
+    },
+    {
+      "timestamp": "2025-07-29T13:00:00.000Z",
+      "price": 0.1745,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0708,
+      "tax": 0.1037,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 15
+    },
+    {
+      "timestamp": "2025-07-29T14:00:00.000Z",
+      "price": 0.2257,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1117,
+      "tax": 0.114,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 16
+    },
+    {
+      "timestamp": "2025-07-29T15:00:00.000Z",
+      "price": 0.2916,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1645,
+      "tax": 0.1271,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 17
+    },
+    {
+      "timestamp": "2025-07-29T16:00:00.000Z",
+      "price": 0.3186,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1861,
+      "tax": 0.1325,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 18
+    },
+    {
+      "timestamp": "2025-07-29T17:00:00.000Z",
+      "price": 0.6192,
+      "currency": "EUR",
+      "level": "NORMAL",
+      "energy": 0.4266,
+      "tax": 0.1926,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 19
+    },
+    {
+      "timestamp": "2025-07-29T18:00:00.000Z",
+      "price": 0.4123,
+      "currency": "EUR",
+      "level": "CHEAP",
+      "energy": 0.2611,
+      "tax": 0.1512,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 20
+    },
+    {
+      "timestamp": "2025-07-29T19:00:00.000Z",
+      "price": 0.3208,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1878,
+      "tax": 0.133,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 21
+    },
+    {
+      "timestamp": "2025-07-29T20:00:00.000Z",
+      "price": 0.2488,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.1303,
+      "tax": 0.1185,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 22
+    },
+    {
+      "timestamp": "2025-07-29T21:00:00.000Z",
+      "price": 0.195,
+      "currency": "EUR",
+      "level": "VERY_CHEAP",
+      "energy": 0.0872,
+      "tax": 0.1078,
+      "timezone": "Europe/Berlin",
+      "provider": "Tibber",
+      "localHour": 23
+    }
+  ],
+  "currentPrice": {},
+  "inverterSupport": true,
+  "autoCommandMapping": true,
+  "intelligentCurrentAdjustment": true,
+  "supportedInverterTypes": [
+    "legacy",
+    "new",
+    "hybrid"
+  ],
+  "market": "DE",
+  "apiKey": "",
   "conditions": {
     "weather": {
       "enabled": false,
@@ -56,410 +634,5 @@
         "preferLowBatteryPower": true
       }
     }
-  },
-  "cooldown": {
-    "enabled": true,
-    "chargingCooldownMinutes": 30,
-    "errorCooldownMinutes": 60,
-    "maxChargingCyclesPerDay": 6
-  },
-  "scheduledCharging": false,
-  "chargingHours": [],
-  "lastUpdate": "2025-07-28T19:08:20.472Z",
-  "pricingData": [
-    {
-      "timestamp": "2025-07-28T19:00:00.000Z",
-      "price": 0.2078,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 21
-    },
-    {
-      "timestamp": "2025-07-28T20:00:00.000Z",
-      "price": 0.0993,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 22
-    },
-    {
-      "timestamp": "2025-07-28T21:00:00.000Z",
-      "price": 0.0986,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 23
-    },
-    {
-      "timestamp": "2025-07-28T22:00:00.000Z",
-      "price": 0.1024,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 0
-    },
-    {
-      "timestamp": "2025-07-28T23:00:00.000Z",
-      "price": 0.0648,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 1
-    },
-    {
-      "timestamp": "2025-07-29T00:00:00.000Z",
-      "price": 0.0571,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 2
-    },
-    {
-      "timestamp": "2025-07-29T01:00:00.000Z",
-      "price": 0.0684,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 3
-    },
-    {
-      "timestamp": "2025-07-29T02:00:00.000Z",
-      "price": 0.0524,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 4
-    },
-    {
-      "timestamp": "2025-07-29T03:00:00.000Z",
-      "price": 0.0514,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 5
-    },
-    {
-      "timestamp": "2025-07-29T04:00:00.000Z",
-      "price": 0.1011,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 6
-    },
-    {
-      "timestamp": "2025-07-29T05:00:00.000Z",
-      "price": 0.1594,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 7
-    },
-    {
-      "timestamp": "2025-07-29T06:00:00.000Z",
-      "price": 0.1918,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 8
-    },
-    {
-      "timestamp": "2025-07-29T07:00:00.000Z",
-      "price": 0.1821,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 9
-    },
-    {
-      "timestamp": "2025-07-29T08:00:00.000Z",
-      "price": 0.103,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 10
-    },
-    {
-      "timestamp": "2025-07-29T09:00:00.000Z",
-      "price": 0.0877,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 11
-    },
-    {
-      "timestamp": "2025-07-29T10:00:00.000Z",
-      "price": 0.0712,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 12
-    },
-    {
-      "timestamp": "2025-07-29T11:00:00.000Z",
-      "price": 0.0832,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 13
-    },
-    {
-      "timestamp": "2025-07-29T12:00:00.000Z",
-      "price": 0.0847,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 14
-    },
-    {
-      "timestamp": "2025-07-29T13:00:00.000Z",
-      "price": 0.1128,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 15
-    },
-    {
-      "timestamp": "2025-07-29T14:00:00.000Z",
-      "price": 0.1096,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 16
-    },
-    {
-      "timestamp": "2025-07-29T15:00:00.000Z",
-      "price": 0.207,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 17
-    },
-    {
-      "timestamp": "2025-07-29T16:00:00.000Z",
-      "price": 0.2033,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 18
-    },
-    {
-      "timestamp": "2025-07-29T17:00:00.000Z",
-      "price": 0.1756,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 19
-    },
-    {
-      "timestamp": "2025-07-29T18:00:00.000Z",
-      "price": 0.2239,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 20
-    },
-    {
-      "timestamp": "2025-07-29T19:00:00.000Z",
-      "price": 0.1928,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 21
-    },
-    {
-      "timestamp": "2025-07-29T20:00:00.000Z",
-      "price": 0.0952,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 22
-    },
-    {
-      "timestamp": "2025-07-29T21:00:00.000Z",
-      "price": 0.0987,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 23
-    },
-    {
-      "timestamp": "2025-07-29T22:00:00.000Z",
-      "price": 0.1117,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 0
-    },
-    {
-      "timestamp": "2025-07-29T23:00:00.000Z",
-      "price": 0.0548,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 1
-    },
-    {
-      "timestamp": "2025-07-30T00:00:00.000Z",
-      "price": 0.0605,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 2
-    },
-    {
-      "timestamp": "2025-07-30T01:00:00.000Z",
-      "price": 0.0619,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 3
-    },
-    {
-      "timestamp": "2025-07-30T02:00:00.000Z",
-      "price": 0.0679,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 4
-    },
-    {
-      "timestamp": "2025-07-30T03:00:00.000Z",
-      "price": 0.0558,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 5
-    },
-    {
-      "timestamp": "2025-07-30T04:00:00.000Z",
-      "price": 0.11,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 6
-    },
-    {
-      "timestamp": "2025-07-30T05:00:00.000Z",
-      "price": 0.1746,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 7
-    },
-    {
-      "timestamp": "2025-07-30T06:00:00.000Z",
-      "price": 0.2015,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 8
-    },
-    {
-      "timestamp": "2025-07-30T07:00:00.000Z",
-      "price": 0.178,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 9
-    },
-    {
-      "timestamp": "2025-07-30T08:00:00.000Z",
-      "price": 0.0938,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 10
-    },
-    {
-      "timestamp": "2025-07-30T09:00:00.000Z",
-      "price": 0.0782,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 11
-    },
-    {
-      "timestamp": "2025-07-30T10:00:00.000Z",
-      "price": 0.0867,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 12
-    },
-    {
-      "timestamp": "2025-07-30T11:00:00.000Z",
-      "price": 0.0809,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 13
-    },
-    {
-      "timestamp": "2025-07-30T12:00:00.000Z",
-      "price": 0.0747,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 14
-    },
-    {
-      "timestamp": "2025-07-30T13:00:00.000Z",
-      "price": 0.1072,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 15
-    },
-    {
-      "timestamp": "2025-07-30T14:00:00.000Z",
-      "price": 0.1096,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 16
-    },
-    {
-      "timestamp": "2025-07-30T15:00:00.000Z",
-      "price": 0.2034,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 17
-    },
-    {
-      "timestamp": "2025-07-30T16:00:00.000Z",
-      "price": 0.2202,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 18
-    },
-    {
-      "timestamp": "2025-07-30T17:00:00.000Z",
-      "price": 0.1899,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 19
-    },
-    {
-      "timestamp": "2025-07-30T18:00:00.000Z",
-      "price": 0.1799,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 20
-    }
-  ],
-  "timezone": "Europe/Berlin",
-  "currency": "EUR",
-  "inverterSupport": true,
-  "autoCommandMapping": true,
-  "intelligentCurrentAdjustment": true,
-  "supportedInverterTypes": [
-    "legacy",
-    "new",
-    "hybrid"
-  ]
+  }
 }
