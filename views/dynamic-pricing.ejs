@@ -712,10 +712,9 @@
     <div class="toast-container" id="toastContainer"></div>
 
 
-    <!-- This is the fixed JavaScript portion that should replace the existing script section in your HTML -->
-<script>
-// Dynamic Pricing Dashboard JavaScript - FIXED VERSION
-// Enhanced with immediate data loading and complete test conditions functionality
+  <script>
+    // Dynamic Pricing Dashboard JavaScript - FIXED ISSUES VERSION
+// Fixed: currentPrice.toFixed error, smart power conditions, currency display, chart options
 
 class DynamicPricingDashboard {
     constructor() {
@@ -865,7 +864,7 @@ class DynamicPricingDashboard {
         }
     }
 
-    // NEW: Update chart with cached data
+    // FIXED: Update chart with cached data - removed unwanted period options
     async updateChartWithCache() {
         if (!this.pricingDataCache || !this.priceChart) return;
         
@@ -873,27 +872,12 @@ class DynamicPricingDashboard {
         let filteredData = this.pricingDataCache;
         const now = new Date();
 
-        // Filter data based on period
+        // FIXED: Only support 24h period, remove other options
         switch (period) {
             case '24h':
+            default:
+                // Get next 24 hours of data
                 filteredData = this.pricingDataCache.slice(0, 24);
-                break;
-            case '48h':
-                filteredData = this.pricingDataCache.slice(0, 48);
-                break;
-            case 'today':
-                filteredData = this.pricingDataCache.filter(item => {
-                    const itemDate = new Date(item.timestamp);
-                    return itemDate.toDateString() === now.toDateString();
-                });
-                break;
-            case 'tomorrow':
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                filteredData = this.pricingDataCache.filter(item => {
-                    const itemDate = new Date(item.timestamp);
-                    return itemDate.toDateString() === tomorrow.toDateString();
-                });
                 break;
         }
 
@@ -1251,8 +1235,8 @@ class DynamicPricingDashboard {
                     <p><strong>Reason:</strong> ${result.reason}</p>
                     ${result.details ? `
                         <div class="test-details">
-                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} EUR/kWh</p>
-                            <p><strong>Threshold:</strong> ${result.details.threshold?.toFixed(4) || 'N/A'} EUR/kWh</p>
+                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} €/kWh</p>
+                            <p><strong>Threshold:</strong> ${result.details.threshold?.toFixed(4) || 'N/A'} €/kWh</p>
                             <p><strong>Level:</strong> <span class="price-level ${(result.details.level || '').toLowerCase().replace('_', '-')}">${result.details.level || 'N/A'}</span></p>
                         </div>
                     ` : ''}
@@ -1266,7 +1250,7 @@ class DynamicPricingDashboard {
                     <p><strong>Reason:</strong> ${result.reason}</p>
                     ${result.details ? `
                         <div class="test-details">
-                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} EUR/kWh</p>
+                            <p><strong>Current Price:</strong> ${result.details.price?.toFixed(4) || 'N/A'} €/kWh</p>
                             <p><strong>Level:</strong> <span class="price-level ${(result.details.level || '').toLowerCase().replace('_', '-')}">${result.details.level || 'N/A'}</span></p>
                         </div>
                     ` : ''}
@@ -1321,6 +1305,7 @@ class DynamicPricingDashboard {
         `;
     }
 
+    // FIXED: Smart power test result formatting - handle optional status correctly
     formatSmartPowerTestResult(result) {
         if (result.allow) {
             return `
@@ -1337,9 +1322,14 @@ class DynamicPricingDashboard {
                 </div>
             `;
         } else {
+            // FIXED: Check if it's optional (no custom rules defined) vs actual failure
+            const isOptional = result.details?.optional || result.details?.userDefined;
+            const statusClass = isOptional ? 'info' : 'fail';
+            const icon = isOptional ? 'info-circle' : 'times-circle';
+            
             return `
-                <div class="test-result ${result.details?.optional ? 'info' : 'fail'}">
-                    <i class="fas fa-${result.details?.optional ? 'info-circle' : 'times-circle'}"></i>
+                <div class="test-result ${statusClass}">
+                    <i class="fas fa-${icon}"></i>
                     <p><strong>Status:</strong> ${result.reason}</p>
                     ${result.details?.failedReasons ? `
                         <div class="test-details">
@@ -1349,7 +1339,7 @@ class DynamicPricingDashboard {
                             </ul>
                         </div>
                     ` : ''}
-                    ${result.details?.systemState ? `
+                    ${result.details?.systemState && !isOptional ? `
                         <div class="test-details">
                             <p><strong>Current System State:</strong></p>
                             <ul>
@@ -1358,6 +1348,11 @@ class DynamicPricingDashboard {
                                 <li>Load: ${this.formatNumber(result.details.systemState.load)}W</li>
                                 <li>Battery Power: ${this.formatNumber(result.details.systemState.battery_power)}W</li>
                             </ul>
+                        </div>
+                    ` : ''}
+                    ${isOptional ? `
+                        <div class="test-details">
+                            <p><em>Note: Smart power conditions are optional. You can add custom rules in the settings to enable advanced power-based charging logic.</em></p>
                         </div>
                     ` : ''}
                 </div>
@@ -1385,6 +1380,7 @@ class DynamicPricingDashboard {
         `;
     }
 
+    // FIXED: Tibber test result - handle currentPrice as object
     formatTibberTestResult(result) {
         if (result.success) {
             return `
@@ -1393,7 +1389,7 @@ class DynamicPricingDashboard {
                     <p><strong>Status:</strong> Tibber API Connected</p>
                     ${result.currentPrice ? `
                         <div class="test-details">
-                            <p><strong>Current Price:</strong> ${result.currentPrice.toFixed(4)} EUR/kWh</p>
+                            <p><strong>Current Price:</strong> ${this.formatPrice(result.currentPrice)} €/kWh</p>
                             <p><strong>Message:</strong> ${result.message || 'Connection successful'}</p>
                         </div>
                     ` : ''}
@@ -1407,6 +1403,17 @@ class DynamicPricingDashboard {
                     <p><strong>Error:</strong> ${result.error}</p>
                 </div>
             `;
+        }
+    }
+
+    // FIXED: Helper function to format price correctly
+    formatPrice(priceData) {
+        if (typeof priceData === 'number') {
+            return priceData.toFixed(4);
+        } else if (priceData && typeof priceData.price === 'number') {
+            return priceData.price.toFixed(4);
+        } else {
+            return 'N/A';
         }
     }
 
@@ -1738,7 +1745,7 @@ class DynamicPricingDashboard {
     }
 
     // =============================================================================
-    // CHART INITIALIZATION AND MANAGEMENT (keep existing implementation)
+    // CHART INITIALIZATION AND MANAGEMENT (FIXED - removed unwanted period options)
     // =============================================================================
     
     initializeChart() {
@@ -1751,7 +1758,7 @@ class DynamicPricingDashboard {
             data: {
                 labels: [],
                 datasets: [{
-                    label: 'Price',
+                    label: 'Price (€/kWh)',
                     data: [],
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -1804,9 +1811,10 @@ class DynamicPricingDashboard {
                                 if (rawData && rawData[dataIndex]) {
                                     const item = rawData[dataIndex];
                                     const level = item.level ? ` (${item.level})` : '';
-                                    return `Price: ${context.parsed.y.toFixed(4)} ${item.currency || 'EUR'}/kWh${level}`;
+                                    // FIXED: Always show € currency
+                                    return `Price: ${context.parsed.y.toFixed(4)} €/kWh${level}`;
                                 }
-                                return `Price: ${context.parsed.y.toFixed(4)} EUR/kWh`;
+                                return `Price: ${context.parsed.y.toFixed(4)} €/kWh`;
                             }
                         }
                     }
@@ -1858,10 +1866,14 @@ class DynamicPricingDashboard {
             }
         });
 
-        // Setup chart period selector
-        document.getElementById('chartPeriod')?.addEventListener('change', (e) => {
-            this.updateChart(e.target.value);
-        });
+        // FIXED: Setup chart period selector with only 24h option
+        const chartPeriodSelect = document.getElementById('chartPeriod');
+        if (chartPeriodSelect) {
+            chartPeriodSelect.innerHTML = '<option value="24h">Next 24 Hours</option>';
+            chartPeriodSelect.addEventListener('change', (e) => {
+                this.updateChart(e.target.value);
+            });
+        }
     }
 
     getSegmentColor(ctx) {
@@ -1887,14 +1899,6 @@ class DynamicPricingDashboard {
         };
         return colors[level] || '#3b82f6';
     }
-
-    // [Keep all other existing methods from the original code...]
-    // Including: setupTabs, showPowerRuleModal, hidePowerRuleModal, etc.
-    // I'm not repeating them here to save space, but they should remain unchanged
-
-    // =============================================================================
-    // Keep all existing methods below this line (not repeated to save space)
-    // =============================================================================
 
     setupTabs() {
         const tabButtons = document.querySelectorAll('.tab-btn');
@@ -2542,16 +2546,19 @@ class DynamicPricingDashboard {
         }
     }
 
+    // FIXED: Always display currency as € (Euro)
     updateCurrentPriceDisplay(priceData) {
         const priceElement = document.getElementById('currentPrice');
         const currencyElement = document.getElementById('currentCurrency');
         const levelElement = document.getElementById('priceLevel');
         
         if (priceElement && priceData) {
-            priceElement.textContent = priceData.price.toFixed(4);
+            const price = typeof priceData === 'object' ? priceData.price : priceData;
+            priceElement.textContent = price.toFixed(4);
             
             if (currencyElement) {
-                currencyElement.textContent = `${priceData.currency || 'EUR'}/kWh`;
+                // FIXED: Always show € currency regardless of what Tibber returns
+                currencyElement.textContent = '€/kWh';
             }
             
             if (levelElement && priceData.level) {
@@ -3233,7 +3240,8 @@ window.addEventListener('beforeunload', () => {
         window.dashboard.destroy();
     }
 });
-</script>
+ </script>
+
 
 
 
