@@ -302,6 +302,8 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+const API_REQUEST_INTERVAL = 2000; // 2 seconds between API requests
+
 // InfluxDB configuration
 const influxConfig = {
   host: options.influxdb_host || 'localhost',
