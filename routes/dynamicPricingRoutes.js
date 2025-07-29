@@ -334,34 +334,102 @@ router.get('/current-price', async (req, res) => {
     if (!config || !config.enabled) {
       return res.json({
         success: false,
-        error: 'Enhanced dynamic pricing is disabled'
+        error: 'Enhanced dynamic pricing is disabled',
+        fallback: true,
+        currentPrice: {
+          price: 0.15,
+          currency: 'EUR',
+          level: 'NORMAL',
+          provider: 'Disabled'
+        }
       });
     }
     
     if (!config.tibberApiKey) {
       return res.json({
         success: false,
-        error: 'Tibber API key not configured'
+        error: 'Tibber API key not configured',
+        fallback: true,
+        currentPrice: {
+          price: 0.15,
+          currency: 'EUR',
+          level: 'NORMAL',
+          provider: 'No API Key'
+        }
       });
     }
     
-    const currentPrice = await pricingApis.getTibberCurrentPrice(config);
-    
-    // Update config with current price
-    config.currentPrice = currentPrice;
-    dynamicPricingService.saveConfig(config);
-    
-    res.json({
-      success: true,
-      currentPrice: currentPrice,
-      timestamp: new Date().toISOString(),
-      provider: 'Tibber Real-time'
-    });
+    try {
+      // Try to get current price with timeout handling
+      const currentPrice = await Promise.race([
+        pricingApis.getTibberCurrentPrice(config),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 25000)
+        )
+      ]);
+      
+      // Update config with current price
+      config.currentPrice = currentPrice;
+      dynamicPricingService.saveConfig(config);
+      
+      // Also save to persistent cache
+      dynamicPricingService.saveCurrentPriceCache(currentPrice);
+      
+      res.json({
+        success: true,
+        currentPrice: currentPrice,
+        timestamp: new Date().toISOString(),
+        provider: 'Tibber Real-time',
+        cached: false
+      });
+    } catch (apiError) {
+      console.error('Error getting real-time price:', apiError.message);
+      
+      // Try to get from cache
+      const cachedPrice = dynamicPricingService.loadCurrentPriceCache();
+      
+      if (cachedPrice) {
+        res.json({
+          success: true,
+          currentPrice: cachedPrice,
+          timestamp: new Date().toISOString(),
+          provider: 'Cached (API Error)',
+          cached: true,
+          apiError: apiError.message
+        });
+      } else {
+        // Return fallback price
+        const fallbackPrice = {
+          price: 0.15,
+          currency: 'EUR',
+          level: 'NORMAL',
+          provider: 'Fallback',
+          isRealTime: false
+        };
+        
+        res.json({
+          success: true,
+          currentPrice: fallbackPrice,
+          timestamp: new Date().toISOString(),
+          provider: 'Fallback (API Error)',
+          cached: false,
+          apiError: apiError.message,
+          fallback: true
+        });
+      }
+    }
   } catch (error) {
-    console.error('Error getting current price:', error);
+    console.error('Error in current price endpoint:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get current price: ' + error.message
+      error: 'Failed to get current price: ' + error.message,
+      fallback: true,
+      currentPrice: {
+        price: 0.15,
+        currency: 'EUR',
+        level: 'NORMAL',
+        provider: 'Error Fallback'
+      }
     });
   }
 });
