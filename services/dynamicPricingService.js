@@ -837,6 +837,7 @@ function getOperatorText(operator) {
 }
 
 // FIXED: Enhanced price conditions with real Tibber integration and caching
+// FIXED: Enhanced price conditions with real Tibber integration and better timeout handling
 async function checkPriceConditions(config) {
   const priceSettings = config.priceBasedCharging;
   
@@ -846,17 +847,26 @@ async function checkPriceConditions(config) {
   
   try {
     let currentPrice = null;
+    let apiAttempted = false;
     
     // Try to get real-time Tibber price first
     if (config.tibberApiKey && priceSettings.useRealTibberPrices) {
       try {
-        currentPrice = await pricingApis.getTibberCurrentPrice(config);
+        apiAttempted = true;
+        // Add timeout wrapper
+        currentPrice = await Promise.race([
+          pricingApis.getTibberCurrentPrice(config),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Tibber API timeout')), 20000)
+          )
+        ]);
+        
         console.log(`💰 Real-time Tibber price: ${currentPrice.price} ${currentPrice.currency}/kWh (Level: ${currentPrice.level})`);
         
         // Save to cache for persistence
         saveCurrentPriceCache(currentPrice);
       } catch (tibberError) {
-        console.log(`❌ Tibber API error: ${tibberError.message}, trying cache...`);
+        console.log(`⚠️ Tibber API error: ${tibberError.message}, trying cache...`);
         
         // Try to load from cache
         currentPrice = loadCurrentPriceCache();
@@ -881,12 +891,28 @@ async function checkPriceConditions(config) {
       }
     }
     
+    // If still no price and we attempted API, use a reasonable default
+    if (!currentPrice && apiAttempted) {
+      console.log('⚠️ No price data available, using default threshold check');
+      currentPrice = {
+        price: 0.15, // Default middle price
+        currency: 'EUR',
+        level: 'NORMAL',
+        provider: 'Default',
+        isDefault: true
+      };
+    }
+    
     if (!currentPrice) {
-      return { allow: false, reason: 'No current price data available' };
+      return { 
+        allow: false, 
+        reason: 'No current price data available',
+        requiresApiKey: !config.tibberApiKey
+      };
     }
     
     // Use Tibber levels if available and enabled
-    if (priceSettings.useTibberLevels && currentPrice.level && priceSettings.preferTibberLevels) {
+    if (priceSettings.useTibberLevels && currentPrice.level && priceSettings.preferTibberLevels && !currentPrice.isDefault) {
       const allowedLevels = priceSettings.allowedTibberLevels || ['VERY_CHEAP', 'CHEAP'];
       const isAllowedLevel = allowedLevels.includes(currentPrice.level);
       
@@ -897,7 +923,7 @@ async function checkPriceConditions(config) {
           details: {
             price: currentPrice.price,
             level: currentPrice.level,
-            source: currentPrice.isRealTime ? 'Real-time Tibber' : 'Cached data'
+            source: currentPrice.isRealTime ? 'Real-time Tibber' : currentPrice.provider || 'Cached data'
           }
         };
       } else {
@@ -923,7 +949,8 @@ async function checkPriceConditions(config) {
         details: {
           price: currentPrice.price,
           threshold: maxPrice,
-          level: currentPrice.level || 'N/A'
+          level: currentPrice.level || 'N/A',
+          source: currentPrice.provider || 'Unknown'
         }
       };
     } else {
@@ -933,12 +960,24 @@ async function checkPriceConditions(config) {
         details: {
           price: currentPrice.price,
           threshold: maxPrice,
-          level: currentPrice.level || 'N/A'
+          level: currentPrice.level || 'N/A',
+          source: currentPrice.provider || 'Unknown'
         }
       };
     }
   } catch (error) {
     console.error('Error checking price conditions:', error.message);
+    
+    // In case of error, check if we should allow charging based on battery status
+    const batterySoC = getCurrentSystemValue('battery_soc', global.currentSystemState);
+    if (batterySoC !== null && batterySoC < config.battery.emergencySoC) {
+      return { 
+        allow: true, 
+        reason: `Price check failed but battery critical (${batterySoC}% < ${config.battery.emergencySoC}%)`,
+        emergency: true
+      };
+    }
+    
     return { 
       allow: false, 
       reason: `Price check failed: ${error.message}` 
