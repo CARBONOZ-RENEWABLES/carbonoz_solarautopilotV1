@@ -1,10 +1,25 @@
-// services/pricingApis.js - SIMPLIFIED VERSION (Tibber already provides EUR prices)
+// services/pricingApis.js - FIXED VERSION WITH TIMEOUT HANDLING AND RETRY LOGIC
 
 const axios = require('axios');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
 
 // Tibber API endpoints
 const TIBBER_API_URL = 'https://api.tibber.com/v1-beta/gql';
+
+// Circuit breaker for API health
+const circuitBreaker = {
+  failures: 0,
+  lastFailure: null,
+  isOpen: false,
+  threshold: 3,
+  timeout: 60000 // 1 minute cooldown
+};
+
+// Cache for API responses
+const apiCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Country to timezone mapping for Tibber
 const TIBBER_COUNTRY_TIMEZONES = {
@@ -65,7 +80,138 @@ const TIBBER_CITIES = {
 };
 
 /**
- * Fetch real-time electricity prices from Tibber API
+ * Check if circuit breaker should block requests
+ */
+function isCircuitOpen() {
+  if (!circuitBreaker.isOpen) return false;
+  
+  const now = Date.now();
+  const timeSinceLastFailure = now - circuitBreaker.lastFailure;
+  
+  if (timeSinceLastFailure > circuitBreaker.timeout) {
+    // Reset circuit breaker
+    circuitBreaker.isOpen = false;
+    circuitBreaker.failures = 0;
+    console.log('🔌 Circuit breaker reset - allowing requests');
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Record API failure for circuit breaker
+ */
+function recordFailure() {
+  circuitBreaker.failures++;
+  circuitBreaker.lastFailure = Date.now();
+  
+  if (circuitBreaker.failures >= circuitBreaker.threshold) {
+    circuitBreaker.isOpen = true;
+    console.log('🔌 Circuit breaker OPEN - blocking requests for 1 minute');
+  }
+}
+
+/**
+ * Record API success
+ */
+function recordSuccess() {
+  circuitBreaker.failures = 0;
+  circuitBreaker.isOpen = false;
+}
+
+/**
+ * Get from cache if available and not expired
+ */
+function getFromCache(key) {
+  const cached = apiCache.get(key);
+  if (!cached) return null;
+  
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_DURATION) {
+    apiCache.delete(key);
+    return null;
+  }
+  
+  console.log(`📦 Using cached data for ${key}`);
+  return cached.data;
+}
+
+/**
+ * Save to cache
+ */
+function saveToCache(key, data) {
+  apiCache.set(key, {
+    data: data,
+    timestamp: Date.now()
+  });
+}
+
+/**
+ * Retry wrapper with exponential backoff
+ */
+async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const result = await fn();
+      recordSuccess();
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.log(`⚠️ Attempt ${i + 1}/${maxRetries} failed: ${error.message}`);
+      
+      if (i < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, i);
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  recordFailure();
+  throw lastError;
+}
+
+/**
+ * Enhanced axios request with better timeout handling
+ */
+async function makeRobustRequest(url, options) {
+  const timeout = options.timeout || 30000; // Default 30 seconds
+  const controller = new AbortController();
+  
+  // Set up timeout
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
+  
+  try {
+    const response = await axios({
+      ...options,
+      url,
+      signal: controller.signal,
+      timeout: timeout,
+      validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+      maxContentLength: 50 * 1024 * 1024, // 50MB
+      maxBodyLength: 50 * 1024 * 1024
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      throw new Error(`Request timeout after ${timeout}ms - Tibber API may be slow or unreachable`);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Fetch real-time electricity prices from Tibber API with enhanced error handling
  * @param {Object} config - Configuration object
  * @returns {Array} Array of price data with Tibber levels
  */
@@ -73,6 +219,20 @@ async function fetchTibberPrices(config) {
   try {
     if (!config.tibberApiKey || !config.tibberApiKey.trim()) {
       throw new Error('Tibber API key is required');
+    }
+
+    // Check circuit breaker
+    if (isCircuitOpen()) {
+      console.log('⚠️ Circuit breaker is open - using fallback data');
+      const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
+      return generateRealisticSampleData(timezone);
+    }
+
+    // Check cache first
+    const cacheKey = `tibber_prices_${config.tibberApiKey.substring(0, 8)}`;
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      return cached;
     }
 
     const query = `
@@ -114,21 +274,28 @@ async function fetchTibberPrices(config) {
 
     console.log('🔋 Fetching real-time prices from Tibber API...');
 
-    const response = await axios.post(TIBBER_API_URL, {
-      query: query
-    }, {
-      headers: {
-        'Authorization': `Bearer ${config.tibberApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 15000
-    });
+    const fetchPrices = async () => {
+      const response = await makeRobustRequest(TIBBER_API_URL, {
+        method: 'POST',
+        data: { query },
+        headers: {
+          'Authorization': `Bearer ${config.tibberApiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'SolarAutopilot/1.0'
+        },
+        timeout: 30000 // 30 seconds timeout
+      });
 
-    if (response.data.errors) {
-      const error = response.data.errors[0];
-      console.error('Tibber API Error:', error.message);
-      throw new Error(`Tibber API Error: ${error.message}`);
-    }
+      if (response.data.errors) {
+        const error = response.data.errors[0];
+        console.error('Tibber API Error:', error.message);
+        throw new Error(`Tibber API Error: ${error.message}`);
+      }
+
+      return response;
+    };
+
+    const response = await retryWithBackoff(fetchPrices, 2, 2000);
 
     const homes = response.data.data?.viewer?.homes;
     if (!homes || homes.length === 0) {
@@ -147,9 +314,9 @@ async function fetchTibberPrices(config) {
     
     const formattedPrices = allPrices.map(priceData => ({
       timestamp: moment(priceData.startsAt).tz(timezone).toISOString(),
-      price: priceData.total, // Use price as-is from Tibber (already in EUR)
-      currency: 'EUR', // Always display as EUR
-      level: priceData.level, // Tibber price level (VERY_CHEAP, CHEAP, NORMAL, EXPENSIVE, VERY_EXPENSIVE)
+      price: priceData.total,
+      currency: 'EUR',
+      level: priceData.level,
       energy: priceData.energy,
       tax: priceData.tax,
       timezone: timezone,
@@ -160,20 +327,63 @@ async function fetchTibberPrices(config) {
     console.log(`✅ Retrieved ${formattedPrices.length} real-time price points from Tibber`);
     console.log(`💰 Current price: ${priceInfo.current?.total?.toFixed(4)} EUR/kWh (Level: ${priceInfo.current?.level})`);
 
+    // Cache the results
+    saveToCache(cacheKey, formattedPrices);
+
     return formattedPrices;
   } catch (error) {
     console.error('Error fetching Tibber prices:', error.message);
-    throw error;
+    
+    // Return sample data as fallback
+    const timezone = config.timezone || TIBBER_COUNTRY_TIMEZONES[config.country] || 'Europe/Berlin';
+    console.log('📊 Using fallback sample data due to API error');
+    return generateRealisticSampleData(timezone);
   }
 }
 
 /**
- * Get current real-time price from Tibber
+ * Get current real-time price from Tibber with enhanced error handling
  * @param {Object} config - Configuration object
  * @returns {Object} Current price information
  */
 async function getTibberCurrentPrice(config) {
   try {
+    // Check circuit breaker
+    if (isCircuitOpen()) {
+      console.log('⚠️ Circuit breaker is open - using cached or fallback data');
+      
+      // Try to get from persistent cache file
+      const cacheFile = path.join(__dirname, '..', 'data', 'current_price_cache.json');
+      if (fs.existsSync(cacheFile)) {
+        try {
+          const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+          if (cached && cached.price) {
+            console.log('📦 Using persistent cached price');
+            return cached.price;
+          }
+        } catch (e) {
+          console.error('Failed to read price cache:', e);
+        }
+      }
+      
+      // Return a reasonable default
+      return {
+        price: 0.15,
+        level: 'NORMAL',
+        currency: 'EUR',
+        timestamp: new Date().toISOString(),
+        provider: 'Fallback',
+        isRealTime: false
+      };
+    }
+
+    // Check memory cache first
+    const cacheKey = `tibber_current_${config.tibberApiKey.substring(0, 8)}`;
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const query = `
       query {
         viewer {
@@ -195,19 +405,26 @@ async function getTibberCurrentPrice(config) {
       }
     `;
 
-    const response = await axios.post(TIBBER_API_URL, {
-      query: query
-    }, {
-      headers: {
-        'Authorization': `Bearer ${config.tibberApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
+    const fetchCurrentPrice = async () => {
+      const response = await makeRobustRequest(TIBBER_API_URL, {
+        method: 'POST',
+        data: { query },
+        headers: {
+          'Authorization': `Bearer ${config.tibberApiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'SolarAutopilot/1.0'
+        },
+        timeout: 20000 // 20 seconds timeout for current price
+      });
 
-    if (response.data.errors) {
-      throw new Error(`Tibber API Error: ${response.data.errors[0].message}`);
-    }
+      if (response.data.errors) {
+        throw new Error(`Tibber API Error: ${response.data.errors[0].message}`);
+      }
+
+      return response;
+    };
+
+    const response = await retryWithBackoff(fetchCurrentPrice, 2, 1000);
 
     const current = response.data.data?.viewer?.homes?.[0]?.currentSubscription?.priceInfo?.current;
     
@@ -215,16 +432,40 @@ async function getTibberCurrentPrice(config) {
       throw new Error('No current price available from Tibber');
     }
 
-    return {
-      price: current.total, // Use price as-is from Tibber
+    const priceData = {
+      price: current.total,
       level: current.level,
-      currency: 'EUR', // Always display as EUR
+      currency: 'EUR',
       timestamp: current.startsAt,
       provider: 'Tibber Real-time',
       isRealTime: true
     };
+
+    // Cache the result
+    saveToCache(cacheKey, priceData);
+
+    return priceData;
   } catch (error) {
     console.error('Error getting current Tibber price:', error.message);
+    
+    // Try to get from persistent cache file as last resort
+    const cacheFile = path.join(__dirname, '..', 'data', 'current_price_cache.json');
+    if (fs.existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        if (cached && cached.price) {
+          console.log('📦 Using persistent cached price due to API error');
+          return {
+            ...cached.price,
+            provider: 'Cached (API Error)',
+            isRealTime: false
+          };
+        }
+      } catch (e) {
+        console.error('Failed to read price cache:', e);
+      }
+    }
+    
     throw error;
   }
 }
@@ -288,7 +529,7 @@ function getLocationByCountryCity(country, city) {
 }
 
 /**
- * Test Tibber API connection
+ * Test Tibber API connection with timeout handling
  * @param {string} apiKey - Tibber API key
  * @returns {Object} Test result
  */
@@ -322,23 +563,30 @@ async function testTibberConnection(apiKey) {
       }
     `;
 
-    const response = await axios.post(TIBBER_API_URL, {
-      query: query
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
+    const testConnection = async () => {
+      const response = await makeRobustRequest(TIBBER_API_URL, {
+        method: 'POST',
+        data: { query },
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'SolarAutopilot/1.0'
+        },
+        timeout: 15000 // 15 seconds for connection test
+      });
 
-    if (response.data.errors) {
-      return {
-        success: false,
-        error: response.data.errors[0].message,
-        details: 'Invalid API key or API error'
-      };
-    }
+      if (response.data.errors) {
+        return {
+          success: false,
+          error: response.data.errors[0].message,
+          details: 'Invalid API key or API error'
+        };
+      }
+
+      return response;
+    };
+
+    const response = await retryWithBackoff(testConnection, 2, 1000);
 
     const viewer = response.data.data?.viewer;
     if (!viewer) {
@@ -355,8 +603,8 @@ async function testTibberConnection(apiKey) {
     let currentPrice = null;
     if (currentPriceRaw) {
       currentPrice = {
-        price: currentPriceRaw.total, // Use price as-is from Tibber
-        currency: 'EUR', // Always display as EUR
+        price: currentPriceRaw.total,
+        currency: 'EUR',
         level: currentPriceRaw.level
       };
     }
@@ -471,6 +719,16 @@ async function fetchElectricityPrices(config) {
     return generateRealisticSampleData(timezone);
   }
 }
+
+// Clear cache periodically (every hour)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of apiCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      apiCache.delete(key);
+    }
+  }
+}, 60 * 60 * 1000);
 
 module.exports = {
   fetchElectricityPrices,
