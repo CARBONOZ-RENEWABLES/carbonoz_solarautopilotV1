@@ -311,7 +311,7 @@ const API_REQUEST_INTERVAL = 2000; // 2 seconds between API requests
 
 // InfluxDB configuration
 const influxConfig = {
-  host: options.influxdb_host || 'homeassistant-andreas-raspberry.zebu-beaufort.ts.net',
+  host: options.influxdb_host || 'localhost',
   port: options.influxdb_port || 8086,
   database: options.influxdb_database || 'home_assistant',
   username: options.influxdb_username || 'admin',
