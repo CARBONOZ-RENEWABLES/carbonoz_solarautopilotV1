@@ -97,7 +97,7 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=128"
 
 # Expose ports
-EXPOSE 3000 8086 6789 8000
+EXPOSE 3001 8086 6789 8000
 
 # Set entrypoint to s6-overlay init
 ENTRYPOINT ["/init"]
