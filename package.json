@@ -23,7 +23,6 @@
     "influx": "^5.9.3",
     "moment-timezone": "^0.5.45",
     "mqtt": "^4.2.8",
-    "node-cache": "^5.1.2",
     "node-cron": "^3.0.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",

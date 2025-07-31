@@ -30,14 +30,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
 const dynamicPricingController = require('./services/dynamicPricingController');
 const GRAFANA_URL = 'http://localhost:3001';
+const BASE_PATH = process.env.INGRESS_PATH || '';
 
 
-// Get ingress path from environment variable (set by Home Assistant)
-const INGRESS_PATH = process.env.INGRESS_PATH || '';
-const BASE_PATH = INGRESS_PATH || '';
-
-console.log(`Ingress path: ${INGRESS_PATH}`);
-console.log(`Base path: ${BASE_PATH}`);
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
@@ -47,163 +42,76 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
-
-
 app.use((req, res, next) => {
-  // Memory monitoring (from the optimized version)
-  const memUsage = process.memoryUsage();
-  const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-  
-  // Log memory usage for high usage requests
-  if (heapUsedMB > 150) {
-    console.warn(`High memory usage: ${heapUsedMB}MB on ${req.method} ${req.path}`);
-  }
-  
-  // Reject requests if memory usage is critically high
-  if (heapUsedMB > 450) {
-    console.error(`Memory usage critically high: ${heapUsedMB}MB, rejecting request`);
-    return res.status(503).json({ 
-      error: 'Service temporarily unavailable due to high memory usage',
-      memoryUsage: `${heapUsedMB}MB`
-    });
-  }
-  
-  // Ingress path handling (your existing logic but optimized)
-  const ingressHeader = req.headers['x-ingress-path'];
-  
-  // Only log for non-static requests to reduce noise
-  if (!req.path.includes('/static/') && !req.path.includes('/favicon.ico')) {
-    console.log(`Request: ${req.method} ${req.path}`);
-    console.log(`Ingress header: ${ingressHeader || 'not present'}`);
-    console.log(`Original URL: ${req.originalUrl}`);
-  }
-  
-  // If we have an ingress header and it's not undefined/null/empty, use it
-  if (ingressHeader && ingressHeader !== 'undefined' && ingressHeader.trim() !== '') {
-    req.ingressPath = ingressHeader;
-    req.basePath = ingressHeader;
-    console.log(`Set ingress path from header: ${ingressHeader}`);
-  } else if (req.path.includes('/hassio_ingress/')) {
-    // Handle case where HA stripped /api but path still contains hassio_ingress
+  if (req.path.includes('/hassio_ingress/')) {
     const pathParts = req.path.split('/');
     const ingressIndex = pathParts.indexOf('hassio_ingress');
     if (ingressIndex >= 0 && pathParts[ingressIndex + 1]) {
-      req.ingressPath = `/api/hassio_ingress/${pathParts[ingressIndex + 1]}`;
-      req.basePath = req.ingressPath;
-      console.log(`Reconstructed ingress path: ${req.ingressPath}`);
-    } else {
-      // Fallback if we can't reconstruct properly
-      req.ingressPath = INGRESS_PATH || '';
-      req.basePath = BASE_PATH || '';
-      console.log(`Fallback to configured ingress path: ${req.ingressPath}`);
-    }
-  } else if (req.originalUrl.includes('/hassio_ingress/')) {
-    // Handle case where ingress is in originalUrl but not in path
-    const urlParts = req.originalUrl.split('/');
-    const ingressIndex = urlParts.indexOf('hassio_ingress');
-    if (ingressIndex >= 0 && urlParts[ingressIndex + 1]) {
-      req.ingressPath = `/api/hassio_ingress/${urlParts[ingressIndex + 1]}`;
-      req.basePath = req.ingressPath;
-      console.log(`Reconstructed ingress path from originalUrl: ${req.ingressPath}`);
-    } else {
-      req.ingressPath = INGRESS_PATH || '';
-      req.basePath = BASE_PATH || '';
+      req.basePath = `/api/hassio_ingress/${pathParts[ingressIndex + 1]}`;
     }
   } else {
-    // Use configured ingress path or empty string as fallback
-    req.ingressPath = INGRESS_PATH || '';
-    req.basePath = BASE_PATH || '';
-    if (INGRESS_PATH && !req.path.includes('/static/')) {
-      console.log(`Using configured ingress path: ${INGRESS_PATH}`);
-    }
+    req.basePath = BASE_PATH;
   }
-  
-  // Ensure basePath and ingressPath are never undefined
-  req.ingressPath = req.ingressPath || '';
-  req.basePath = req.basePath || '';
-  
   next();
 });
+
+// Grafana proxy - handles all the path rewriting
+const grafanaProxy = createProxyMiddleware({
+  target: GRAFANA_URL,
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: (path, req) => {
+    let newPath = path;
+    
+    // Remove ingress path if present
+    if (req.basePath && path.startsWith(req.basePath)) {
+      newPath = path.substring(req.basePath.length);
+    }
+    
+    // Remove /hassio_ingress/TOKEN part for stripped paths
+    if (path.includes('/hassio_ingress/')) {
+      const parts = path.split('/');
+      const idx = parts.indexOf('hassio_ingress');
+      if (idx >= 0 && parts[idx + 2]) {
+        newPath = '/' + parts.slice(idx + 2).join('/');
+      }
+    }
+    
+    // Remove /grafana prefix
+    if (newPath.startsWith('/grafana')) {
+      newPath = newPath.substring('/grafana'.length);
+    }
+    
+    // Ensure leading slash
+    if (!newPath.startsWith('/')) {
+      newPath = '/' + newPath;
+    }
+    
+    console.log(`Proxy: ${path} -> ${newPath}`);
+    return newPath;
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Allow iframe embedding
+    delete proxyRes.headers['x-frame-options'];
+  }
+});
+// Apply Grafana proxy to all necessary routes
+app.use('/grafana', grafanaProxy);
+app.use('/api/hassio_ingress/:token/grafana', grafanaProxy);
+app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-
-
-// ================ ENHANCED UTILITY ENDPOINTS (KEEP AND OPTIMIZE) ================
-
-// Enhanced health check endpoint with memory info
-app.get('*/health', (req, res) => {
-  const memUsage = process.memoryUsage();
-  
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    basePath: req.basePath || BASE_PATH,
-    ingressPath: req.ingressPath || INGRESS_PATH,
-    originalUrl: req.originalUrl,
-    path: req.path,
-    memory: {
-      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
-      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
-      rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB'
-    },
-    cacheSize: dataCache ? dataCache.size : 0,
-    uptime: Math.round(process.uptime()) + 's',
-    security: {
-      rateLimitActive: true,
-      trustProxyConfigured: true
-    }
-  });
-});
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end(); // Use .end() instead of .send() for better performance
 });
 
+
+
 // ================ ENHANCED STATIC FILE HANDLER ================
-
-// Enhanced static files through ingress route with caching
-app.get('/api/hassio_ingress/:token/static/*', (req, res, next) => {
-  const staticPath = req.params[0];
-  const filePath = path.join(__dirname, 'public', staticPath);
-  
-  // Add caching headers for static files
-  res.set({
-    'Cache-Control': 'public, max-age=86400', // 24 hours
-    'ETag': `"${Date.now()}"` // Simple ETag
-  });
-  
-  console.log(`Serving static file: ${staticPath} from ${filePath}`);
-  
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('Static file error:', err);
-      res.status(404).json({ error: 'File not found', path: staticPath });
-    }
-  });
-});
-
-// Handle static files for stripped ingress paths too
-app.get('/hassio_ingress/:token/static/*', (req, res, next) => {
-  const staticPath = req.params[0];
-  const filePath = path.join(__dirname, 'public', staticPath);
-  
-  res.set({
-    'Cache-Control': 'public, max-age=86400',
-    'ETag': `"${Date.now()}"`
-  });
-  
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('Static file error:', err);
-      res.status(404).json({ error: 'File not found', path: staticPath });
-    }
-  });
-});
-
-
 
 // Extract configuration values with defaults
 const inverterNumber = options.inverter_number 
@@ -2101,156 +2009,76 @@ app.post('/api/update-panel-config', (req, res) => {
   }
 });
 
-// Function to get the correct host for Grafana access
 function getGrafanaHost(req) {
   const host = req.get('host') || 'localhost:6789';
   const hostWithoutPort = host.split(':')[0];
   return hostWithoutPort;
 }
 
-// Function to get the correct host for Grafana access (optimized)
-function getGrafanaHost(req) {
-  const host = req.get('host') || 'localhost:6789';
-  return host.split(':')[0];
-}
 
-// Memory-efficient data cache with automatic cleanup
-const dataCache = new Map();
-const CACHE_CLEANUP_INTERVAL = 30 * 60 * 1000; // 30 minutes
-const MAX_CACHE_SIZE = 100;
 
-// Clean up cache periodically
-setInterval(() => {
-  if (dataCache.size > MAX_CACHE_SIZE) {
-    const entries = Array.from(dataCache.entries());
-    const toDelete = entries.slice(0, Math.floor(dataCache.size * 0.3));
-    toDelete.forEach(([key]) => dataCache.delete(key));
-    console.log(`Cache cleanup: removed ${toDelete.length} entries`);
-  }
-}, CACHE_CLEANUP_INTERVAL);
 
 // ================ ROUTERS ================
 
-app.get('/', async (req, res) => {
-  let isProcessing = false;
-  
-  try {
-    isProcessing = true;
-    const grafanaHost = getGrafanaHost(req);
-    const memUsage = process.memoryUsage();
-    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-    
-    // Check memory before processing
-    if (heapUsedMB > 400) {
-      console.warn(`High memory usage (${heapUsedMB}MB) - using cached data`);
-      return res.render('energy-dashboard', {
-        selectedZone: 'cached',
-        todayData: { date: moment().format('YYYY-MM-DD'), unavoidableEmissions: 0, avoidedEmissions: 0, selfSufficiencyScore: 0 },
-        summaryData: { today: {}, week: {}, month: {} },
-        isLoading: false,
-        error: 'Using cached data due to high memory usage',
-        ingress_path: process.env.INGRESS_PATH || '',
-        grafanaHost: grafanaHost,
-        inverterWarning: null,
-        batteryWarning: null,
-        batteryMessages: [],
-        username: options.mqtt_username || 'User'
-      });
-    }
 
-    const expectedInverters = parseInt(options.inverter_number) || 1;
-    const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-    const batteryWarning = checkBatteryInformation(incomingMessages);
-    
-    let settings;
-    try {
-      settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    } catch (e) {
-      console.error('Settings read error:', e);
-      return res.redirect('/settings?message=Configuration error');
-    }
-    
+
+app.get('/', async (req, res) => {
+  const grafanaHost = getGrafanaHost(req);
+
+  const expectedInverters = parseInt(options.inverter_number) || 1
+  const inverterWarning = checkInverterMessages(
+    incomingMessages,
+    expectedInverters)
+
+  const batteryWarning = checkBatteryInformation(incomingMessages)
+  try {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
     const selectedZone = settings.selectedZone;
+    
     if (!selectedZone) {
       return res.redirect('/settings?message=Please configure your zone first');
     }
     
-    // Use cache key based on zone and current hour to reduce API calls
-    const cacheKey = `${selectedZone}_${new Date().getHours()}`;
     let historyData = [];
+    // Fetch the same data arrays as analytics page
+    let loadPowerData = [], pvPowerData = [], batteryStateOfChargeData = [], 
+        batteryPowerData = [], gridPowerData = [], gridVoltageData = [];
     let isLoading = false;
     let error = null;
     
-    // Check cache first
-    if (dataCache.has(cacheKey)) {
-      const cached = dataCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < CACHE_DURATION) {
-        historyData = cached.data;
-      }
-    }
-    
-    // Fetch data with memory management
-    let loadPowerData = [], pvPowerData = [], batteryStateOfChargeData = [], 
-        batteryPowerData = [], gridPowerData = [], gridVoltageData = [];
-    
     try {
-      if (historyData.length === 0) {
+      const cacheKey = selectedZone;
+      const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
+                      (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+      
+      if (isCached) {
+        historyData = carbonIntensityCacheByZone.get(cacheKey).data;
+      } else {
         isLoading = true;
       }
       
-      // Fetch data with controlled concurrency to prevent memory spikes
-      const dataPromises = [
+      // Use the same data fetching as analytics page
+      [loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
         queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
         queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
         queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
         queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
         queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
         queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-      ];
+      ]);
       
-      // Process in batches to control memory usage
-      const batchSize = 3;
-      const results = [];
-      for (let i = 0; i < dataPromises.length; i += batchSize) {
-        const batch = dataPromises.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch);
-        results.push(...batchResults);
-        
-        // Small delay to allow garbage collection
-        if (i + batchSize < dataPromises.length) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-      }
-      
-      [loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData] = results;
-      
-      if (historyData.length === 0) {
+      if (!isCached) {
         historyData = await fetchCarbonIntensityHistory(selectedZone);
-        // Cache the result
-        dataCache.set(cacheKey, {
-          data: historyData,
-          timestamp: Date.now()
-        });
         isLoading = false;
       }
     } catch (e) {
       console.error('Error fetching data:', e);
       error = 'Error fetching data. Please try again later.';
       isLoading = false;
-      
-      // Use fallback empty data to prevent crashes
-      historyData = [];
-      loadPowerData = pvPowerData = batteryStateOfChargeData = batteryPowerData = gridPowerData = gridVoltageData = [];
     }
     
-    // Calculate emissions with error handling
-    let emissionsData = [];
-    try {
-      emissionsData = calculateEmissionsForPeriod(historyData, loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData);
-    } catch (e) {
-      console.error('Error calculating emissions:', e);
-      emissionsData = [];
-    }
+    // Use the updated emissions calculation function
+    const emissionsData = calculateEmissionsForPeriod(historyData, loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData);
     
     const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
       date: moment().format('YYYY-MM-DD'),
@@ -2268,14 +2096,14 @@ app.get('/', async (req, res) => {
     const summaryData = {
       today: todayData,
       week: {
-        unavoidableEmissions: weekData.reduce((sum, day) => sum + (day.unavoidableEmissions || 0), 0),
-        avoidedEmissions: weekData.reduce((sum, day) => sum + (day.avoidedEmissions || 0), 0),
-        selfSufficiencyScore: weekData.reduce((sum, day) => sum + (day.selfSufficiencyScore || 0), 0) / Math.max(1, weekData.length)
+        unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
       },
       month: {
-        unavoidableEmissions: monthData.reduce((sum, day) => sum + (day.unavoidableEmissions || 0), 0),
-        avoidedEmissions: monthData.reduce((sum, day) => sum + (day.avoidedEmissions || 0), 0),
-        selfSufficiencyScore: monthData.reduce((sum, day) => sum + (day.selfSufficiencyScore || 0), 0) / Math.max(1, monthData.length)
+        unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
       }
     };
     
@@ -2295,54 +2123,23 @@ app.get('/', async (req, res) => {
       batteryMessages: debugBatteryMessages(incomingMessages),
       username: options.mqtt_username || 'User'
     });
-    
   } catch (error) {
-    console.error('Error rendering energy dashboard:', error);
-    res.status(500).render('error', { 
-      error: 'Error loading energy dashboard',
-      ingress_path: process.env.INGRESS_PATH || ''
-    });
-  } finally {
-    isProcessing = false;
-    
-    // Force garbage collection if available and memory is high
-    const memUsage = process.memoryUsage();
-    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-    if (heapUsedMB > 200 && global.gc) {
-      global.gc();
-    }
+    console.error('Error rendering welcome page:', error);
+    res.status(500).render('error', { error: 'Error loading welcome page' });
   }
 });
 
-// Consolidated ingress handler for energy dashboard
-function handleIngressEnergyDashboard(req, res) {
-  try {
-    const ingressToken = req.params.token;
-    console.log(`Ingress energy dashboard request with token: ${ingressToken}`);
-    
-    // Set ingress path for this request
-    req.ingressPath = `/api/hassio_ingress/${ingressToken}`;
-    req.basePath = req.ingressPath;
-    req.url = '/';
-    
-    // Use the main route handler
-    app._router.handle(req, res);
-  } catch (error) {
-    console.error('Error in ingress energy dashboard route:', error);
-    res.status(500).render('error', { 
-      error: 'Error loading energy dashboard',
-      ingress_path: `/api/hassio_ingress/${req.params.token}`
-    });
-  }
-}
+app.get('/api/hassio_ingress/:token/energy-dashboard', (req, res) => {
+  // Redirect to simplified handler
+  req.url = '/energy-dashboard';
+  app._router.handle(req, res);
+});
 
-app.get('/api/hassio_ingress/:token/energy-dashboard', handleIngressEnergyDashboard);
-app.get('/hassio_ingress/:token/energy-dashboard', handleIngressEnergyDashboard);
-
-// Also handle root ingress paths
-app.get('/api/hassio_ingress/:token/', handleIngressEnergyDashboard);
-app.get('/hassio_ingress/:token/', handleIngressEnergyDashboard);
-
+app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
+  // Redirect to simplified handler
+  req.url = '/energy-dashboard';
+  app._router.handle(req, res);
+});
 
   app.get('/analytics', async (req, res) => {
     try {
@@ -2649,212 +2446,29 @@ app.get('/hassio_ingress/:token/', handleIngressEnergyDashboard);
   })
 
   app.get('/chart', (req, res) => {
-    try {
-      const grafanaHost = getGrafanaHost(req);
-      console.log(`Chart route - grafanaHost: ${grafanaHost}`);
-      
-      res.render('chart', {
-        ingress_path: process.env.INGRESS_PATH || '',
-        grafanaHost: grafanaHost,
-        basePath: req.basePath || ''
-      });
-    } catch (error) {
-      console.error('Error in /chart route:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-  
- // Consolidated ingress chart handler
-function handleIngressChart(req, res) {
-  try {
-    const ingressToken = req.params.token;
     const grafanaHost = getGrafanaHost(req);
-    const ingressPath = `/api/hassio_ingress/${ingressToken}`;
     
-    console.log(`Ingress chart request with token: ${ingressToken}`);
-    
-    // Set ingress path for this request
-    req.ingressPath = ingressPath;
-    req.basePath = ingressPath;
+    console.log(`Chart route - grafanaHost: ${grafanaHost}`);
     
     res.render('chart', {
-      ingress_path: ingressPath,
-      basePath: ingressPath,
-      grafanaHost: grafanaHost
+      ingress_path: process.env.INGRESS_PATH || '',
+      grafanaHost: grafanaHost,
     });
-  } catch (error) {
-    console.error('Error in ingress chart route:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
+  });
 
-// Apply the consolidated handler to both ingress routes
-app.get('/api/hassio_ingress/:token/chart', handleIngressChart);
-app.get('/hassio_ingress/:token/chart', handleIngressChart);
+  app.get('/api/hassio_ingress/:token/chart', (req, res) => {
+    // Redirect to simplified handler
+    req.url = '/chart';
+    app._router.handle(req, res);
+  });
+  
+  app.get('/hassio_ingress/:token/chart', (req, res) => {
+    // Redirect to simplified handler
+    req.url = '/chart';
+    app._router.handle(req, res);
+  });
 
-// ================ GRAFANA MEMORY OPTIMIZATION ================
 
-// Enhanced Grafana proxy with memory management
-const grafanaProxy = createProxyMiddleware({
-  target: GRAFANA_URL,
-  changeOrigin: true,
-  ws: true,
-  timeout: 30000, // 30 second timeout
-  proxyTimeout: 30000,
-  pathRewrite: {
-    '^/grafana': '',
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`Proxying to Grafana: ${req.method} ${req.url} -> ${GRAFANA_URL}${req.url.replace('/grafana', '')}`);
-    
-    // Set memory-efficient headers
-    proxyReq.setHeader('Connection', 'close');
-    proxyReq.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    
-    // Limit request size to prevent memory issues
-    if (req.headers['content-length'] && parseInt(req.headers['content-length']) > 10 * 1024 * 1024) {
-      res.status(413).json({ error: 'Request too large' });
-      return;
-    }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Remove X-Frame-Options to allow iframe embedding
-    delete proxyRes.headers['x-frame-options'];
-    
-    // Add CORS headers
-    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-    
-    // Force connection close to prevent memory leaks
-    proxyRes.headers['Connection'] = 'close';
-    
-    // Limit response size for memory management
-    const contentLength = proxyRes.headers['content-length'];
-    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
-      console.warn('Large response detected, may cause memory issues');
-    }
-  },
-  onError: (err, req, res) => {
-    console.error('Grafana proxy error:', err);
-    
-    // Ensure response is closed properly
-    if (!res.headersSent) {
-      res.status(500).json({ 
-        error: 'Grafana proxy error', 
-        message: err.message,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    // Force garbage collection if available (development only)
-    if (global.gc && process.env.NODE_ENV === 'development') {
-      global.gc();
-    }
-  }
-});
-
-// Memory monitoring middleware
-app.use((req, res, next) => {
-  const memUsage = process.memoryUsage();
-  const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-  
-  // Log memory usage for high usage requests
-  if (heapUsedMB > 150) {
-    console.warn(`High memory usage: ${heapUsedMB}MB on ${req.method} ${req.path}`);
-  }
-  
-  // Reject requests if memory usage is critically high
-  if (heapUsedMB > 450) {
-    console.error(`Memory usage critically high: ${heapUsedMB}MB, rejecting request`);
-    return res.status(503).json({ 
-      error: 'Service temporarily unavailable due to high memory usage',
-      memoryUsage: `${heapUsedMB}MB`
-    });
-  }
-  
-  next();
-});
-
-// Enhanced status endpoint with memory info
-app.get('/api/status', async (req, res) => {
-  try {
-    const memUsage = process.memoryUsage();
-    const uptime = process.uptime();
-    
-    // Check Grafana health with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    let grafanaStatus = 'unreachable';
-    let grafanaError = null;
-    
-    try {
-      const response = await fetch(`${GRAFANA_URL}/api/health`, {
-        signal: controller.signal,
-        headers: { 'Connection': 'close' }
-      });
-      grafanaStatus = response.ok ? 'healthy' : 'unhealthy';
-    } catch (error) {
-      grafanaError = error.message;
-      if (error.name === 'AbortError') {
-        grafanaError = 'Request timeout';
-      }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    
-    res.json({
-      grafana: grafanaStatus,
-      server: 'running',
-      timestamp: new Date().toISOString(),
-      grafanaUrl: GRAFANA_URL,
-      memory: {
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
-        external: Math.round(memUsage.external / 1024 / 1024) + 'MB',
-        rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB'
-      },
-      uptime: Math.round(uptime) + 's',
-      cacheSize: dataCache.size,
-      error: grafanaError
-    });
-  } catch (error) {
-    console.error('Status endpoint error:', error);
-    res.status(500).json({
-      grafana: 'error',
-      server: 'error',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Periodic memory cleanup (run every 5 minutes)
-setInterval(() => {
-  const memUsage = process.memoryUsage();
-  const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-  
-  console.log(`Memory check - Heap: ${heapUsedMB}MB, Cache: ${dataCache.size} entries`);
-  
-  // Clear cache if memory usage is high
-  if (heapUsedMB > 300) {
-    console.log('High memory usage detected, clearing cache...');
-    dataCache.clear();
-  }
-  
-  // Force garbage collection if memory usage is high and gc is available
-  if (heapUsedMB > 200 && global.gc) {
-    console.log('Running garbage collection...');
-    global.gc();
-  }
-  
-  // Log warning if memory usage is very high
-  if (heapUsedMB > 350) {
-    console.warn(`Very high memory usage detected: ${heapUsedMB}MB`);
-  }
-}, 5 * 60 * 1000);
-  
   app.get('/api/carbon-intensity/:zone', async (req, res) => {
     try {
       const { zone } = req.params;
@@ -7784,8 +7398,6 @@ initializeConnections();
 // Enhanced server startup with additional status reporting
 app.listen(port, () => {
   console.log(`🚀 CARBONOZ SolarAutopilot Server running on port ${port}`);
-  console.log(`📊 Dashboard available at: http://localhost:${port}${BASE_PATH}`);
-  console.log(`🔗 Grafana proxy available at: http://localhost:${port}${BASE_PATH}/grafana`);
   console.log(`📊 Monitoring ${inverterNumber} inverter(s) and ${batteryNumber} battery(ies)`);
   console.log(`📡 MQTT Topic Prefix: ${mqttTopicPrefix}`);
   console.log(`🔍 Inverter Type Detection: ACTIVE (auto-detects legacy, new, and hybrid)`);
@@ -8064,26 +7676,3 @@ function GracefulShutdown() {
 process.on('SIGTERM', GracefulShutdown);
 process.on('SIGINT', GracefulShutdown);
 
-// Graceful shutdown handler
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully...');
-  dataCache.clear();
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  dataCache.clear();
-  process.exit(0);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Clear cache to free memory
-  dataCache.clear();
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});

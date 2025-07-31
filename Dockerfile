@@ -94,7 +94,7 @@ LABEL \
 
 # Environment variables for memory optimization
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=128"
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Expose ports
 EXPOSE 3001 8086 6789 8000
