@@ -1,12 +1,17 @@
-# First stage: Base image setup
-ARG BUILD_FROM
-FROM ${BUILD_FROM} as base
+# Build arguments must be declared before FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.16
+
+# First stage: Base image setup (Fixed casing issue)
+FROM ${BUILD_FROM} AS base
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Build arguments
-ARG BUILD_ARCH
+ARG BUILD_ARCH=amd64
+ARG BUILD_DATE
+ARG BUILD_REF
+ARG BUILD_VERSION
 ARG S6_OVERLAY_VERSION=3.1.5.0
 
 # Install S6 overlay
@@ -22,7 +27,7 @@ RUN \
     esac \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
 
-# Install base system dependencies
+# Install base system dependencies in one layer
 RUN apk add --no-cache \
     nodejs \
     npm \
@@ -35,11 +40,12 @@ RUN apk add --no-cache \
     wget \
     gnupg
 
-# Add community repositories and install Grafana and InfluxDB
+# Add community repositories and install Grafana and InfluxDB (optimized)
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories && \
     apk update && \
-    apk add --no-cache grafana influxdb
+    apk add --no-cache grafana influxdb && \
+    rm -rf /var/cache/apk/*
 
 # Set up directories with proper permissions for persistent storage
 RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
@@ -49,16 +55,19 @@ RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
 # Set work directory
 WORKDIR /usr/src/app
 
-# Copy package.json and install dependencies with production flag
-COPY package.json .
-RUN npm install --frozen-lockfile --production \
-    && npm cache clean --force
+# Copy package files and install dependencies with cache mount for better performance
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production && \
+    npm cache clean --force
 
-# Copy application code and configurations
-COPY rootfs /
-COPY . .
+# Copy configuration files first (they change less frequently)
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
+COPY rootfs /
+
+# Copy application code (this changes most frequently, so do it last)
+COPY . .
 
 # Make scripts executable
 RUN chmod a+x /etc/services.d/carbonoz/run \
@@ -66,11 +75,6 @@ RUN chmod a+x /etc/services.d/carbonoz/run \
     && chmod a+x /etc/services.d/influxdb/run \
     && chmod a+x /etc/services.d/influxdb/finish \
     && chmod a+x /usr/bin/carbonoz.sh
-
-# Build arguments for labels
-ARG BUILD_DATE
-ARG BUILD_REF
-ARG BUILD_VERSION
 
 # Labels
 LABEL \
@@ -82,7 +86,7 @@ LABEL \
     maintainer="Elite Desire <eelitedesire@gmail.com>" \
     org.opencontainers.image.title="Carbonoz SolarAutopilot" \
     org.opencontainers.image.description="CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control" \
-    org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
+    org.opencontainers.image.vendor="CARBONOZ RENEWABLES" \
     org.opencontainers.image.authors="Elite Desire <eelitedesire@gmail.com>" \
     org.opencontainers.image.licenses="MIT" \
     org.opencontainers.image.url="https://github.com/CARBONOZ-RENEWABLES/solarautopilot" \
