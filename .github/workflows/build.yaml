@@ -15,7 +15,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: carbonoz-renewables/solarautopilot
+  IMAGE_NAME: carbonoz-renewables/carbonoz_solarautopilotv1
 
 jobs:
   build:
@@ -25,6 +25,7 @@ jobs:
       packages: write
     strategy:
       matrix:
+        # Support all architectures with ARM32 compatibility fix
         arch: [aarch64, amd64, armhf, armv7, i386]
     steps:
       - name: Checkout repository
@@ -47,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/carbonoz-renewables/solarautopilot
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -97,7 +98,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/carbonoz-renewables/solarautopilot
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
