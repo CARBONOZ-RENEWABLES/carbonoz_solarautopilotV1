@@ -1,0 +1,12 @@
+ARG BUILD_FROM
+FROM ${BUILD_FROM}
+
+# Copy any addon-specific files if needed
+# Most of the work is already done in the base image
+
+# Labels for the addon
+LABEL \
+    io.hass.name="Carbonoz SolarAutopilot" \
+    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant" \
+    io.hass.type="addon" \
+    io.hass.version="1.0.1"
