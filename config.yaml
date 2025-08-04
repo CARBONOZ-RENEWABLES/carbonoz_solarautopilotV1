@@ -3,7 +3,6 @@ version: "1.0.1"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
 url: "https://github.com/CARBONOZ-RENEWABLES/carbonoz_solarautopilotV1"
-image: "ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1"
 arch:
   - aarch64
   - amd64
