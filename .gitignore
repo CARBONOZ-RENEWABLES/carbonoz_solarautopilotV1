@@ -1,2 +1,13 @@
-/node_modules
-node_modules/
+.git
+.github
+.gitignore
+README.md
+DOCS.md
+CHANGELOG.md
+LICENSE.md
+.vscode
+.devcontainer
+node_modules
+npm-debug.log
+Dockerfile*
+.dockerignore
