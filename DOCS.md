@@ -1,5 +1,12 @@
 # CARBONOZ SolarAutopilot
 
+## Installation
+
+[![Add repository on my Home Assistant][repository-badge]][repository-url]
+
+If you want to do add the repository manually, please follow the procedure highlighted in the [Home Assistant website](https://home-assistant.io/hassio/installing_third_party_addons). Use the following URL to add this repository: https://github.com/mincka/ha-addons
+
+
 ## Home Assistant Add-on: CARBONOZ SolarAutopilot
 CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
 
