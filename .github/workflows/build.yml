@@ -15,6 +15,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -81,48 +82,15 @@ jobs:
           BUILD_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        # Add build timeout
-        timeout-minutes: 30
-
-  # Check which builds succeeded before creating manifest
-  check-builds:
-    needs: build
-    runs-on: ubuntu-latest
-    if: always()
-    outputs:
-      successful-arches: ${{ steps.check.outputs.successful-arches }}
-      has-successful-builds: ${{ steps.check.outputs.has-successful-builds }}
-    steps:
-    - name: Check successful builds
-      id: check
-      run: |
-        successful_arches=""
-        has_successful=false
-        
-        # Check each architecture build result
-        for arch in aarch64 amd64 armhf armv7 i386; do
-          if [ "${{ needs.build.result }}" == "success" ] || [[ "${{ needs.build.outputs }}" == *"$arch"* ]]; then
-            if [ -n "$successful_arches" ]; then
-              successful_arches="$successful_arches $arch"
-            else
-              successful_arches="$arch"
-            fi
-            has_successful=true
-          fi
-        done
-        
-        echo "successful-arches=$successful_arches" >> $GITHUB_OUTPUT
-        echo "has-successful-builds=$has_successful" >> $GITHUB_OUTPUT
-        echo "Successful architectures: $successful_arches"
 
   create-manifest:
-    needs: [build, check-builds]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    # Only run if at least some builds succeeded
-    if: always() && needs.check-builds.outputs.has-successful-builds == 'true'
+    # Run even if some builds failed, but only if at least one succeeded
+    if: always() && contains(needs.build.result, 'success')
     
     steps:
     - name: Log in to Container Registry
@@ -146,35 +114,45 @@ jobs:
     
     - name: Create and push manifest
       run: |
-        # Function to check if image exists
-        image_exists() {
-          local image="$1"
-          docker manifest inspect "$image" > /dev/null 2>&1
-        }
-        
-        # Create manifests only for successful builds
+        # Create manifests for each tag
         for tag in ${{ steps.meta.outputs.tags }}; do
           echo "Creating manifest for tag: $tag"
           
-          # Build list of available images
+          # Try to create manifest with all possible architectures
+          # Docker manifest create will ignore non-existent images
           available_images=""
+          
           for arch in aarch64 amd64 armhf armv7 i386; do
             image_tag="$tag-$arch"
-            if image_exists "$image_tag"; then
+            echo "Checking for image: $image_tag"
+            
+            # Try to inspect the image - if it exists, add it to the list
+            if docker manifest inspect "$image_tag" >/dev/null 2>&1; then
               echo "✓ Found image: $image_tag"
               available_images="$available_images $image_tag"
             else
-              echo "✗ Missing image: $image_tag"
+              echo "✗ Image not found: $image_tag"
             fi
           done
           
-          # Only create manifest if we have at least one image
+          # Create manifest only if we have at least one image
           if [ -n "$available_images" ]; then
             echo "Creating manifest with images:$available_images"
-            docker manifest create "$tag" $available_images
-            docker manifest push "$tag"
+            docker manifest create "$tag" $available_images || {
+              echo "Failed to create manifest for $tag, retrying..."
+              sleep 5
+              docker manifest create "$tag" $available_images
+            }
+            
+            docker manifest push "$tag" || {
+              echo "Failed to push manifest for $tag, retrying..."
+              sleep 5  
+              docker manifest push "$tag"
+            }
+            
             echo "✓ Successfully created and pushed manifest for $tag"
           else
             echo "✗ No images available for $tag, skipping manifest creation"
+            exit 1
           fi
         done
