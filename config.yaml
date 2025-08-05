@@ -48,7 +48,6 @@ schema:
   inverter_number: "int(1,)"
   clientId: "str"
   clientSecret: "password"
-# Add healthcheck
 healthcheck:
   test: ["CMD", "curl", "-f", "http://localhost:6789/health"]
   interval: 30s
