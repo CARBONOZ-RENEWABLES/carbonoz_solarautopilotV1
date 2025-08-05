@@ -3,12 +3,12 @@ version: "1.0.0"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
 url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
-image: "ghcr.io/carbonoz-renewables/solarautopilot/{arch}"
 arch:
   - aarch64
   - amd64
   - armhf
   - armv7
+  - i386
 map:
   - share:rw
   - ssl
@@ -31,7 +31,7 @@ ingress_port: 6789
 ingress_stream: true
 startup: application
 init: false
-memory_limit: 1024mb
+memory_limit: 512mb
 options:
   mqtt_username: ""
   mqtt_password: ""
@@ -48,9 +48,4 @@ schema:
   inverter_number: "int(1,)"
   clientId: "str"
   clientSecret: "password"
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:6789/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
 panel: true
