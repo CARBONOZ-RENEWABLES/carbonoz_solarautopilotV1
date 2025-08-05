@@ -113,13 +113,21 @@ jobs:
           type=sha,prefix={{branch}}-
     
     - name: Create and push manifest
+      env:
+        TAGS: ${{ steps.meta.outputs.tags }}
       run: |
         # Create manifests for each tag
-        for tag in ${{ steps.meta.outputs.tags }}; do
+        echo "Available tags:"
+        echo "$TAGS"
+        
+        # Process each tag (handle multi-line tags properly)
+        echo "$TAGS" | while IFS= read -r tag; do
+          # Skip empty lines
+          [ -z "$tag" ] && continue
+          
           echo "Creating manifest for tag: $tag"
           
-          # Try to create manifest with all possible architectures
-          # Docker manifest create will ignore non-existent images
+          # Build list of available architecture images
           available_images=""
           
           for arch in aarch64 amd64 armhf armv7 i386; do
@@ -129,7 +137,11 @@ jobs:
             # Try to inspect the image - if it exists, add it to the list
             if docker manifest inspect "$image_tag" >/dev/null 2>&1; then
               echo "✓ Found image: $image_tag"
-              available_images="$available_images $image_tag"
+              if [ -z "$available_images" ]; then
+                available_images="$image_tag"
+              else
+                available_images="$available_images $image_tag"
+              fi
             else
               echo "✗ Image not found: $image_tag"
             fi
@@ -137,20 +149,26 @@ jobs:
           
           # Create manifest only if we have at least one image
           if [ -n "$available_images" ]; then
-            echo "Creating manifest with images:$available_images"
-            docker manifest create "$tag" $available_images || {
-              echo "Failed to create manifest for $tag, retrying..."
-              sleep 5
-              docker manifest create "$tag" $available_images
-            }
+            echo "Creating manifest with images: $available_images"
             
-            docker manifest push "$tag" || {
-              echo "Failed to push manifest for $tag, retrying..."
-              sleep 5  
-              docker manifest push "$tag"
-            }
+            # Clean up any existing manifest first
+            docker manifest rm "$tag" 2>/dev/null || true
             
-            echo "✓ Successfully created and pushed manifest for $tag"
+            # Create new manifest
+            if docker manifest create "$tag" $available_images; then
+              echo "✓ Manifest created successfully"
+              
+              # Push the manifest
+              if docker manifest push "$tag"; then
+                echo "✓ Successfully pushed manifest for $tag"
+              else
+                echo "✗ Failed to push manifest for $tag"
+                exit 1
+              fi
+            else
+              echo "✗ Failed to create manifest for $tag"
+              exit 1
+            fi
           else
             echo "✗ No images available for $tag, skipping manifest creation"
             exit 1
