@@ -1,16 +1,27 @@
 name: Builder
 
+# Permissions for GitHub Actions to write packages to GHCR
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+# Environment variables
 env:
-  BUILD_ARGS: "--test"
+  BUILD_ARGS: ""  # Remove --test to actually build and push
   MONITORED_FILES: "build.yaml config.yaml Dockerfile rootfs"
 
+# Trigger conditions
 on:
   push:
     branches:
       - main
+      - master
   pull_request:
     branches:
       - main
+      - master
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   init:
@@ -38,11 +49,11 @@ jobs:
           for addon in ${{ steps.addons.outputs.addons }}; do
             if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
               for file in ${{ env.MONITORED_FILES }}; do
-                  if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
-                    if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
-                      changed_addons+=("\"${addon}\",");
-                    fi
+                if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                  if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
+                    changed_addons+=("\"${addon}\",");
                   fi
+                fi
               done
             fi
           done
@@ -55,12 +66,22 @@ jobs:
             echo "addons=[$changed]" >> $GITHUB_OUTPUT;
           else
             echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
+            # Force build for manual trigger or first-time setup
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "Manual trigger - building all add-ons";
+              echo "changed=true" >> $GITHUB_OUTPUT;
+              echo "addons=[\"carbonoz_solarautopilotv1\"]" >> $GITHUB_OUTPUT;
+            fi
           fi
+
   build:
     needs: init
     runs-on: ubuntu-latest
     if: needs.init.outputs.changed == 'true'
     name: Build ${{ matrix.arch }} ${{ matrix.addon }} add-on
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
@@ -81,17 +102,17 @@ jobs:
         run: |
           if [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
              echo "build_arch=true" >> $GITHUB_OUTPUT;
-             echo "image=$(echo ${{ steps.info.outputs.image }} | cut -d'/' -f3)" >> $GITHUB_OUTPUT;
-             if [[ -z "${{ github.head_ref }}" ]] && [[ "${{ github.event_name }}" == "push" ]]; then
-                 echo "BUILD_ARGS=" >> $GITHUB_ENV;
-             fi
-           else
+             # Convert to lowercase for consistent Docker image naming
+             image_name=$(echo "${{ steps.info.outputs.image }}" | cut -d'/' -f3 | tr '[:upper:]' '[:lower:]')
+             echo "image=${image_name}" >> $GITHUB_OUTPUT;
+             echo "Building for ${{ matrix.arch }} with image: ${image_name}";
+          else
              echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build";
              echo "build_arch=false" >> $GITHUB_OUTPUT;
           fi
 
       - name: Login to GitHub Container Registry
-        if: env.BUILD_ARGS != '--test'
+        if: steps.check.outputs.build_arch == 'true'
         uses: docker/login-action@v3.4.0
         with:
           registry: ghcr.io
@@ -109,4 +130,33 @@ jobs:
             --image "${{ steps.check.outputs.image }}" \
             --docker-hub "ghcr.io/${{ github.repository_owner }}" \
             --addon
-            
+
+  # Optional: Create a release after successful builds
+  release:
+    needs: [init, build]
+    runs-on: ubuntu-latest
+    if: needs.init.outputs.changed == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+      
+      - name: Create Release Notes
+        run: |
+          echo "## 🚀 CARBONOZ SolarAutopilot V1 - $(date +'%Y-%m-%d')" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 📦 Built Images" >> release_notes.md
+          echo "- \`ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1-aarch64:latest\`" >> release_notes.md
+          echo "- \`ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1-amd64:latest\`" >> release_notes.md
+          echo "- \`ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1-armv7:latest\`" >> release_notes.md
+          echo "- \`ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1-i386:latest\`" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🏠 Installation" >> release_notes.md
+          echo "Add this repository to Home Assistant:" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+          echo "https://github.com/CARBONOZ-RENEWABLES/carbonoz_solarautopilotV1" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+          
+      - name: Display build completion
+        run: |
+          echo "✅ All Docker images built and pushed successfully!"
+          echo "📋 Images available at: https://github.com/orgs/CARBONOZ-RENEWABLES/packages"
