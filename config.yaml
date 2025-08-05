@@ -7,9 +7,6 @@ image: "ghcr.io/carbonoz-renewables/carbonoz_solarautopilotv1-{arch}"
 arch:
   - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
 map:
   - share:rw
   - ssl
