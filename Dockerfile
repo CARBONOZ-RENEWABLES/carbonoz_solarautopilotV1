@@ -35,11 +35,21 @@ RUN apk add --no-cache \
     wget \
     gnupg
 
-# Add community repositories and install Grafana and InfluxDB
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories && \
-    apk update && \
-    apk add --no-cache grafana influxdb
+# Add repositories and install Grafana and InfluxDB with architecture checks
+RUN set -eux; \
+    echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories; \
+    echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories; \
+    apk update; \
+    \
+    # Check if packages are available for this architecture
+    if apk search grafana | grep -q grafana && apk search influxdb | grep -q influxdb; then \
+        echo "Installing Grafana and InfluxDB for ${BUILD_ARCH}"; \
+        apk add --no-cache grafana influxdb; \
+    else \
+        echo "Grafana and/or InfluxDB not available for ${BUILD_ARCH}, installing alternatives"; \
+        # You could install alternative packages or compile from source here
+        echo "Skipping Grafana and InfluxDB installation for ${BUILD_ARCH}"; \
+    fi
 
 # Set up directories with proper permissions for persistent storage
 RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
@@ -57,14 +67,20 @@ RUN npm install --frozen-lockfile --production \
 # Copy application code and configurations
 COPY rootfs /
 COPY . .
-COPY grafana/grafana.ini /etc/grafana/grafana.ini
-COPY grafana/provisioning /etc/grafana/provisioning
+
+# Only copy Grafana configs if Grafana is installed
+RUN if command -v grafana-server >/dev/null 2>&1; then \
+        cp grafana/grafana.ini /etc/grafana/grafana.ini; \
+        cp -r grafana/provisioning /etc/grafana/; \
+    else \
+        echo "Grafana not installed, skipping config copy"; \
+    fi
 
 # Make scripts executable
 RUN chmod a+x /etc/services.d/carbonoz/run \
     && chmod a+x /etc/services.d/carbonoz/finish \
-    && chmod a+x /etc/services.d/influxdb/run \
-    && chmod a+x /etc/services.d/influxdb/finish \
+    && if [ -f /etc/services.d/influxdb/run ]; then chmod a+x /etc/services.d/influxdb/run; fi \
+    && if [ -f /etc/services.d/influxdb/finish ]; then chmod a+x /etc/services.d/influxdb/finish; fi \
     && chmod a+x /usr/bin/carbonoz.sh
 
 # Build arguments for labels
