@@ -1,233 +1,112 @@
-name: Build and Push Multi-Arch Containers
+name: Builder
+
+env:
+  BUILD_ARGS: "--test"
+  MONITORED_FILES: "build.yaml config.yaml Dockerfile rootfs"
 
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
+    branches:
+      - main
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    branches:
+      - main
 
 jobs:
-  build:
+  init:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      packages: write
-    
-    strategy:
-      # Don't cancel other jobs if one fails
-      fail-fast: false
-      matrix:
-        arch: [aarch64, amd64, armhf, armv7, i386]
-    
+    name: Initialize builds
+    outputs:
+      changed_addons: ${{ steps.changed_addons.outputs.addons }}
+      changed: ${{ steps.changed_addons.outputs.changed }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-    
-    - name: Map architecture to Docker platform
-      id: arch-map
-      run: |
-        case "${{ matrix.arch }}" in
-          aarch64) echo "platform=linux/arm64" >> $GITHUB_OUTPUT ;;
-          amd64) echo "platform=linux/amd64" >> $GITHUB_OUTPUT ;;
-          armhf) echo "platform=linux/arm/v6" >> $GITHUB_OUTPUT ;;
-          armv7) echo "platform=linux/arm/v7" >> $GITHUB_OUTPUT ;;
-          i386) echo "platform=linux/386" >> $GITHUB_OUTPUT ;;
-        esac
-    
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: ${{ steps.arch-map.outputs.platform }}
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}-${{ matrix.arch }}
-        labels: ${{ steps.meta.outputs.labels }}
-        build-args: |
-          BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:3.16
-          BUILD_ARCH=${{ matrix.arch }}
-          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-          BUILD_REF=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
-          BUILD_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
-        cache-from: type=gha,scope=${{ matrix.arch }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
-    
-    - name: Output build result
-      run: |
-        echo "Build completed for ${{ matrix.arch }}"
-        echo "Tags: ${{ steps.meta.outputs.tags }}-${{ matrix.arch }}"
+      - name: Check out the repository
+        uses: actions/checkout@v4.2.2
 
-  create-manifest:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    # Run even if some builds failed, but only if at least one succeeded
-    if: always() && (contains(needs.build.result, 'success') || needs.build.result == 'success')
-    
-    steps:
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-    
-    - name: Check build results and create manifests
-      env:
-        TAGS: ${{ steps.meta.outputs.tags }}
-        BUILD_RESULTS: ${{ toJSON(needs.build.result) }}
-        BUILD_OUTPUTS: ${{ toJSON(needs.build.outputs) }}
-      run: |
-        # Enable experimental features for manifest commands
-        export DOCKER_CLI_EXPERIMENTAL=enabled
-        
-        echo "Build results: $BUILD_RESULTS"
-        echo "Available tags:"
-        echo "$TAGS"
-        
-        # Get successful architectures from job results
-        successful_archs=""
-        for arch in aarch64 amd64 armhf armv7 i386; do
-          if [[ "$BUILD_RESULTS" == *"\"build ($arch)\": \"success\""* ]]; then
-            successful_archs="$successful_archs $arch"
-            echo "✓ Architecture $arch built successfully"
-          else
-            echo "✗ Architecture $arch failed or was skipped"
-          fi
-        done
-        
-        if [ -z "$successful_archs" ]; then
-          echo "❌ No successful builds found!"
-          exit 1
-        fi
-        
-        echo "Successful architectures:$successful_archs"
-        
-        # Process each tag (handle multi-line tags properly)
-        echo "$TAGS" | while IFS= read -r tag; do
-          # Skip empty lines
-          [ -z "$tag" ] && continue
-          
-          echo "Creating manifest for tag: $tag"
-          
-          # Build list of available architecture images
-          available_images=""
-          
-          for arch in $successful_archs; do
-            image_tag="$tag-$arch"
-            echo "Checking for image: $image_tag"
-            
-            # Try to inspect the image - if it exists, add it to the list
-            if docker manifest inspect "$image_tag" >/dev/null 2>&1; then
-              echo "✓ Found image: $image_tag"
-              if [ -z "$available_images" ]; then
-                available_images="$image_tag"
-              else
-                available_images="$available_images $image_tag"
-              fi
-            else
-              echo "✗ Image not found: $image_tag"
+      - name: Get changed files
+        id: changed_files
+        uses: jitterbit/get-changed-files@v1
+
+      - name: Find add-on directories
+        id: addons
+        uses: home-assistant/actions/helpers/find-addons@master
+
+      - name: Get changed add-ons
+        id: changed_addons
+        run: |
+          declare -a changed_addons
+          for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
+              for file in ${{ env.MONITORED_FILES }}; do
+                  if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                    if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
+                      changed_addons+=("\"${addon}\",");
+                    fi
+                  fi
+              done
             fi
           done
-          
-          # Create manifest only if we have at least one image
-          if [ -n "$available_images" ]; then
-            echo "Creating manifest with images: $available_images"
-            
-            # Clean up any existing manifest first
-            docker manifest rm "$tag" 2>/dev/null || true
-            
-            # Create new manifest
-            if docker manifest create "$tag" $available_images; then
-              echo "✓ Manifest created successfully"
-              
-              # Push the manifest
-              if docker manifest push "$tag"; then
-                echo "✓ Successfully pushed manifest for $tag"
-              else
-                echo "✗ Failed to push manifest for $tag"
-                exit 1
-              fi
-            else
-              echo "✗ Failed to create manifest for $tag"
-              exit 1
-            fi
-          else
-            echo "⚠️  No images available for $tag, but continuing..."
-          fi
-        done
-        
-        echo "🎉 Manifest creation completed!"
 
-  summary:
-    needs: [build, create-manifest]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-    - name: Print Summary
-      run: |
-        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # Build results
-        echo "### Build Results:" >> $GITHUB_STEP_SUMMARY
-        for arch in aarch64 amd64 armhf armv7 i386; do
-          if [[ "${{ toJSON(needs.build.result) }}" == *"\"build ($arch)\": \"success\""* ]]; then
-            echo "- ✅ $arch: Success" >> $GITHUB_STEP_SUMMARY
+          changed=$(echo ${changed_addons[@]} | rev | cut -c 2- | rev)
+
+          if [[ -n ${changed} ]]; then
+            echo "Changed add-ons: $changed";
+            echo "changed=true" >> $GITHUB_OUTPUT;
+            echo "addons=[$changed]" >> $GITHUB_OUTPUT;
           else
-            echo "- ❌ $arch: Failed" >> $GITHUB_STEP_SUMMARY
+            echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
           fi
-        done
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Manifest Creation:" >> $GITHUB_STEP_SUMMARY
-        if [[ "${{ needs.create-manifest.result }}" == "success" ]]; then
-          echo "- ✅ Manifests created successfully" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- ❌ Manifest creation failed" >> $GITHUB_STEP_SUMMARY
-        fi
+  build:
+    needs: init
+    runs-on: ubuntu-latest
+    if: needs.init.outputs.changed == 'true'
+    name: Build ${{ matrix.arch }} ${{ matrix.addon }} add-on
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
+        arch: ["aarch64", "amd64", "armv7", "i386"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Get information
+        id: info
+        uses: home-assistant/actions/helpers/info@master
+        with:
+          path: "./${{ matrix.addon }}"
+
+      - name: Check if add-on should be built
+        id: check
+        run: |
+          if [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
+             echo "build_arch=true" >> $GITHUB_OUTPUT;
+             echo "image=$(echo ${{ steps.info.outputs.image }} | cut -d'/' -f3)" >> $GITHUB_OUTPUT;
+             if [[ -z "${{ github.head_ref }}" ]] && [[ "${{ github.event_name }}" == "push" ]]; then
+                 echo "BUILD_ARGS=" >> $GITHUB_ENV;
+             fi
+           else
+             echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build";
+             echo "build_arch=false" >> $GITHUB_OUTPUT;
+          fi
+
+      - name: Login to GitHub Container Registry
+        if: env.BUILD_ARGS != '--test'
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ${{ matrix.addon }} add-on
+        if: steps.check.outputs.build_arch == 'true'
+        uses: home-assistant/builder@2025.03.0
+        with:
+          args: |
+            ${{ env.BUILD_ARGS }} \
+            --${{ matrix.arch }} \
+            --target /data/${{ matrix.addon }} \
+            --image "${{ steps.check.outputs.image }}" \
+            --docker-hub "ghcr.io/${{ github.repository_owner }}" \
+            --addon
+            
