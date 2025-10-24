@@ -1427,10 +1427,19 @@ input, select {
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
+        .dark-mode .card {
+       background-color: rgba(24, 27, 31, 1);
+            color: #f5f6fa;
+        }
+
         h1 {
             color: #2d3748;
             margin-bottom: 10px;
             font-size: 28px;
+        }
+
+        .dark-mode h1 {
+            color: #f5f6fa;
         }
 
         h2 {
@@ -1441,10 +1450,16 @@ input, select {
             align-items: center;
             gap: 10px;
         }
+        .dark-mode h2 {
+            color: #cbd5e0;
+        }
 
         .subtitle {
             color: #718096;
             margin-bottom: 30px;
+        }
+        .dark-mode .subtitle {
+            color: #a0aec0;
         }
 
         .status-badge {
@@ -1673,6 +1688,10 @@ input, select {
             margin-top: 20px;
         }
 
+        .dark-mode .diagnostic-section {
+            background: rgba(24, 27, 31, 1);
+        }
+
         .diagnostic-section pre {
             background: #2d3748;
             color: #68d391;
@@ -1697,16 +1716,27 @@ input, select {
             border-radius: 8px;
         }
 
+        .dark-mode .status-item{
+            background-color: rgb(32, 36, 41);
+        }
+
         .status-item .label {
             font-size: 12px;
             color: #718096;
             margin-bottom: 5px;
+        }
+        .dark-mode  .status-item .label {
+            color: #a0aec0;
         }
 
         .status-item .value {
             font-size: 20px;
             font-weight: bold;
             color: #2d3748;
+        }
+
+        .dark-mode  .status-item .value {
+            color: #f5f6fa;
         }
        </style>
 </head>
@@ -1980,9 +2010,7 @@ input, select {
                 <button class="btn btn-success" onclick="refreshData()">
                     🔄 Refresh Data
                 </button>
-                <button class="btn btn-secondary" onclick="runDiagnostics()">
-                    🩺 Run Diagnostics
-                </button>
+    
             </div>
         </div>
 
