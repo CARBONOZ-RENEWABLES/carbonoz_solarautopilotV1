@@ -27,8 +27,27 @@ const { AuthenticateUser } = require('./utils/mongoService')
 const telegramService = require('./services/telegramService');
 const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
-const dynamicPricingRoutes = require('./routes/dynamicPricingRoutes');
-const dynamicPricingController = require('./services/dynamicPricingController');
+const tibberService = require('./services/tibberService');
+const aiChargingEngine = require('./services/aiChargingEngine');
+
+let aiEngineInitialized = false;
+
+// Initialize AI engine after MQTT connection
+function initializeAIEngine() {
+  if (!aiEngineInitialized && mqttClient && mqttClient.connected) {
+    try {
+      // Set up AI engine with MQTT client and system state
+      if (aiChargingEngine && aiChargingEngine.initialize) {
+        aiChargingEngine.initialize(mqttClient, currentSystemState);
+        console.log('✅ AI Charging Engine initialized');
+        aiEngineInitialized = true;
+      }
+    } catch (error) {
+      console.error('❌ Error initializing AI engine:', error);
+    }
+  }
+}
+
 const GRAFANA_URL = 'http://localhost:3001';
 const BASE_PATH = process.env.INGRESS_PATH || '';
 
@@ -41,7 +60,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
-app.use('/api/dynamic-pricing', dynamicPricingRoutes);
+
 app.use((req, res, next) => {
   if (req.path.includes('/hassio_ingress/')) {
     const pathParts = req.path.split('/');
@@ -102,7 +121,13 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
+
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -234,7 +259,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -248,7 +273,7 @@ let incomingMessages = []
 const MAX_MESSAGES = 500
 
 // Learner mode configuration
-let learnerModeActive = false
+global.learnerModeActive = false
 
 // Updated settings to monitor including new inverter types
 const settingsToMonitor = [
@@ -355,10 +380,13 @@ let previousSettings = {}
 // Track inverter types for each inverter
 const inverterTypes = {}
 
-let dynamicPricingInstance = null;
+// Dynamic pricing instance removed
 
-// Make learner mode accessible globally for dynamic pricing
+// Make learner mode accessible globally
 global.learnerModeActive = learnerModeActive;
+
+// Make inverter types globally accessible
+global.inverterTypes = inverterTypes;
 
 // ================ INVERTER TYPE DETECTION ================
 
@@ -1359,6 +1387,11 @@ async function handleMqttMessage(topic, message) {
     currentSystemState.battery_soc = parseFloat(messageContent);
     currentSystemState.timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     shouldProcessRules = true;
+    
+    // Update AI engine system state
+    if (aiChargingEngine && aiChargingEngine.updateSystemState) {
+      aiChargingEngine.updateSystemState(currentSystemState);
+    }
   } else if (specificTopic.includes('total/pv_power')) {
     currentSystemState.pv_power = parseFloat(messageContent);
     shouldProcessRules = true;
@@ -1386,33 +1419,7 @@ async function handleMqttMessage(topic, message) {
   topic.includes('load_power') ||
   topic.includes('battery_power')) {  // Add this line
 
-if (dynamicPricingInstance && 
-    dynamicPricingInstance.enabled && 
-    dynamicPricingInstance.isReady() &&
-    learnerModeActive) {
-  
-  try {
-    const shouldCharge = dynamicPricingInstance.shouldChargeNow();
-    
-    if (shouldCharge !== null) {
-      const commandSent = dynamicPricingInstance.sendGridChargeCommand(shouldCharge);
-      
-      if (commandSent) {
-        const action = shouldCharge ? 'enabled' : 'disabled';
-        const reason = shouldCharge 
-          ? 'Enhanced price analysis indicates favorable conditions with intelligent inverter type detection' 
-          : 'Enhanced price analysis indicates unfavorable conditions or target SoC reached';
-        
-        console.log(`🔋 Enhanced Dynamic Pricing: Grid charging ${action} - ${reason}`);
-        
-        const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-        dynamicPricingIntegration.logAction(`Automatic grid charging ${action} - ${reason} with intelligent inverter type auto-detection and command mapping`);
-      }
-    }
-  } catch (error) {
-    console.error('Error in enhanced dynamic pricing logic with inverter type support:', error);
-  }
-}
+// Dynamic pricing logic removed
 }
 
   // Batch changes to be processed together for better performance
@@ -2341,12 +2348,24 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
       const zonesResponse = await getZones();
       
+      // Get Tibber configuration and status
+      const config = tibberService.config;
+      const status = tibberService.getStatus();
+      const aiStatus = aiChargingEngine.getStatus();
+      
       res.render('settings', { 
         settings,
         ingress_path: process.env.INGRESS_PATH || '',
         zones: zonesResponse.zones,
         message: req.query.message,
-        error: zonesResponse.error
+        error: zonesResponse.error,
+        // Tibber data - using names that match the EJS template
+        config: { 
+          ...config, 
+          apiKey: config.apiKey ? '***' + config.apiKey.slice(-4) : '' 
+        },
+        status,
+        aiStatus
       });
     } catch (error) {
       res.status(500).render('error', { error: 'Error loading settings' });
@@ -2468,6 +2487,35 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     app._router.handle(req, res);
   });
 
+  // AI Dashboard route
+  app.get('/ai-dashboard', async (req, res) => {
+    try {
+      res.render('ai-dashboard', {
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID,
+        learner_active: learnerModeActive,
+        db_connected: dbConnected,
+        mqtt_connected: mqttClient ? mqttClient.connected : false,
+        system_state: currentSystemState,
+        ai_status: aiChargingEngine.getStatus(),
+        tibber_status: tibberService.getStatus()
+      });
+    } catch (error) {
+      console.error('Error rendering AI dashboard:', error);
+      res.status(500).send('Error loading AI dashboard');
+    }
+  });
+
+  app.get('/api/hassio_ingress/:token/ai-dashboard', (req, res) => {
+    req.url = '/ai-dashboard';
+    app._router.handle(req, res);
+  });
+  
+  app.get('/hassio_ingress/:token/ai-dashboard', (req, res) => {
+    req.url = '/ai-dashboard';
+    app._router.handle(req, res);
+  });
+
 
   app.get('/api/carbon-intensity/:zone', async (req, res) => {
     try {
@@ -2514,6 +2562,134 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
       res.status(500).json({ error: 'Failed to fetch grid voltage' })
     }
   })
+
+  // AI Dashboard API endpoints
+  app.get('/api/ai/status', (req, res) => {
+    try {
+      const aiStatus = aiChargingEngine.getStatus();
+      const tibberStatus = tibberService.getStatus();
+      
+      res.json({
+        success: true,
+        ai: aiStatus,
+        tibber: tibberStatus,
+        learner_mode: learnerModeActive,
+        system_state: currentSystemState
+      });
+    } catch (error) {
+      console.error('Error getting AI status:', error);
+      res.status(500).json({ error: 'Failed to get AI status' });
+    }
+  });
+
+  app.get('/api/ai/decisions', (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 10;
+      const decisions = aiChargingEngine.getDecisionHistory(limit);
+      
+      res.json({
+        success: true,
+        decisions: decisions
+      });
+    } catch (error) {
+      console.error('Error getting AI decisions:', error);
+      res.status(500).json({ error: 'Failed to get AI decisions' });
+    }
+  });
+
+  app.get('/api/ai/predictions', (req, res) => {
+    try {
+      const predictions = aiChargingEngine.getPredictedChargeWindows();
+      
+      res.json({
+        success: true,
+        predictions: predictions
+      });
+    } catch (error) {
+      console.error('Error getting AI predictions:', error);
+      res.status(500).json({ error: 'Failed to get AI predictions' });
+    }
+  });
+
+  app.get('/api/tibber/current', (req, res) => {
+    try {
+      const tibberData = tibberService.getCachedData();
+      
+      res.json({
+        success: true,
+        data: tibberData
+      });
+    } catch (error) {
+      console.error('Error getting Tibber data:', error);
+      res.status(500).json({ error: 'Failed to get Tibber data' });
+    }
+  });
+
+  // AI Engine Control Endpoints
+  app.post('/api/ai/start', (req, res) => {
+    try {
+      if (!aiChargingEngine) {
+        return res.status(500).json({ error: 'AI Charging Engine not available' });
+      }
+      
+      aiChargingEngine.start();
+      
+      res.json({
+        success: true,
+        message: 'AI Charging Engine started successfully',
+        status: aiChargingEngine.getStatus()
+      });
+    } catch (error) {
+      console.error('Error starting AI engine:', error);
+      res.status(500).json({ error: 'Failed to start AI engine' });
+    }
+  });
+
+  app.post('/api/ai/stop', (req, res) => {
+    try {
+      if (!aiChargingEngine) {
+        return res.status(500).json({ error: 'AI Charging Engine not available' });
+      }
+      
+      aiChargingEngine.stop();
+      
+      res.json({
+        success: true,
+        message: 'AI Charging Engine stopped successfully',
+        status: aiChargingEngine.getStatus()
+      });
+    } catch (error) {
+      console.error('Error stopping AI engine:', error);
+      res.status(500).json({ error: 'Failed to stop AI engine' });
+    }
+  });
+
+  app.post('/api/ai/toggle', (req, res) => {
+    try {
+      if (!aiChargingEngine) {
+        return res.status(500).json({ error: 'AI Charging Engine not available' });
+      }
+      
+      const currentStatus = aiChargingEngine.getStatus();
+      
+      if (currentStatus.running) {
+        aiChargingEngine.stop();
+      } else {
+        aiChargingEngine.start();
+      }
+      
+      const newStatus = aiChargingEngine.getStatus();
+      
+      res.json({
+        success: true,
+        message: `AI Charging Engine ${newStatus.running ? 'started' : 'stopped'} successfully`,
+        status: newStatus
+      });
+    } catch (error) {
+      console.error('Error toggling AI engine:', error);
+      res.status(500).json({ error: 'Failed to toggle AI engine' });
+    }
+  });
   
   // ================ CARBON INTENSITY ================
   
@@ -3997,21 +4173,8 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
     try {
       console.log('Running scheduled pricing data refresh...');
       
-      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-      
-      if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-        const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-        const config = JSON.parse(configData);
-        
-        if (config) {
-          config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
-          config.lastUpdate = new Date().toISOString();
-          
-          fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-          
-          console.log(`✅ Scheduled pricing data refresh completed: ${config.pricingData.length} data points for timezone ${config.timezone}`);
-        }
-      }
+      // Dynamic pricing config removed
+      console.log('✅ Scheduled data refresh completed');
     } catch (error) {
       console.error('❌ Error in scheduled pricing data refresh:', error);
     }
@@ -4461,7 +4624,7 @@ app.get('/inverter-settings', async (req, res) => {
         recentMessages: incomingMessages.slice(-10),
         
         // Dynamic pricing status (if available)
-        dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false,
+        dynamicPricingEnabled: false,
         
         // Enhanced support flags
         supportsLegacySettings: true,
@@ -4663,12 +4826,7 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  app.get('/dynamic-pricing', (req, res) => {
-    res.render('dynamic-pricing', {
-      ingress_path: process.env.INGRESS_PATH || '',
-      user_id: USER_ID
-    });
-  });
+  // Dynamic pricing route removed
   
   
   // ================ RULES MANAGEMENT API ================
@@ -5371,12 +5529,12 @@ app.get('/inverter-settings', async (req, res) => {
     
     console.log(`Learner mode ${learnerModeActive ? 'activated' : 'deactivated'}`);
     
-    if (dynamicPricingInstance && dynamicPricingInstance.enabled) {
-      const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
+    if (false) { // Dynamic pricing removed
+      // Dynamic pricing integration removed
       const action = learnerModeActive 
-        ? 'Dynamic pricing commands now ENABLED (learner mode active)'
-        : 'Dynamic pricing commands now DISABLED (learner mode inactive)';
-      dynamicPricingIntegration.logAction(action);
+        ? 'Commands now ENABLED (learner mode active)'
+        : 'Commands now DISABLED (learner mode inactive)';
+      console.log(action);
     }
     
     res.json({ 
@@ -6765,7 +6923,7 @@ function connectToMqtt() {
       connectTimeout: mqttConfig.connectTimeout
     })
   
-    mqttClient.on('connect', async () => {
+mqttClient.on('connect', async () => {
       try {
         console.log('✅ Connected to MQTT broker')
         await new Promise((resolve, reject) => {
@@ -6775,6 +6933,11 @@ function connectToMqtt() {
           });
         });
         console.log(`📡 Subscribed to ${mqttTopicPrefix}/#`);
+        
+        // Initialize AI Charging Engine after MQTT is ready
+        console.log('🤖 Scheduling AI Engine initialization...');
+        setTimeout(initializeAIEngine, 3000); // Wait 3 seconds for system to stabilize
+        
       } catch (error) {
         console.error('Error subscribing to topics:', error.message);
       }
@@ -6806,6 +6969,46 @@ function connectToMqtt() {
       console.log('Reconnecting to MQTT broker...')
     })
   }
+
+
+
+// AI CHARGING ENGINE INITIALIZATION
+// ============================================================================
+
+function initializeAIEngine() {
+  if (aiEngineInitialized) {
+    console.log('⚠️  AI Engine already initialized');
+    return;
+  }
+  
+  if (!mqttClient || !mqttClient.connected) {
+    console.log('⚠️  Cannot initialize AI Engine: MQTT not connected');
+    return;
+  }
+  
+  if (!currentSystemState) {
+    console.log('⚠️  Cannot initialize AI Engine: No system state available');
+    return;
+  }
+  
+  try {
+    console.log('🤖 Initializing AI Charging Engine...');
+    aiChargingEngine.initialize(mqttClient, currentSystemState);
+    aiEngineInitialized = true;
+    console.log('✅ AI Charging Engine initialized successfully');
+    
+    // Auto-start if Tibber is configured
+    if (tibberService.config.enabled && 
+        tibberService.config.apiKey && 
+        tibberService.config.homeId) {
+      console.log('🔋 Auto-starting AI Charging Engine...');
+      aiChargingEngine.start();
+    }
+  } catch (error) {
+    console.error('❌ Error initializing AI Engine:', error.message);
+  }
+}
+
   
   // Save MQTT message to InfluxDB with better error handling
   async function saveMessageToInfluxDB(topic, message) {
@@ -7006,31 +7209,22 @@ async function initializeConnections() {
   const telegramService = require('./services/telegramService');
   console.log('✅ Telegram notification service initialized');
   
-  // Initialize dynamic pricing data BEFORE dynamic pricing integration
-  await initializeDynamicPricingData();
+  // Initialize data
+  await initializeData();
   
-  // Initialize dynamic pricing integration with inverter type support
+  // Dynamic pricing integration removed
   try {
-    const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-    dynamicPricingInstance = await dynamicPricingIntegration.initializeDynamicPricing(app, mqttClient, currentSystemState);
+    // Removed dynamic pricing initialization
     
-    global.dynamicPricingInstance = dynamicPricingInstance;
     global.mqttClient = mqttClient;
     global.currentSystemState = currentSystemState;
-    global.inverterTypes = inverterTypes; // Make inverter types available globally for dynamic pricing
+    global.inverterTypes = inverterTypes; // Make inverter types available globally
     
     console.log('✅ Dynamic pricing integration initialized with intelligent inverter type support and automatic command mapping');
   } catch (error) {
-    console.error('❌ Error initializing dynamic pricing:', error);
+    console.error('❌ Error initializing:', error);
     
-    dynamicPricingInstance = {
-      enabled: false,
-      isReady: () => false,
-      shouldChargeNow: () => false,
-      sendGridChargeCommand: () => false,
-      supportsInverterTypes: false
-    };
-    global.dynamicPricingInstance = dynamicPricingInstance;
+    // Dynamic pricing instance removed
   }
   
   try {
@@ -7050,9 +7244,9 @@ async function initializeConnections() {
 
   // ================ ENHANCED DYNAMIC PRICING DATA INITIALIZATION ================
 
-  async function initializeDynamicPricingData() {
+  async function initializeData() {
     try {
-      console.log('Initializing dynamic pricing data with inverter type support...');
+      console.log('Initializing data with inverter type support...');
       
       const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
       
@@ -7063,7 +7257,7 @@ async function initializeConnections() {
       }
       
       if (!config) {
-        console.log('No dynamic pricing config found, creating default with inverter type support...');
+        console.log('No config found, creating default with inverter type support...');
         config = {
           enabled: false,
           country: 'DE',
@@ -7157,7 +7351,7 @@ async function initializeConnections() {
       
       return true;
     } catch (error) {
-      console.error('❌ Error initializing dynamic pricing data:', error);
+      console.error('❌ Error initializing data:', error);
       return false;
     }
   }
@@ -7296,11 +7490,11 @@ ensureDirectoriesExist();
     console.error('Enhanced system error:', err.stack);
     
     // Log enhanced error information
-    if (err.message && err.message.includes('dynamic pricing')) {
+    if (err.message && err.message.includes('pricing')) {
       console.error('Enhanced Dynamic Pricing Error:', {
         message: err.message,
         inverterTypes: global.inverterTypes ? Object.keys(global.inverterTypes).length : 0,
-        dynamicPricingEnabled: dynamicPricingInstance ? dynamicPricingInstance.enabled : false
+        dynamicPricingEnabled: false
       });
     }
     
@@ -7311,19 +7505,7 @@ ensureDirectoriesExist();
     });
   });
   
-  // 404 handler
-  app.use((req, res, next) => {
-    res.status(404).json({
-      error: "Enhanced route not found",
-      enhanced: true,
-      availableRoutes: [
-        '/api/dynamic-pricing/settings',
-        '/api/dynamic-pricing/pricing-data',
-        '/api/dynamic-pricing/inverter-status',
-        '/api/dynamic-pricing/recommendation'
-      ]
-    });
-  });
+
   
   // Refresh pricing data every 6 hours
   cron.schedule('0 */6 * * *', () => {
@@ -7365,7 +7547,7 @@ cron.schedule('0,30 * * * *', () => {
       console.log('🔍 Inverter Type Detection: Still waiting for MQTT messages');
     }
     
-    // Report enhanced dynamic pricing status
+
     if (global.enhancedDynamicPricing) {
       const status = global.enhancedDynamicPricing.getEnhancedStatus();
       if (status.enabled && status.ready) {
@@ -7403,7 +7585,7 @@ app.listen(port, () => {
   console.log(`🔍 Inverter Type Detection: ACTIVE (auto-detects legacy, new, and hybrid)`);
   console.log(`🔄 Auto-Setting Mapping: ENABLED (intelligent command translation)`);
   console.log(`💡 Learner Mode: ${learnerModeActive ? 'ACTIVE' : 'INACTIVE'}`);
-  console.log(`🔋 Enhanced Dynamic Pricing: ${dynamicPricingInstance ? (dynamicPricingInstance.enabled ? 'ENABLED' : 'DISABLED') : 'INITIALIZING'}`);
+  console.log('🔋 Enhanced System: READY');
   
   // Enhanced status check after 5 seconds
   setTimeout(() => {
@@ -7426,7 +7608,7 @@ app.listen(port, () => {
       console.log('🔍 Inverter Type Detection: Waiting for MQTT messages...');
     }
     
-    // Check enhanced dynamic pricing status
+
     if (global.enhancedDynamicPricing) {
       const status = global.enhancedDynamicPricing.getEnhancedStatus();
       console.log(`🔋 Enhanced Dynamic Pricing Status:`);
@@ -7455,21 +7637,19 @@ app.listen(port, () => {
     console.log('🎯 Enhanced System Ready!');
     console.log('   • Auto-detects and manages both legacy and new inverter types');
     console.log('   • Intelligently maps commands to appropriate MQTT topics');
-    console.log('   • Provides advanced dynamic pricing with inverter type awareness');
+
     console.log('   • Maintains backward compatibility with existing systems');
     console.log('   • Delivers enhanced monitoring and control capabilities\n');
   }, 5000);
   
-  console.log('\n🎯 Enhanced system ready to auto-detect and manage all inverter types with intelligent dynamic pricing!');
+  console.log('\n🎯 Enhanced system ready to auto-detect and manage all inverter types!');
 });
   
  // ================ ENHANCED DYNAMIC PRICING WITH COMPLETE INVERTER TYPE MAPPING ================
 
-// Override the dynamic pricing sendGridChargeCommand to use enhanced inverter type detection
-if (dynamicPricingInstance) {
-  const originalSendCommand = dynamicPricingInstance.sendGridChargeCommand;
-  
-  dynamicPricingInstance.sendGridChargeCommand = function(enable) {
+
+// Dynamic pricing command override removed
+function sendGridChargeCommand(enable) {
     if (!learnerModeActive) {
       console.log('Dynamic pricing: Would send grid charge command with intelligent inverter type detection, but learner mode is not active');
       return false;
@@ -7537,30 +7717,21 @@ if (dynamicPricingInstance) {
       console.log(`🔋 Dynamic Pricing: Grid charging ${action} for ${totalInverters} inverter(s) with intelligent type detection (${typesSummaryText}) - Commands sent: ${commandsSent}/${totalInverters}`);
       
       // Logging with detailed inverter type information
-      const dynamicPricingIntegration = require('./services/dynamic-pricing-integration');
-      dynamicPricingIntegration.logAction(`Grid charging ${action} for ${totalInverters} inverter(s) with intelligent type auto-detection (${typesSummaryText}) - command mapping applied`);
+      // Dynamic pricing integration removed
+      console.log(`Grid charging ${action} for ${totalInverters} inverter(s) with intelligent type auto-detection (${typesSummaryText}) - command mapping applied`);
       
       return commandsSent > 0;
     } catch (error) {
-      console.error('❌ Error in dynamic pricing grid charge command with inverter type support:', error);
+      console.error('❌ Error in grid charge command with inverter type support:', error);
       return false;
     }
-  };
-  
-  console.log('✅ Dynamic pricing integration completed with:');
-  console.log('   🔧 Intelligent Inverter Type Auto-Detection');
-  console.log('   🔄 Automatic Command Mapping (legacy ↔ new)');
-  console.log('   ⚡ Current Adjustment');
-  console.log('   📊 Advanced Price Intelligence');
-  console.log('   📝 Detailed Logging with Type Information');
-  console.log('   🎯 Backward Compatibility with All Inverter Types');
-}
+  }
 
 // ================ ENHANCED GLOBAL FUNCTIONS FOR DYNAMIC PRICING ================
 
 // Make enhanced functions available globally for other modules
 global.dynamicPricing = {
-  getInstance: () => dynamicPricingInstance,
+  getInstance: () => null,
   getInverterTypeSummary: () => {
     try {
       if (!global.inverterTypes || Object.keys(global.inverterTypes).length === 0) {
@@ -7583,36 +7754,543 @@ global.dynamicPricing = {
     }
   },
   sendGridChargeCommand: (enable) => {
-    if (dynamicPricingInstance && dynamicPricingInstance.sendGridChargeCommand) {
-      return dynamicPricingInstance.sendGridChargeCommand(enable);
-    }
+    // Dynamic pricing removed
     return false;
   },
   setBatteryParameter: (parameter, value) => {
-    if (dynamicPricingInstance && dynamicPricingInstance.setBatteryParameter) {
-      return dynamicPricingInstance.setBatteryParameter(parameter, value);
-    }
+    // Dynamic pricing removed
     return false;
   },
   setWorkMode: (workMode) => {
-    if (dynamicPricingInstance && dynamicPricingInstance.setWorkMode) {
-      return dynamicPricingInstance.setWorkMode(workMode);
-    }
+    // Dynamic pricing removed
     return false;
   },
   getStatus: () => {
-    if (dynamicPricingInstance && dynamicPricingInstance.getStatus) {
-      return dynamicPricingInstance.getStatus();
-    }
-    return {
-      enabled: false,
-      ready: false,
-      provider: 'Dynamic Pricing (Not Available)',
-      supportsInverterTypes: true,
-      autoCommandMapping: true
-    };
+    // Dynamic pricing removed
+    return { enabled: false };
   }
 };
+
+
+// Test connection
+app.post('/api/tibber/test', async (req, res) => {
+  try {
+    console.log('🔍 Testing Tibber API connection...');
+    
+    if (!tibberService.config.apiKey || tibberService.config.apiKey === '***') {
+      return res.json({
+        success: false,
+        error: 'No API key configured or API key is masked. Please enter your API key.'
+      });
+    }
+    
+    const testResult = await tibberService.testConnection();
+    
+    if (testResult.success) {
+      console.log('✅ Connection test passed');
+    } else {
+      console.error('❌ Connection test failed:', testResult.error);
+    }
+    
+    res.json({ 
+      success: testResult.success, 
+      user: testResult.user,
+      error: testResult.error,
+      message: testResult.success ? 'Connection successful!' : 'Connection failed'
+    });
+  } catch (error) {
+    console.error('❌ Error in connection test:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Run diagnostics
+app.get('/api/tibber/diagnose', async (req, res) => {
+  try {
+    console.log('🩺 Running Tibber diagnostics...');
+    
+    const diagResults = {
+      timestamp: new Date().toISOString(),
+      config: {
+        enabled: tibberService.config.enabled,
+        hasApiKey: !!tibberService.config.apiKey,
+        apiKeyMasked: tibberService.config.apiKey === '***',
+        apiKeyLength: tibberService.config.apiKey && tibberService.config.apiKey !== '***' 
+          ? tibberService.config.apiKey.length 
+          : 0,
+        hasHomeId: !!tibberService.config.homeId,
+        homeId: tibberService.config.homeId || null,
+        country: tibberService.config.country,
+        timezone: tibberService.config.timezone,
+        currency: tibberService.config.currency,
+        targetSoC: tibberService.config.targetSoC,
+        minimumSoC: tibberService.config.minimumSoC,
+        usePriceLevels: tibberService.config.usePriceLevels,
+        allowedPriceLevels: tibberService.config.allowedPriceLevels,
+        configFileExists: require('fs').existsSync(tibberService.configFile)
+      },
+      cache: {
+        cacheFileExists: require('fs').existsSync(tibberService.cacheFile),
+        hasCurrentPrice: !!tibberService.cache.currentPrice,
+        currentPrice: tibberService.cache.currentPrice?.total || null,
+        priceLevel: tibberService.cache.currentPrice?.level || null,
+        currency: tibberService.cache.currentPrice?.currency || null,
+        forecastItems: tibberService.cache.forecast.length,
+        lastUpdate: tibberService.lastUpdate,
+        cacheTimestamp: tibberService.cache.timestamp,
+        cacheAgeSeconds: tibberService.cache.timestamp 
+          ? Math.floor((Date.now() - tibberService.cache.timestamp) / 1000)
+          : null
+      },
+      status: tibberService.getStatus(),
+      aiEngine: {
+        initialized: aiEngineInitialized,
+        ...aiChargingEngine.getStatus()
+      },
+      system: {
+        mqttConnected: mqttClient?.connected || false,
+        hasSystemState: !!currentSystemState,
+        battery_soc: currentSystemState?.battery_soc || null,
+        learnerModeActive: global.learnerModeActive || false
+      }
+    };
+
+    // Test connection if API key is present and not masked
+    if (tibberService.config.apiKey && tibberService.config.apiKey !== '***') {
+      console.log('🔍 Testing API connection...');
+      diagResults.connectionTest = await tibberService.testConnection();
+    } else {
+      diagResults.connectionTest = {
+        success: false,
+        error: 'No valid API key configured or API key is masked'
+      };
+    }
+
+    console.log('✅ Diagnostics complete');
+    res.json({ success: true, diagnostics: diagResults });
+  } catch (error) {
+    console.error('❌ Error running diagnostics:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Initialize AI Engine
+app.post('/api/tibber/initialize', async (req, res) => {
+  try {
+    if (aiEngineInitialized) {
+      return res.json({ 
+        success: true, 
+        message: 'Already initialized' 
+      });
+    }
+    
+    initializeAIEngine();
+    
+    res.json({ 
+      success: aiEngineInitialized, 
+      message: aiEngineInitialized ? 'Initialized' : 'Failed to initialize'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get config
+app.get('/api/tibber/config', (req, res) => {
+  try {
+    const config = tibberService.config;
+    const safeConfig = { 
+      ...config, 
+      apiKey: config.apiKey ? '***' + config.apiKey.slice(-4) : '' 
+    };
+    res.json({ success: true, config: safeConfig });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update Tibber configuration
+app.post('/api/tibber/config', async (req, res) => {
+  try {
+    const { 
+      enabled, 
+      apiKey, 
+      homeId, 
+      targetSoC, 
+      minimumSoC, 
+      usePriceLevels, 
+      allowedPriceLevels, 
+      maxPriceThreshold,
+      country,
+      timezone,
+      currency
+    } = req.body;
+    
+    const updates = {};
+    
+    if (enabled !== undefined) updates.enabled = !!enabled;
+    
+    // CRITICAL: Don't save masked API key
+    if (apiKey !== undefined && apiKey !== '***' && apiKey !== '******' && apiKey.trim() !== '') {
+      updates.apiKey = apiKey.trim();
+      console.log(`✅ Updating API key (length: ${apiKey.trim().length})`);
+    } else if (apiKey === '***' || apiKey === '******') {
+      console.log('ℹ️  Skipping masked API key - keeping existing key');
+    }
+    
+    // homeId is optional now
+    if (homeId !== undefined && homeId !== '') {
+      updates.homeId = homeId;
+      console.log('ℹ️  HomeId provided:', homeId);
+    }
+    
+    if (targetSoC !== undefined) updates.targetSoC = parseInt(targetSoC);
+    if (minimumSoC !== undefined) updates.minimumSoC = parseInt(minimumSoC);
+    if (usePriceLevels !== undefined) updates.usePriceLevels = !!usePriceLevels;
+    if (allowedPriceLevels !== undefined) updates.allowedPriceLevels = allowedPriceLevels;
+    if (maxPriceThreshold !== undefined) updates.maxPriceThreshold = maxPriceThreshold;
+    
+    // CRITICAL: Handle null/undefined country codes
+    if (country !== undefined && country !== null && country !== '') {
+      updates.country = country;
+    }
+    if (timezone !== undefined && timezone !== null && timezone !== '') {
+      updates.timezone = timezone;
+    }
+    if (currency !== undefined && currency !== null && currency !== '') {
+      updates.currency = currency;
+    }
+    
+    const config = tibberService.updateConfig(updates);
+    
+    // ALWAYS mask API key when sending to frontend
+    const safeConfig = { 
+      ...config, 
+      apiKey: config.apiKey && config.apiKey.trim() !== '' ? '***' : '' 
+    };
+    
+    console.log('✅ Tibber configuration updated successfully');
+    
+    res.json({ 
+      success: true, 
+      config: safeConfig, 
+      message: 'Configuration updated successfully' 
+    });
+  } catch (error) {
+    console.error('❌ Error updating Tibber config:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Enable/disable Tibber integration - FIXED: removed homeId check
+app.post('/api/tibber/toggle', async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    tibberService.updateConfig({ enabled: !!enabled });
+    
+    if (enabled) {
+      console.log('🔄 Tibber enabled, refreshing data...');
+      
+      // Only check for API key (homeId is optional)
+      if (tibberService.config.apiKey && 
+          tibberService.config.apiKey !== '***') {
+        await tibberService.refreshData();
+      } else {
+        console.log('⚠️  No valid API key, skipping data refresh');
+      }
+    } else {
+      console.log('⏸️  Tibber disabled');
+    }
+    
+    res.json({ 
+      success: true, 
+      enabled: !!enabled,
+      message: `Tibber integration ${enabled ? 'enabled' : 'disabled'}`
+    });
+  } catch (error) {
+    console.error('❌ Error toggling Tibber:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get current Tibber price data - FIXED: removed homeId requirement
+app.get('/api/tibber/prices', async (req, res) => {
+  try {
+    const status = tibberService.getStatus();
+    
+    // Check if Tibber is configured (only API key required now)
+    if (!status.configured) {
+      return res.json({
+        success: false,
+        error: 'Tibber not configured. Please configure API key in settings.',
+        data: null,
+        status
+      });
+    }
+
+    // If no cached data or data is stale, try to fetch fresh data
+    if (!status.hasCachedData) {
+      console.log('📊 No cached data, fetching from Tibber API...');
+      const refreshed = await tibberService.refreshData();
+      
+      if (!refreshed) {
+        return res.json({
+          success: false,
+          error: 'No cached data available and unable to fetch new data from Tibber API',
+          data: null,
+          status: tibberService.getStatus()
+        });
+      }
+    }
+
+    const data = tibberService.getCachedData();
+    const updatedStatus = tibberService.getStatus();
+    
+    res.json({ 
+      success: true, 
+      data,
+      status: updatedStatus
+    });
+  } catch (error) {
+    console.error('❌ Error getting prices:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      data: null
+    });
+  }
+});
+
+// Refresh Tibber data - FIXED: removed homeId requirement
+app.post('/api/tibber/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Manual refresh requested');
+    
+    // Validate configuration - only API key required
+    if (!tibberService.config.enabled) {
+      return res.json({ 
+        success: false, 
+        error: 'Tibber integration is disabled. Enable it in settings first.' 
+      });
+    }
+
+    if (!tibberService.config.apiKey || tibberService.config.apiKey === '***') {
+      return res.json({ 
+        success: false, 
+        error: 'Tibber API key not configured or is masked. Please re-enter your API key.' 
+      });
+    }
+
+    // homeId is now optional - will use first home automatically
+    console.log('📊 Fetching Tibber data (homeId optional - will auto-select)...');
+
+    // Attempt refresh
+    const success = await tibberService.refreshData();
+    
+    if (success) {
+      const data = tibberService.getCachedData();
+      console.log('✅ Manual refresh successful');
+      res.json({ 
+        success: true, 
+        message: 'Tibber data refreshed successfully',
+        data
+      });
+    } else {
+      console.warn('⚠️  Manual refresh returned false');
+      res.json({ 
+        success: false, 
+        error: 'Failed to refresh data. Check logs for details.',
+        suggestion: 'Check your API key, network connection, and run diagnostics.'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error in manual refresh:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Get Tibber status
+app.get('/api/tibber/status', (req, res) => {
+  try {
+    const status = tibberService.getStatus();
+    res.json({ success: true, status });
+  } catch (error) {
+    console.error('❌ Error getting Tibber status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI Charging Engine Routes
+
+// Get AI engine status
+app.get('/api/ai/status', (req, res) => {
+  try {
+    const status = aiChargingEngine.getStatus();
+    res.json({ 
+      success: true, 
+      status: {
+        ...status,
+        initialized: aiEngineInitialized
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Start/stop AI engine - FIXED: removed homeId requirement
+app.post('/api/ai/toggle', (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (!aiEngineInitialized) {
+      initializeAIEngine();
+      if (!aiEngineInitialized) {
+        return res.status(400).json({
+          success: false,
+          error: 'AI engine not initialized'
+        });
+      }
+    }
+    
+    if (enabled) {
+      // Only check for enabled and API key (homeId is optional)
+      if (!tibberService.config.enabled || 
+          !tibberService.config.apiKey ||
+          tibberService.config.apiKey === '***') {
+        return res.status(400).json({
+          success: false,
+          error: 'Tibber must be configured with valid API key first'
+        });
+      }
+      aiChargingEngine.start();
+    } else {
+      aiChargingEngine.stop();
+    }
+    
+    res.json({ 
+      success: true, 
+      enabled: !!enabled,
+      message: `AI engine ${enabled ? 'started' : 'stopped'}`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Manual AI evaluation
+app.post('/api/ai/evaluate', async (req, res) => {
+  try {
+    if (!aiEngineInitialized) {
+      return res.status(400).json({
+        success: false,
+        error: 'AI engine not initialized'
+      });
+    }
+    
+    const decision = await aiChargingEngine.evaluate();
+    res.json({ success: true, decision });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get AI decision history
+app.get('/api/ai/history', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const history = aiChargingEngine.getDecisionHistory(limit);
+    res.json({ success: true, history, count: history.length });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get predicted charge windows
+app.get('/api/ai/predictions', (req, res) => {
+  try {
+    const predictions = aiChargingEngine.getPredictedChargeWindows();
+    res.json({ success: true, predictions, count: predictions.length });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI Charging status endpoint
+app.get('/api/ai-charging/status', (req, res) => {
+  try {
+    const status = aiChargingEngine.getStatus();
+    res.json({ success: true, status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI Charging decisions endpoint
+app.get('/api/ai-charging/decisions', (req, res) => {
+  try {
+    const decisions = aiChargingEngine.getDecisionHistory(10);
+    res.json({ success: true, decisions });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DEPRECATED: Tibber settings have been merged into /settings page
+// Keeping this route for backward compatibility - redirects to settings page
+app.get('/tibber-settings', (req, res) => {
+  res.redirect('/settings');
+});
+
+// AI Dashboard page
+app.get('/ai-dashboard', (req, res) => {
+  try {
+    const tibberStatus = tibberService.getStatus();
+    const aiStatus = aiChargingEngine.getStatus();
+    
+    res.render('ai-dashboard', {
+      tibberStatus,
+      aiStatus,
+      ingress_path: process.env.INGRESS_PATH || ''
+    });
+  } catch (error) {
+    console.error('Error rendering dashboard:', error);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+
+// Add auto-refresh for Tibber data every 5 minutes - FIXED: removed homeId check
+cron.schedule('*/5 * * * *', async () => {
+  // Only check for enabled and API key (homeId is optional)
+  if (tibberService.config.enabled && 
+      tibberService.config.apiKey &&
+      tibberService.config.apiKey !== '***') {
+    try {
+      console.log('🔄 Auto-refresh (cron)...');
+      const success = await tibberService.refreshData();
+      if (success) {
+        console.log('✅ Cron: Data refreshed');
+      } else {
+        console.warn('⚠️  Cron: Refresh failed');
+      }
+    } catch (error) {
+      console.error('❌ Cron error:', error.message);
+    }
+  }
+});
 
 // Enhanced logging for startup
 console.log('\n🔋 ========== ENHANCED DYNAMIC PRICING SYSTEM ==========');
@@ -7626,6 +8304,137 @@ console.log('   ✅ Real-time Type Adaptation');
 console.log('   ✅ Enhanced Logging & Status Reporting');
 console.log('   ✅ Backward Compatibility');
 console.log('============================================================\n');
+console.log('\n🔋 ========== TIBBER & AI CHARGING ==========');
+console.log('   ✅ Tibber Price Integration');
+console.log('   ✅ AI Charging Decisions');
+console.log('   ✅ Real-time Monitoring');
+console.log('   ✅ Automatic Optimization');
+console.log('==============================================\n');
+
+// Run diagnostics after 10 seconds
+setTimeout(async () => {
+  console.log('\n🩺 === STARTUP DIAGNOSTICS ===');
+  
+  try {
+    await tibberService.diagnose();
+    
+    if (tibberService.config.enabled && 
+        tibberService.config.apiKey && 
+        tibberService.config.homeId) {
+      console.log('\n🔄 Loading initial data...');
+      const success = await tibberService.refreshData();
+      if (success) {
+        console.log('✅ Initial data loaded');
+        const data = tibberService.getCachedData();
+        if (data.currentPrice) {
+          console.log(`💰 Current: ${data.currentPrice.total.toFixed(2)} ${data.currentPrice.currency} (${data.currentPrice.level})`);
+        }
+      }
+    } else {
+      console.log('\nℹ️  Tibber not configured');
+      console.log('   Configure at: /settings');
+    }
+    
+    console.log('\n🤖 AI Engine:');
+    console.log('   - Initialized:', aiEngineInitialized);
+    console.log('   - MQTT:', mqttClient?.connected || false);
+    console.log('   - System State:', !!currentSystemState);
+    
+  } catch (error) {
+    console.error('❌ Startup error:', error.message);
+  }
+  
+  console.log('\n======================================\n');
+}, 10000);
+
+app.get('/api/health', (req, res) => {
+  try {
+    const health = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(process.uptime()),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        unit: 'MB'
+      },
+      services: {
+        mqtt: {
+          connected: mqttClient?.connected || false,
+          reconnecting: mqttClient?.reconnecting || false,
+          status: mqttClient?.connected ? 'healthy' : 'disconnected'
+        },
+        database: {
+          connected: dbConnected || false,
+          status: dbConnected ? 'healthy' : 'disconnected'
+        },
+        tibber: {
+          enabled: tibberService?.config?.enabled || false,
+          configured: tibberService?.getStatus()?.configured || false,
+          hasCachedData: tibberService?.getStatus()?.hasCachedData || false,
+          lastUpdate: tibberService?.getStatus()?.lastUpdate || null,
+          status: (tibberService?.config?.enabled && tibberService?.getStatus()?.configured) ? 'healthy' : 'not-configured'
+        },
+        aiEngine: {
+          enabled: aiChargingEngine?.enabled || false,
+          running: aiChargingEngine?.getStatus()?.running || false,
+          lastDecision: aiChargingEngine?.lastDecision?.timestamp || null,
+          decisionCount: aiChargingEngine?.decisionHistory?.length || 0,
+          status: aiChargingEngine?.getStatus()?.running ? 'running' : 'stopped'
+        }
+      },
+      systemState: {
+        battery_soc: currentSystemState?.battery_soc || null,
+        pv_power: currentSystemState?.pv_power || null,
+        load: currentSystemState?.load || null,
+        grid_voltage: currentSystemState?.grid_voltage || null,
+        grid_power: currentSystemState?.grid_power || null,
+        timestamp: currentSystemState?.timestamp || null
+      },
+      learnerMode: {
+        active: global.learnerModeActive || false
+      }
+    };
+    
+    // Determine overall health status
+    const criticalServicesDown = !health.services.mqtt.connected || !health.services.database.connected;
+    if (criticalServicesDown) {
+      health.status = 'degraded';
+    }
+    
+    res.json(health);
+  } catch (error) {
+    console.error('Error generating health check:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.use((req, res, next) => {
+  // Log the 404 for debugging
+  console.log(`⚠️  404 Not Found: ${req.method} ${req.path}`);
+  
+  // Return standardized 404 response
+  res.status(404).json({
+    error: "Route not found",
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+    availableEndpoints: [
+      '/settings',
+      '/ai-dashboard',
+      '/api/tibber/prices',
+      '/api/tibber/status',
+      '/api/ai/status',
+      '/api/ai/history',
+      '/api/ai/predictions',
+      '/api/health'
+    ]
+  });
+});
 
 function GracefulShutdown() {
   console.log('🔄 Starting enhanced graceful shutdown...');
@@ -7634,6 +8443,17 @@ function GracefulShutdown() {
     console.error('❌ Forced exit after timeout during enhanced shutdown');
     process.exit(1);
   }, 15000); // Increased timeout for enhanced cleanup
+  
+  // Stop AI Charging Engine first
+  if (aiChargingEngine) {
+    console.log('🤖 Stopping AI Charging Engine');
+    try {
+      aiChargingEngine.stop();
+      console.log('✅ AI Charging Engine stopped');
+    } catch (error) {
+      console.error('❌ Error stopping AI engine:', error.message);
+    }
+  }
   
   // Enhanced cleanup sequence
   if (db) {
@@ -7663,9 +8483,12 @@ function GracefulShutdown() {
     delete global.enhancedDynamicPricing;
   }
   
-  if (global.dynamicPricingInstance) {
-    global.dynamicPricingInstance = null;
+  // Clear learner mode
+  if (global.learnerModeActive !== undefined) {
+    delete global.learnerModeActive;
   }
+  
+  // Dynamic pricing cleanup removed
   
   console.log('✅ Enhanced cleanup completed');
   clearTimeout(forceExitTimeout);
@@ -7676,3 +8499,6 @@ function GracefulShutdown() {
 process.on('SIGTERM', GracefulShutdown);
 process.on('SIGINT', GracefulShutdown);
 
+
+process.on('SIGTERM', GracefulShutdown);
+process.on('SIGINT', GracefulShutdown);

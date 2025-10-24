@@ -1418,6 +1418,296 @@ input, select {
     background: #b5900c;
 }
 
+  
+  .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-badge.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.configured {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #DEAF0B;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #DEAF0B;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(242, 255, 0, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .price-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .price-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .price-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .price-card .level {
+            font-size: 12px;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .info-box h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .diagnostic-section {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .diagnostic-section pre {
+            background: #2d3748;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .status-item .label {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        .status-item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
+        }
        </style>
 </head>
 <body>
@@ -1457,6 +1747,7 @@ input, select {
             
             <div class="tabs">
                 <button class="tab-button active" data-tab="general">General Settings</button>
+                  <button class="tab-button " data-tab="tibber">Tibber Settings</button>
                 <button class="tab-button" data-tab="range">Range Settings</button>
             </div>
             
@@ -1638,6 +1929,94 @@ input, select {
                     </div>
                 </div>
             </div>
+
+
+     <div id="tibber-tab" class="tab-content">
+
+        <div class="card">
+            <h2>🔧 Configuration</h2>
+            
+            <div id="alertContainer"></div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <span>Enable Tibber Integration</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enableToggle">
+                        <span class="slider"></span>
+                    </label>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="apiKey">API Key *</label>
+                <input type="password" id="apiKey" placeholder="Enter your Tibber API key">
+                <div class="input-hint">
+                    Get your API key from <a href="https://developer.tibber.com" target="_blank">developer.tibber.com</a>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="country">Country</label>
+                <select id="country">
+                    <option value="DE">🇩🇪 Germany</option>
+                    <option value="NO">🇳🇴 Norway</option>
+                    <option value="SE">🇸🇪 Sweden</option>
+                    <option value="DK">🇩🇰 Denmark</option>
+                    <option value="FI">🇫🇮 Finland</option>
+                    <option value="AT">🇦🇹 Austria</option>
+                    <option value="NL">🇳🇱 Netherlands</option>
+                    <option value="GB">🇬🇧 United Kingdom</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="saveConfig()">
+                    💾 Save Configuration
+                </button>
+                <button class="btn btn-secondary" onclick="testConnection()">
+                    🔍 Test Connection
+                </button>
+                <button class="btn btn-success" onclick="refreshData()">
+                    🔄 Refresh Data
+                </button>
+                <button class="btn btn-secondary" onclick="runDiagnostics()">
+                    🩺 Run Diagnostics
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h1>⚡ Tibber Integration</h1>
+            <p class="subtitle">Configure dynamic electricity pricing for smart charging</p>
+            
+            <div class="status-grid" id="statusGrid">
+                <div class="status-item">
+                    <div class="label">Status</div>
+                    <div class="value" id="statusEnabled">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Connection</div>
+                    <div class="value" id="statusConnected">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Current Price</div>
+                    <div class="value" id="currentPrice">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Price Level</div>
+                    <div class="value" id="priceLevel">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="diagnosticCard" style="display: none;">
+            <h2>🩺 Diagnostic Results</h2>
+            <div class="diagnostic-section">
+                <pre id="diagnosticOutput"></pre>
+            </div>
+        </div>
+    </div>
         </div>
     </main>
 </div>
@@ -2146,6 +2525,235 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchSolarData();
 });
 </script>
+<script>
+        let currentConfig = {};
+
+        // Load configuration on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadStatus();
+        });
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConfig = data.config;
+                    
+                    // Populate form
+                    document.getElementById('enableToggle').checked = data.config.enabled;
+                    document.getElementById('apiKey').value = data.config.apiKey || '';
+                    document.getElementById('country').value = data.config.country || 'DE';
+                }
+            } catch (error) {
+                showAlert('Error loading configuration: ' + error.message, 'error');
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.status;
+                    
+                    // Update status display
+                    document.getElementById('statusEnabled').textContent = 
+                        status.enabled ? '✅ Enabled' : '❌ Disabled';
+                    
+                    document.getElementById('statusConnected').textContent = 
+                        status.configured ? '✅ Ready' : '⚠️ Not Configured';
+                    
+                    if (status.currentPrice) {
+                        document.getElementById('currentPrice').textContent = 
+                            status.currentPrice.total.toFixed(2) + ' ' + status.currentPrice.currency;
+                        document.getElementById('priceLevel').textContent = 
+                            status.currentPrice.level;
+                    } else {
+                        document.getElementById('currentPrice').textContent = 'No data';
+                        document.getElementById('priceLevel').textContent = '-';
+                    }
+                    
+                    // Load price data if available
+                    if (status.hasCachedData) {
+                        loadPriceData();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        async function loadPriceData() {
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/prices');
+                const data = await response.json();
+                
+                if (data.success && data.data.currentPrice) {
+                    const priceCard = document.getElementById('priceDataCard');
+                    const priceDisplay = document.getElementById('priceDisplay');
+                    
+                    priceCard.style.display = 'block';
+                    
+                    priceDisplay.innerHTML = `
+                        <div class="price-card">
+                            <h3>Current Price</h3>
+                            <div class="value">${data.data.currentPrice.total.toFixed(2)}</div>
+                            <div class="level">${data.data.currentPrice.currency} • ${data.data.currentPrice.level}</div>
+                        </div>
+                        <div class="price-card" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">
+                            <h3>Energy Cost</h3>
+                            <div class="value">${data.data.currentPrice.energy.toFixed(2)}</div>
+                            <div class="level">${data.data.currentPrice.currency}/kWh</div>
+                        </div>
+                        <div class="price-card" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);">
+                            <h3>Tax</h3>
+                            <div class="value">${data.data.currentPrice.tax.toFixed(2)}</div>
+                            <div class="level">${data.data.currentPrice.currency}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading price data:', error);
+            }
+        }
+
+        async function saveConfig() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const homeId = document.getElementById('homeId').value.trim();
+            const country = document.getElementById('country').value;
+            const enabled = document.getElementById('enableToggle').checked;
+
+            // Validate API key
+            if (enabled && !apiKey) {
+                showAlert('Please enter an API key', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        enabled,
+                        apiKey: apiKey || undefined,
+                        homeId: homeId || '',
+                        country
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Configuration saved successfully! ✅', 'success');
+                    currentConfig = data.config;
+                    loadStatus();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error saving configuration: ' + error.message, 'error');
+            }
+        }
+
+        async function testConnection() {
+            showAlert('Testing connection...', 'info');
+            
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ Connection successful! Welcome, ${data.user.name}`, 'success');
+                } else {
+                    showAlert('❌ Connection failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error testing connection: ' + error.message, 'error');
+            }
+        }
+
+        async function refreshData() {
+            showAlert('Refreshing Tibber data...', 'info');
+            
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('✅ Data refreshed successfully!', 'success');
+                    loadStatus();
+                    loadPriceData();
+                } else {
+                    showAlert('❌ Refresh failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error refreshing data: ' + error.message, 'error');
+            }
+        }
+
+
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertClass = `alert-${type}`;
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            alertContainer.innerHTML = `
+                <div class="alert ${alertClass}">
+                    <span>${icons[type] || 'ℹ️'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // Enable toggle handler
+        document.getElementById('enableToggle').addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            
+            try {
+                const response = await fetch('<%= ingress_path %>/api/tibber/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    loadStatus();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                    e.target.checked = !enabled; // Revert toggle
+                }
+            } catch (error) {
+                showAlert('Error toggling Tibber: ' + error.message, 'error');
+                e.target.checked = !enabled; // Revert toggle
+            }
+        });
+    </script>
 
 </body>
 </html>
