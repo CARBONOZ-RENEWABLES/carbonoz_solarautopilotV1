@@ -33,7 +33,10 @@ RUN apk add --no-cache \
     bash \
     tzdata \
     wget \
-    gnupg
+    gnupg \
+    python3 \
+    make \
+    g++
 
 # Add community repositories and install Grafana and InfluxDB
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
@@ -52,6 +55,7 @@ WORKDIR /usr/src/app
 # Copy package.json and install dependencies with production flag
 COPY package.json .
 RUN npm install --frozen-lockfile --production \
+    && npm rebuild sqlite3 \
     && npm cache clean --force
 
 # Copy application code and configurations
