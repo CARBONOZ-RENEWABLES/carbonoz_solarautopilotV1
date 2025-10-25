@@ -698,6 +698,8 @@
             padding: 20px;
             max-width: 1400px;
             margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         /* Grid System */
@@ -1051,50 +1053,164 @@
         @media (max-width: 1024px) {
             .col-8 { width: 100%; }
             .col-4 { width: 100%; }
+            .col-6 { width: 100%; }
         }
 
         @media (max-width: 768px) {
-            .navbar-menu {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: white;
-                flex-direction: column;
-                padding: 20px;
-                box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+            .main-content {
+                margin-left: 0;
+                padding: 10px;
+                width: 100%;
+                box-sizing: border-box;
             }
 
-            .navbar-menu.active {
-                display: flex;
+            .dashboard-container {
+                padding: 10px;
+                max-width: 100%;
+                margin: 0;
+                overflow-x: hidden;
             }
 
-            .navbar-toggle {
-                display: block;
+            .row {
+                margin: 0 -5px 15px -5px;
             }
 
+            .col-12,
             .col-6,
             .col-4,
-            .col-3 {
+            .col-3,
+            .col-8 {
                 width: 100%;
+                padding: 0 5px;
+                margin-bottom: 10px;
+            }
+
+            .card {
+                margin-bottom: 15px;
+            }
+
+            .card-header {
+                padding: 12px 15px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .card-header h2,
+            .card-header h5 {
+                font-size: 1rem;
+            }
+
+            .card-body {
+                padding: 15px;
+            }
+
+            .metric-card {
+                padding: 15px;
+                margin-bottom: 10px;
             }
 
             .metric-value {
                 font-size: 2rem;
             }
 
-            .chart-container {
-                height: 250px;
+            .metric-label {
+                font-size: 0.8rem;
             }
 
-            .dashboard-container {
-                padding: 10px;
+            .chart-container {
+                height: 250px;
+                margin: 15px 0;
             }
 
             .stats-row {
                 flex-direction: column;
                 gap: 10px;
+                margin-top: 10px;
+            }
+
+            .stat-item {
+                padding: 10px;
+                background: rgba(0,0,0,0.05);
+                border-radius: 8px;
+            }
+
+            .dark-mode .stat-item {
+                background: rgba(255,255,255,0.05);
+            }
+
+            .ai-status {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .ai-status-icon {
+                justify-content: center;
+            }
+
+            .price-display {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .chart-controls {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .chart-controls .btn {
+                padding: 5px 8px;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 5px;
+            }
+
+            .dashboard-container {
+                padding: 5px;
+                max-width: 100%;
+                margin: 0;
+            }
+
+            .row {
+                margin: 0 -2px 10px -2px;
+            }
+
+            .col-12,
+            .col-6,
+            .col-4,
+            .col-3,
+            .col-8 {
+                padding: 0 2px;
+            }
+
+            .card-header {
+                padding: 10px 12px;
+            }
+
+            .card-body {
+                padding: 12px;
+            }
+
+            .metric-value {
+                font-size: 1.5rem;
+            }
+
+            .chart-container {
+                height: 200px;
+            }
+
+            .stats-row {
+                gap: 8px;
+            }
+
+            .stat-item {
+                padding: 8px;
             }
         }
 
