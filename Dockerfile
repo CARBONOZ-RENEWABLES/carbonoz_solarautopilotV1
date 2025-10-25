@@ -1,6 +1,5 @@
-# First stage: Base image setup
 ARG BUILD_FROM
-FROM ${BUILD_FROM} as base
+FROM ${BUILD_FROM}
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -22,11 +21,12 @@ RUN \
     esac \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
 
-# Install base system dependencies
+# Install system dependencies
 RUN apk add --no-cache \
     nodejs \
     npm \
     sqlite \
+    sqlite-dev \
     openssl \
     openssl-dev \
     curl \
@@ -36,7 +36,9 @@ RUN apk add --no-cache \
     gnupg \
     python3 \
     make \
-    g++
+    g++ \
+    gcc \
+    linux-headers
 
 # Add community repositories and install Grafana and InfluxDB
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
@@ -44,7 +46,7 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repo
     apk update && \
     apk add --no-cache grafana influxdb
 
-# Set up directories with proper permissions for persistent storage
+# Set up directories
 RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
     && mkdir -p /data/backup \
     && chown -R nobody:nobody /data
@@ -52,23 +54,37 @@ RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
 # Set work directory
 WORKDIR /usr/src/app
 
-# Copy package.json and install dependencies with production flag
-COPY package.json .
-RUN npm install --frozen-lockfile --production \
-    && npm rebuild sqlite3 \
+# Copy package files
+COPY package*.json ./
+
+# Remove sqlite3 from package.json and add better-sqlite3
+RUN npm pkg delete dependencies.sqlite3 optional.sqlite3 optionalDependencies.sqlite3 || true \
+    && npm pkg set dependencies.better-sqlite3="^9.2.2"
+
+# Clean install with native compilation
+RUN rm -rf node_modules package-lock.json \
+    && npm cache clean --force \
+    && npm install --omit=dev --build-from-source \
     && npm cache clean --force
 
-# Copy application code and configurations
-COPY rootfs /
+# Test the sqlite module
+RUN node -e "const db = require('better-sqlite3'); console.log('✅ better-sqlite3 loaded successfully');"
+
+# Copy application files
 COPY . .
+
+# Update server.js to use better-sqlite3
+RUN sed -i "s/require('sqlite3').verbose()/require('better-sqlite3')/g" server.js || true \
+    && sed -i "s/const { open } = require('sqlite')/\/\/ const { open } = require('sqlite')/g" server.js || true
+
+# Copy configurations
+COPY rootfs /
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
 
 # Make scripts executable
-RUN chmod a+x /etc/services.d/carbonoz/run \
-    && chmod a+x /etc/services.d/carbonoz/finish \
-    && chmod a+x /etc/services.d/influxdb/run \
-    && chmod a+x /etc/services.d/influxdb/finish \
+RUN find /etc/services.d -type f -name "run" -exec chmod a+x {} \; \
+    && find /etc/services.d -type f -name "finish" -exec chmod a+x {} \; \
     && chmod a+x /usr/bin/carbonoz.sh
 
 # Build arguments for labels
@@ -79,29 +95,18 @@ ARG BUILD_VERSION
 # Labels
 LABEL \
     io.hass.name="Carbonoz SolarAutopilot" \
-    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control" \
+    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="addon" \
     io.hass.version=${BUILD_VERSION} \
-    maintainer="Elite Desire <eelitedesire@gmail.com>" \
-    org.opencontainers.image.title="Carbonoz SolarAutopilot" \
-    org.opencontainers.image.description="CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control" \
-    org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
-    org.opencontainers.image.authors="Elite Desire <eelitedesire@gmail.com>" \
-    org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.url="https://github.com/CARBONOZ-RENEWABLES/solarautopilot" \
-    org.opencontainers.image.source="https://github.com/CARBONOZ-RENEWABLES/solarautopilot" \
-    org.opencontainers.image.documentation="https://github.com/CARBONOZ-RENEWABLES/solarautopilot/blob/main/README.md" \
-    org.opencontainers.image.created=${BUILD_DATE} \
-    org.opencontainers.image.revision=${BUILD_REF} \
-    org.opencontainers.image.version=${BUILD_VERSION}
+    maintainer="Elite Desire <eelitedesire@gmail.com>"
 
-# Environment variables for memory optimization
+# Environment variables
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Expose ports
 EXPOSE 3001 8086 6789 8000
 
-# Set entrypoint to s6-overlay init
+# Entrypoint
 ENTRYPOINT ["/init"]

@@ -24,6 +24,10 @@
             --dark-color: #343a40;
             --light-color: #f8f9fa;
         }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+          }
 
          body, html {
       font-family: Arial, sans-serif;
