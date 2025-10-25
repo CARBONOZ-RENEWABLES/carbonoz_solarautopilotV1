@@ -335,7 +335,7 @@ class AIChargingEngine {
 
   mapGridChargeToChargerSourcePriority(gridChargeValue) {
     const mapping = {
-      'Enabled': 'Solar and utility simultaneously',   // Grid charging enabled - charges from both sources
+      'Enabled': 'Utility first',   // Grid charging enabled - prioritizes grid over solar
       'Disabled': 'Solar first'   // Grid charging disabled - only solar charging
     };
     return mapping[gridChargeValue] || 'Solar first';

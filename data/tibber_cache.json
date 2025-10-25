@@ -1,0 +1,363 @@
+{
+  "currentPrice": {
+    "total": 0.1713,
+    "energy": 0.0682,
+    "tax": 0.1031,
+    "startsAt": "2025-10-25T10:00:00.000+02:00",
+    "currency": "SEK",
+    "level": "VERY_CHEAP"
+  },
+  "priceInfo": {
+    "current": {
+      "total": 0.1713,
+      "energy": 0.0682,
+      "tax": 0.1031,
+      "startsAt": "2025-10-25T10:00:00.000+02:00",
+      "currency": "SEK",
+      "level": "VERY_CHEAP"
+    },
+    "today": [
+      {
+        "total": 0.1377,
+        "energy": 0.0413,
+        "tax": 0.0964,
+        "startsAt": "2025-10-25T00:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1114,
+        "energy": 0.0202,
+        "tax": 0.0912,
+        "startsAt": "2025-10-25T01:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1044,
+        "energy": 0.0147,
+        "tax": 0.0897,
+        "startsAt": "2025-10-25T02:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.0978,
+        "energy": 0.0094,
+        "tax": 0.0884,
+        "startsAt": "2025-10-25T03:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.093,
+        "energy": 0.0056,
+        "tax": 0.0874,
+        "startsAt": "2025-10-25T04:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.0951,
+        "energy": 0.0073,
+        "tax": 0.0878,
+        "startsAt": "2025-10-25T05:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.0986,
+        "energy": 0.01,
+        "tax": 0.0886,
+        "startsAt": "2025-10-25T06:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1101,
+        "energy": 0.0193,
+        "tax": 0.0908,
+        "startsAt": "2025-10-25T07:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1386,
+        "energy": 0.0421,
+        "tax": 0.0965,
+        "startsAt": "2025-10-25T08:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1777,
+        "energy": 0.0734,
+        "tax": 0.1043,
+        "startsAt": "2025-10-25T09:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1713,
+        "energy": 0.0682,
+        "tax": 0.1031,
+        "startsAt": "2025-10-25T10:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1582,
+        "energy": 0.0578,
+        "tax": 0.1004,
+        "startsAt": "2025-10-25T11:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1652,
+        "energy": 0.0633,
+        "tax": 0.1019,
+        "startsAt": "2025-10-25T12:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1525,
+        "energy": 0.0532,
+        "tax": 0.0993,
+        "startsAt": "2025-10-25T13:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1542,
+        "energy": 0.0545,
+        "tax": 0.0997,
+        "startsAt": "2025-10-25T14:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1524,
+        "energy": 0.0531,
+        "tax": 0.0993,
+        "startsAt": "2025-10-25T15:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.163,
+        "energy": 0.0616,
+        "tax": 0.1014,
+        "startsAt": "2025-10-25T16:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.3282,
+        "energy": 0.1938,
+        "tax": 0.1344,
+        "startsAt": "2025-10-25T17:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.5282,
+        "energy": 0.3538,
+        "tax": 0.1744,
+        "startsAt": "2025-10-25T18:00:00.000+02:00",
+        "level": "NORMAL"
+      },
+      {
+        "total": 0.537,
+        "energy": 0.3609,
+        "tax": 0.1761,
+        "startsAt": "2025-10-25T19:00:00.000+02:00",
+        "level": "NORMAL"
+      },
+      {
+        "total": 0.3561,
+        "energy": 0.2161,
+        "tax": 0.14,
+        "startsAt": "2025-10-25T20:00:00.000+02:00",
+        "level": "CHEAP"
+      },
+      {
+        "total": 0.2099,
+        "energy": 0.0991,
+        "tax": 0.1108,
+        "startsAt": "2025-10-25T21:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.2216,
+        "energy": 0.1084,
+        "tax": 0.1132,
+        "startsAt": "2025-10-25T22:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      },
+      {
+        "total": 0.1662,
+        "energy": 0.0642,
+        "tax": 0.102,
+        "startsAt": "2025-10-25T23:00:00.000+02:00",
+        "level": "VERY_CHEAP"
+      }
+    ],
+    "tomorrow": []
+  },
+  "forecast": [
+    {
+      "total": 0.1377,
+      "energy": 0.0413,
+      "tax": 0.0964,
+      "startsAt": "2025-10-25T00:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1114,
+      "energy": 0.0202,
+      "tax": 0.0912,
+      "startsAt": "2025-10-25T01:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1044,
+      "energy": 0.0147,
+      "tax": 0.0897,
+      "startsAt": "2025-10-25T02:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.0978,
+      "energy": 0.0094,
+      "tax": 0.0884,
+      "startsAt": "2025-10-25T03:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.093,
+      "energy": 0.0056,
+      "tax": 0.0874,
+      "startsAt": "2025-10-25T04:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.0951,
+      "energy": 0.0073,
+      "tax": 0.0878,
+      "startsAt": "2025-10-25T05:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.0986,
+      "energy": 0.01,
+      "tax": 0.0886,
+      "startsAt": "2025-10-25T06:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1101,
+      "energy": 0.0193,
+      "tax": 0.0908,
+      "startsAt": "2025-10-25T07:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1386,
+      "energy": 0.0421,
+      "tax": 0.0965,
+      "startsAt": "2025-10-25T08:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1777,
+      "energy": 0.0734,
+      "tax": 0.1043,
+      "startsAt": "2025-10-25T09:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1713,
+      "energy": 0.0682,
+      "tax": 0.1031,
+      "startsAt": "2025-10-25T10:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1582,
+      "energy": 0.0578,
+      "tax": 0.1004,
+      "startsAt": "2025-10-25T11:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1652,
+      "energy": 0.0633,
+      "tax": 0.1019,
+      "startsAt": "2025-10-25T12:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1525,
+      "energy": 0.0532,
+      "tax": 0.0993,
+      "startsAt": "2025-10-25T13:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1542,
+      "energy": 0.0545,
+      "tax": 0.0997,
+      "startsAt": "2025-10-25T14:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1524,
+      "energy": 0.0531,
+      "tax": 0.0993,
+      "startsAt": "2025-10-25T15:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.163,
+      "energy": 0.0616,
+      "tax": 0.1014,
+      "startsAt": "2025-10-25T16:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.3282,
+      "energy": 0.1938,
+      "tax": 0.1344,
+      "startsAt": "2025-10-25T17:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.5282,
+      "energy": 0.3538,
+      "tax": 0.1744,
+      "startsAt": "2025-10-25T18:00:00.000+02:00",
+      "level": "NORMAL"
+    },
+    {
+      "total": 0.537,
+      "energy": 0.3609,
+      "tax": 0.1761,
+      "startsAt": "2025-10-25T19:00:00.000+02:00",
+      "level": "NORMAL"
+    },
+    {
+      "total": 0.3561,
+      "energy": 0.2161,
+      "tax": 0.14,
+      "startsAt": "2025-10-25T20:00:00.000+02:00",
+      "level": "CHEAP"
+    },
+    {
+      "total": 0.2099,
+      "energy": 0.0991,
+      "tax": 0.1108,
+      "startsAt": "2025-10-25T21:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.2216,
+      "energy": 0.1084,
+      "tax": 0.1132,
+      "startsAt": "2025-10-25T22:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    },
+    {
+      "total": 0.1662,
+      "energy": 0.0642,
+      "tax": 0.102,
+      "startsAt": "2025-10-25T23:00:00.000+02:00",
+      "level": "VERY_CHEAP"
+    }
+  ],
+  "consumption": null,
+  "timestamp": 1761381454278
+}
