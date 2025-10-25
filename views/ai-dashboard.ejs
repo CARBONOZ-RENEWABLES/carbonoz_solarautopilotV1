@@ -671,32 +671,36 @@
         // Load command history
         async function loadCommandHistory() {
             try {
-                const response = await fetch('/api/settings-changes?limit=10&type=grid_charge,charger_source_priority,energy_pattern,output_source_priority');
+                const response = await fetch('/api/ai/commands?limit=15');
                 const data = await response.json();
                 const commandContainer = document.getElementById('commandLog');
                 
-                if (data.changes && data.changes.length > 0) {
-                    commandContainer.innerHTML = data.changes.map(change => `
-                        <div class="command-item success">
+                if (data.success && data.commands && data.commands.length > 0) {
+                    commandContainer.innerHTML = data.commands.map(command => `
+                        <div class="command-item ${command.success ? 'success' : 'error'}">
                             <div class="command-header">
                                 <div>
-                                    <strong>${change.topic}</strong> = ${change.new_value}
+                                    <i class="fas ${command.success ? 'fa-check-circle' : 'fa-times-circle'} me-1"></i>
+                                    <strong>${command.topic}</strong> = ${command.value}
                                     <div class="command-details">
-                                        Changed from: ${change.old_value || 'N/A'}
+                                        Source: ${command.source} | Status: ${command.success ? 'Success' : 'Failed'}
                                     </div>
                                 </div>
                                 <small class="text-muted command-timestamp">
-                                    ${formatTimestamp(change.timestamp)}
+                                    ${formatTimestamp(command.timestamp)}
                                 </small>
                             </div>
                         </div>
                     `).join('');
                 } else {
                     commandContainer.innerHTML = 
-                        '<div class="text-center text-muted">No recent commands found</div>';
+                        '<div class="text-center text-muted">No AI commands sent yet</div>';
                 }
             } catch (error) {
                 console.error('Error loading command history:', error);
+                const commandContainer = document.getElementById('commandLog');
+                commandContainer.innerHTML = 
+                    '<div class="text-center text-muted">Error loading commands</div>';
             }
         }
 

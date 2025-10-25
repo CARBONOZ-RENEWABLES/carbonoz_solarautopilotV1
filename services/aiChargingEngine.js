@@ -5,9 +5,11 @@ const path = require('path');
 class AIChargingEngine {
   constructor() {
     this.decisionsFile = path.join(__dirname, '../data/ai_decisions.json');
+    this.commandsFile = path.join(__dirname, '../data/ai_commands.json');
     this.enabled = false;
     this.lastDecision = null;
     this.decisionHistory = this.loadDecisionHistory();
+    this.commandHistory = this.loadCommandHistory();
     this.evaluationInterval = null;
     this.mqttClient = null;
     this.currentSystemState = null;
@@ -36,6 +38,18 @@ class AIChargingEngine {
     return [];
   }
 
+  loadCommandHistory() {
+    try {
+      if (fs.existsSync(this.commandsFile)) {
+        const data = JSON.parse(fs.readFileSync(this.commandsFile, 'utf8'));
+        return data.slice(-100);
+      }
+    } catch (error) {
+      console.error('Error loading command history:', error);
+    }
+    return [];
+  }
+
   saveDecisionHistory() {
     try {
       fs.writeFileSync(
@@ -45,6 +59,32 @@ class AIChargingEngine {
     } catch (error) {
       console.error('Error saving decision history:', error);
     }
+  }
+
+  saveCommandHistory() {
+    try {
+      fs.writeFileSync(
+        this.commandsFile,
+        JSON.stringify(this.commandHistory.slice(-100), null, 2)
+      );
+    } catch (error) {
+      console.error('Error saving command history:', error);
+    }
+  }
+
+  logCommand(topic, value, success = true) {
+    const command = {
+      timestamp: new Date().toISOString(),
+      topic: topic,
+      value: value,
+      success: success,
+      source: 'AI_ENGINE'
+    };
+    
+    this.commandHistory.push(command);
+    this.saveCommandHistory();
+    
+    return command;
   }
 
   logDecision(decision, reasons) {
@@ -261,8 +301,10 @@ class AIChargingEngine {
         this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, (err) => {
           if (err) {
             console.error(`❌ Error publishing to ${topic}: ${err.message}`);
+            this.logCommand(topic, mqttValue, false);
           } else {
             commandsSent++;
+            this.logCommand(topic, mqttValue, true);
           }
         });
         
@@ -339,6 +381,10 @@ class AIChargingEngine {
 
   getDecisionHistory(limit = 50) {
     return this.decisionHistory.slice(-limit).reverse();
+  }
+
+  getCommandHistory(limit = 50) {
+    return this.commandHistory.slice(-limit).reverse();
   }
 
   getPredictedChargeWindows() {

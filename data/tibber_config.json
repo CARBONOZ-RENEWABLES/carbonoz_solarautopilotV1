@@ -10,8 +10,6 @@
   "maxPriceThreshold": null,
   "usePriceLevels": true,
   "allowedPriceLevels": [
-    "VERY_CHEAP",
-    "CHEAP",
-    "NORMAL"
+    "VERY_CHEAP"
   ]
 }

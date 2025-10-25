@@ -2625,6 +2625,21 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   });
 
+  app.get('/api/ai/commands', (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 20;
+      const commands = aiChargingEngine.getCommandHistory(limit);
+      
+      res.json({
+        success: true,
+        commands: commands
+      });
+    } catch (error) {
+      console.error('Error getting AI commands:', error);
+      res.status(500).json({ error: 'Failed to get AI commands' });
+    }
+  });
+
   app.get('/api/tibber/current', (req, res) => {
     try {
       const tibberData = tibberService.getCachedData();
