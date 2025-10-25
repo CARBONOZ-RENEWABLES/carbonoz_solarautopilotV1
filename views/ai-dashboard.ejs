@@ -365,7 +365,7 @@
             if (!dataLoaded) {
                 try {
                     console.log('Loading historical data from server...');
-                    const response = await fetch('/api/system-state/history?hours=2&limit=30');
+                    const response = await fetch('<%= ingress_path %>/api/system-state/history?hours=2&limit=30');
                     const result = await response.json();
                     
                     if (result.success && result.data && result.data.length > 0) {
@@ -660,7 +660,7 @@
         // Load system state
         async function loadSystemState() {
             try {
-                const response = await fetch('/api/system-state');
+                const response = await fetch('<%= ingress_path %>/api/system-state');
                 const data = await response.json();
                 
                 if (data.current_state) {
@@ -686,7 +686,7 @@
         // Load AI status
         async function loadAIStatus() {
             try {
-                const response = await fetch('/api/ai/status');
+                const response = await fetch('<%= ingress_path %>/api/ai/status');
                 const data = await response.json();
                 
                 const statusElement = document.getElementById('aiStatus');
@@ -724,7 +724,7 @@
         // Load Tibber data
         async function loadTibberData() {
             try {
-                const response = await fetch('/api/tibber/current');
+                const response = await fetch('<%= ingress_path %>/api/tibber/current');
                 const data = await response.json();
                 
                 if (data.success && data.data) {
@@ -764,7 +764,7 @@
         // Load price data for charts
         async function loadPriceData() {
             try {
-                const response = await fetch('/api/tibber/current');
+                const response = await fetch('<%= ingress_path %>/api/tibber/current');
                 const data = await response.json();
                 
                 if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
@@ -783,7 +783,7 @@
         // Load AI decisions
         async function loadAIDecisions() {
             try {
-                const response = await fetch('/api/ai/decisions?limit=10');
+                const response = await fetch('<%= ingress_path %>/api/ai/decisions?limit=10');
                 const data = await response.json();
                 const decisionsContainer = document.getElementById('aiDecisions');
                 
@@ -814,7 +814,7 @@
         // Load command history
         async function loadCommandHistory() {
             try {
-                const response = await fetch('/api/ai/commands?limit=15');
+                const response = await fetch('<%= ingress_path %>/api/ai/commands?limit=15');
                 const data = await response.json();
                 const commandContainer = document.getElementById('commandLog');
                 
@@ -1021,7 +1021,7 @@
                 toggleBtn.disabled = true;
                 toggleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 
-                const response = await fetch('/api/ai/toggle', {
+                const response = await fetch('<%= ingress_path %>/api/ai/toggle', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
