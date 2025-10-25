@@ -2025,6 +2025,20 @@ function getGrafanaHost(req) {
 
 
 
+// ================ AUTOMATIC PRICE DATA REFRESH ================
+
+// Schedule automatic price data refresh every hour
+cron.schedule('0 * * * *', () => {
+  console.log('🔄 Running hourly price data refresh...');
+  refreshPricingData();
+});
+
+// Initial price data refresh on startup
+setTimeout(() => {
+  console.log('🚀 Initial price data refresh on startup...');
+  refreshPricingData();
+}, 5000);
+
 // ================ ROUTERS ================
 
 
@@ -2622,6 +2636,21 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     } catch (error) {
       console.error('Error getting Tibber data:', error);
       res.status(500).json({ error: 'Failed to get Tibber data' });
+    }
+  });
+
+  app.post('/api/tibber/refresh', async (req, res) => {
+    try {
+      const success = await tibberService.refreshData();
+      
+      res.json({
+        success: success,
+        message: success ? 'Price data refreshed successfully' : 'Failed to refresh price data',
+        data: success ? tibberService.getCachedData() : null
+      });
+    } catch (error) {
+      console.error('Error refreshing Tibber data:', error);
+      res.status(500).json({ error: 'Failed to refresh price data' });
     }
   });
 
@@ -3504,7 +3533,7 @@ async function createDefaultRules() {
               rules.push({
                   name: 'Adaptive Low Load Management',
                   description: `When load < 5000W, optimize energy usage (supports ${detectedTypes.summary})`,
-                  active: true,
+                  active: false,
                   conditions: [{
                       parameter: 'load',
                       operator: 'lt',
@@ -3520,7 +3549,7 @@ async function createDefaultRules() {
           rules.push({
               name: 'Smart Battery Protection',
               description: `Enable charging when SOC < 20% (auto-adapts to ${detectedTypes.summary})`,
-              active: true,
+              active: false,
               conditions: [{
                   parameter: 'battery_soc',
                   operator: 'lt',
@@ -3536,7 +3565,7 @@ async function createDefaultRules() {
               rules.push({
                   name: 'Peak Solar Optimization',
                   description: 'Prioritize solar during peak production (new inverters)',
-                  active: true,
+                  active: false,
                   conditions: [{
                       parameter: 'pv_power',
                       operator: 'gt',
@@ -3562,7 +3591,7 @@ async function createDefaultRules() {
               rules.push({
                   name: 'Legacy Grid Management',
                   description: 'Traditional grid charge control for legacy inverters',
-                  active: true,
+                  active: false,
                   conditions: [{
                       parameter: 'battery_soc',
                       operator: 'lt',
@@ -3586,7 +3615,7 @@ async function createDefaultRules() {
           rules.push({
               name: 'High Load Response',
               description: `Disable grid export when load > 12000W (all inverter types)`,
-              active: true,
+              active: false,
               conditions: [{
                   parameter: 'load',
                   operator: 'gt',
@@ -3638,7 +3667,7 @@ async function createExtendedAutomationRules() {
               rules.push({
                   name: 'Extended - Morning Energy Optimization',
                   description: 'Optimize morning energy usage (legacy compatible)',
-                  active: true,
+                  active: false,
                   timeRestrictions: {
                       startTime: '06:00',
                       endTime: '10:00',
@@ -3664,7 +3693,7 @@ async function createExtendedAutomationRules() {
               rules.push({
                   name: 'Extended - Smart Charging Strategy',
                   description: 'Advanced charging control for new inverters',
-                  active: true,
+                  active: false,
                   conditions: [
                       {
                           parameter: 'battery_soc',
@@ -3690,7 +3719,7 @@ async function createExtendedAutomationRules() {
               rules.push({
                   name: 'Extended - Evening Battery Priority',
                   description: 'Optimize evening energy usage (new inverters)',
-                  active: true,
+                  active: false,
                   timeRestrictions: {
                       startTime: '18:00',
                       endTime: '22:00',
@@ -3715,7 +3744,7 @@ async function createExtendedAutomationRules() {
           rules.push({
               name: 'Extended - Deep Discharge Protection',
               description: 'Protect battery from deep discharge (all types)',
-              active: true,
+              active: false,
               conditions: [{
                   parameter: 'battery_soc',
                   operator: 'lt',
@@ -3762,7 +3791,7 @@ async function createNightChargingRule() {
           const nightRule = {
               name: `Night Charging Strategy (${detectedTypes.primary})`,
               description: `Intelligent night charging for ${detectedTypes.summary}`,
-              active: true,
+              active: false,
               conditions: [{
                   parameter: 'battery_soc',
                   operator: 'lt',
@@ -3806,7 +3835,7 @@ async function createNightChargingRule() {
           const daytimeRule = {
               name: `Daytime Solar Priority (${detectedTypes.primary})`,
               description: `Disable grid charging during day for ${detectedTypes.summary}`,
-              active: true,
+              active: false,
               timeRestrictions: {
                   startTime: '06:00',
                   endTime: '22:00',
@@ -3849,7 +3878,7 @@ async function createWeekendGridChargeRules() {
           weekendRules.push({
               name: `Weekend Solar Maximization (${detectedTypes.primary})`,
               description: `Maximize solar usage on weekends for ${detectedTypes.summary}`,
-              active: true,
+              active: false,
               timeRestrictions: {
                   days: ['saturday', 'sunday'],
                   enabled: true
@@ -3876,7 +3905,7 @@ async function createWeekendGridChargeRules() {
               weekendRules.push({
                   name: `Weekend Battery Preservation (${detectedTypes.primary})`,
                   description: 'Preserve battery on weekends when solar is available',
-                  active: true,
+                  active: false,
                   timeRestrictions: {
                       days: ['saturday', 'sunday'],
                       startTime: '09:00',
@@ -4173,7 +4202,19 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
     try {
       console.log('Running scheduled pricing data refresh...');
       
-      // Dynamic pricing config removed
+      // Refresh Tibber data automatically
+      if (tibberService && tibberService.config.enabled) {
+        tibberService.refreshData().then(success => {
+          if (success) {
+            console.log('✅ Tibber price data refreshed automatically');
+          } else {
+            console.log('⚠️  Tibber refresh failed');
+          }
+        }).catch(error => {
+          console.error('❌ Error refreshing Tibber data:', error);
+        });
+      }
+      
       console.log('✅ Scheduled data refresh completed');
     } catch (error) {
       console.error('❌ Error in scheduled pricing data refresh:', error);

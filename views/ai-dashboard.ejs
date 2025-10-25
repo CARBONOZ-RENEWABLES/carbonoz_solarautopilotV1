@@ -185,6 +185,40 @@
             </div>
         </div>
 
+        <!-- Price Charts Row -->
+        <div class="row">
+            <div class="col-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>
+                            <i class="fas fa-euro-sign me-2"></i>
+                            24-Hour Price Forecast
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Price Levels
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="priceLevelChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- AI Decisions and Commands Row -->
         <div class="row">
             <div class="col-6">
@@ -231,13 +265,18 @@
 
     <script>
         // Global variables
-        let systemChart, energyChart;
+        let systemChart, energyChart, priceChart, priceLevelChart;
         let systemData = {
             labels: [],
             battery: [],
             solar: [],
             grid: [],
             load: []
+        };
+        let priceData = {
+            labels: [],
+            prices: [],
+            levels: []
         };
         let refreshInterval;
 
@@ -377,6 +416,94 @@
                     }
                 }
             });
+
+            // Initialize price chart
+            const priceCtx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Price (SEK/kWh)',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Price (SEK/kWh)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: '24-Hour Price Forecast'
+                        }
+                    }
+                }
+            });
+
+            // Initialize price level chart
+            const priceLevelCtx = document.getElementById('priceLevelChart').getContext('2d');
+            priceLevelChart = new Chart(priceLevelCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Very Low', 'Low', 'Normal', 'High', 'Very High'],
+                    datasets: [{
+                        label: 'Hours',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#27ae60',
+                            '#2ecc71',
+                            '#f39c12',
+                            '#e67e22',
+                            '#e74c3c'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Price Level Distribution'
+                        }
+                    }
+                }
+            });
         }
 
         // Load dashboard data
@@ -385,6 +512,7 @@
                 await loadSystemState();
                 await loadAIStatus();
                 await loadTibberData();
+                await loadPriceData();
                 await loadAIDecisions();
                 await loadCommandHistory();
             } catch (error) {
@@ -474,7 +602,7 @@
                         if (tibberData.forecast && tibberData.forecast.length > 0) {
                             const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
                             document.getElementById('averagePrice').textContent = 
-                                `${avgPrice.toFixed(2)} ${tibberData.currentPrice?.currency || 'EUR'}`;
+                                `${avgPrice.toFixed(2)} ${tibberData.currentPrice?.currency || 'SEK'}`;
                         }
                     } else {
                         document.getElementById('priceStatus').textContent = 'Not configured';
@@ -487,6 +615,25 @@
                 }
             } catch (error) {
                 console.error('Error loading Tibber data:', error);
+            }
+        }
+
+        // Load price data for charts
+        async function loadPriceData() {
+            try {
+                const response = await fetch('/api/tibber/current');
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
+                    updatePriceChart(data.data.forecast);
+                    updatePriceLevelChart(data.data.forecast);
+                } else {
+                    // Show no data message in charts
+                    showNoPriceData();
+                }
+            } catch (error) {
+                console.error('Error loading price data:', error);
+                showNoPriceData();
             }
         }
 
@@ -601,6 +748,59 @@
                 energyChart.data.datasets[0].data = [solar, grid, battery];
                 energyChart.update('none');
             }
+        }
+
+        // Update price chart
+        function updatePriceChart(forecast) {
+            const labels = [];
+            const prices = [];
+            
+            forecast.forEach(item => {
+                const date = new Date(item.startsAt);
+                labels.push(date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+                prices.push(item.total);
+            });
+            
+            priceChart.data.labels = labels;
+            priceChart.data.datasets[0].data = prices;
+            priceChart.update();
+        }
+
+        // Update price level chart
+        function updatePriceLevelChart(forecast) {
+            const levelCounts = {
+                'VERY_CHEAP': 0,
+                'CHEAP': 0,
+                'NORMAL': 0,
+                'EXPENSIVE': 0,
+                'VERY_EXPENSIVE': 0
+            };
+            
+            forecast.forEach(item => {
+                const level = item.level || 'NORMAL';
+                if (levelCounts.hasOwnProperty(level)) {
+                    levelCounts[level]++;
+                }
+            });
+            
+            priceLevelChart.data.datasets[0].data = [
+                levelCounts['VERY_CHEAP'],
+                levelCounts['CHEAP'],
+                levelCounts['NORMAL'],
+                levelCounts['EXPENSIVE'],
+                levelCounts['VERY_EXPENSIVE']
+            ];
+            priceLevelChart.update();
+        }
+
+        // Show no price data message
+        function showNoPriceData() {
+            priceChart.data.labels = ['No Data'];
+            priceChart.data.datasets[0].data = [0];
+            priceChart.update();
+            
+            priceLevelChart.data.datasets[0].data = [0, 0, 0, 0, 0];
+            priceLevelChart.update();
         }
 
         // Format timestamp
