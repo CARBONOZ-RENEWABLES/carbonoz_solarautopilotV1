@@ -744,6 +744,32 @@
             justify-content: space-between;
             align-items: center;
         }
+        
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chart-controls .btn {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chart-controls .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .chart-controls .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
         .card-header h2,
         .card-header h5 {
@@ -1074,4 +1100,41 @@
 
         .dark-mode .chart-container{
           background-color: rgba(24, 27, 31, 1);
+        }
+        
+        /* Data Status Badge */
+        #dataStatus {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        .bg-success {
+            background-color: #27ae60 !important;
+            color: white;
+        }
+        
+        .bg-info {
+            background-color: #17a2b8 !important;
+            color: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Chart loading state */
+        .chart-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            color: #666;
+        }
+        
+        .chart-loading i {
+            margin-right: 10px;
+            animation: spin 1s linear infinite;
         }

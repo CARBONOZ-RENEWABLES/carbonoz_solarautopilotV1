@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Dashboard - CARBONOZ SolarAutopilot</title>
+    <title>Carbonoz SolarAutopilot</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
      <link rel="stylesheet" href="<%= ingress_path %>/css/ai-dashboard.css">
@@ -159,7 +159,16 @@
                         <h5>
                             <i class="fas fa-chart-line me-2"></i>
                             Real-Time System Data
+                            <span id="dataStatus" class="badge ms-2" style="display: none;"></span>
                         </h5>
+                        <div class="chart-controls">
+                            <button class="btn btn-sm" onclick="refreshChartData()" title="Refresh Chart Data">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button class="btn btn-sm" onclick="clearChartData()" title="Clear Chart Data">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -279,6 +288,11 @@
             levels: []
         };
         let refreshInterval;
+        
+        // Data persistence configuration
+        const STORAGE_KEY = 'ai_dashboard_chart_data';
+        const MAX_DATA_POINTS = 50; // Increased from 20 to store more history
+        const DATA_RETENTION_HOURS = 2; // Keep data for 2 hours
 
         // Toggle mobile menu
         function toggleMenu() {
@@ -287,11 +301,134 @@
         }
 
         // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            const dataRestored = await loadPersistedData();
             initializeCharts();
+            
+            // Show data status indicator
+            if (dataRestored) {
+                showDataStatus('Historical data restored', 'success');
+            }
+            
             loadDashboardData();
             startAutoRefresh();
         });
+        
+        // Load persisted chart data from localStorage or server
+        async function loadPersistedData() {
+            let dataLoaded = false;
+            
+            // First try localStorage
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    const now = Date.now();
+                    
+                    // Check if data is not too old
+                    if (data.timestamp && (now - data.timestamp) < (DATA_RETENTION_HOURS * 60 * 60 * 1000)) {
+                        // Filter out data points older than retention period
+                        const cutoffTime = now - (DATA_RETENTION_HOURS * 60 * 60 * 1000);
+                        const validIndices = [];
+                        
+                        if (data.systemData.timestamps) {
+                            data.systemData.timestamps.forEach((timestamp, index) => {
+                                if (timestamp > cutoffTime) {
+                                    validIndices.push(index);
+                                }
+                            });
+                        }
+                        
+                        if (validIndices.length > 0) {
+                            systemData.labels = validIndices.map(i => data.systemData.labels[i]);
+                            systemData.battery = validIndices.map(i => data.systemData.battery[i]);
+                            systemData.solar = validIndices.map(i => data.systemData.solar[i]);
+                            systemData.grid = validIndices.map(i => data.systemData.grid[i]);
+                            systemData.load = validIndices.map(i => data.systemData.load[i]);
+                            systemData.timestamps = validIndices.map(i => data.systemData.timestamps[i]);
+                            
+                            console.log(`Restored ${validIndices.length} data points from localStorage`);
+                            dataLoaded = true;
+                        }
+                    } else {
+                        // Data is too old, clear it
+                        localStorage.removeItem(STORAGE_KEY);
+                        console.log('Cleared old chart data from localStorage');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading persisted data:', error);
+                localStorage.removeItem(STORAGE_KEY);
+            }
+            
+            // If no valid localStorage data, try to load from server
+            if (!dataLoaded) {
+                try {
+                    console.log('Loading historical data from server...');
+                    const response = await fetch('/api/system-state/history?hours=2&limit=30');
+                    const result = await response.json();
+                    
+                    if (result.success && result.data && result.data.length > 0) {
+                        systemData.labels = [];
+                        systemData.battery = [];
+                        systemData.solar = [];
+                        systemData.grid = [];
+                        systemData.load = [];
+                        systemData.timestamps = [];
+                        
+                        // Filter and process historical data
+                        const validData = result.data.filter(item => {
+                            return item.battery_soc !== null || item.pv_power !== null || 
+                                   item.grid_power !== null || item.load !== null;
+                        });
+                        
+                        validData.forEach(item => {
+                            const date = new Date(item.timestamp);
+                            systemData.labels.push(date.toLocaleTimeString());
+                            systemData.battery.push(item.battery_soc || 0);
+                            systemData.solar.push(item.pv_power || 0);
+                            systemData.grid.push(item.grid_power || 0);
+                            systemData.load.push(item.load || 0);
+                            systemData.timestamps.push(date.getTime());
+                        });
+                        
+                        console.log(`Loaded ${validData.length} valid historical data points from server`);
+                        dataLoaded = validData.length > 0;
+                    }
+                } catch (error) {
+                    console.error('Error loading historical data from server:', error);
+                }
+            }
+            
+            return dataLoaded;
+        }
+        
+        // Save chart data to localStorage
+        function saveDataToStorage() {
+            try {
+                const dataToStore = {
+                    timestamp: Date.now(),
+                    systemData: {
+                        labels: systemData.labels,
+                        battery: systemData.battery,
+                        solar: systemData.solar,
+                        grid: systemData.grid,
+                        load: systemData.load,
+                        timestamps: systemData.timestamps || []
+                    }
+                };
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
+            } catch (error) {
+                console.error('Error saving data to localStorage:', error);
+                // If storage is full, try to clear old data
+                try {
+                    localStorage.removeItem(STORAGE_KEY);
+                } catch (e) {
+                    console.error('Failed to clear localStorage:', e);
+                }
+            }
+        }
 
         // Initialize charts
         function initializeCharts() {
@@ -299,11 +436,11 @@
             systemChart = new Chart(systemCtx, {
                 type: 'line',
                 data: {
-                    labels: [],
+                    labels: systemData.labels,
                     datasets: [
                         {
                             label: 'Battery SOC (%)',
-                            data: [],
+                            data: systemData.battery,
                             borderColor: '#27ae60',
                             backgroundColor: 'rgba(39, 174, 96, 0.1)',
                             tension: 0.4,
@@ -311,7 +448,7 @@
                         },
                         {
                             label: 'Solar Power (W)',
-                            data: [],
+                            data: systemData.solar,
                             borderColor: '#f39c12',
                             backgroundColor: 'rgba(243, 156, 18, 0.1)',
                             tension: 0.4,
@@ -319,7 +456,7 @@
                         },
                         {
                             label: 'Grid Power (W)',
-                            data: [],
+                            data: systemData.grid,
                             borderColor: '#3498db',
                             backgroundColor: 'rgba(52, 152, 219, 0.1)',
                             tension: 0.4,
@@ -327,7 +464,7 @@
                         },
                         {
                             label: 'Load Power (W)',
-                            data: [],
+                            data: systemData.load,
                             borderColor: '#9b59b6',
                             backgroundColor: 'rgba(155, 89, 182, 0.1)',
                             tension: 0.4,
@@ -532,11 +669,17 @@
                     updateMetricCard('pvPower', state.pv_power, 'W');
                     updateMetricCard('gridPower', state.grid_power, 'W');
                     updateMetricCard('loadPower', state.load, 'W');
-                    updateSystemChart(state);
-                    updateEnergyChart(state);
+                    
+                    // Only update chart if we have valid data
+                    if (state.battery_soc !== null || state.pv_power !== null || 
+                        state.grid_power !== null || state.load !== null) {
+                        updateSystemChart(state);
+                        updateEnergyChart(state);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading system state:', error);
+                showDataStatus('Error loading real-time data', 'warning');
             }
         }
 
@@ -714,25 +857,41 @@
             }
         }
 
-        // Update system chart
+        // Update system chart with data persistence
         function updateSystemChart(state) {
             const now = new Date();
             const timeLabel = now.toLocaleTimeString();
+            const timestamp = now.getTime();
             
-            if (systemData.labels.length >= 20) {
-                systemData.labels.shift();
-                systemData.battery.shift();
-                systemData.solar.shift();
-                systemData.grid.shift();
-                systemData.load.shift();
+            // Initialize timestamps array if it doesn't exist
+            if (!systemData.timestamps) {
+                systemData.timestamps = [];
             }
             
-            systemData.labels.push(timeLabel);
-            systemData.battery.push(state.battery_soc || 0);
-            systemData.solar.push(state.pv_power || 0);
-            systemData.grid.push(state.grid_power || 0);
-            systemData.load.push(state.load || 0);
+            // Check if this is a duplicate timestamp (avoid adding same data twice)
+            if (systemData.timestamps.length > 0) {
+                const lastTimestamp = systemData.timestamps[systemData.timestamps.length - 1];
+                if (timestamp - lastTimestamp < 10000) { // Less than 10 seconds difference
+                    // Update the last data point instead of adding a new one
+                    const lastIndex = systemData.labels.length - 1;
+                    if (lastIndex >= 0) {
+                        systemData.labels[lastIndex] = timeLabel;
+                        systemData.battery[lastIndex] = state.battery_soc || 0;
+                        systemData.solar[lastIndex] = state.pv_power || 0;
+                        systemData.grid[lastIndex] = state.grid_power || 0;
+                        systemData.load[lastIndex] = state.load || 0;
+                        systemData.timestamps[lastIndex] = timestamp;
+                    }
+                } else {
+                    // Add new data point
+                    addNewDataPoint(timeLabel, state, timestamp);
+                }
+            } else {
+                // First data point
+                addNewDataPoint(timeLabel, state, timestamp);
+            }
             
+            // Update chart
             systemChart.data.labels = systemData.labels;
             systemChart.data.datasets[0].data = systemData.battery;
             systemChart.data.datasets[1].data = systemData.solar;
@@ -740,6 +899,30 @@
             systemChart.data.datasets[3].data = systemData.load;
             
             systemChart.update('none');
+            
+            // Save to localStorage for persistence
+            saveDataToStorage();
+        }
+        
+        // Helper function to add new data point
+        function addNewDataPoint(timeLabel, state, timestamp) {
+            // Remove old data points if we exceed the limit
+            if (systemData.labels.length >= MAX_DATA_POINTS) {
+                systemData.labels.shift();
+                systemData.battery.shift();
+                systemData.solar.shift();
+                systemData.grid.shift();
+                systemData.load.shift();
+                systemData.timestamps.shift();
+            }
+            
+            // Add new data point
+            systemData.labels.push(timeLabel);
+            systemData.battery.push(state.battery_soc || 0);
+            systemData.solar.push(state.pv_power || 0);
+            systemData.grid.push(state.grid_power || 0);
+            systemData.load.push(state.load || 0);
+            systemData.timestamps.push(timestamp);
         }
 
         // Update energy chart
@@ -861,6 +1044,21 @@
             }
         }
         
+        // Show data status indicator
+        function showDataStatus(message, type = 'info') {
+            const statusElement = document.getElementById('dataStatus');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.className = `badge ms-2 bg-${type === 'success' ? 'success' : 'info'}`;
+                statusElement.style.display = 'inline';
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
         // Show notification
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
@@ -893,12 +1091,138 @@
             }, 5000);
         }
 
-        // Cleanup on page unload
+        // Manual refresh chart data
+        async function refreshChartData() {
+            const refreshBtn = event.target.closest('button');
+            const originalContent = refreshBtn.innerHTML;
+            
+            try {
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                refreshBtn.disabled = true;
+                
+                // Clear current data and reload from server
+                systemData.labels = [];
+                systemData.battery = [];
+                systemData.solar = [];
+                systemData.grid = [];
+                systemData.load = [];
+                systemData.timestamps = [];
+                
+                // Load fresh data
+                const dataLoaded = await loadPersistedData();
+                
+                // Update chart
+                if (systemChart) {
+                    systemChart.data.labels = systemData.labels;
+                    systemChart.data.datasets[0].data = systemData.battery;
+                    systemChart.data.datasets[1].data = systemData.solar;
+                    systemChart.data.datasets[2].data = systemData.grid;
+                    systemChart.data.datasets[3].data = systemData.load;
+                    systemChart.update();
+                }
+                
+                if (dataLoaded) {
+                    showDataStatus('Chart data refreshed', 'success');
+                } else {
+                    showDataStatus('No historical data available', 'info');
+                }
+                
+            } catch (error) {
+                console.error('Error refreshing chart data:', error);
+                showDataStatus('Error refreshing data', 'warning');
+            } finally {
+                refreshBtn.innerHTML = originalContent;
+                refreshBtn.disabled = false;
+            }
+        }
+        
+        // Clear chart data
+        function clearChartData() {
+            if (confirm('Are you sure you want to clear all chart data?')) {
+                // Clear in-memory data
+                systemData.labels = [];
+                systemData.battery = [];
+                systemData.solar = [];
+                systemData.grid = [];
+                systemData.load = [];
+                systemData.timestamps = [];
+                
+                // Clear localStorage
+                localStorage.removeItem(STORAGE_KEY);
+                
+                // Update chart
+                if (systemChart) {
+                    systemChart.data.labels = [];
+                    systemChart.data.datasets[0].data = [];
+                    systemChart.data.datasets[1].data = [];
+                    systemChart.data.datasets[2].data = [];
+                    systemChart.data.datasets[3].data = [];
+                    systemChart.update();
+                }
+                
+                showDataStatus('Chart data cleared', 'info');
+            }
+        }
+        
+        // Cleanup on page unload and save final state
         window.addEventListener('beforeunload', function() {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
             }
+            // Save current data before leaving
+            saveDataToStorage();
         });
+        
+        // Also save data periodically (every 5 minutes) to prevent data loss
+        setInterval(saveDataToStorage, 5 * 60 * 1000);
+        
+        // Clear old data from localStorage on page visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // Page became visible, clean up old data
+                cleanupOldData();
+            }
+        });
+        
+        // Clean up old data points
+        function cleanupOldData() {
+            try {
+                const now = Date.now();
+                const cutoffTime = now - (DATA_RETENTION_HOURS * 60 * 60 * 1000);
+                
+                if (systemData.timestamps) {
+                    const validIndices = [];
+                    systemData.timestamps.forEach((timestamp, index) => {
+                        if (timestamp > cutoffTime) {
+                            validIndices.push(index);
+                        }
+                    });
+                    
+                    if (validIndices.length < systemData.timestamps.length) {
+                        systemData.labels = validIndices.map(i => systemData.labels[i]);
+                        systemData.battery = validIndices.map(i => systemData.battery[i]);
+                        systemData.solar = validIndices.map(i => systemData.solar[i]);
+                        systemData.grid = validIndices.map(i => systemData.grid[i]);
+                        systemData.load = validIndices.map(i => systemData.load[i]);
+                        systemData.timestamps = validIndices.map(i => systemData.timestamps[i]);
+                        
+                        // Update chart with cleaned data
+                        if (systemChart) {
+                            systemChart.data.labels = systemData.labels;
+                            systemChart.data.datasets[0].data = systemData.battery;
+                            systemChart.data.datasets[1].data = systemData.solar;
+                            systemChart.data.datasets[2].data = systemData.grid;
+                            systemChart.data.datasets[3].data = systemData.load;
+                            systemChart.update('none');
+                        }
+                        
+                        console.log(`Cleaned up old data, kept ${validIndices.length} points`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error cleaning up old data:', error);
+            }
+        }
     </script>
 
 <script src="<%= ingress_path %>/js/loading.js"></script>
