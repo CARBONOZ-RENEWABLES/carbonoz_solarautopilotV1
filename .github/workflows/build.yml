@@ -51,8 +51,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/carbonoz_solarautopilot:1.0.0-${{ matrix.arch }}
-            ghcr.io/${{ github.repository_owner }}/carbonoz_solarautopilot:latest-${{ matrix.arch }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:1.0.0-${{ matrix.arch }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest-${{ matrix.arch }}
           build-args: |
             BUILD_ARCH=${{ matrix.arch }}
             BUILD_VERSION=1.0.0
