@@ -1,0 +1,9 @@
+ARG BUILD_FROM
+FROM ${BUILD_FROM}
+
+# Labels
+LABEL \
+    io.hass.name="Carbonoz SolarAutopilot" \
+    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant" \
+    io.hass.type="addon" \
+    maintainer="Elite Desire <eelitedesire@gmail.com>"
