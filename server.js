@@ -1,5 +1,4 @@
 const express = require('express')
-const bodyParser = require('body-parser')
 const mqtt = require('mqtt')
 const fs = require('fs')
 const path = require('path')
@@ -55,18 +54,9 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 
-// Custom JSON parsing with error handling
+// JSON parsing with error handling
 app.use(express.json({ 
-  limit: '10mb',
-  verify: (req, res, buf, encoding) => {
-    try {
-      JSON.parse(buf);
-    } catch (e) {
-      console.error('JSON Parse Error:', e.message);
-      console.error('Raw body:', buf.toString());
-      throw new Error('Invalid JSON format');
-    }
-  }
+  limit: '10mb'
 }));
 
 app.use(express.urlencoded({ extended: true }))
@@ -74,11 +64,14 @@ app.use(express.urlencoded({ extended: true }))
 // JSON parsing error handler
 app.use((error, req, res, next) => {
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-    console.error('JSON Syntax Error:', error.message);
+    console.error('❌ JSON Syntax Error:', error.message);
+    console.error('Request path:', req.path);
+    console.error('Request method:', req.method);
     return res.status(400).json({
       success: false,
       error: 'Invalid JSON format in request body',
-      details: 'Please check your JSON syntax'
+      details: error.message,
+      path: req.path
     });
   }
   next(error);
@@ -5897,7 +5890,40 @@ app.post('/api/rules/preview', async (req, res) => {
     }
 });
 
+// Middleware specifically for rules endpoint
+app.use('/api/rules', (req, res, next) => {
+  if (req.method === 'POST') {
+    console.log('📝 Rules middleware - checking request');
+    
+    // Check if body exists and is parsed
+    if (req.body === undefined) {
+      console.error('❌ No body found in request');
+      return res.status(400).json({
+        success: false,
+        error: 'No request body found'
+      });
+    }
+    
+    // Check if body is empty
+    if (Object.keys(req.body).length === 0) {
+      console.error('❌ Empty body in request');
+      return res.status(400).json({
+        success: false,
+        error: 'Empty request body'
+      });
+    }
+    
+    console.log('✅ Rules middleware - body looks good');
+  }
+  next();
+});
+
 app.post('/api/rules', (req, res) => {
+  console.log('📝 Rules POST request received');
+  console.log('Content-Type:', req.get('Content-Type'));
+  console.log('Raw body type:', typeof req.body);
+  console.log('Raw body:', JSON.stringify(req.body, null, 2));
+  
   try {
     if (!dbConnected || !db) {
       return res.status(503).json({ 
@@ -5908,26 +5934,42 @@ app.post('/api/rules', (req, res) => {
     
     // Validate request body
     if (!req.body || typeof req.body !== 'object') {
+      console.error('❌ Invalid request body:', req.body);
       return res.status(400).json({ 
         success: false, 
         error: 'Invalid request body. Expected JSON object.' 
       });
     }
     
-    const { name, description, active, conditions, timeRestrictions, actions } = req.body;
+    let { name, description, active, conditions, timeRestrictions, actions } = req.body;
     
-    if (!name || !name.trim()) {
+    // Sanitize and validate each field
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      console.error('❌ Invalid name:', name);
       return res.status(400).json({ 
         success: false, 
-        error: 'Rule name is required' 
+        error: 'Rule name is required and must be a non-empty string' 
       });
     }
     
-    if (!actions || actions.length === 0) {
+    // Ensure arrays are arrays
+    if (conditions && !Array.isArray(conditions)) {
+      console.error('❌ Invalid conditions:', conditions);
+      conditions = [];
+    }
+    
+    if (!actions || !Array.isArray(actions) || actions.length === 0) {
+      console.error('❌ Invalid actions:', actions);
       return res.status(400).json({ 
         success: false, 
-        error: 'At least one action is required' 
+        error: 'At least one valid action is required' 
       });
+    }
+    
+    // Ensure timeRestrictions is an object
+    if (timeRestrictions && typeof timeRestrictions !== 'object') {
+      console.error('❌ Invalid timeRestrictions:', timeRestrictions);
+      timeRestrictions = { enabled: false };
     }
     
     const newRule = {
@@ -8331,6 +8373,19 @@ setTimeout(async () => {
   
   console.log('\n======================================\n');
 }, 10000);
+
+// Test endpoint for JSON parsing
+app.post('/api/test-json', (req, res) => {
+  console.log('Test JSON endpoint hit');
+  console.log('Body type:', typeof req.body);
+  console.log('Body content:', req.body);
+  
+  res.json({
+    success: true,
+    received: req.body,
+    type: typeof req.body
+  });
+});
 
 app.get('/api/health', (req, res) => {
   try {
