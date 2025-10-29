@@ -17,8 +17,7 @@ const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
-const sqlite3 = require('sqlite3').verbose()
-const { open } = require('sqlite')
+const Database = require('better-sqlite3');
 const cron = require('node-cron')
 const session = require('express-session');
 const { createProxyMiddleware } = require('http-proxy-middleware');
@@ -492,12 +491,10 @@ function mapChargerSourcePriorityToGridCharge(chargerPriority) {
 
 async function initializeDatabase() {
   try {
-    db = await open({
-      filename: DB_FILE,
-      driver: sqlite3.Database,
-    });
+    db = new Database(DB_FILE, { verbose: console.log });
+    db.pragma('journal_mode = WAL');
     
-    await db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS settings_changes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL,
@@ -511,7 +508,7 @@ async function initializeDatabase() {
       )
     `);
     
-    await db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -528,12 +525,11 @@ async function initializeDatabase() {
       )
     `);
     
-    await db.exec(`
+    db.exec(`
       CREATE INDEX IF NOT EXISTS idx_settings_changes_user_id ON settings_changes(user_id);
       CREATE INDEX IF NOT EXISTS idx_settings_changes_timestamp ON settings_changes(timestamp);
       CREATE INDEX IF NOT EXISTS idx_settings_changes_topic ON settings_changes(topic);
       CREATE INDEX IF NOT EXISTS idx_settings_changes_change_type ON settings_changes(change_type);
-      
       CREATE INDEX IF NOT EXISTS idx_rules_user_id ON rules(user_id);
       CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(active);
       CREATE INDEX IF NOT EXISTS idx_rules_last_triggered ON rules(last_triggered);
@@ -544,23 +540,6 @@ async function initializeDatabase() {
     return true;
   } catch (error) {
     console.error('Error initializing SQLite database:', error.message);
-    dbConnected = false;
-    return false;
-  }
-}
-
-async function connectToDatabase() {
-  try {
-    if (!dbConnected) {
-      await initializeDatabase();
-      
-      if (dbConnected) {
-        await pruneOldSettingsChanges();
-      }
-    }
-    return dbConnected;
-  } catch (error) {
-    console.error('SQLite connection error:', error.message);
     dbConnected = false;
     return false;
   }
@@ -637,11 +616,13 @@ async function saveSettingsChange(changeData) {
       JSON.stringify(changeData.new_value) : 
       String(changeData.new_value || '');
     
-    await db.run(`
+    const stmt = db.prepare(`
       INSERT INTO settings_changes 
       (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
+    `);
+    
+    stmt.run(
       changeData.timestamp.toISOString(),
       changeData.topic,
       oldValueStr,
@@ -650,7 +631,7 @@ async function saveSettingsChange(changeData) {
       changeData.change_type,
       changeData.user_id,
       changeData.mqtt_username
-    ]);
+    );
     
     return true;
   } catch (error) {
@@ -757,14 +738,12 @@ async function handleWorkModeSettingChange(specificTopic, messageContent, settin
 
 // ================ RULES FUNCTIONS ================
 
-async function countRules(userId) {
-  if (!dbConnected) return 0;
+function countRules(userId) {
+  if (!dbConnected || !db) return 0;
   
   try {
-    const result = await db.get(`
-      SELECT COUNT(*) as count FROM rules WHERE user_id = ?
-    `, [userId]);
-    
+    const stmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
+    const result = stmt.get(userId);
     return result.count;
   } catch (error) {
     console.error('Error counting rules:', error.message);
@@ -772,72 +751,55 @@ async function countRules(userId) {
   }
 }
 
-async function batchUpdateRules(rules) {
-  if (!dbConnected || rules.length === 0) return;
+function batchUpdateRules(rules) {
+  if (!dbConnected || !db || rules.length === 0) return;
   
-  return executeWithDbMutex(async () => {
-    let transactionStarted = false;
+  return executeWithDbMutex(() => {
+    const stmt = db.prepare(`
+      UPDATE rules 
+      SET last_triggered = ?,
+          trigger_count = ?
+      WHERE id = ? AND user_id = ?
+    `);
     
-    try {
-      await db.run('BEGIN TRANSACTION');
-      transactionStarted = true;
-      
-      for (const rule of rules) {
-        await db.run(`
-          UPDATE rules 
-          SET last_triggered = ?,
-              trigger_count = ?
-          WHERE id = ? AND user_id = ?
-        `, [
+    const transaction = db.transaction((rulesToUpdate) => {
+      for (const rule of rulesToUpdate) {
+        stmt.run(
           rule.lastTriggered.toISOString(),
           rule.triggerCount,
           rule.id,
           rule.user_id
-        ]);
+        );
       }
-      
-      await db.run('COMMIT');
-      transactionStarted = false;
+    });
+    
+    try {
+      transaction(rules);
       return true;
     } catch (error) {
-      if (transactionStarted) {
-        try {
-          await db.run('ROLLBACK');
-        } catch (rollbackError) {
-          if (!rollbackError.message.includes('no transaction is active')) {
-            console.error('Error rolling back transaction:', rollbackError.message);
-          }
-        }
-      }
-      
       console.error('Error batch updating rules in SQLite:', error.message);
       return false;
     }
   });
 }
 
-async function saveRule(ruleData) {
-  if (!dbConnected) return null;
+function saveRule(ruleData) {
+  if (!dbConnected || !db) return null;
   
   try {
-    console.log('Saving new rule with data:', {
-      name: ruleData.name,
-      active: ruleData.active,
-      user_id: ruleData.user_id
-    });
-    
     const activeValue = ruleData.active ? 1 : 0;
-    
     const conditionsJson = JSON.stringify(ruleData.conditions || []);
     const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
     const actionsJson = JSON.stringify(ruleData.actions || []);
     
-    const result = await db.run(`
+    const stmt = db.prepare(`
       INSERT INTO rules 
       (name, description, active, conditions, time_restrictions, actions, 
        created_at, last_triggered, trigger_count, user_id, mqtt_username)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
+    `);
+    
+    const info = stmt.run(
       ruleData.name,
       ruleData.description || '',
       activeValue,
@@ -849,21 +811,12 @@ async function saveRule(ruleData) {
       ruleData.triggerCount || 0,
       ruleData.user_id,
       ruleData.mqtt_username
-    ]);
+    );
     
-    console.log('Save rule result:', result);
-    
-    const ruleIdResult = await db.get('SELECT last_insert_rowid() as id');
-    
-    if (!ruleIdResult || !ruleIdResult.id) {
-      console.error('Failed to get ID of newly inserted rule');
-      return null;
-    }
-    
-    console.log(`New rule saved with ID ${ruleIdResult.id}`);
+    console.log(`New rule saved with ID ${info.lastInsertRowid}`);
     
     return {
-      id: ruleIdResult.id,
+      id: info.lastInsertRowid,
       ...ruleData
     };
   } catch (error) {
@@ -872,19 +825,16 @@ async function saveRule(ruleData) {
   }
 }
 
-async function updateRule(id, ruleData) {
-  if (!dbConnected) return false;
+function updateRule(id, ruleData) {
+  if (!dbConnected || !db) return false;
   
   try {
     const conditionsJson = JSON.stringify(ruleData.conditions || []);
     const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
     const actionsJson = JSON.stringify(ruleData.actions || []);
-    
-    console.log('Updating rule with active status:', ruleData.active);
-    
     const activeValue = ruleData.active ? 1 : 0;
     
-    const result = await db.run(`
+    const stmt = db.prepare(`
       UPDATE rules 
       SET name = ?, 
           description = ?, 
@@ -895,7 +845,9 @@ async function updateRule(id, ruleData) {
           last_triggered = ?, 
           trigger_count = ?
       WHERE id = ? AND user_id = ?
-    `, [
+    `);
+    
+    const info = stmt.run(
       ruleData.name,
       ruleData.description || '',
       activeValue,
@@ -906,19 +858,17 @@ async function updateRule(id, ruleData) {
       ruleData.triggerCount || 0,
       id,
       ruleData.user_id
-    ]);
+    );
     
-    console.log('Update rule result:', result);
-    
-    return result.changes > 0;
+    return info.changes > 0;
   } catch (error) {
     console.error('Error updating rule in SQLite:', error.message);
     return false;
   }
 }
 
-async function getAllRules(userId, options = {}) {
-  if (!dbConnected) return [];
+function getAllRules(userId, options = {}) {
+  if (!dbConnected || !db) return [];
   
   try {
     const { active, sort, limit, offset } = options;
@@ -947,9 +897,8 @@ async function getAllRules(userId, options = {}) {
       }
     }
     
-    console.log('Rules query:', query, 'with params:', params);
-    
-    const rules = await db.all(query, params);
+    const stmt = db.prepare(query);
+    const rules = stmt.all(...params);
     
     return rules.map(rule => ({
       id: rule.id,
@@ -971,39 +920,31 @@ async function getAllRules(userId, options = {}) {
   }
 }
 
-async function deleteRule(id, userId) {
-  if (!dbConnected) return false;
+function deleteRule(id, userId) {
+  if (!dbConnected || !db) return false;
   
   try {
-    const result = await db.run(`
-      DELETE FROM rules WHERE id = ? AND user_id = ?
-    `, [id, userId]);
-    
-    console.log('Delete rule result:', result);
-    
-    return result.changes > 0;
+    const stmt = db.prepare(`DELETE FROM rules WHERE id = ? AND user_id = ?`);
+    const info = stmt.run(id, userId);
+    return info.changes > 0;
   } catch (error) {
     console.error('Error deleting rule from SQLite:', error.message);
     return false;
   }
 }
 
-async function getRuleById(id, userId) {
-  if (!dbConnected) return null;
+function getRuleById(id, userId) {
+  if (!dbConnected || !db) return null;
   
   try {
-    console.log(`Getting rule by ID ${id} for user ${userId}`);
-    
-    const rule = await db.get(`
-      SELECT * FROM rules WHERE id = ? AND user_id = ?
-    `, [id, userId]);
+    const stmt = db.prepare(`SELECT * FROM rules WHERE id = ? AND user_id = ?`);
+    const rule = stmt.get(id, userId);
     
     if (!rule) {
-      console.log(`No rule found with ID ${id} for user ${userId}`);
       return null;
     }
     
-    const parsedRule = {
+    return {
       id: rule.id,
       name: rule.name,
       description: rule.description,
@@ -1017,24 +958,20 @@ async function getRuleById(id, userId) {
       user_id: rule.user_id,
       mqtt_username: rule.mqtt_username
     };
-    
-    console.log(`Found rule "${parsedRule.name}" with active status:`, parsedRule.active);
-    
-    return parsedRule;
   } catch (error) {
     console.error(`Error getting rule by ID ${id}:`, error.message);
     return null;
   }
 }
 
-async function getSettingsChanges(userId, options = {}) {
-  if (!dbConnected) return { changes: [], pagination: { total: 0 } };
+function getSettingsChanges(userId, options = {}) {
+  if (!dbConnected || !db) return { changes: [], pagination: { total: 0 } };
   
   try {
     const { changeType, topic, limit = 100, skip = 0 } = options;
     
     let query = 'SELECT * FROM settings_changes WHERE user_id = ?';
-    const countQuery = 'SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?';
+    let countQuery = 'SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?';
     const params = [userId];
     const countParams = [userId];
     
@@ -1055,10 +992,12 @@ async function getSettingsChanges(userId, options = {}) {
     query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
     params.push(limit, skip);
     
-    const countResult = await db.get(countQuery, countParams);
+    const countStmt = db.prepare(countQuery);
+    const countResult = countStmt.get(...countParams);
     const total = countResult.total;
     
-    const changes = await db.all(query, params);
+    const stmt = db.prepare(query);
+    const changes = stmt.all(...params);
     
     const formattedChanges = changes.map(change => ({
       id: change.id,
@@ -1578,12 +1517,14 @@ class Mutex {
 
 const dbMutex = new Mutex();
 
-async function executeWithDbMutex(operation) {
-  await dbMutex.acquire();
+function executeWithDbMutex(operation) {
+  // Since better-sqlite3 is synchronous, we don't need complex async mutex
+  // Just execute directly
   try {
-    return await operation();
-  } finally {
-    dbMutex.release();
+    return operation();
+  } catch (error) {
+    console.error('Error in database operation:', error.message);
+    throw error;
   }
 }
 
@@ -1616,17 +1557,18 @@ async function processSettingsChangesQueue() {
   }
 }
 
-async function batchSaveSettingsChanges(changes) {
-  if (!dbConnected || changes.length === 0) return;
+function batchSaveSettingsChanges(changes) {
+  if (!dbConnected || !db || changes.length === 0) return;
   
-  return executeWithDbMutex(async () => {
-    let transactionStarted = false;
+  return executeWithDbMutex(() => {
+    const stmt = db.prepare(`
+      INSERT INTO settings_changes 
+      (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
     
-    try {
-      await db.run('BEGIN TRANSACTION');
-      transactionStarted = true;
-      
-      for (const change of changes) {
+    const transaction = db.transaction((changesToInsert) => {
+      for (const change of changesToInsert) {
         const systemStateJson = JSON.stringify(change.system_state || {});
         
         const oldValueStr = typeof change.old_value === 'object' ? 
@@ -1638,11 +1580,7 @@ async function batchSaveSettingsChanges(changes) {
           String(change.new_value || '');
         
         try {
-          await db.run(`
-            INSERT INTO settings_changes 
-            (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
+          stmt.run(
             change.timestamp.toISOString(),
             change.topic,
             oldValueStr,
@@ -1651,26 +1589,17 @@ async function batchSaveSettingsChanges(changes) {
             change.change_type,
             change.user_id,
             change.mqtt_username
-          ]);
+          );
         } catch (insertError) {
           console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
         }
       }
-      
-      await db.run('COMMIT');
-      transactionStarted = false;
+    });
+    
+    try {
+      transaction(changes);
       return true;
     } catch (error) {
-      if (transactionStarted) {
-        try {
-          await db.run('ROLLBACK');
-        } catch (rollbackError) {
-          if (!rollbackError.message.includes('no transaction is active')) {
-            console.error('Error rolling back transaction:', rollbackError.message);
-          }
-        }
-      }
-      
       console.error('Error batch saving settings changes to SQLite:', error.message);
       return false;
     }
@@ -3478,40 +3407,37 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   }
   
-  async function pruneOldSettingsChanges() {
-    if (!dbConnected) return;
+  function pruneOldSettingsChanges() {
+    if (!dbConnected || !db) return;
     
     try {
-      const countResult = await db.get('SELECT COUNT(*) as total FROM settings_changes');
+      const countStmt = db.prepare('SELECT COUNT(*) as total FROM settings_changes');
+      const countResult = countStmt.get();
       const totalRecords = countResult.total;
       
       if (totalRecords > 5000) {
         const recordsToDelete = totalRecords - 5000;
+        console.log(`Pruning ${recordsToDelete} old settings changes`);
         
-        console.log(`Pruning ${recordsToDelete} old settings changes from database to maintain limit of 5000 records`);
-        
-        await db.run(`
+        const deleteStmt = db.prepare(`
           DELETE FROM settings_changes 
           WHERE id IN (
             SELECT id FROM settings_changes 
             ORDER BY timestamp ASC 
             LIMIT ?
           )
-        `, [recordsToDelete]);
-        
-        console.log(`Successfully pruned ${recordsToDelete} old records`);
+        `);
+        deleteStmt.run(recordsToDelete);
       }
       
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const oldRecordsResult = await db.run(`
-        DELETE FROM settings_changes 
-        WHERE timestamp < ?
-      `, [thirtyDaysAgo.toISOString()]);
+      const oldStmt = db.prepare(`DELETE FROM settings_changes WHERE timestamp < ?`);
+      const info = oldStmt.run(thirtyDaysAgo.toISOString());
       
-      if (oldRecordsResult.changes > 0) {
-        console.log(`Pruned ${oldRecordsResult.changes} records older than 30 days`);
+      if (info.changes > 0) {
+        console.log(`Pruned ${info.changes} records older than 30 days`);
       }
     } catch (error) {
       console.error('Error pruning old settings changes:', error.message);
@@ -3522,434 +3448,362 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 
 // ================ DYNAMIC RULE CREATION BASED ON INVERTER TYPES ================
 
-async function createDefaultRules() {
-  if (!dbConnected) return;
+function createDefaultRules() {
+  if (!dbConnected || !db) return;
   
   try {
-      const count = await countRules(USER_ID);
+    const count = countRules(USER_ID);
+    
+    if (count === 0) {
+      console.log('Creating dynamic default rules based on detected inverter types...');
       
-      if (count === 0) {
-          console.log('Creating dynamic default rules based on detected inverter types...');
-          
-          // Analyze detected inverter types
-          const detectedTypes = analyzeInverterTypes();
-          console.log(`Detected inverter environment: ${detectedTypes.summary}`);
-          
-          // Create rules based on detected types
-          const rules = [];
-          
-          // Rule 1: Adaptive Low Load Management
-          if (detectedTypes.hasAny) {
-              rules.push({
-                  name: 'Adaptive Low Load Management',
-                  description: `When load < 5000W, optimize energy usage (supports ${detectedTypes.summary})`,
-                  active: false,
-                  conditions: [{
-                      parameter: 'load',
-                      operator: 'lt',
-                      value: 5000
-                  }],
-                  actions: generateAdaptiveActions('energy_optimization', 'Battery first', detectedTypes),
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          // Rule 2: Smart Battery Protection
-          rules.push({
-              name: 'Smart Battery Protection',
-              description: `Enable charging when SOC < 20% (auto-adapts to ${detectedTypes.summary})`,
-              active: false,
-              conditions: [{
-                  parameter: 'battery_soc',
-                  operator: 'lt',
-                  value: 20
-              }],
-              actions: generateAdaptiveActions('charging', 'Enabled', detectedTypes),
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          });
-          
-          // Rule 3: Peak Solar Optimization (for new/hybrid inverters)
-          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
-              rules.push({
-                  name: 'Peak Solar Optimization',
-                  description: 'Prioritize solar during peak production (new inverters)',
-                  active: false,
-                  conditions: [{
-                      parameter: 'pv_power',
-                      operator: 'gt',
-                      value: 8000
-                  }],
-                  timeRestrictions: {
-                      startTime: '10:00',
-                      endTime: '16:00',
-                      enabled: true
-                  },
-                  actions: [{
-                      setting: 'output_source_priority',
-                      value: 'Solar first',
-                      inverter: 'all'
-                  }],
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          // Rule 4: Legacy Grid Management (for legacy inverters)
-          if (detectedTypes.hasLegacy) {
-              rules.push({
-                  name: 'Legacy Grid Management',
-                  description: 'Traditional grid charge control for legacy inverters',
-                  active: false,
-                  conditions: [{
-                      parameter: 'battery_soc',
-                      operator: 'lt',
-                      value: 50
-                  }, {
-                      parameter: 'pv_power',
-                      operator: 'lt',
-                      value: 3000
-                  }],
-                  actions: [{
-                      setting: 'grid_charge',
-                      value: 'Enabled',
-                      inverter: 'all'
-                  }],
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          // Rule 5: Universal High Load Response
-          rules.push({
-              name: 'High Load Response',
-              description: `Disable grid export when load > 12000W (all inverter types)`,
-              active: false,
-              conditions: [{
-                  parameter: 'load',
-                  operator: 'gt',
-                  value: 12000
-              }],
-              actions: [
-                  {
-                      setting: 'max_sell_power',
-                      value: '0',
-                      inverter: 'all'
-                  },
-                  ...generateAdaptiveActions('high_load', 'Grid first', detectedTypes)
-              ],
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          });
-          
-          // Save all rules
-          for (const rule of rules) {
-              await saveRule(rule);
-              console.log(`Created rule: ${rule.name}`);
-          }
-          
-          console.log(`Created ${rules.length} dynamic default rules for ${detectedTypes.summary}`);
-      }
-  } catch (error) {
-      console.error('Error creating dynamic default rules:', error.message);
-  }
-}
-
-async function createExtendedAutomationRules() {
-  if (!dbConnected) return;
-  
-  try {
-      const count = await db.get(`
-          SELECT COUNT(*) as count FROM rules 
-          WHERE user_id = ? AND name LIKE '%Extended%'
-      `, [USER_ID]);
-      
-      if (count.count === 0) {
-          console.log('Creating extended automation rules based on inverter types...');
-          
-          const detectedTypes = analyzeInverterTypes();
-          const rules = [];
-          
-          // Time-based optimization rules
-          if (detectedTypes.hasLegacy || detectedTypes.hasHybrid) {
-              // Morning optimization for legacy systems
-              rules.push({
-                  name: 'Extended - Morning Energy Optimization',
-                  description: 'Optimize morning energy usage (legacy compatible)',
-                  active: false,
-                  timeRestrictions: {
-                      startTime: '06:00',
-                      endTime: '10:00',
-                      enabled: true
-                  },
-                  conditions: [{
-                      parameter: 'battery_soc',
-                      operator: 'gt',
-                      value: 40
-                  }],
-                  actions: [{
-                      setting: 'energy_pattern',
-                      value: 'Load first',
-                      inverter: 'all'
-                  }],
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
-              // Advanced charging strategies for new inverters
-              rules.push({
-                  name: 'Extended - Smart Charging Strategy',
-                  description: 'Advanced charging control for new inverters',
-                  active: false,
-                  conditions: [
-                      {
-                          parameter: 'battery_soc',
-                          operator: 'lt',
-                          value: 60
-                      },
-                      {
-                          parameter: 'pv_power',
-                          operator: 'gt',
-                          value: 4000
-                      }
-                  ],
-                  actions: [{
-                      setting: 'charger_source_priority',
-                      value: 'Solar and utility simultaneously',
-                      inverter: 'all'
-                  }],
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-              
-              // Evening optimization for new inverters
-              rules.push({
-                  name: 'Extended - Evening Battery Priority',
-                  description: 'Optimize evening energy usage (new inverters)',
-                  active: false,
-                  timeRestrictions: {
-                      startTime: '18:00',
-                      endTime: '22:00',
-                      enabled: true
-                  },
-                  conditions: [{
-                      parameter: 'battery_soc',
-                      operator: 'gt',
-                      value: 50
-                  }],
-                  actions: [{
-                      setting: 'output_source_priority',
-                      value: 'Solar/Battery/Utility',
-                      inverter: 'all'
-                  }],
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          // Universal battery protection
-          rules.push({
-              name: 'Extended - Deep Discharge Protection',
-              description: 'Protect battery from deep discharge (all types)',
-              active: false,
-              conditions: [{
-                  parameter: 'battery_soc',
-                  operator: 'lt',
-                  value: 25
-              }],
-              actions: [
-                  {
-                      setting: 'max_discharge_current',
-                      value: '20',
-                      inverter: 'all'
-                  },
-                  ...generateAdaptiveActions('emergency_charge', 'Enabled', detectedTypes)
-              ],
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          });
-          
-          // Save all extended rules
-          for (const rule of rules) {
-              await saveRule(rule);
-              console.log(`Created extended rule: ${rule.name}`);
-          }
-          
-          console.log(`Created ${rules.length} extended automation rules for ${detectedTypes.summary}`);
-      }
-  } catch (error) {
-      console.error('Error creating extended automation rules:', error.message);
-  }
-}
-
-async function createNightChargingRule() {
-  if (!dbConnected) return;
-  
-  try {
       const detectedTypes = analyzeInverterTypes();
+      console.log(`Detected inverter environment: ${detectedTypes.summary}`);
       
-      // Check if night charging rule exists
-      const existingRule = await db.get(`
-          SELECT * FROM rules 
-          WHERE name LIKE 'Night Charging%' AND user_id = ?
-      `, [USER_ID]);
+      const rules = [];
       
-      if (!existingRule) {
-          const nightRule = {
-              name: `Night Charging Strategy (${detectedTypes.primary})`,
-              description: `Intelligent night charging for ${detectedTypes.summary}`,
-              active: false,
-              conditions: [{
-                  parameter: 'battery_soc',
-                  operator: 'lt',
-                  value: 85
-              }],
-              timeRestrictions: {
-                  startTime: '23:00',
-                  endTime: '05:00',
-                  enabled: true,
-                  days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-              },
-              actions: [],
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          };
-          
-          // Add appropriate actions based on inverter types
-          if (detectedTypes.hasNew) {
-              nightRule.actions.push({
-                  setting: 'charger_source_priority',
-                  value: 'Utility first',
-                  inverter: 'all'
-              });
-              nightRule.actions.push({
-                  setting: 'max_grid_charge_current',
-                  value: '80',
-                  inverter: 'all'
-              });
-          } else {
-              nightRule.actions.push({
-                  setting: 'grid_charge',
-                  value: 'Enabled',
-                  inverter: 'all'
-              });
-          }
-          
-          await saveRule(nightRule);
-          console.log('Created dynamic night charging rule');
-          
-          // Create complementary daytime rule
-          const daytimeRule = {
-              name: `Daytime Solar Priority (${detectedTypes.primary})`,
-              description: `Disable grid charging during day for ${detectedTypes.summary}`,
-              active: false,
-              timeRestrictions: {
-                  startTime: '06:00',
-                  endTime: '22:00',
-                  enabled: true
-              },
-              conditions: [{
-                  parameter: 'pv_power',
-                  operator: 'gt',
-                  value: 1000
-              }],
-              actions: generateAdaptiveActions('solar_priority', 'Disabled', detectedTypes),
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          };
-          
-          await saveRule(daytimeRule);
-          console.log('Created complementary daytime rule');
+      // Rule 1: Adaptive Low Load Management
+      if (detectedTypes.hasAny) {
+        rules.push({
+          name: 'Adaptive Low Load Management',
+          description: `When load < 5000W, optimize energy usage (supports ${detectedTypes.summary})`,
+          active: false,
+          conditions: [{
+            parameter: 'load',
+            operator: 'lt',
+            value: 5000
+          }],
+          actions: generateAdaptiveActions('energy_optimization', 'Battery first', detectedTypes),
+          user_id: USER_ID,
+          mqtt_username: mqttConfig.username
+        });
       }
+      
+      // Rule 2: Smart Battery Protection
+      rules.push({
+        name: 'Smart Battery Protection',
+        description: `Enable charging when SOC < 20% (auto-adapts to ${detectedTypes.summary})`,
+        active: false,
+        conditions: [{
+          parameter: 'battery_soc',
+          operator: 'lt',
+          value: 20
+        }],
+        actions: generateAdaptiveActions('charging', 'Enabled', detectedTypes),
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      // Save all rules
+      for (const rule of rules) {
+        saveRule(rule);
+        console.log(`Created rule: ${rule.name}`);
+      }
+      
+      console.log(`Created ${rules.length} dynamic default rules for ${detectedTypes.summary}`);
+    }
   } catch (error) {
-      console.error('Error creating night charging rules:', error.message);
+    console.error('Error creating dynamic default rules:', error.message);
   }
 }
 
-async function createWeekendGridChargeRules() {
-  if (!dbConnected) return;
+function createExtendedAutomationRules() {
+  if (!dbConnected || !db) return;
   
   try {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM rules 
+      WHERE user_id = ? AND name LIKE '%Extended%'
+    `);
+    const count = stmt.get(USER_ID);
+    
+    if (count.count === 0) {
+      console.log('Creating extended automation rules based on inverter types...');
+      
       const detectedTypes = analyzeInverterTypes();
+      const rules = [];
       
-      // Check if weekend rules exist
-      const existingWeekendRule = await db.get(`
-          SELECT * FROM rules 
-          WHERE name LIKE '%Weekend%' AND user_id = ?
-      `, [USER_ID]);
-      
-      if (!existingWeekendRule) {
-          const weekendRules = [];
-          
-          // Weekend optimization rule
-          weekendRules.push({
-              name: `Weekend Solar Maximization (${detectedTypes.primary})`,
-              description: `Maximize solar usage on weekends for ${detectedTypes.summary}`,
-              active: false,
-              timeRestrictions: {
-                  days: ['saturday', 'sunday'],
-                  enabled: true
-              },
-              conditions: [{
-                  parameter: 'pv_power',
-                  operator: 'gt',
-                  value: 2000
-              }],
-              actions: [
-                  ...generateAdaptiveActions('weekend_solar', 'Disabled', detectedTypes),
-                  {
-                      setting: 'solar_export_when_battery_full',
-                      value: 'Enabled',
-                      inverter: 'all'
-                  }
-              ],
-              user_id: USER_ID,
-              mqtt_username: mqttConfig.username
-          });
-          
-          // Weekend battery preservation
-          if (detectedTypes.hasAny) {
-              weekendRules.push({
-                  name: `Weekend Battery Preservation (${detectedTypes.primary})`,
-                  description: 'Preserve battery on weekends when solar is available',
-                  active: false,
-                  timeRestrictions: {
-                      days: ['saturday', 'sunday'],
-                      startTime: '09:00',
-                      endTime: '17:00',
-                      enabled: true
-                  },
-                  conditions: [
-                      {
-                          parameter: 'battery_soc',
-                          operator: 'gt',
-                          value: 70
-                      },
-                      {
-                          parameter: 'pv_power',
-                          operator: 'gt',
-                          value: 5000
-                      }
-                  ],
-                  actions: generateAdaptiveActions('battery_preserve', 'Load first', detectedTypes),
-                  user_id: USER_ID,
-                  mqtt_username: mqttConfig.username
-              });
-          }
-          
-          // Save weekend rules
-          for (const rule of weekendRules) {
-              await saveRule(rule);
-              console.log(`Created weekend rule: ${rule.name}`);
-          }
-          
-          console.log(`Created ${weekendRules.length} weekend rules for ${detectedTypes.summary}`);
+      // Time-based optimization rules
+      if (detectedTypes.hasLegacy || detectedTypes.hasHybrid) {
+        // Morning optimization for legacy systems
+        rules.push({
+          name: 'Extended - Morning Energy Optimization',
+          description: 'Optimize morning energy usage (legacy compatible)',
+          active: false,
+          timeRestrictions: {
+            startTime: '06:00',
+            endTime: '10:00',
+            enabled: true
+          },
+          conditions: [{
+            parameter: 'battery_soc',
+            operator: 'gt',
+            value: 40
+          }],
+          actions: [{
+            setting: 'energy_pattern',
+            value: 'Load first',
+            inverter: 'all'
+          }],
+          user_id: USER_ID,
+          mqtt_username: mqttConfig.username
+        });
       }
+      
+      if (detectedTypes.hasNew || detectedTypes.hasHybrid) {
+        // Advanced charging strategies for new inverters
+        rules.push({
+          name: 'Extended - Smart Charging Strategy',
+          description: 'Advanced charging control for new inverters',
+          active: false,
+          conditions: [
+            {
+              parameter: 'battery_soc',
+              operator: 'lt',
+              value: 60
+            },
+            {
+              parameter: 'pv_power',
+              operator: 'gt',
+              value: 4000
+            }
+          ],
+          actions: [{
+            setting: 'charger_source_priority',
+            value: 'Solar and utility simultaneously',
+            inverter: 'all'
+          }],
+          user_id: USER_ID,
+          mqtt_username: mqttConfig.username
+        });
+        
+        // Evening optimization for new inverters
+        rules.push({
+          name: 'Extended - Evening Battery Priority',
+          description: 'Optimize evening energy usage (new inverters)',
+          active: false,
+          timeRestrictions: {
+            startTime: '18:00',
+            endTime: '22:00',
+            enabled: true
+          },
+          conditions: [{
+            parameter: 'battery_soc',
+            operator: 'gt',
+            value: 50
+          }],
+          actions: [{
+            setting: 'output_source_priority',
+            value: 'Solar/Battery/Utility',
+            inverter: 'all'
+          }],
+          user_id: USER_ID,
+          mqtt_username: mqttConfig.username
+        });
+      }
+      
+      // Universal battery protection
+      rules.push({
+        name: 'Extended - Deep Discharge Protection',
+        description: 'Protect battery from deep discharge (all types)',
+        active: false,
+        conditions: [{
+          parameter: 'battery_soc',
+          operator: 'lt',
+          value: 25
+        }],
+        actions: [
+          {
+            setting: 'max_discharge_current',
+            value: '20',
+            inverter: 'all'
+          },
+          ...generateAdaptiveActions('emergency_charge', 'Enabled', detectedTypes)
+        ],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      // Save all extended rules
+      for (const rule of rules) {
+        saveRule(rule);
+        console.log(`Created extended rule: ${rule.name}`);
+      }
+      
+      console.log(`Created ${rules.length} extended automation rules for ${detectedTypes.summary}`);
+    }
   } catch (error) {
-      console.error('Error creating weekend rules:', error.message);
+    console.error('Error creating extended automation rules:', error.message);
+  }
+}
+
+function createNightChargingRule() {
+  if (!dbConnected || !db) return;
+  
+  try {
+    const detectedTypes = analyzeInverterTypes();
+    
+    // Check if night charging rule exists
+    const stmt = db.prepare(`
+      SELECT * FROM rules 
+      WHERE name LIKE 'Night Charging%' AND user_id = ?
+    `);
+    const existingRule = stmt.get(USER_ID);
+    
+    if (!existingRule) {
+      const nightRule = {
+        name: `Night Charging Strategy (${detectedTypes.primary})`,
+        description: `Intelligent night charging for ${detectedTypes.summary}`,
+        active: false,
+        conditions: [{
+          parameter: 'battery_soc',
+          operator: 'lt',
+          value: 85
+        }],
+        timeRestrictions: {
+          startTime: '23:00',
+          endTime: '05:00',
+          enabled: true,
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        },
+        actions: [],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      };
+      
+      // Add appropriate actions based on inverter types
+      if (detectedTypes.hasNew) {
+        nightRule.actions.push({
+          setting: 'charger_source_priority',
+          value: 'Utility first',
+          inverter: 'all'
+        });
+        nightRule.actions.push({
+          setting: 'max_grid_charge_current',
+          value: '80',
+          inverter: 'all'
+        });
+      } else {
+        nightRule.actions.push({
+          setting: 'grid_charge',
+          value: 'Enabled',
+          inverter: 'all'
+        });
+      }
+      
+      saveRule(nightRule);
+      console.log('Created dynamic night charging rule');
+      
+      // Create complementary daytime rule
+      const daytimeRule = {
+        name: `Daytime Solar Priority (${detectedTypes.primary})`,
+        description: `Disable grid charging during day for ${detectedTypes.summary}`,
+        active: false,
+        timeRestrictions: {
+          startTime: '06:00',
+          endTime: '22:00',
+          enabled: true
+        },
+        conditions: [{
+          parameter: 'pv_power',
+          operator: 'gt',
+          value: 1000
+        }],
+        actions: generateAdaptiveActions('solar_priority', 'Disabled', detectedTypes),
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      };
+      
+      saveRule(daytimeRule);
+      console.log('Created complementary daytime rule');
+    }
+  } catch (error) {
+    console.error('Error creating night charging rules:', error.message);
+  }
+}
+
+function createWeekendGridChargeRules() {
+  if (!dbConnected || !db) return;
+  
+  try {
+    const detectedTypes = analyzeInverterTypes();
+    
+    // Check if weekend rules exist
+    const stmt = db.prepare(`
+      SELECT * FROM rules 
+      WHERE name LIKE '%Weekend%' AND user_id = ?
+    `);
+    const existingWeekendRule = stmt.get(USER_ID);
+    
+    if (!existingWeekendRule) {
+      const weekendRules = [];
+      
+      // Weekend optimization rule
+      weekendRules.push({
+        name: `Weekend Solar Maximization (${detectedTypes.primary})`,
+        description: `Maximize solar usage on weekends for ${detectedTypes.summary}`,
+        active: false,
+        timeRestrictions: {
+          days: ['saturday', 'sunday'],
+          enabled: true
+        },
+        conditions: [{
+          parameter: 'pv_power',
+          operator: 'gt',
+          value: 2000
+        }],
+        actions: [
+          ...generateAdaptiveActions('weekend_solar', 'Disabled', detectedTypes),
+          {
+            setting: 'solar_export_when_battery_full',
+            value: 'Enabled',
+            inverter: 'all'
+          }
+        ],
+        user_id: USER_ID,
+        mqtt_username: mqttConfig.username
+      });
+      
+      // Weekend battery preservation
+      if (detectedTypes.hasAny) {
+        weekendRules.push({
+          name: `Weekend Battery Preservation (${detectedTypes.primary})`,
+          description: 'Preserve battery on weekends when solar is available',
+          active: false,
+          timeRestrictions: {
+            days: ['saturday', 'sunday'],
+            startTime: '09:00',
+            endTime: '17:00',
+            enabled: true
+          },
+          conditions: [
+            {
+              parameter: 'battery_soc',
+              operator: 'gt',
+              value: 70
+            },
+            {
+              parameter: 'pv_power',
+              operator: 'gt',
+              value: 5000
+            }
+          ],
+          actions: generateAdaptiveActions('battery_preserve', 'Load first', detectedTypes),
+          user_id: USER_ID,
+          mqtt_username: mqttConfig.username
+        });
+      }
+      
+      // Save weekend rules
+      for (const rule of weekendRules) {
+        saveRule(rule);
+        console.log(`Created weekend rule: ${rule.name}`);
+      }
+      
+      console.log(`Created ${weekendRules.length} weekend rules for ${detectedTypes.summary}`);
+    }
+  } catch (error) {
+    console.error('Error creating weekend rules:', error.message);
   }
 }
 
@@ -4548,14 +4402,13 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
 
   // ================ ENHANCED INVERTER SETTINGS PAGE ================
 
-app.get('/inverter-settings', async (req, res) => {
+  app.get('/inverter-settings', (req, res) => {
     try {
       let settingsCount = 0;
-      if (dbConnected) {
+      if (dbConnected && db) {
         try {
-          const result = await db.get(`
-            SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-          `, [USER_ID]);
+          const stmt = db.prepare(`SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?`);
+          const result = stmt.get(USER_ID);
           settingsCount = result.count || 0;
         } catch (dbError) {
           console.error('Error getting settings count:', dbError);
@@ -4627,57 +4480,28 @@ app.get('/inverter-settings', async (req, res) => {
       const batteryWarning = checkBatteryInformation(incomingMessages);
   
       res.render('inverter-settings', { 
-        // Learner mode and system status
         active: learnerModeActive,
         db_connected: dbConnected,
-        
-        // Current system state (real-time data)
         currentSystemState: systemState,
-        
-        // Current inverter settings (enhanced with both types)
         currentSettings: settings,
-        
-        // Inverter type detection information
         inverterTypes: inverterTypes,
-        
-        // Configuration
         numInverters: config.inverterNumber,
         numBatteries: config.batteryNumber,
         mqtt_topic_prefix: config.mqttTopicPrefix,
         mqtt_host: config.mqttHost,
         mqtt_username: config.mqttUsername,
-        
-        // User identification
         user_id: USER_ID,
-        
-        // Settings statistics
         settings_count: settingsCount,
-        
-        // System warnings
         inverterWarning: inverterWarning,
         batteryWarning: batteryWarning,
-        
-        // Ingress path for Home Assistant add-on compatibility
         ingress_path: process.env.INGRESS_PATH || '',
-        
-        // Additional metadata
         timestamp: new Date(),
         serverPort: port,
-        
-        // Flags for frontend
         useInMemorySettings: true,
         realTimeUpdates: true,
-        
-        // MQTT connection status
         mqttConnected: mqttClient ? mqttClient.connected : false,
-        
-        // Recent messages sample for debugging (limited to last 10)
         recentMessages: incomingMessages.slice(-10),
-        
-        // Dynamic pricing status (if available)
         dynamicPricingEnabled: false,
-        
-        // Enhanced support flags
         supportsLegacySettings: true,
         supportsNewSettings: true,
         autoDetection: true
@@ -4849,14 +4673,15 @@ app.get('/inverter-settings', async (req, res) => {
       const dateThreshold = new Date();
       dateThreshold.setDate(dateThreshold.getDate() - days);
       
-      const changes = await db.all(`
+      const stmt = db.prepare(`
         SELECT * FROM settings_changes 
         WHERE (topic LIKE ? OR change_type = ?) 
         AND timestamp >= ? 
         AND user_id = ?
         ORDER BY timestamp ASC
         LIMIT 1000
-      `, [`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID]);
+      `);
+      const changes = stmt.all(`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID);
       
       const formattedData = changes.map(change => ({
         timestamp: new Date(change.timestamp),
@@ -4876,8 +4701,6 @@ app.get('/inverter-settings', async (req, res) => {
       res.status(500).json({ error: 'Failed to retrieve setting history' });
     }
   });
-  
-  // Dynamic pricing route removed
   
   
   // ================ RULES MANAGEMENT API ================
@@ -4939,84 +4762,84 @@ app.get('/inverter-settings', async (req, res) => {
     }
 });
   
-  app.put('/api/rules/:id', async (req, res) => {
-    try {
-      const ruleId = req.params.id;
-      
-      console.log(`Attempting to update rule with ID: ${ruleId}`);
-      console.log('Request body:', req.body);
-      
-      if (!dbConnected) {
-        console.log('Database not connected, cannot update rule');
-        return res.status(503).json({ 
-          success: false, 
-          error: 'Database not connected', 
-          status: 'disconnected' 
-        });
-      }
-      
-      const { name, description, active, conditions, timeRestrictions, actions } = req.body;
-      
-      if (!name) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Rule name is required' 
-        });
-      }
-      
-      if (!actions || actions.length === 0) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'At least one action is required' 
-        });
-      }
-      
-      const rule = await getRuleById(ruleId, USER_ID);
-      
-      if (!rule) {
-        console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
-        return res.status(404).json({ 
-          success: false, 
-          error: 'Rule not found' 
-        });
-      }
-      
-      const updatedRule = {
-        ...rule,
-        name,
-        description,
-        active: active !== undefined ? !!active : rule.active,
-        conditions: conditions || [],
-        timeRestrictions: timeRestrictions || {},
-        actions
-      };
-      
-      console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
-      
-      const success = await updateRule(ruleId, updatedRule);
-      
-      if (!success) {
-        console.log(`Failed to update rule with ID ${ruleId}`);
-        return res.status(500).json({ 
-          success: false, 
-          error: 'Failed to update rule' 
-        });
-      }
-      
-      console.log(`Successfully updated rule with ID ${ruleId}`);
-      return res.status(200).json({
-        success: true,
-        message: 'Rule updated successfully',
-        rule: updatedRule
-      });
-    } catch (error) {
-      console.error('Error in update rule endpoint:', error);
-      return res.status(500).json({ 
+app.put('/api/rules/:id', (req, res) => {
+  try {
+    const ruleId = req.params.id;
+    
+    console.log(`Attempting to update rule with ID: ${ruleId}`);
+    console.log('Request body:', req.body);
+    
+    if (!dbConnected || !db) {
+      console.log('Database not connected, cannot update rule');
+      return res.status(503).json({ 
         success: false, 
-        error: 'Server error: ' + error.message 
+        error: 'Database not connected', 
+        status: 'disconnected' 
       });
     }
-  });
+    
+    const { name, description, active, conditions, timeRestrictions, actions } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Rule name is required' 
+      });
+    }
+    
+    if (!actions || actions.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least one action is required' 
+      });
+    }
+    
+    const rule = getRuleById(ruleId, USER_ID);
+    
+    if (!rule) {
+      console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Rule not found' 
+      });
+    }
+    
+    const updatedRule = {
+      ...rule,
+      name,
+      description,
+      active: active !== undefined ? !!active : rule.active,
+      conditions: conditions || [],
+      timeRestrictions: timeRestrictions || {},
+      actions
+    };
+    
+    console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
+    
+    const success = updateRule(ruleId, updatedRule);
+    
+    if (!success) {
+      console.log(`Failed to update rule with ID ${ruleId}`);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to update rule' 
+      });
+    }
+    
+    console.log(`Successfully updated rule with ID ${ruleId}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Rule updated successfully',
+      rule: updatedRule
+    });
+  } catch (error) {
+    console.error('Error in update rule endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
+  }
+});
   
   app.post('/api/rules/:id/duplicate', async (req, res) => {
     try {
@@ -5087,14 +4910,15 @@ app.get('/inverter-settings', async (req, res) => {
       let systemState = { ...currentSystemState };
       
       if (dbConnected) {
-        ruleHistory = await db.all(`
+        const stmt = db.prepare(`
           SELECT * FROM rules
           WHERE last_triggered IS NOT NULL
           AND user_id = ?
           ORDER BY last_triggered DESC
-        `, [USER_ID]);
+        `);
+        const rules = stmt.all(USER_ID);
         
-        ruleHistory = ruleHistory.map(rule => ({
+        ruleHistory = rules.map(rule => ({
           id: rule.id,
           name: rule.name,
           description: rule.description,
@@ -5134,29 +4958,30 @@ app.get('/inverter-settings', async (req, res) => {
       const sortBy = req.query.sortBy || 'last_triggered';
       const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
       
-      const ruleHistory = await db.all(`
+      const stmt = db.prepare(`
         SELECT id, name, description, active, last_triggered, trigger_count, conditions, actions, time_restrictions
         FROM rules
         WHERE last_triggered IS NOT NULL
         AND user_id = ?
         ORDER BY ${sortBy} ${sortOrder}
         LIMIT ? OFFSET ?
-      `, [USER_ID, limit, skip]);
+      `);
+      const ruleHistory = stmt.all(USER_ID, limit, skip);
       
-      const countResult = await db.get(`
+      const countStmt = db.prepare(`
         SELECT COUNT(*) as total
         FROM rules
         WHERE last_triggered IS NOT NULL
         AND user_id = ?
-      `, [USER_ID]);
-      
+      `);
+      const countResult = countStmt.get(USER_ID);
       const totalCount = countResult.total;
       
       const formattedRules = ruleHistory.map(rule => ({
         id: rule.id,
         name: rule.name,
         description: rule.description,
-        active: rule.active === 1, // ← This line was missing!
+        active: rule.active === 1,
         lastTriggered: new Date(rule.last_triggered),
         triggerCount: rule.trigger_count,
         conditions: JSON.parse(rule.conditions || '[]'),
@@ -5190,31 +5015,31 @@ app.get('/inverter-settings', async (req, res) => {
         });
       }
       
-      const totalRulesResult = await db.get(`
-        SELECT COUNT(*) as count FROM rules WHERE user_id = ?
-      `, [USER_ID]);
+      const totalRulesStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
+      const totalRulesResult = totalRulesStmt.get(USER_ID);
       
-      const totalExecutionsResult = await db.get(`
-        SELECT SUM(trigger_count) as total FROM rules WHERE user_id = ?
-      `, [USER_ID]);
+      const totalExecutionsStmt = db.prepare(`SELECT SUM(trigger_count) as total FROM rules WHERE user_id = ?`);
+      const totalExecutionsResult = totalExecutionsStmt.get(USER_ID);
       
-      const mostActiveRuleResult = await db.get(`
+      const mostActiveRuleStmt = db.prepare(`
         SELECT name, trigger_count FROM rules 
         WHERE user_id = ? AND trigger_count > 0
         ORDER BY trigger_count DESC
         LIMIT 1
-      `, [USER_ID]);
+      `);
+      const mostActiveRuleResult = mostActiveRuleStmt.get(USER_ID);
       
       const now = new Date();
       const oneDayAgo = new Date(now);
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       
-      const last24HoursResult = await db.get(`
+      const last24HoursStmt = db.prepare(`
         SELECT COUNT(*) as count FROM rules 
         WHERE user_id = ? 
         AND last_triggered IS NOT NULL 
         AND last_triggered >= ?
-      `, [USER_ID, oneDayAgo.toISOString()]);
+      `);
+      const last24HoursResult = last24HoursStmt.get(USER_ID, oneDayAgo.toISOString());
       
       res.json({
         totalRules: totalRulesResult.count || 0,
@@ -5335,40 +5160,41 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  app.get('/rules', async (req, res) => {
+  app.get('/rules', (req, res) => {
     try {
       let rulesCount = 0;
       let activeRulesCount = 0;
       let systemState = { ...currentSystemState };
       let recentlyTriggered = [];
       
-      if (dbConnected) {
-        const rulesCountResult = await db.get(`
-          SELECT COUNT(*) as count FROM rules WHERE user_id = ?
-        `, [USER_ID]);
-        
-        rulesCount = rulesCountResult.count;
-        
-        const activeRulesCountResult = await db.get(`
-          SELECT COUNT(*) as count FROM rules WHERE active = 1 AND user_id = ?
-        `, [USER_ID]);
-        
-        activeRulesCount = activeRulesCountResult.count;
-        
-        const recentlyTriggeredResults = await db.all(`
-          SELECT id, name, last_triggered
-          FROM rules
-          WHERE last_triggered IS NOT NULL
-          AND user_id = ?
-          ORDER BY last_triggered DESC
-          LIMIT 5
-        `, [USER_ID]);
-        
-        recentlyTriggered = recentlyTriggeredResults.map(rule => ({
-          id: rule.id,
-          name: rule.name,
-          lastTriggered: new Date(rule.last_triggered)
-        }));
+      if (dbConnected && db) {
+        try {
+          const rulesCountStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
+          const rulesCountResult = rulesCountStmt.get(USER_ID);
+          rulesCount = rulesCountResult.count;
+          
+          const activeRulesCountStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE active = 1 AND user_id = ?`);
+          const activeRulesCountResult = activeRulesCountStmt.get(USER_ID);
+          activeRulesCount = activeRulesCountResult.count;
+          
+          const recentlyTriggeredStmt = db.prepare(`
+            SELECT id, name, last_triggered
+            FROM rules
+            WHERE last_triggered IS NOT NULL
+            AND user_id = ?
+            ORDER BY last_triggered DESC
+            LIMIT 5
+          `);
+          const recentlyTriggeredResults = recentlyTriggeredStmt.all(USER_ID);
+          
+          recentlyTriggered = recentlyTriggeredResults.map(rule => ({
+            id: rule.id,
+            name: rule.name,
+            lastTriggered: new Date(rule.last_triggered)
+          }));
+        } catch (dbError) {
+          console.error('Error getting rules data:', dbError);
+        }
       }
       
       res.render('rules', { 
@@ -5379,7 +5205,6 @@ app.get('/inverter-settings', async (req, res) => {
         recently_triggered: recentlyTriggered,
         ingress_path: process.env.INGRESS_PATH || '',
         user_id: USER_ID,
-        // Enhanced rules page with inverter type support
         inverterTypes: inverterTypes,
         supportsLegacySettings: true,
         supportsNewSettings: true,
@@ -5391,9 +5216,9 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
     
-  app.get('/api/rules', async (req, res) => {
+  app.get('/api/rules', (req, res) => {
     try {
-      if (!dbConnected) {
+      if (!dbConnected || !db) {
         return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
       }
       
@@ -5405,7 +5230,7 @@ app.get('/inverter-settings', async (req, res) => {
         queryOptions.active = activeBoolean;
       }
       
-      const rules = await getAllRules(USER_ID, queryOptions);
+      const rules = getAllRules(USER_ID, queryOptions);
       
       const rulesWithStatus = rules.map(rule => ({
         ...rule,
@@ -5420,13 +5245,13 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  app.delete('/api/rules/:id', async (req, res) => {
+  app.delete('/api/rules/:id', (req, res) => {
     try {
       const ruleId = req.params.id;
       
       console.log(`Attempting to delete rule with ID: ${ruleId}`);
       
-      if (!dbConnected) {
+      if (!dbConnected || !db) {
         console.log('Database not connected, cannot delete rule');
         return res.status(503).json({ 
           success: false, 
@@ -5435,7 +5260,7 @@ app.get('/inverter-settings', async (req, res) => {
         });
       }
       
-      const rule = await getRuleById(ruleId, USER_ID);
+      const rule = getRuleById(ruleId, USER_ID);
       
       if (!rule) {
         console.log(`Rule with ID ${ruleId} not found or does not belong to user ${USER_ID}`);
@@ -5446,7 +5271,7 @@ app.get('/inverter-settings', async (req, res) => {
       }
       
       console.log(`Found rule "${rule.name}" with ID ${ruleId}, proceeding with deletion`);
-      const success = await deleteRule(ruleId, USER_ID);
+      const success = deleteRule(ruleId, USER_ID);
       
       if (!success) {
         console.log(`Failed to delete rule with ID ${ruleId}`);
@@ -5470,13 +5295,13 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  app.get('/api/rules/:id', async (req, res) => {
+  app.get('/api/rules/:id', (req, res) => {
     try {
-      if (!dbConnected) {
+      if (!dbConnected || !db) {
         return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
       }
       
-      const rule = await getRuleById(req.params.id, USER_ID);
+      const rule = getRuleById(req.params.id, USER_ID);
       
       if (!rule) {
         return res.status(404).json({ error: 'Rule not found' });
@@ -5513,8 +5338,7 @@ app.get('/inverter-settings', async (req, res) => {
       const hoursAgo = new Date();
       hoursAgo.setHours(hoursAgo.getHours() - hours);
       
-      // Get recent settings changes that include system state
-      const changes = await db.all(`
+      const stmt = db.prepare(`
         SELECT timestamp, system_state FROM settings_changes 
         WHERE user_id = ? 
         AND timestamp >= ? 
@@ -5522,7 +5346,8 @@ app.get('/inverter-settings', async (req, res) => {
         AND system_state != '{}'
         ORDER BY timestamp DESC 
         LIMIT ?
-      `, [USER_ID, hoursAgo.toISOString(), limit]);
+      `);
+      const changes = stmt.all(USER_ID, hoursAgo.toISOString(), limit);
       
       const historyData = changes.map(change => {
         try {
@@ -5538,7 +5363,7 @@ app.get('/inverter-settings', async (req, res) => {
         } catch (e) {
           return null;
         }
-      }).filter(item => item !== null).reverse(); // Reverse to get chronological order
+      }).filter(item => item !== null).reverse();
       
       res.json({
         success: true,
@@ -5555,9 +5380,9 @@ app.get('/inverter-settings', async (req, res) => {
     }
   });
   
-  app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
+  app.get('/api/settings-changes', apiRateLimiter, (req, res) => {
     try {
-      if (!dbConnected) {
+      if (!dbConnected || !db) {
         return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
       }
       
@@ -5565,51 +5390,9 @@ app.get('/inverter-settings', async (req, res) => {
       const limit = Math.min(parseInt(req.query.limit) || 50, 100);
       const skip = parseInt(req.query.skip) || 0;
       
-      let query = `SELECT * FROM settings_changes WHERE user_id = ?`;
-      const params = [USER_ID];
+      const result = getSettingsChanges(USER_ID, { changeType, limit, skip });
       
-      if (changeType) {
-        query += ` AND change_type = ?`;
-        params.push(changeType);
-      }
-      
-      query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
-      params.push(limit, skip);
-      
-      const changes = await db.all(query, params);
-      
-      const totalCountQuery = `SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?` + 
-        (changeType ? ` AND change_type = ?` : ``);
-      
-      const totalParams = changeType ? [USER_ID, changeType] : [USER_ID];
-      const totalResult = await db.get(totalCountQuery, totalParams);
-      
-      const formattedChanges = changes.map(change => ({
-        id: change.id,
-        timestamp: new Date(change.timestamp),
-        topic: change.topic,
-        old_value: parseJsonOrValue(change.old_value),
-        new_value: parseJsonOrValue(change.new_value),
-        system_state: {
-          battery_soc: JSON.parse(change.system_state || '{}').battery_soc,
-          pv_power: JSON.parse(change.system_state || '{}').pv_power,
-          load: JSON.parse(change.system_state || '{}').load,
-          grid_power: JSON.parse(change.system_state || '{}').grid_power,
-          timestamp: JSON.parse(change.system_state || '{}').timestamp
-        },
-        change_type: change.change_type,
-        user_id: change.user_id
-      }));
-      
-      res.json({
-        changes: formattedChanges,
-        pagination: {
-          total: totalResult.total,
-          limit,
-          skip,
-          hasMore: skip + limit < totalResult.total
-        }
-      });
+      res.json(result);
     } catch (error) {
       console.error('Error retrieving settings changes:', error);
       res.status(500).json({ error: 'Failed to retrieve data' });
@@ -5664,12 +5447,13 @@ app.get('/inverter-settings', async (req, res) => {
       
       const limit = parseInt(req.query.limit) || 50;
       
-      const changes = await db.all(`
+      const stmt = db.prepare(`
         SELECT * FROM settings_changes 
         WHERE user_id = ?
         ORDER BY timestamp DESC
         LIMIT ?
-      `, [USER_ID, limit]);
+      `);
+      const changes = stmt.all(USER_ID, limit);
       
       const formattedChanges = changes.map(change => ({
         id: change.id,
@@ -5698,15 +5482,17 @@ app.get('/inverter-settings', async (req, res) => {
     });
   });
   
-  app.get('/learner', async (req, res) => {
+  app.get('/learner', (req, res) => {
     try {
       let changesCount = 0;
-      if (dbConnected) {
-        const result = await db.get(`
-          SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-        `, [USER_ID]);
-        
-        changesCount = result.count;
+      if (dbConnected && db) {
+        try {
+          const stmt = db.prepare(`SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?`);
+          const result = stmt.get(USER_ID);
+          changesCount = result.count;
+        } catch (dbError) {
+          console.error('Error getting settings count:', dbError);
+        }
       }
       
       res.render('learner', { 
@@ -5717,7 +5503,6 @@ app.get('/inverter-settings', async (req, res) => {
         db_connected: dbConnected,
         ingress_path: process.env.INGRESS_PATH || '',
         user_id: USER_ID,
-        // Enhanced learner page with inverter support
         inverterTypes: inverterTypes,
         supportsLegacySettings: true,
         supportsNewSettings: true,
@@ -6021,11 +5806,11 @@ app.post('/api/rules/preview', async (req, res) => {
     }
 });
 
-app.post('/api/rules', async (req, res) => {
+app.post('/api/rules', (req, res) => {
   try {
     console.log('Creating new rule with data:', req.body);
     
-    if (!dbConnected) {
+    if (!dbConnected || !db) {
       return res.status(503).json({ 
         success: false, 
         error: 'Database not connected', 
@@ -6062,7 +5847,7 @@ app.post('/api/rules', async (req, res) => {
     
     console.log(`Creating new rule "${newRule.name}" with ${newRule.actions.length} action(s) and ${newRule.conditions.length} condition(s)`);
     
-    const savedRule = await saveRule(newRule);
+    const savedRule = saveRule(newRule);
     
     if (!savedRule) {
       console.log(`Failed to create new rule "${newRule.name}"`);
@@ -7288,8 +7073,6 @@ cron.schedule('*/5 * * * *', () => {
     });
   });
   
-
-
   
 // ================ COMPLETE ENHANCED INITIALIZATION FUNCTION ================
 
@@ -7322,26 +7105,27 @@ async function initializeConnections() {
   // Initialize data
   await initializeData();
   
-  // Dynamic pricing integration removed
+  // Setup global variables
   try {
-    // Removed dynamic pricing initialization
-    
     global.mqttClient = mqttClient;
     global.currentSystemState = currentSystemState;
-    global.inverterTypes = inverterTypes; // Make inverter types available globally
+    global.inverterTypes = inverterTypes;
     
-    console.log('✅ Dynamic pricing integration initialized with intelligent inverter type support and automatic command mapping');
+    console.log('✅ Global variables initialized with intelligent inverter type support');
   } catch (error) {
-    console.error('❌ Error initializing:', error);
-    
-    // Dynamic pricing instance removed
+    console.error('❌ Error initializing global variables:', error);
   }
   
+  // Connect to database with error handling
   try {
-    await connectToDatabase();
+    await initializeDatabase();
     
     if (dbConnected) {
+      // Initialize automation rules after database is ready
       await initializeAutomationRules();
+    } else {
+      console.warn('⚠️  Database not connected, will retry in 10 seconds');
+      setTimeout(retryDatabaseConnection, 10000);
     }
   } catch (err) {
     console.error('❌ Initial database connection failed:', err);
@@ -7350,7 +7134,6 @@ async function initializeConnections() {
   
   console.log('✅ System initialization complete with intelligent inverter type auto-detection support');
 }
-  
 
   // ================ ENHANCED DYNAMIC PRICING DATA INITIALIZATION ================
 
@@ -7547,31 +7330,31 @@ function setupWarningChecks() {
 
 // ================ ENHANCED AUTOMATION RULES INITIALIZATION ================
 
-async function initializeAutomationRules() {
+function initializeAutomationRules() {
   try {
-      console.log('🔧 Initializing dynamic automation rules based on inverter types...');
-      
-      // Wait a bit for initial inverter type detection
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+    console.log('🔧 Initializing dynamic automation rules based on inverter types...');
+    
+    // Wait a bit for initial inverter type detection
+    setTimeout(() => {
       // Analyze current inverter environment
       const detectedTypes = analyzeInverterTypes();
       console.log(`📊 Inverter environment: ${detectedTypes.summary}`);
       
       // Create rules dynamically based on detected types
-      await createDefaultRules();
-      await createExtendedAutomationRules();
-      await createNightChargingRule();
-      await createWeekendGridChargeRules();
+      createDefaultRules();
+      createExtendedAutomationRules();
+      createNightChargingRule();
+      createWeekendGridChargeRules();
       
       console.log('✅ Dynamic automation rules initialized successfully');
       console.log(`📋 Rules created for: ${detectedTypes.summary}`);
       
       if (detectedTypes.hasLegacy && detectedTypes.hasNew) {
-          console.log('🔄 Mixed environment detected - rules will use auto-mapping');
+        console.log('🔄 Mixed environment detected - rules will use auto-mapping');
       }
+    }, 2000);
   } catch (error) {
-      console.error('Error initializing dynamic automation rules:', error.message);
+    console.error('Error initializing dynamic automation rules:', error.message);
   }
 }
   
