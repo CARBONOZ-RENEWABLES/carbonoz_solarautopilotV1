@@ -54,8 +54,35 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
-app.use(express.json())
+
+// Custom JSON parsing with error handling
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      console.error('JSON Parse Error:', e.message);
+      console.error('Raw body:', buf.toString());
+      throw new Error('Invalid JSON format');
+    }
+  }
+}));
+
 app.use(express.urlencoded({ extended: true }))
+
+// JSON parsing error handler
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    console.error('JSON Syntax Error:', error.message);
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON format in request body',
+      details: 'Please check your JSON syntax'
+    });
+  }
+  next(error);
+});
 app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
@@ -793,10 +820,25 @@ function saveRule(ruleData) {
   if (!dbConnected || !db) return null;
   
   try {
+    // Validate rule data
+    if (!ruleData || typeof ruleData !== 'object') {
+      throw new Error('Invalid rule data: expected object');
+    }
+    
+    if (!ruleData.name || typeof ruleData.name !== 'string') {
+      throw new Error('Invalid rule data: name is required and must be a string');
+    }
+    
     const activeValue = ruleData.active ? 1 : 0;
-    const conditionsJson = JSON.stringify(ruleData.conditions || []);
-    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-    const actionsJson = JSON.stringify(ruleData.actions || []);
+    
+    // Safely stringify with validation
+    const conditions = Array.isArray(ruleData.conditions) ? ruleData.conditions : [];
+    const timeRestrictions = (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') ? ruleData.timeRestrictions : {};
+    const actions = Array.isArray(ruleData.actions) ? ruleData.actions : [];
+    
+    const conditionsJson = JSON.stringify(conditions);
+    const timeRestrictionsJson = JSON.stringify(timeRestrictions);
+    const actionsJson = JSON.stringify(actions);
     
     const stmt = db.prepare(`
       INSERT INTO rules 
@@ -905,20 +947,41 @@ function getAllRules(userId, options = {}) {
     const stmt = db.prepare(query);
     const rules = stmt.all(...params);
     
-    return rules.map(rule => ({
-      id: rule.id,
-      name: rule.name,
-      description: rule.description,
-      active: rule.active === 1,
-      conditions: JSON.parse(rule.conditions || '[]'),
-      timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-      actions: JSON.parse(rule.actions || '[]'),
-      createdAt: new Date(rule.created_at),
-      lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-      triggerCount: rule.trigger_count,
-      user_id: rule.user_id,
-      mqtt_username: rule.mqtt_username
-    }));
+    return rules.map(rule => {
+      try {
+        return {
+          id: rule.id,
+          name: rule.name,
+          description: rule.description,
+          active: rule.active === 1,
+          conditions: JSON.parse(rule.conditions || '[]'),
+          timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
+          actions: JSON.parse(rule.actions || '[]'),
+          createdAt: new Date(rule.created_at),
+          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
+          triggerCount: rule.trigger_count,
+          user_id: rule.user_id,
+          mqtt_username: rule.mqtt_username
+        };
+      } catch (parseError) {
+        console.error(`Error parsing rule ${rule.id}:`, parseError.message);
+        return {
+          id: rule.id,
+          name: rule.name,
+          description: rule.description,
+          active: rule.active === 1,
+          conditions: [],
+          timeRestrictions: {},
+          actions: [],
+          createdAt: new Date(rule.created_at),
+          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
+          triggerCount: rule.trigger_count,
+          user_id: rule.user_id,
+          mqtt_username: rule.mqtt_username,
+          parseError: true
+        };
+      }
+    });
   } catch (error) {
     console.error('Error getting rules from SQLite:', error.message);
     return [];
@@ -949,20 +1012,39 @@ function getRuleById(id, userId) {
       return null;
     }
     
-    return {
-      id: rule.id,
-      name: rule.name,
-      description: rule.description,
-      active: rule.active === 1,
-      conditions: JSON.parse(rule.conditions || '[]'),
-      timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-      actions: JSON.parse(rule.actions || '[]'),
-      createdAt: new Date(rule.created_at),
-      lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-      triggerCount: rule.trigger_count,
-      user_id: rule.user_id,
-      mqtt_username: rule.mqtt_username
-    };
+    try {
+      return {
+        id: rule.id,
+        name: rule.name,
+        description: rule.description,
+        active: rule.active === 1,
+        conditions: JSON.parse(rule.conditions || '[]'),
+        timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
+        actions: JSON.parse(rule.actions || '[]'),
+        createdAt: new Date(rule.created_at),
+        lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
+        triggerCount: rule.trigger_count,
+        user_id: rule.user_id,
+        mqtt_username: rule.mqtt_username
+      };
+    } catch (parseError) {
+      console.error(`Error parsing rule ${rule.id}:`, parseError.message);
+      return {
+        id: rule.id,
+        name: rule.name,
+        description: rule.description,
+        active: rule.active === 1,
+        conditions: [],
+        timeRestrictions: {},
+        actions: [],
+        createdAt: new Date(rule.created_at),
+        lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
+        triggerCount: rule.trigger_count,
+        user_id: rule.user_id,
+        mqtt_username: rule.mqtt_username,
+        parseError: true
+      };
+    }
   } catch (error) {
     console.error(`Error getting rule by ID ${id}:`, error.message);
     return null;
@@ -5824,6 +5906,14 @@ app.post('/api/rules', (req, res) => {
       });
     }
     
+    // Validate request body
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid request body. Expected JSON object.' 
+      });
+    }
+    
     const { name, description, active, conditions, timeRestrictions, actions } = req.body;
     
     if (!name || !name.trim()) {
@@ -8353,7 +8443,12 @@ function GracefulShutdown() {
   // Enhanced cleanup sequence
   if (db) {
     console.log('🗄️  Closing enhanced SQLite connection');
-    db.close().catch(err => console.error('Error closing enhanced SQLite:', err));
+    try {
+      db.close();
+      console.log('✅ Enhanced SQLite connection closed');
+    } catch (err) {
+      console.error('❌ Error closing enhanced SQLite:', err);
+    }
   }
   
   if (mqttClient) {
@@ -8383,7 +8478,6 @@ function GracefulShutdown() {
     delete global.learnerModeActive;
   }
   
-  // Dynamic pricing cleanup removed
   
   console.log('✅ Enhanced cleanup completed');
   clearTimeout(forceExitTimeout);
