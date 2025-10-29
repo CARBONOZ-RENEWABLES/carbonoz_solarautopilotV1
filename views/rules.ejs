@@ -2323,8 +2323,23 @@ body.dark-mode .switch .slider {
 <script>
   // Global variables
 let allRules = [];
+let isLoading = false;
+let loadRulesTimeout = null;
 const ingressPath = window.location.pathname.includes('/rules') ? 
   window.location.pathname.substring(0, window.location.pathname.indexOf('/rules')) : '';
+
+// Debounced load rules function
+function debouncedLoadRules(delay = 500) {
+  if (loadRulesTimeout) {
+    clearTimeout(loadRulesTimeout);
+  }
+  
+  loadRulesTimeout = setTimeout(() => {
+    if (!isLoading) {
+      loadRules();
+    }
+  }, delay);
+}
 
 // DOM Elements
 const rulesList = document.getElementById('rulesList');
@@ -2336,7 +2351,7 @@ const executeModal = document.getElementById('executeModal');
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing rules page...');
-  loadRules();
+  debouncedLoadRules(100); // Quick initial load
   
   // Search and filter
   searchInput.addEventListener('input', filterRules);
@@ -2390,9 +2405,18 @@ async function checkDatabaseConnection() {
 }
 
 /**
- * Loads rules from the server API
+ * Loads rules from the server API with retry logic
  */
-async function loadRules() {
+async function loadRules(retryCount = 0) {
+  if (isLoading) {
+    console.log('Rules already loading, skipping...');
+    return;
+  }
+  
+  isLoading = true;
+  const maxRetries = 3;
+  const retryDelay = 1000; // 1 second
+  
   try {
     // Check database connection first
     const dbStatus = await checkDatabaseConnection();
@@ -2415,6 +2439,17 @@ async function loadRules() {
         'Cache-Control': 'no-cache'
       }
     });
+    
+    // Handle rate limiting with retry
+    if (response.status === 429) {
+      if (retryCount < maxRetries) {
+        console.log(`Rate limited, retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => loadRules(retryCount + 1), retryDelay * (retryCount + 1));
+        return;
+      } else {
+        throw new Error('Too many requests, please try again later.');
+      }
+    }
     
     // Log the raw response for debugging
     if (!response.ok) {
@@ -2447,6 +2482,8 @@ async function loadRules() {
       
       // Update dashboard stats
       updateDashboardStats();
+      
+      isLoading = false;
     } catch (parseError) {
       console.error('Error parsing rules JSON:', parseError);
       console.error('First 100 chars of response:', responseText.substring(0, 100));
@@ -2454,7 +2491,18 @@ async function loadRules() {
     }
   } catch (error) {
     console.error('Error loading rules:', error);
-    showError(`Failed to load rules: ${error.message}`);
+    isLoading = false;
+    
+    // Handle rate limiting errors specifically
+    if (error.message.includes('Too many requests')) {
+      showError('Loading rules... Please wait a moment and the page will refresh automatically.');
+      // Auto-retry after a longer delay for rate limiting
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    } else {
+      showError(`Failed to load rules: ${error.message}`);
+    }
   }
 }
 
@@ -2793,7 +2841,7 @@ function addRuleCardEventListeners() {
         showNotification(`Rule "${rule.name}" duplicated successfully`);
         
         // Reload rules to show the duplicated rule
-        await loadRules();
+        debouncedLoadRules(1000);
       } catch (error) {
         console.error('Error duplicating rule:', error);
         
@@ -2967,7 +3015,7 @@ async function executeRule(rule) {
     }
     
     // Reload rules to reflect the updated trigger count
-    setTimeout(loadRules, 2000);
+    setTimeout(() => debouncedLoadRules(), 2000);
     
     return true;
   } catch (error) {

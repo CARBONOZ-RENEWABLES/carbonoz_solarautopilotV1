@@ -166,8 +166,6 @@ if (!fs.existsSync(SETTINGS_FILE)) {
 app.use(helmet({
   contentSecurityPolicy: false
 }))
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: true }))
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
@@ -188,7 +186,7 @@ app.set('trust proxy', TRUSTED_PROXIES);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // Increased limit to 1000 requests per windowMs
   
   // Custom key generator that safely handles proxy headers
   keyGenerator: (req) => {
@@ -214,16 +212,24 @@ const limiter = rateLimit({
     return clientIp || 'unknown-client';
   },
   
-  // Skip rate limiting for health checks
+  // Skip rate limiting for health checks and rules API
   skip: (req) => {
-    const skipPaths = ['/health', '/api/health', '/status'];
+    const skipPaths = ['/health', '/api/health', '/status', '/api/rules'];
     return skipPaths.some(path => req.path.includes(path));
+  },
+  
+  // Custom handler for rate limit exceeded
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many requests, please try again later.',
+      retryAfter: Math.ceil(15 * 60) // 15 minutes in seconds
+    });
   }
 });
 
 app.use('/api/', limiter);
 
-const API_REQUEST_INTERVAL = 2000; // 2 seconds between API requests
+const API_REQUEST_INTERVAL = 200; // Reduced to 200ms between API requests
 
 // InfluxDB configuration
 const influxConfig = {
@@ -491,7 +497,7 @@ function mapChargerSourcePriorityToGridCharge(chargerPriority) {
 
 async function initializeDatabase() {
   try {
-    db = new Database(DB_FILE, { verbose: console.log });
+    db = new Database(DB_FILE);
     db.pragma('journal_mode = WAL');
     
     db.exec(`
@@ -813,11 +819,10 @@ function saveRule(ruleData) {
       ruleData.mqtt_username
     );
     
-    console.log(`New rule saved with ID ${info.lastInsertRowid}`);
-    
     return {
       id: info.lastInsertRowid,
-      ...ruleData
+      ...ruleData,
+      active: ruleData.active
     };
   } catch (error) {
     console.error('Error saving rule to SQLite:', error.message);
@@ -1642,15 +1647,24 @@ function apiRateLimiter(req, res, next) {
   const endpoint = req.originalUrl.split('?')[0];
   const userId = USER_ID;
 
-    // Get client IP safely
-    const clientIp = req.ip || 
+  // Skip rate limiting for rules API endpoints
+  if (endpoint.includes('/api/rules')) {
+    return next();
+  }
+
+  // Get client IP safely
+  const clientIp = req.ip || 
     req.get('x-forwarded-for')?.split(',')[0]?.trim() || 
     req.get('x-real-ip') || 
     req.connection?.remoteAddress || 
     'unknown';
   
-    if (!canMakeRequest(endpoint, userId, clientIp)) {
-      console.warn(`API rate limit exceeded for ${clientIp} on ${endpoint}`);
+  if (!canMakeRequest(endpoint, userId, clientIp)) {
+    console.warn(`API rate limit exceeded for ${clientIp} on ${endpoint}`);
+    return res.status(429).json({
+      error: 'Too many requests, please try again later.',
+      retryAfter: Math.ceil(API_REQUEST_INTERVAL / 1000)
+    });
   }
   
   next();
@@ -1813,10 +1827,6 @@ function checkInverterMessages(messages, expectedInverters) {
     )
   
     if (!hasBatteryInfo) {
-      console.log(
-        'Debug: No battery messages found. Current messages:',
-        messages.filter((msg) => msg.toLowerCase().includes('battery'))
-      )
       return 'Warning: No battery information found in recent messages.'
     }
   
@@ -1827,7 +1837,6 @@ function checkInverterMessages(messages, expectedInverters) {
     const batteryMessages = messages.filter((msg) =>
       msg.toLowerCase().includes('battery')
     )
-    console.log('Current battery-related messages:', batteryMessages)
     return batteryMessages
   }
 
@@ -5808,13 +5817,10 @@ app.post('/api/rules/preview', async (req, res) => {
 
 app.post('/api/rules', (req, res) => {
   try {
-    console.log('Creating new rule with data:', req.body);
-    
     if (!dbConnected || !db) {
       return res.status(503).json({ 
         success: false, 
-        error: 'Database not connected', 
-        status: 'disconnected' 
+        error: 'Database not connected'
       });
     }
     
@@ -5845,27 +5851,23 @@ app.post('/api/rules', (req, res) => {
       mqtt_username: mqttConfig.username
     };
     
-    console.log(`Creating new rule "${newRule.name}" with ${newRule.actions.length} action(s) and ${newRule.conditions.length} condition(s)`);
-    
     const savedRule = saveRule(newRule);
     
     if (!savedRule) {
-      console.log(`Failed to create new rule "${newRule.name}"`);
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to create rule' 
       });
     }
     
-    console.log(`Successfully created new rule with ID ${savedRule.id}`);
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: 'Rule created successfully',
       rule: savedRule
     });
   } catch (error) {
-    console.error('Error in create rule endpoint:', error);
-    return res.status(500).json({ 
+    console.error('Error creating rule:', error);
+    res.status(500).json({ 
       success: false, 
       error: 'Server error: ' + error.message 
     });
