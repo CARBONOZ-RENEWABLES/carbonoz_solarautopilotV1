@@ -31,27 +31,36 @@ Value: "Disabled"
 **Type:** `new`
 **Command Parameter:** `charger_source_priority`
 
-#### Enable Charging Command
+#### Intelligent Dynamic Mode Selection
 ```
 Topic: solar/inverter_1/charger_source_priority/set
-Value: "Utility first"
+Value: [Dynamically Selected Based on Conditions]
 ```
 
-#### Disable Charging Command
-```
-Topic: solar/inverter_1/charger_source_priority/set
-Value: "Solar first"
-```
+**Two Control Parameters:**
 
-**Available Options:**
-- `Solar first` - Charges from solar only, no grid charging
-- `Solar and utility simultaneously` - Charges from both solar and grid
-- `Solar only` - Solar charging exclusively
-- `Utility first` - Prioritizes grid charging over solar
+1. **Charger Source Priority** (Controls battery charging):
+   - `Solar first` - Solar priority for charging
+   - `Solar and utility simultaneously` - Both sources charge battery
+   - `Solar only` - Exclusive solar charging
+   - `Utility first` - Grid priority for charging
 
-**Meaning:**
-- When AI enables charging: Prioritizes grid charging over solar for maximum speed
-- When AI disables charging: Uses only solar power, no grid consumption
+2. **Output Source Priority** (Controls power output to loads):
+   - `Solar/Battery/Utility` - Solar → Battery → Grid sequence
+   - `Solar first` - Solar priority for loads
+   - `Utility first` - Grid priority for loads
+   - `Solar/Utility/Battery` - Solar → Grid → Battery sequence
+
+**Dynamic Selection Logic:**
+
+| Condition | Charger Priority | Output Priority | Explanation |
+|-----------|------------------|-----------------|-------------|
+| No PV, price low | `Utility first` | `Utility first` | Cheap grid energy |
+| No PV, price high | `Solar first` | `Solar/Battery/Utility` | Avoid expensive grid |
+| PV available & price low | `Solar and utility simultaneously` | `Solar/Utility/Battery` | Fast charging |
+| PV > Load × 2 & SOC < 90% | `Solar only` | `Solar first` | Strong solar surplus |
+| PV moderate & SOC < 50% | `Solar and utility simultaneously` | `Solar/Utility/Battery` | Mixed charging |
+| SOC > target or grid unstable | `Solar first` | `Solar/Battery/Utility` | Safety mode |
 
 ---
 
@@ -75,52 +84,46 @@ Value: "Utility first" / "Solar first"
 
 ---
 
-## AI Decision Logic
+## Enhanced AI Decision Logic
 
-### When AI Enables Charging (`START_CHARGING`)
+### Intelligent Mode Selection Process
 
-**Conditions:**
-- Battery SOC below target (e.g., < 80%)
-- Electricity price is good (below average or marked as CHEAP/VERY_CHEAP)
-- Grid voltage is stable (200-250V)
-- PV surplus available OR price-based opportunity
+**Priority Order:**
+1. **Safety First:** SOC > target or grid unstable → `Solar first`
+2. **Strong Solar:** PV > Load × 2 & SOC < 90% → `Solar only`
+3. **No PV Scenarios:**
+   - Price low → `Utility first`
+   - Price high → `Solar/Battery/Utility`
+4. **PV Available Scenarios:**
+   - Price low → `Solar and utility simultaneously`
+   - SOC < 50% → `Solar/Utility/Battery`
+5. **Default:** `Solar first`
 
-**Example Decision Log:**
+**Example Decision Logs:**
+
 ```json
 {
   "decision": "START_CHARGING",
-  "reasons": [
-    "Good price: 0.15 EUR (avg: 0.22, level: VERY_CHEAP)",
-    "Battery SOC below target: 45%"
-  ],
-  "systemState": {
-    "battery_soc": 45,
-    "pv_power": 1200,
-    "grid_voltage": 230
+  "mode": "Solar and utility simultaneously",
+  "reason": "PV + cheap grid",
+  "conditions": {
+    "pv_power": 1500,
+    "load": 800,
+    "price_level": "CHEAP",
+    "battery_soc": 45
   }
 }
 ```
 
-### When AI Disables Charging (`STOP_CHARGING`)
-
-**Conditions:**
-- Battery SOC at target (e.g., ≥ 80%)
-- Price too high (> 20% above average)
-- Grid voltage unstable
-- Sufficient PV power available
-
-**Example Decision Log:**
 ```json
 {
-  "decision": "STOP_CHARGING",
-  "reasons": [
-    "Battery SOC at target: 80%",
-    "Price too high: 0.35 EUR (20% above avg: 0.22)"
-  ],
-  "systemState": {
-    "battery_soc": 80,
-    "pv_power": 2500,
-    "grid_voltage": 235
+  "decision": "START_CHARGING", 
+  "mode": "Solar only",
+  "reason": "Strong solar surplus",
+  "conditions": {
+    "pv_power": 3000,
+    "load": 1200,
+    "battery_soc": 65
   }
 }
 ```
@@ -140,22 +143,32 @@ const value = "Enabled";
 
 ### Modern Inverter Example
 ```javascript
-// AI Decision: Enable charging
-const topic = "solar/inverter_1/charger_source_priority/set";
-const value = "Utility first";
+// AI Decision: Intelligent settings selection
+const settings = getOptimalChargingSettings(true);
 
-// Result: Battery charges primarily from grid for faster charging
+// Send both commands
+const chargerTopic = "solar/inverter_1/charger_source_priority/set";
+const outputTopic = "solar/inverter_1/output_source_priority/set";
+
+publish(chargerTopic, settings.chargerPriority);  // e.g., "Solar and utility simultaneously"
+publish(outputTopic, settings.outputPriority);    // e.g., "Solar/Utility/Battery"
+
+// Console: "🧠 Charger='Solar and utility simultaneously', Output='Solar/Utility/Battery' (PV + cheap grid)"
 ```
 
-### Auto-Mapping for Compatibility
+### Intelligent Mode Selection for Modern Inverters
 ```javascript
-// Input: grid_charge "Enabled"
-// Auto-mapped to: charger_source_priority "Utility first"
+// Dynamic mode selection based on real-time conditions
+const optimalMode = getOptimalChargingMode(enableCharging);
 
-const mapping = {
-  'Enabled': 'Utility first',
-  'Disabled': 'Solar first'
-};
+// Example conditions and resulting modes:
+if (noPV && priceLow) {
+  mode = 'Utility first';  // Cheap grid energy
+} else if (strongSolar && socLow) {
+  mode = 'Solar only';     // Abundant solar power
+} else if (pvAvailable && priceLow) {
+  mode = 'Solar and utility simultaneously';  // Fast charging
+}
 ```
 
 ---
@@ -232,12 +245,24 @@ The AI uses Tibber electricity prices to make intelligent charging decisions:
 - `EXPENSIVE` - Avoid charging
 - `VERY_EXPENSIVE` - Stop charging immediately
 
-### Price-Based Commands
+### Condition-Based Mode Selection
 ```javascript
-if (priceLevel === 'VERY_CHEAP' && batterySOC < targetSoC) {
-  // Send enable charging command
-  publishCommand(topic, 'Enabled');
+// Real-time intelligent mode selection
+const conditions = {
+  pvPower: 2000,
+  load: 800, 
+  batterySOC: 45,
+  priceLevel: 'CHEAP',
+  gridVoltage: 235
+};
+
+if (conditions.pvPower > conditions.load * 2 && conditions.batterySOC < 90) {
+  mode = 'Solar only';  // Strong solar surplus
+} else if (!pvAvailable && conditions.priceLevel === 'CHEAP') {
+  mode = 'Utility first';  // No PV, cheap grid
 }
+
+publishCommand(topic, mode);
 ```
 
 ---

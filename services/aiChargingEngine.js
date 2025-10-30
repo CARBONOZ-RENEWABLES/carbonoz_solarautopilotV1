@@ -18,7 +18,7 @@ class AIChargingEngine {
   initialize(mqttClient, currentSystemState) {
     this.mqttClient = mqttClient;
     this.currentSystemState = currentSystemState;
-    console.log('✅ AI Charging Engine initialized with context-aware commands');
+    console.log('✅ AI Charging Engine initialized');
   }
 
   updateSystemState(systemState) {
@@ -29,6 +29,7 @@ class AIChargingEngine {
     try {
       if (fs.existsSync(this.decisionsFile)) {
         const data = JSON.parse(fs.readFileSync(this.decisionsFile, 'utf8'));
+        // Keep only last 500 decisions
         return data.slice(-500);
       }
     } catch (error) {
@@ -141,12 +142,6 @@ class AIChargingEngine {
       const gridPower = this.currentSystemState?.grid_power || 0;
       const gridVoltage = this.currentSystemState?.grid_voltage || 0;
 
-      // Determine time context
-      const now = new Date();
-      const hour = now.getHours();
-      const isDaytime = hour >= 6 && hour < 20;
-      const hasPV = pvPower > 500; // Meaningful PV generation
-
       // Get Tibber data
       const currentPrice = tibberService.cache.currentPrice;
       const avgPrice = tibberService.calculateAveragePrice();
@@ -171,12 +166,12 @@ class AIChargingEngine {
         reasons.push(`Battery SOC below minimum: ${batterySOC}%`);
       }
 
-      // PV is generating enough - prioritize solar charging
-      if (hasPV && pvPower > load) {
+      // PV is generating enough - charge from PV only
+      if (pvPower > load) {
         const surplus = pvPower - load;
         if (surplus > 1000 && batterySOC < config.targetSoC) {
           shouldCharge = true;
-          reasons.push(`PV surplus available: ${surplus}W - using solar priority`);
+          reasons.push(`PV surplus available: ${surplus}W`);
         }
       }
 
@@ -197,14 +192,14 @@ class AIChargingEngine {
         }
       }
 
-      // Learning from history
+      // Learning from history: Check if this time of day is typically cheap
       const historicalPattern = this.analyzeHistoricalPattern();
       if (historicalPattern.isTypicallyCheap && batterySOC < config.targetSoC) {
         shouldCharge = true;
         reasons.push(`Historical pattern suggests cheap prices now`);
       }
 
-      // Make final decision with context
+      // Make final decision
       let decision;
       if (shouldStop) {
         decision = 'STOP_CHARGING';
@@ -214,9 +209,9 @@ class AIChargingEngine {
         decision = 'NO_CHANGE';
       }
 
-      // Apply decision with context-aware commands
+      // Apply decision via MQTT
       if (decision === 'START_CHARGING' || decision === 'STOP_CHARGING') {
-        this.applyDecision(decision, { hasPV, isDaytime, priceIsGood });
+        this.applyDecision(decision);
       }
 
       return this.logDecision(decision, reasons);
@@ -230,9 +225,11 @@ class AIChargingEngine {
   }
 
   analyzeHistoricalPattern() {
+    // Simple pattern analysis: check if current hour is typically cheap
     const now = new Date();
     const currentHour = now.getHours();
     
+    // Get decisions from same hour in past 7 days
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const relevantDecisions = this.decisionHistory.filter(d => {
       const decisionDate = new Date(d.timestamp);
@@ -258,21 +255,13 @@ class AIChargingEngine {
     };
   }
 
-  /**
-   * Enhanced context-aware command application
-   * This method determines the optimal command based on:
-   * - Whether to charge or not
-   * - Current PV availability
-   * - Time of day
-   * - Price situation
-   * - Inverter type (legacy/new)
-   */
-  applyDecision(decision, context = {}) {
+  applyDecision(decision) {
     if (!this.mqttClient || !this.mqttClient.connected) {
       console.error('❌ MQTT client not connected, cannot apply decision');
       return false;
     }
 
+    // Check if learner mode is active
     if (!global.learnerModeActive) {
       console.log('⚠️  AI decision not applied: Learner mode is inactive');
       return false;
@@ -280,61 +269,71 @@ class AIChargingEngine {
 
     try {
       const enableCharging = decision === 'START_CHARGING';
-      const { hasPV = false, isDaytime = false, priceIsGood = false } = context;
-      
+      const commandValue = enableCharging ? 'Enabled' : 'Disabled';
       const inverterNumber = process.env.INVERTER_NUMBER || 1;
       const mqttTopicPrefix = process.env.MQTT_TOPIC_PREFIX || 'solar';
       
       let commandsSent = 0;
       let totalInverters = 0;
       
-      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command`);
-      console.log(`   Context: PV=${hasPV}, Daytime=${isDaytime}, GoodPrice=${priceIsGood}`);
+      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s) with intelligent type detection`);
       
+      // Apply to each inverter with type-aware mapping
       for (let i = 1; i <= inverterNumber; i++) {
         const inverterId = `inverter_${i}`;
         const inverterType = this.getInverterType(inverterId);
         
-        let commands = [];
+        let topic, mqttValue;
         
         if (inverterType === 'new' || inverterType === 'hybrid') {
-          // Modern inverter - use sophisticated priority commands
-          commands = this.getModernInverterCommands(
-            enableCharging, 
-            hasPV, 
-            isDaytime, 
-            priceIsGood,
-            mqttTopicPrefix,
-            inverterId
-          );
-        } else {
-          // Legacy inverter - use simple grid_charge
-          commands = this.getLegacyInverterCommands(
-            enableCharging,
-            mqttTopicPrefix,
-            inverterId
-          );
-        }
-        
-        // Send all commands for this inverter
-        commands.forEach(cmd => {
-          this.mqttClient.publish(cmd.topic, cmd.value, { qos: 1, retain: false }, (err) => {
-            if (err) {
-              console.error(`❌ Error publishing to ${cmd.topic}: ${err.message}`);
-              this.logCommand(cmd.topic, cmd.value, false);
-            } else {
-              console.log(`✅ ${cmd.description}: ${cmd.topic} = ${cmd.value}`);
+          // Use intelligent settings for new inverters
+          const settings = this.getOptimalChargingSettings(enableCharging);
+          
+          // Send charger_source_priority command
+          const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
+          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, (err) => {
+            if (!err) {
+              this.logCommand(chargerTopic, settings.chargerPriority, true);
               commandsSent++;
-              this.logCommand(cmd.topic, cmd.value, true);
             }
           });
-        });
+          
+          // Send output_source_priority command
+          const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
+          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, (err) => {
+            if (!err) {
+              this.logCommand(outputTopic, settings.outputPriority, true);
+              commandsSent++;
+            }
+          });
+          
+          console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
+          totalInverters++;
+          continue; // Skip the single command logic below
+        } else {
+          // Use legacy grid_charge for legacy inverters
+          topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+          mqttValue = commandValue;
+          console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
+        }
         
-        totalInverters++;
+        // Only for legacy inverters (new inverters handled above)
+        if (inverterType === 'legacy') {
+          this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, (err) => {
+            if (err) {
+              console.error(`❌ Error publishing to ${topic}: ${err.message}`);
+              this.logCommand(topic, mqttValue, false);
+            } else {
+              commandsSent++;
+              this.logCommand(topic, mqttValue, true);
+            }
+          });
+          totalInverters++;
+        }
       }
       
       const action = enableCharging ? 'enabled' : 'disabled';
-      console.log(`🤖 AI Charging: Grid charging ${action} - Commands sent: ${commandsSent}`);
+      console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands sent: ${commandsSent}/${totalInverters}`);
       
       return commandsSent > 0;
     } catch (error) {
@@ -343,141 +342,87 @@ class AIChargingEngine {
     }
   }
 
-  /**
-   * Get optimized commands for modern/new inverters
-   * These inverters support fine-grained priority control
-   */
-  getModernInverterCommands(enableCharging, hasPV, isDaytime, priceIsGood, prefix, inverterId) {
-    const commands = [];
-    
-    if (enableCharging) {
-      // CHARGING SCENARIO
-      
-      if (hasPV && priceIsGood) {
-        // Best case: PV available AND good price
-        // Use solar + utility simultaneously for maximum charging
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar and utility simultaneously',
-          description: 'PV + Grid charging (both available)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar first',
-          description: 'Output prioritizes solar'
-        });
-      } else if (hasPV && !priceIsGood) {
-        // PV available but price is bad
-        // Use solar only, avoid expensive grid
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar only',
-          description: 'Solar-only charging (price too high for grid)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar first',
-          description: 'Output prioritizes solar'
-        });
-      } else if (!hasPV && priceIsGood) {
-        // No PV (night/cloudy) but price is good
-        // Use grid charging aggressively
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Utility first',
-          description: 'Grid charging (no PV, good price)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Utility first',
-          description: 'Output uses grid to minimize battery cycles'
-        });
-      } else {
-        // No PV and bad price - minimal charging
-        // Wait for better conditions but keep battery safe
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar first',
-          description: 'Waiting for solar (no PV, bad price)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar/Battery/Utility',
-          description: 'Use battery sparingly'
-        });
-      }
-      
-    } else {
-      // STOP CHARGING SCENARIO
-      
-      if (hasPV) {
-        // PV available - use solar priority
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar only',
-          description: 'Solar-only (battery full or price high)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar first',
-          description: 'Output prioritizes solar'
-        });
-      } else if (isDaytime) {
-        // Daytime but no PV yet (cloudy or early morning)
-        // Wait for solar but keep battery option
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar first',
-          description: 'Waiting for solar (daytime, cloudy)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar/Battery/Utility',
-          description: 'Flexible output priority'
-        });
-      } else {
-        // Nighttime - no solar possible
-        // Use battery first, grid as backup
-        commands.push({
-          topic: `${prefix}/${inverterId}/charger_source_priority/set`,
-          value: 'Solar first',
-          description: 'Solar priority (night - will use battery/grid)'
-        });
-        commands.push({
-          topic: `${prefix}/${inverterId}/output_source_priority/set`,
-          value: 'Solar/Battery/Utility',
-          description: 'Battery first at night, grid backup'
-        });
-      }
-    }
-    
-    return commands;
-  }
-
-  /**
-   * Get commands for legacy inverters
-   * These only support simple grid_charge enable/disable
-   */
-  getLegacyInverterCommands(enableCharging, prefix, inverterId) {
-    const commandValue = enableCharging ? 'Enabled' : 'Disabled';
-    
-    return [{
-      topic: `${prefix}/${inverterId}/grid_charge/set`,
-      value: commandValue,
-      description: `Legacy grid charge ${commandValue.toLowerCase()}`
-    }];
-  }
-
   getInverterType(inverterId) {
     try {
       if (global.inverterTypes && global.inverterTypes[inverterId]) {
         return global.inverterTypes[inverterId].type || 'legacy';
       }
-      return 'legacy';
+      return 'legacy'; // Default to legacy for safety
     } catch (error) {
       console.error(`Error getting inverter type for ${inverterId}:`, error);
       return 'legacy';
     }
+  }
+
+  getOptimalChargingSettings(enableCharging) {
+    const batterySOC = this.currentSystemState?.battery_soc || 0;
+    const pvPower = this.currentSystemState?.pv_power || 0;
+    const load = this.currentSystemState?.load || 0;
+    const gridVoltage = this.currentSystemState?.grid_voltage || 0;
+    const currentPrice = tibberService.cache.currentPrice;
+    const avgPrice = tibberService.calculateAveragePrice();
+    const config = tibberService.config;
+    
+    const pvAvailable = pvPower > 100;
+    const priceLow = currentPrice && avgPrice ? currentPrice.total < avgPrice * 0.8 : false;
+    const priceHigh = currentPrice && avgPrice ? currentPrice.total > avgPrice * 1.2 : false;
+    const gridUnstable = gridVoltage < 200 || gridVoltage > 250;
+    const socAtTarget = batterySOC >= (config?.targetSoC || 80);
+    
+    let chargerPriority = 'Solar first';
+    let outputPriority = 'Solar/Battery/Utility';
+    let reason = '';
+    
+    // SOC > target or grid unstable → Solar first + avoid grid for loads
+    if (socAtTarget || gridUnstable) {
+      chargerPriority = 'Solar first';
+      outputPriority = 'Solar/Battery/Utility';  // Use battery before expensive/unstable grid
+      reason = socAtTarget ? 'SOC at target' : 'Grid unstable';
+    }
+    // Charging disabled → Conservative mode
+    else if (!enableCharging) {
+      chargerPriority = 'Solar first';
+      outputPriority = 'Solar/Battery/Utility';  // Standard priority sequence
+      reason = 'Charging disabled';
+    }
+    // Strong solar surplus → Solar priority for everything
+    else if (pvPower > load * 2 && batterySOC < 90) {
+      chargerPriority = 'Solar only';
+      outputPriority = 'Solar first';  // Abundant solar, prioritize it
+      reason = 'Strong solar surplus';
+    }
+    // No PV, cheap prices → Use cheap grid
+    else if (!pvAvailable && priceLow) {
+      chargerPriority = 'Utility first';
+      outputPriority = 'Utility first';  // Cheap grid available
+      reason = 'No PV, cheap grid';
+    }
+    // No PV, expensive prices → Avoid grid for loads
+    else if (!pvAvailable && priceHigh) {
+      chargerPriority = 'Solar first';
+      outputPriority = 'Solar/Battery/Utility';  // Use battery before expensive grid
+      reason = 'No PV, expensive grid';
+    }
+    // PV + cheap prices → Fast charging mode
+    else if (pvAvailable && priceLow) {
+      chargerPriority = 'Solar and utility simultaneously';
+      outputPriority = 'Solar/Utility/Battery';  // Use both solar and cheap grid
+      reason = 'PV + cheap grid';
+    }
+    // PV + low battery → Balanced approach
+    else if (pvAvailable && batterySOC < 50) {
+      chargerPriority = 'Solar and utility simultaneously';
+      outputPriority = 'Solar/Utility/Battery';  // Mixed sources
+      reason = 'Mixed mode for low SOC';
+    }
+    // Default conservative mode
+    else {
+      chargerPriority = 'Solar first';
+      outputPriority = 'Solar/Battery/Utility';  // Standard safe sequence
+      reason = 'Default safe mode';
+    }
+    
+    return { chargerPriority, outputPriority, reason };
   }
 
   start() {
