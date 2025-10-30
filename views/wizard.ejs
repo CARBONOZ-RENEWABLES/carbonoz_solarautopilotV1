@@ -3792,8 +3792,17 @@ function updateConditionButtons() {
         function validateStep(step) {
             switch (step) {
                 case 1:
-                    if (!document.getElementById('ruleName').value.trim()) {
+                    const ruleName = document.getElementById('ruleName').value.trim();
+                    if (!ruleName) {
                         alert('Please enter a rule name');
+                        return false;
+                    }
+                    if (ruleName.length > 100) {
+                        alert('Rule name must be less than 100 characters');
+                        return false;
+                    }
+                    if (!/^[a-zA-Z0-9\s\-_]+$/.test(ruleName)) {
+                        alert('Rule name contains invalid characters. Use only letters, numbers, spaces, hyphens, and underscores');
                         return false;
                     }
                     break;
@@ -3801,9 +3810,18 @@ function updateConditionButtons() {
                     // Validate conditions if any exist
                     const conditionCards = document.querySelectorAll('#conditionsContainer .card');
                     for (let card of conditionCards) {
+                        const parameter = card.querySelector('.condition-parameter').value;
+                        const operator = card.querySelector('.condition-operator').value;
                         const value = card.querySelector('.condition-value').value;
-                        if (!value) {
-                            alert('Please complete all condition values or remove incomplete conditions');
+                        
+                        if (!parameter || !operator || !value) {
+                            alert('Please complete all condition fields or remove incomplete conditions');
+                            return false;
+                        }
+                        
+                        const numValue = parseFloat(value);
+                        if (isNaN(numValue)) {
+                            alert('Condition values must be valid numbers');
                             return false;
                         }
                     }
@@ -3819,14 +3837,102 @@ function updateConditionButtons() {
                             alert('Please set both start and end times');
                             return false;
                         }
+                        
+                        // Validate time format
+                        const timePattern = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                        if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+                            alert('Please enter valid times in HH:MM format');
+                            return false;
+                        }
+                        
                         if (!daysSelected) {
                             alert('Please select at least one day of the week');
                             return false;
                         }
                     }
                     break;
+                case 4:
+                    // Validate actions
+                    const actionCards = document.querySelectorAll('#actionsContainer .card');
+                    if (actionCards.length === 0) {
+                        alert('Please add at least one action');
+                        return false;
+                    }
+                    
+                    for (let card of actionCards) {
+                        const setting = card.querySelector('.action-setting').value;
+                        const valueElement = card.querySelector('.action-value');
+                        const inverter = card.querySelector('.action-inverter').value;
+                        
+                        if (!setting || !valueElement || !valueElement.value || !inverter) {
+                            alert('Please complete all action fields or remove incomplete actions');
+                            return false;
+                        }
+                    }
+                    break;
             }
             return true;
+        }
+
+        // Client-side validation function
+        function validateRuleData(ruleData) {
+            const errors = [];
+            
+            // Check rule name
+            if (!ruleData.name || ruleData.name.trim().length === 0) {
+                errors.push('Rule name is required');
+            } else if (ruleData.name.length > 100) {
+                errors.push('Rule name must be less than 100 characters');
+            } else if (!/^[a-zA-Z0-9\s\-_]+$/.test(ruleData.name)) {
+                errors.push('Rule name contains invalid characters. Use only letters, numbers, spaces, hyphens, and underscores');
+            }
+            
+            // Check actions
+            if (!ruleData.actions || ruleData.actions.length === 0) {
+                errors.push('At least one action is required');
+            } else {
+                ruleData.actions.forEach((action, index) => {
+                    if (!action.setting) {
+                        errors.push(`Action ${index + 1}: Setting is required`);
+                    }
+                    if (!action.value || action.value.trim() === '') {
+                        errors.push(`Action ${index + 1}: Value is required`);
+                    }
+                    if (!action.inverter) {
+                        errors.push(`Action ${index + 1}: Inverter selection is required`);
+                    }
+                });
+            }
+            
+            // Check conditions
+            if (ruleData.conditions && ruleData.conditions.length > 0) {
+                ruleData.conditions.forEach((condition, index) => {
+                    if (!condition.parameter) {
+                        errors.push(`Condition ${index + 1}: Parameter is required`);
+                    }
+                    if (!condition.operator) {
+                        errors.push(`Condition ${index + 1}: Operator is required`);
+                    }
+                    if (condition.value === undefined || condition.value === null || condition.value === '') {
+                        errors.push(`Condition ${index + 1}: Value is required`);
+                    }
+                });
+            }
+            
+            // Check time restrictions
+            if (ruleData.timeRestrictions && ruleData.timeRestrictions.enabled) {
+                const timePattern = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                
+                if (ruleData.timeRestrictions.startTime && !timePattern.test(ruleData.timeRestrictions.startTime)) {
+                    errors.push('Start time must be in HH:MM format');
+                }
+                
+                if (ruleData.timeRestrictions.endTime && !timePattern.test(ruleData.timeRestrictions.endTime)) {
+                    errors.push('End time must be in HH:MM format');
+                }
+            }
+            
+            return errors;
         }
 
         async function saveRule() {
@@ -3838,9 +3944,6 @@ function updateConditionButtons() {
                 alert('Please add at least one action');
                 return;
             }
-            
-            // Show loading
-            document.getElementById('loadingOverlay').style.display = 'flex';
             
             // Build time restrictions
             const timeEnabled = document.getElementById('enableTimeRestrictions').checked;
@@ -3860,13 +3963,23 @@ function updateConditionButtons() {
             
             // Build rule object
             const rule = {
-                name: document.getElementById('ruleName').value,
-                description: document.getElementById('ruleDescription').value,
+                name: document.getElementById('ruleName').value.trim(),
+                description: document.getElementById('ruleDescription').value.trim(),
                 active: document.getElementById('ruleActive').checked,
                 conditions: conditions,
                 timeRestrictions: timeRestrictions,
                 actions: actions
             };
+            
+            // Validate rule data before sending
+            const validationErrors = validateRuleData(rule);
+            if (validationErrors.length > 0) {
+                alert('Please fix the following errors:\n\n' + validationErrors.join('\n'));
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loadingOverlay').style.display = 'flex';
             
             try {
                 const ingressPath = document.getElementById('dynamicRuleWizardForm')
@@ -3880,18 +3993,31 @@ function updateConditionButtons() {
                     method = 'PUT';
                 }
                 
+                console.log('Sending rule data:', JSON.stringify(rule, null, 2));
+                
                 const response = await fetch(apiUrl, {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify(rule)
                 });
                 
-                const data = await response.json();
+                // Get response text first for debugging
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse response as JSON:', parseError);
+                    throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
+                }
                 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Network response was not ok');
+                    throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 // Hide loading
@@ -3913,7 +4039,18 @@ function updateConditionButtons() {
             } catch (error) {
                 console.error('Error saving rule:', error);
                 document.getElementById('loadingOverlay').style.display = 'none';
-                alert(`Error ${isEditMode ? 'updating' : 'creating'} rule: ${error.message}`);
+                
+                // Provide more user-friendly error messages
+                let errorMessage = error.message;
+                if (errorMessage.includes('pattern')) {
+                    errorMessage = 'Rule contains invalid characters. Please check rule name and values.';
+                } else if (errorMessage.includes('JSON')) {
+                    errorMessage = 'Rule data format is invalid. Please try again.';
+                } else if (errorMessage.includes('Network')) {
+                    errorMessage = 'Network error. Please check your connection and try again.';
+                }
+                
+                alert(`Error ${isEditMode ? 'updating' : 'creating'} rule: ${errorMessage}`);
             }
         }
 

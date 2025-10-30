@@ -4576,19 +4576,32 @@ app.put('/api/rules/:id', (req, res) => {
       });
     }
     
-    const { name, description, active, conditions, timeRestrictions, actions } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Rule name is required' 
+    // Validate request body exists
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Request body must be a valid JSON object'
       });
     }
     
-    if (!actions || actions.length === 0) {
+    // Validate and sanitize the rule data for Home Assistant compatibility
+    let sanitizedRule;
+    try {
+      sanitizedRule = validateAndSanitizeRuleData(req.body);
+      console.log('Sanitized update data:', JSON.stringify(sanitizedRule, null, 2));
+    } catch (validationError) {
+      console.error('❌ Update validation error:', validationError.message);
       return res.status(400).json({ 
         success: false, 
-        error: 'At least one action is required' 
+        error: validationError.message
+      });
+    }
+    
+    // Additional validation
+    if (sanitizedRule.actions.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least one valid action is required' 
       });
     }
     
@@ -4604,12 +4617,9 @@ app.put('/api/rules/:id', (req, res) => {
     
     const updatedRule = {
       ...rule,
-      name,
-      description,
-      active: active !== undefined ? !!active : rule.active,
-      conditions: conditions || [],
-      timeRestrictions: timeRestrictions || {},
-      actions
+      ...sanitizedRule,
+      user_id: USER_ID,
+      mqtt_username: mqttConfig.username
     };
     
     console.log(`Updating rule "${rule.name}" with active status:`, updatedRule.active);
@@ -4620,21 +4630,30 @@ app.put('/api/rules/:id', (req, res) => {
       console.log(`Failed to update rule with ID ${ruleId}`);
       return res.status(500).json({ 
         success: false, 
-        error: 'Failed to update rule' 
+        error: 'Failed to update rule in storage' 
       });
     }
     
-    console.log(`Successfully updated rule with ID ${ruleId}`);
+    console.log(`✅ Successfully updated rule with ID ${ruleId}`);
     return res.status(200).json({
       success: true,
       message: 'Rule updated successfully',
       rule: updatedRule
     });
   } catch (error) {
-    console.error('Error in update rule endpoint:', error);
+    console.error('❌ Error in update rule endpoint:', error);
+    
+    // Provide more specific error messages for Home Assistant
+    let errorMessage = error.message;
+    if (error.message.includes('JSON')) {
+      errorMessage = 'Invalid JSON format in rule data';
+    } else if (error.message.includes('pattern')) {
+      errorMessage = 'Rule contains invalid characters or format';
+    }
+    
     return res.status(500).json({ 
       success: false, 
-      error: 'Server error: ' + error.message 
+      error: 'Server error: ' + errorMessage
     });
   }
 });
@@ -5616,21 +5635,116 @@ app.use('/api/rules', (req, res, next) => {
   next();
 });
 
+// Enhanced validation function for Home Assistant compatibility
+function validateAndSanitizeRuleData(ruleData) {
+  const sanitized = {
+    name: String(ruleData.name || '').trim(),
+    description: String(ruleData.description || '').trim(),
+    active: Boolean(ruleData.active),
+    conditions: [],
+    timeRestrictions: {},
+    actions: []
+  };
+
+  // Validate name - remove special characters that might cause issues in Home Assistant
+  if (!sanitized.name || sanitized.name.length === 0) {
+    throw new Error('Rule name is required');
+  }
+  
+  // Sanitize name - only allow alphanumeric, spaces, hyphens, underscores
+  sanitized.name = sanitized.name.replace(/[^a-zA-Z0-9\s\-_]/g, '');
+  
+  if (sanitized.name.length > 100) {
+    sanitized.name = sanitized.name.substring(0, 100);
+  }
+
+  // Validate and sanitize conditions
+  if (Array.isArray(ruleData.conditions)) {
+    ruleData.conditions.forEach(condition => {
+      if (condition && typeof condition === 'object') {
+        const sanitizedCondition = {
+          parameter: String(condition.parameter || ''),
+          operator: String(condition.operator || ''),
+          value: parseFloat(condition.value) || 0
+        };
+        
+        // Validate parameter values
+        const validParameters = ['battery_soc', 'pv_power', 'load', 'grid_voltage', 'grid_power', 'battery_power'];
+        if (validParameters.includes(sanitizedCondition.parameter)) {
+          const validOperators = ['gt', 'lt', 'eq', 'gte', 'lte'];
+          if (validOperators.includes(sanitizedCondition.operator)) {
+            sanitized.conditions.push(sanitizedCondition);
+          }
+        }
+      }
+    });
+  }
+
+  // Validate and sanitize actions
+  if (Array.isArray(ruleData.actions)) {
+    ruleData.actions.forEach(action => {
+      if (action && typeof action === 'object') {
+        const sanitizedAction = {
+          setting: String(action.setting || '').trim(),
+          value: String(action.value || '').trim(),
+          inverter: String(action.inverter || 'all').trim()
+        };
+        
+        // Validate setting names - only allow known settings
+        const validSettings = [
+          'grid_charge', 'energy_pattern', 'charger_source_priority', 
+          'output_source_priority', 'max_discharge_current', 'max_charge_current',
+          'max_grid_charge_current', 'remote_switch', 'work_mode', 'voltage_point_1',
+          'voltage_point_2', 'voltage_point_3', 'voltage_point_4', 'voltage_point_5',
+          'voltage_point_6', 'solar_export_when_battery_full', 'max_sell_power'
+        ];
+        
+        if (validSettings.includes(sanitizedAction.setting) && 
+            sanitizedAction.value && sanitizedAction.inverter) {
+          sanitized.actions.push(sanitizedAction);
+        }
+      }
+    });
+  }
+
+  // Validate and sanitize time restrictions
+  if (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') {
+    sanitized.timeRestrictions = {
+      enabled: Boolean(ruleData.timeRestrictions.enabled)
+    };
+    
+    if (sanitized.timeRestrictions.enabled) {
+      // Validate time format (HH:MM)
+      const timePattern = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      
+      if (ruleData.timeRestrictions.startTime && 
+          timePattern.test(ruleData.timeRestrictions.startTime)) {
+        sanitized.timeRestrictions.startTime = ruleData.timeRestrictions.startTime;
+      }
+      
+      if (ruleData.timeRestrictions.endTime && 
+          timePattern.test(ruleData.timeRestrictions.endTime)) {
+        sanitized.timeRestrictions.endTime = ruleData.timeRestrictions.endTime;
+      }
+      
+      // Validate days
+      if (Array.isArray(ruleData.timeRestrictions.days)) {
+        const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        sanitized.timeRestrictions.days = ruleData.timeRestrictions.days.filter(day => 
+          validDays.includes(String(day).toLowerCase())
+        );
+      }
+    }
+  } else {
+    sanitized.timeRestrictions = { enabled: false };
+  }
+
+  return sanitized;
+}
+
 app.post('/api/rules', (req, res) => {
   console.log('📝 Rules POST request received');
   console.log('Content-Type:', req.get('Content-Type'));
-  
-  // Check if body exists and is an object
-  if (!req.body || typeof req.body !== 'object') {
-    console.error('❌ Invalid request body:', req.body);
-    return res.status(400).json({
-      success: false,
-      error: 'Request body must be a valid JSON object'
-    });
-  }
-  
-  console.log('Request body keys:', Object.keys(req.body));
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     if (!dbConnected || !jsonStorage) {
@@ -5640,76 +5754,79 @@ app.post('/api/rules', (req, res) => {
       });
     }
     
-    // Validate request body
+    // Validate request body exists
     if (!req.body || typeof req.body !== 'object') {
       console.error('❌ Invalid request body:', req.body);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid request body. Expected JSON object.' 
+      return res.status(400).json({
+        success: false,
+        error: 'Request body must be a valid JSON object'
       });
     }
     
-    let { name, description, active, conditions, timeRestrictions, actions } = req.body;
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Raw request body:', JSON.stringify(req.body, null, 2));
     
-    // Sanitize and validate each field
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      console.error('❌ Invalid name:', name);
+    // Validate and sanitize the rule data for Home Assistant compatibility
+    let sanitizedRule;
+    try {
+      sanitizedRule = validateAndSanitizeRuleData(req.body);
+      console.log('Sanitized rule data:', JSON.stringify(sanitizedRule, null, 2));
+    } catch (validationError) {
+      console.error('❌ Validation error:', validationError.message);
       return res.status(400).json({ 
         success: false, 
-        error: 'Rule name is required and must be a non-empty string' 
+        error: validationError.message
       });
     }
     
-    // Ensure arrays are arrays
-    if (conditions && !Array.isArray(conditions)) {
-      console.error('❌ Invalid conditions:', conditions);
-      conditions = [];
-    }
-    
-    if (!actions || !Array.isArray(actions) || actions.length === 0) {
-      console.error('❌ Invalid actions:', actions);
+    // Additional validation
+    if (sanitizedRule.actions.length === 0) {
       return res.status(400).json({ 
         success: false, 
         error: 'At least one valid action is required' 
       });
     }
     
-    // Ensure timeRestrictions is an object
-    if (timeRestrictions && typeof timeRestrictions !== 'object') {
-      console.error('❌ Invalid timeRestrictions:', timeRestrictions);
-      timeRestrictions = { enabled: false };
-    }
-    
+    // Add user information
     const newRule = {
-      name: name.trim(),
-      description: description || '',
-      active: active !== undefined ? !!active : true,
-      conditions: conditions || [],
-      timeRestrictions: timeRestrictions || { enabled: false },
-      actions: actions,
+      ...sanitizedRule,
       user_id: USER_ID,
       mqtt_username: mqttConfig.username
     };
+    
+    console.log('Final rule to save:', JSON.stringify(newRule, null, 2));
     
     const savedRule = saveRule(newRule);
     
     if (!savedRule) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Failed to create rule' 
+        error: 'Failed to create rule in storage' 
       });
     }
+    
+    console.log('✅ Rule saved successfully with ID:', savedRule.id);
     
     res.status(201).json({
       success: true,
       message: 'Rule created successfully',
       rule: savedRule
     });
+    
   } catch (error) {
-    console.error('Error creating rule:', error);
+    console.error('❌ Error creating rule:', error);
+    
+    // Provide more specific error messages for Home Assistant
+    let errorMessage = error.message;
+    if (error.message.includes('JSON')) {
+      errorMessage = 'Invalid JSON format in rule data';
+    } else if (error.message.includes('pattern')) {
+      errorMessage = 'Rule contains invalid characters or format';
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: 'Server error: ' + error.message 
+      error: 'Server error: ' + errorMessage
     });
   }
 });
