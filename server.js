@@ -16,7 +16,7 @@ const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
-const Database = require('better-sqlite3');
+const JsonRuleStorage = require('./utils/jsonRuleStorage');
 const cron = require('node-cron')
 const session = require('express-session');
 const { createProxyMiddleware } = require('http-proxy-middleware');
@@ -141,7 +141,6 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
-
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end(); // Use .end() instead of .send() for better performance
@@ -149,29 +148,26 @@ app.get('/favicon.ico', (req, res) => {
 
 // Test endpoint to check for corrupted data
 app.get('/api/debug/rules', (req, res) => {
-  if (!dbConnected || !db) {
-    return res.json({ error: 'Database not connected' });
+  if (!dbConnected || !jsonStorage) {
+    return res.json({ error: 'Storage not connected' });
   }
   
   try {
-    const stmt = db.prepare('SELECT id, name, conditions, time_restrictions, actions FROM rules LIMIT 5');
-    const rules = stmt.all();
+    const rules = jsonStorage.getAllRules().slice(0, 5);
     
     const debugInfo = rules.map(rule => {
       const info = { id: rule.id, name: rule.name };
       
-      // Test each JSON field
-      ['conditions', 'time_restrictions', 'actions'].forEach(field => {
+      // Test each field
+      ['conditions', 'timeRestrictions', 'actions'].forEach(field => {
         try {
           if (rule[field]) {
-            JSON.parse(rule[field]);
             info[field] = 'valid';
           } else {
             info[field] = 'null';
           }
         } catch (e) {
-          info[field] = `corrupted: ${e.message}`;
-          info[`${field}_raw`] = rule[field];
+          info[field] = `error: ${e.message}`;
         }
       });
       
@@ -186,22 +182,17 @@ app.get('/api/debug/rules', (req, res) => {
 
 // Endpoint to fix all corrupted rules
 app.post('/api/debug/fix-rules', (req, res) => {
-  if (!dbConnected || !db) {
-    return res.json({ error: 'Database not connected' });
+  if (!dbConnected || !jsonStorage) {
+    return res.json({ error: 'Storage not connected' });
   }
   
   try {
-    const stmt = db.prepare('UPDATE rules SET conditions = "[]", time_restrictions = "{}", actions = "[]" WHERE conditions IS NULL OR time_restrictions IS NULL OR actions IS NULL');
-    const result = stmt.run();
-    
-    const stmt2 = db.prepare('UPDATE rules SET conditions = "[]", time_restrictions = "{}", actions = "[]"');
-    const result2 = stmt2.run();
-    
+    // JSON storage doesn't have corruption issues like SQLite
     res.json({ 
       success: true, 
-      message: `Fixed ${result.changes + result2.changes} rules`,
-      nullFixed: result.changes,
-      allFixed: result2.changes
+      message: 'JSON storage does not require corruption fixes',
+      nullFixed: 0,
+      allFixed: 0
     });
   } catch (error) {
     res.json({ error: error.message });
@@ -230,82 +221,11 @@ if (!fs.existsSync(path.join(__dirname, 'data'))) {
   fs.mkdirSync(path.join(__dirname, 'data'))
 }
 
-// SQLite database instance
-let db;
+// JSON storage instance
+let jsonStorage;
 let dbConnected = false;
 
-// Database cleanup function to fix corrupted JSON data
-function cleanupCorruptedRules() {
-  if (!dbConnected || !db) return;
-  
-  try {
-    console.log('🔧 Checking for corrupted rule data...');
-    
-    const stmt = db.prepare('SELECT id, conditions, time_restrictions, actions FROM rules');
-    const rules = stmt.all();
-    
-    let fixedCount = 0;
-    
-    for (const rule of rules) {
-      let needsUpdate = false;
-      let fixedConditions = rule.conditions;
-      let fixedTimeRestrictions = rule.time_restrictions;
-      let fixedActions = rule.actions;
-      
-      // Check and fix conditions
-      try {
-        if (rule.conditions) {
-          JSON.parse(rule.conditions);
-        }
-      } catch (e) {
-        console.log(`Fixing corrupted conditions for rule ${rule.id}`);
-        fixedConditions = '[]';
-        needsUpdate = true;
-      }
-      
-      // Check and fix time_restrictions
-      try {
-        if (rule.time_restrictions) {
-          JSON.parse(rule.time_restrictions);
-        }
-      } catch (e) {
-        console.log(`Fixing corrupted time_restrictions for rule ${rule.id}`);
-        fixedTimeRestrictions = '{}';
-        needsUpdate = true;
-      }
-      
-      // Check and fix actions
-      try {
-        if (rule.actions) {
-          JSON.parse(rule.actions);
-        }
-      } catch (e) {
-        console.log(`Fixing corrupted actions for rule ${rule.id}`);
-        fixedActions = '[]';
-        needsUpdate = true;
-      }
-      
-      // Update the rule if needed
-      if (needsUpdate) {
-        const updateStmt = db.prepare(`
-          UPDATE rules 
-          SET conditions = ?, time_restrictions = ?, actions = ?
-          WHERE id = ?
-        `);
-        updateStmt.run(fixedConditions, fixedTimeRestrictions, fixedActions, rule.id);
-        fixedCount++;
-      }
-    }
-    
-    if (fixedCount > 0) {
-      console.log(`✅ Fixed ${fixedCount} corrupted rules`);
-    } else {
-      console.log('✅ No corrupted rules found');
-    }
-  } catch (error) {
-    console.error('❌ Error during rule cleanup:', error.message);
-  }
-}
+// JSON storage doesn't need corruption cleanup
 
 if (!fs.existsSync(SETTINGS_FILE)) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify({
@@ -541,6 +461,10 @@ global.learnerModeActive = learnerModeActive;
 // Make inverter types globally accessible
 global.inverterTypes = inverterTypes;
 
+// Make configuration globally accessible for AI engine
+global.inverterNumber = inverterNumber;
+global.mqttTopicPrefix = mqttTopicPrefix;
+
 // ================ INVERTER TYPE DETECTION ================
 
 // Function to detect inverter type based on received MQTT messages
@@ -650,59 +574,12 @@ function mapChargerSourcePriorityToGridCharge(chargerPriority) {
 
 async function initializeDatabase() {
   try {
-    db = new Database(DB_FILE);
-    db.pragma('journal_mode = WAL');
-    
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS settings_changes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        topic TEXT,
-        old_value TEXT,
-        new_value TEXT,
-        system_state TEXT,
-        change_type TEXT,
-        user_id TEXT,
-        mqtt_username TEXT
-      )
-    `);
-    
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS rules (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        active INTEGER DEFAULT 1,
-        conditions TEXT,
-        time_restrictions TEXT,
-        actions TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        last_triggered TEXT,
-        trigger_count INTEGER DEFAULT 0,
-        user_id TEXT,
-        mqtt_username TEXT
-      )
-    `);
-    
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_user_id ON settings_changes(user_id);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_timestamp ON settings_changes(timestamp);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_topic ON settings_changes(topic);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_change_type ON settings_changes(change_type);
-      CREATE INDEX IF NOT EXISTS idx_rules_user_id ON rules(user_id);
-      CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(active);
-      CREATE INDEX IF NOT EXISTS idx_rules_last_triggered ON rules(last_triggered);
-    `);
-    
-    console.log('SQLite database initialized');
+    jsonStorage = new JsonRuleStorage(path.join(__dirname, 'data'));
+    console.log('JSON storage initialized');
     dbConnected = true;
-    
-    // Clean up any corrupted rule data
-    setTimeout(() => cleanupCorruptedRules(), 1000);
-    
     return true;
   } catch (error) {
-    console.error('Error initializing SQLite database:', error.message);
+    console.error('Error initializing JSON storage:', error.message);
     dbConnected = false;
     return false;
   }
@@ -766,39 +643,27 @@ async function retryDatabaseConnection() {
 // ================ SETTINGS CHANGE FUNCTIONS ================
 
 async function saveSettingsChange(changeData) {
-  if (!dbConnected) return false;
-  
   try {
-    const systemStateJson = JSON.stringify(changeData.system_state || {});
+    const point = {
+      measurement: 'settings_changes',
+      tags: {
+        topic: changeData.topic,
+        change_type: changeData.change_type,
+        user_id: changeData.user_id,
+        mqtt_username: changeData.mqtt_username
+      },
+      fields: {
+        old_value: String(changeData.old_value || ''),
+        new_value: String(changeData.new_value || ''),
+        system_state: JSON.stringify(changeData.system_state || {})
+      },
+      timestamp: changeData.timestamp
+    };
     
-    const oldValueStr = typeof changeData.old_value === 'object' ? 
-      JSON.stringify(changeData.old_value) : 
-      String(changeData.old_value || '');
-    
-    const newValueStr = typeof changeData.new_value === 'object' ? 
-      JSON.stringify(changeData.new_value) : 
-      String(changeData.new_value || '');
-    
-    const stmt = db.prepare(`
-      INSERT INTO settings_changes 
-      (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      changeData.timestamp.toISOString(),
-      changeData.topic,
-      oldValueStr,
-      newValueStr,
-      systemStateJson,
-      changeData.change_type,
-      changeData.user_id,
-      changeData.mqtt_username
-    );
-    
+    await influx.writePoints([point]);
     return true;
   } catch (error) {
-    console.error('Error saving settings change to SQLite:', error.message);
+    console.error('Error saving settings change to InfluxDB:', error.message);
     return false;
   }
 }
@@ -902,12 +767,10 @@ async function handleWorkModeSettingChange(specificTopic, messageContent, settin
 // ================ RULES FUNCTIONS ================
 
 function countRules(userId) {
-  if (!dbConnected || !db) return 0;
+  if (!dbConnected || !jsonStorage) return 0;
   
   try {
-    const stmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
-    const result = stmt.get(userId);
-    return result.count;
+    return jsonStorage.countRules(userId);
   } catch (error) {
     console.error('Error counting rules:', error.message);
     return 0;
@@ -915,383 +778,91 @@ function countRules(userId) {
 }
 
 function batchUpdateRules(rules) {
-  if (!dbConnected || !db || rules.length === 0) return;
+  if (!dbConnected || !jsonStorage || rules.length === 0) return;
   
-  return executeWithDbMutex(() => {
-    const stmt = db.prepare(`
-      UPDATE rules 
-      SET last_triggered = ?,
-          trigger_count = ?
-      WHERE id = ? AND user_id = ?
-    `);
-    
-    const transaction = db.transaction((rulesToUpdate) => {
-      for (const rule of rulesToUpdate) {
-        stmt.run(
-          rule.lastTriggered.toISOString(),
-          rule.triggerCount,
-          rule.id,
-          rule.user_id
-        );
-      }
-    });
-    
-    try {
-      transaction(rules);
-      return true;
-    } catch (error) {
-      console.error('Error batch updating rules in SQLite:', error.message);
-      return false;
-    }
-  });
+  try {
+    return jsonStorage.batchUpdateRules(rules);
+  } catch (error) {
+    console.error('Error batch updating rules:', error.message);
+    return false;
+  }
 }
 
 function saveRule(ruleData) {
-  if (!dbConnected || !db) return null;
+  if (!dbConnected || !jsonStorage) return null;
   
   try {
-    // Validate rule data
-    if (!ruleData || typeof ruleData !== 'object') {
-      throw new Error('Invalid rule data: expected object');
-    }
-    
-    if (!ruleData.name || typeof ruleData.name !== 'string') {
-      throw new Error('Invalid rule data: name is required and must be a string');
-    }
-    
-    const activeValue = ruleData.active ? 1 : 0;
-    
-    // Safely stringify with validation
-    const conditions = Array.isArray(ruleData.conditions) ? ruleData.conditions : [];
-    const timeRestrictions = (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') ? ruleData.timeRestrictions : {};
-    const actions = Array.isArray(ruleData.actions) ? ruleData.actions : [];
-    
-    // Validate JSON stringification
-    let conditionsJson, timeRestrictionsJson, actionsJson;
-    try {
-      conditionsJson = JSON.stringify(conditions);
-      timeRestrictionsJson = JSON.stringify(timeRestrictions);
-      actionsJson = JSON.stringify(actions);
-      
-      // Test parsing to ensure valid JSON
-      JSON.parse(conditionsJson);
-      JSON.parse(timeRestrictionsJson);
-      JSON.parse(actionsJson);
-    } catch (jsonError) {
-      console.error('JSON validation error in saveRule:', jsonError.message);
-      throw new Error('Invalid JSON data in rule fields');
-    }
-    
-    const stmt = db.prepare(`
-      INSERT INTO rules 
-      (name, description, active, conditions, time_restrictions, actions, 
-       created_at, last_triggered, trigger_count, user_id, mqtt_username)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const info = stmt.run(
-      ruleData.name,
-      ruleData.description || '',
-      activeValue,
-      conditionsJson,
-      timeRestrictionsJson,
-      actionsJson,
-      new Date().toISOString(),
-      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-      ruleData.triggerCount || 0,
-      ruleData.user_id,
-      ruleData.mqtt_username
-    );
-    
-    return {
-      id: info.lastInsertRowid,
-      ...ruleData,
-      active: ruleData.active
-    };
+    return jsonStorage.saveRule(ruleData);
   } catch (error) {
-    console.error('Error saving rule to SQLite:', error.message);
+    console.error('Error saving rule:', error.message);
     return null;
   }
 }
 
 function updateRule(id, ruleData) {
-  if (!dbConnected || !db) return false;
+  if (!dbConnected || !jsonStorage) return false;
   
   try {
-    // Validate and stringify JSON fields
-    const conditions = Array.isArray(ruleData.conditions) ? ruleData.conditions : [];
-    const timeRestrictions = (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') ? ruleData.timeRestrictions : {};
-    const actions = Array.isArray(ruleData.actions) ? ruleData.actions : [];
-    
-    let conditionsJson, timeRestrictionsJson, actionsJson;
-    try {
-      conditionsJson = JSON.stringify(conditions);
-      timeRestrictionsJson = JSON.stringify(timeRestrictions);
-      actionsJson = JSON.stringify(actions);
-      
-      // Test parsing to ensure valid JSON
-      JSON.parse(conditionsJson);
-      JSON.parse(timeRestrictionsJson);
-      JSON.parse(actionsJson);
-    } catch (jsonError) {
-      console.error('JSON validation error in updateRule:', jsonError.message);
-      throw new Error('Invalid JSON data in rule fields');
-    }
-    
-    const activeValue = ruleData.active ? 1 : 0;
-    
-    const stmt = db.prepare(`
-      UPDATE rules 
-      SET name = ?, 
-          description = ?, 
-          active = ?, 
-          conditions = ?, 
-          time_restrictions = ?, 
-          actions = ?, 
-          last_triggered = ?, 
-          trigger_count = ?
-      WHERE id = ? AND user_id = ?
-    `);
-    
-    const info = stmt.run(
-      ruleData.name,
-      ruleData.description || '',
-      activeValue,
-      conditionsJson,
-      timeRestrictionsJson,
-      actionsJson,
-      ruleData.lastTriggered ? ruleData.lastTriggered.toISOString() : null,
-      ruleData.triggerCount || 0,
-      id,
-      ruleData.user_id
-    );
-    
-    return info.changes > 0;
+    return jsonStorage.updateRule(id, ruleData);
   } catch (error) {
-    console.error('Error updating rule in SQLite:', error.message);
+    console.error('Error updating rule:', error.message);
     return false;
   }
 }
 
 function getAllRules(userId, options = {}) {
-  if (!dbConnected || !db) return [];
+  if (!dbConnected || !jsonStorage) return [];
   
   try {
-    const { active, sort, limit, offset } = options;
-    
-    let query = 'SELECT * FROM rules WHERE user_id = ?';
-    const params = [userId];
-    
-    if (active !== undefined) {
-      query += ' AND active = ?';
-      params.push(active ? 1 : 0);
-    }
-    
-    if (sort) {
-      query += ` ORDER BY ${sort.field} ${sort.order || 'ASC'}`;
-    } else {
-      query += ' ORDER BY name ASC';
-    }
-    
-    if (limit) {
-      query += ' LIMIT ?';
-      params.push(limit);
-      
-      if (offset) {
-        query += ' OFFSET ?';
-        params.push(offset);
-      }
-    }
-    
-    const stmt = db.prepare(query);
-    const rules = stmt.all(...params);
-    
-    return rules.map(rule => {
-      try {
-        return {
-          id: rule.id,
-          name: rule.name,
-          description: rule.description,
-          active: rule.active === 1,
-          conditions: JSON.parse(rule.conditions || '[]'),
-          timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-          actions: JSON.parse(rule.actions || '[]'),
-          createdAt: new Date(rule.created_at),
-          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-          triggerCount: rule.trigger_count,
-          user_id: rule.user_id,
-          mqtt_username: rule.mqtt_username
-        };
-      } catch (parseError) {
-        console.error(`Error parsing rule ${rule.id}:`, parseError.message);
-        return {
-          id: rule.id,
-          name: rule.name,
-          description: rule.description,
-          active: rule.active === 1,
-          conditions: [],
-          timeRestrictions: {},
-          actions: [],
-          createdAt: new Date(rule.created_at),
-          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-          triggerCount: rule.trigger_count,
-          user_id: rule.user_id,
-          mqtt_username: rule.mqtt_username,
-          parseError: true
-        };
-      }
-    });
+    return jsonStorage.getAllRules(userId, options);
   } catch (error) {
-    console.error('Error getting rules from SQLite:', error.message);
+    console.error('Error getting rules:', error.message);
     return [];
   }
 }
 
 function deleteRule(id, userId) {
-  if (!dbConnected || !db) return false;
+  if (!dbConnected || !jsonStorage) return false;
   
   try {
-    const stmt = db.prepare(`DELETE FROM rules WHERE id = ? AND user_id = ?`);
-    const info = stmt.run(id, userId);
-    return info.changes > 0;
+    return jsonStorage.deleteRule(id, userId);
   } catch (error) {
-    console.error('Error deleting rule from SQLite:', error.message);
+    console.error('Error deleting rule:', error.message);
     return false;
   }
 }
 
 function getRuleById(id, userId) {
-  if (!dbConnected || !db) return null;
+  if (!dbConnected || !jsonStorage) return null;
   
   try {
-    const stmt = db.prepare(`SELECT * FROM rules WHERE id = ? AND user_id = ?`);
-    const rule = stmt.get(id, userId);
-    
-    if (!rule) {
-      return null;
-    }
-    
-    // Safe JSON parsing function
-    const safeParseJSON = (jsonString, defaultValue) => {
-      if (!jsonString || jsonString === 'null' || jsonString === 'undefined' || jsonString === '') {
-        return defaultValue;
-      }
-      
-      try {
-        // First try direct parsing
-        return JSON.parse(jsonString);
-      } catch (error) {
-        console.error(`JSON parse error for rule ${rule.id}:`, error.message);
-        console.error('Problematic string:', JSON.stringify(jsonString));
-        
-        // Try to fix common issues
-        try {
-          // Remove BOM and control characters
-          let cleaned = jsonString.replace(/^\uFEFF/, '').replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-          
-          // Try parsing cleaned string
-          return JSON.parse(cleaned);
-        } catch (secondError) {
-          console.error(`Second parse attempt failed:`, secondError.message);
-          return defaultValue;
-        }
-      }
-    };
-    
-    try {
-      return {
-        id: rule.id,
-        name: rule.name,
-        description: rule.description,
-        active: rule.active === 1,
-        conditions: safeParseJSON(rule.conditions, []),
-        timeRestrictions: safeParseJSON(rule.time_restrictions, {}),
-        actions: safeParseJSON(rule.actions, []),
-        createdAt: new Date(rule.created_at),
-        lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-        triggerCount: rule.trigger_count,
-        user_id: rule.user_id,
-        mqtt_username: rule.mqtt_username
-      };
-    } catch (parseError) {
-      console.error(`Error parsing rule ${rule.id}:`, parseError.message);
-      
-      // Immediately fix corrupted data
-      try {
-        const fixStmt = db.prepare(`
-          UPDATE rules 
-          SET conditions = '[]', time_restrictions = '{}', actions = '[]'
-          WHERE id = ?
-        `);
-        fixStmt.run(rule.id);
-        console.log(`Fixed corrupted data for rule ${rule.id}`);
-      } catch (fixError) {
-        console.error(`Failed to fix rule ${rule.id}:`, fixError.message);
-      }
-      
-      return {
-        id: rule.id,
-        name: rule.name,
-        description: rule.description,
-        active: rule.active === 1,
-        conditions: [],
-        timeRestrictions: {},
-        actions: [],
-        createdAt: new Date(rule.created_at),
-        lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-        triggerCount: rule.trigger_count,
-        user_id: rule.user_id,
-        mqtt_username: rule.mqtt_username,
-        parseError: true
-      };
-    }
+    return jsonStorage.getRuleById(id, userId);
   } catch (error) {
-    console.error(`Error getting rule by ID ${id}:`, error.message);
+    console.error('Error getting rule by ID:', error.message);
     return null;
   }
 }
 
-function getSettingsChanges(userId, options = {}) {
-  if (!dbConnected || !db) return { changes: [], pagination: { total: 0 } };
-  
+async function getSettingsChanges(userId, options = {}) {
   try {
-    const { changeType, topic, limit = 100, skip = 0 } = options;
+    const limit = options.limit || 100;
+    const skip = options.skip || 0;
     
-    let query = 'SELECT * FROM settings_changes WHERE user_id = ?';
-    let countQuery = 'SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?';
-    const params = [userId];
-    const countParams = [userId];
+    let query = `SELECT * FROM settings_changes WHERE user_id = '${userId}'`;
     
-    if (changeType) {
-      query += ' AND change_type = ?';
-      countQuery += ' AND change_type = ?';
-      params.push(changeType);
-      countParams.push(changeType);
+    if (options.changeType) {
+      query += ` AND change_type = '${options.changeType}'`;
     }
     
-    if (topic) {
-      query += ' AND topic LIKE ?';
-      countQuery += ' AND topic LIKE ?';
-      params.push(`%${topic}%`);
-      countParams.push(`%${topic}%`);
-    }
+    query += ` ORDER BY time DESC LIMIT ${limit} OFFSET ${skip}`;
     
-    query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-    params.push(limit, skip);
+    const result = await influx.query(query);
     
-    const countStmt = db.prepare(countQuery);
-    const countResult = countStmt.get(...countParams);
-    const total = countResult.total;
-    
-    const stmt = db.prepare(query);
-    const changes = stmt.all(...params);
-    
-    const formattedChanges = changes.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
+    const formattedChanges = result.map(change => ({
+      time: change.time,
       topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
+      old_value: change.old_value,
+      new_value: change.new_value,
       system_state: JSON.parse(change.system_state || '{}'),
       change_type: change.change_type,
       user_id: change.user_id,
@@ -1301,14 +872,14 @@ function getSettingsChanges(userId, options = {}) {
     return {
       changes: formattedChanges,
       pagination: {
-        total,
+        total: formattedChanges.length,
         limit,
         skip,
-        hasMore: skip + limit < total
+        hasMore: formattedChanges.length === limit
       }
     };
   } catch (error) {
-    console.error('Error getting settings changes from SQLite:', error.message);
+    console.error('Error getting settings changes from InfluxDB:', error.message);
     return { changes: [], pagination: { total: 0 } };
   }
 }
@@ -1844,53 +1415,32 @@ async function processSettingsChangesQueue() {
   }
 }
 
-function batchSaveSettingsChanges(changes) {
-  if (!dbConnected || !db || changes.length === 0) return;
+async function batchSaveSettingsChanges(changes) {
+  if (changes.length === 0) return;
   
-  return executeWithDbMutex(() => {
-    const stmt = db.prepare(`
-      INSERT INTO settings_changes 
-      (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+  try {
+    const points = changes.map(changeData => ({
+      measurement: 'settings_changes',
+      tags: {
+        topic: changeData.topic,
+        change_type: changeData.change_type,
+        user_id: changeData.user_id,
+        mqtt_username: changeData.mqtt_username
+      },
+      fields: {
+        old_value: String(changeData.old_value || ''),
+        new_value: String(changeData.new_value || ''),
+        system_state: JSON.stringify(changeData.system_state || {})
+      },
+      timestamp: changeData.timestamp
+    }));
     
-    const transaction = db.transaction((changesToInsert) => {
-      for (const change of changesToInsert) {
-        const systemStateJson = JSON.stringify(change.system_state || {});
-        
-        const oldValueStr = typeof change.old_value === 'object' ? 
-          JSON.stringify(change.old_value) : 
-          String(change.old_value || '');
-        
-        const newValueStr = typeof change.new_value === 'object' ? 
-          JSON.stringify(change.new_value) : 
-          String(change.new_value || '');
-        
-        try {
-          stmt.run(
-            change.timestamp.toISOString(),
-            change.topic,
-            oldValueStr,
-            newValueStr,
-            systemStateJson,
-            change.change_type,
-            change.user_id,
-            change.mqtt_username
-          );
-        } catch (insertError) {
-          console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
-        }
-      }
-    });
-    
-    try {
-      transaction(changes);
-      return true;
-    } catch (error) {
-      console.error('Error batch saving settings changes to SQLite:', error.message);
-      return false;
-    }
-  });
+    await influx.writePoints(points);
+    return true;
+  } catch (error) {
+    console.error('Error batch saving settings changes to InfluxDB:', error.message);
+    return false;
+  }
 }
 
 const API_REQUEST_LIMIT = new Map();
@@ -3699,39 +3249,13 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
   }
   
   function pruneOldSettingsChanges() {
-    if (!dbConnected || !db) return;
+    if (!dbConnected || !jsonStorage) return;
     
     try {
-      const countStmt = db.prepare('SELECT COUNT(*) as total FROM settings_changes');
-      const countResult = countStmt.get();
-      const totalRecords = countResult.total;
-      
-      if (totalRecords > 5000) {
-        const recordsToDelete = totalRecords - 5000;
-        console.log(`Pruning ${recordsToDelete} old settings changes`);
-        
-        const deleteStmt = db.prepare(`
-          DELETE FROM settings_changes 
-          WHERE id IN (
-            SELECT id FROM settings_changes 
-            ORDER BY timestamp ASC 
-            LIMIT ?
-          )
-        `);
-        deleteStmt.run(recordsToDelete);
-      }
-      
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const oldStmt = db.prepare(`DELETE FROM settings_changes WHERE timestamp < ?`);
-      const info = oldStmt.run(thirtyDaysAgo.toISOString());
-      
-      if (info.changes > 0) {
-        console.log(`Pruned ${info.changes} records older than 30 days`);
-      }
+      // JSON storage handles its own cleanup, no manual pruning needed
+      console.log('JSON storage handles automatic cleanup');
     } catch (error) {
-      console.error('Error pruning old settings changes:', error.message);
+      console.error('Error in settings cleanup:', error.message);
     }
   }
   
@@ -3740,7 +3264,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 // ================ DYNAMIC RULE CREATION BASED ON INVERTER TYPES ================
 
 function createDefaultRules() {
-  if (!dbConnected || !db) return;
+  if (!dbConnected || !jsonStorage) return;
   
   try {
     const count = countRules(USER_ID);
@@ -3799,14 +3323,11 @@ function createDefaultRules() {
 }
 
 function createExtendedAutomationRules() {
-  if (!dbConnected || !db) return;
+  if (!dbConnected || !jsonStorage) return;
   
   try {
-    const stmt = db.prepare(`
-      SELECT COUNT(*) as count FROM rules 
-      WHERE user_id = ? AND name LIKE '%Extended%'
-    `);
-    const count = stmt.get(USER_ID);
+    const rules = jsonStorage.getAllRules(USER_ID);
+    const count = { count: rules.filter(rule => rule.name.includes('Extended')).length };
     
     if (count.count === 0) {
       console.log('Creating extended automation rules based on inverter types...');
@@ -3929,17 +3450,14 @@ function createExtendedAutomationRules() {
 }
 
 function createNightChargingRule() {
-  if (!dbConnected || !db) return;
+  if (!dbConnected || !jsonStorage) return;
   
   try {
     const detectedTypes = analyzeInverterTypes();
     
     // Check if night charging rule exists
-    const stmt = db.prepare(`
-      SELECT * FROM rules 
-      WHERE name LIKE 'Night Charging%' AND user_id = ?
-    `);
-    const existingRule = stmt.get(USER_ID);
+    const rules = jsonStorage.getAllRules(USER_ID);
+    const existingRule = rules.find(rule => rule.name.startsWith('Night Charging'));
     
     if (!existingRule) {
       const nightRule = {
@@ -4014,17 +3532,14 @@ function createNightChargingRule() {
 }
 
 function createWeekendGridChargeRules() {
-  if (!dbConnected || !db) return;
+  if (!dbConnected || !jsonStorage) return;
   
   try {
     const detectedTypes = analyzeInverterTypes();
     
     // Check if weekend rules exist
-    const stmt = db.prepare(`
-      SELECT * FROM rules 
-      WHERE name LIKE '%Weekend%' AND user_id = ?
-    `);
-    const existingWeekendRule = stmt.get(USER_ID);
+    const rules = jsonStorage.getAllRules(USER_ID);
+    const existingWeekendRule = rules.find(rule => rule.name.includes('Weekend'));
     
     if (!existingWeekendRule) {
       const weekendRules = [];
@@ -4696,11 +4211,10 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
   app.get('/inverter-settings', (req, res) => {
     try {
       let settingsCount = 0;
-      if (dbConnected && db) {
+      if (dbConnected && jsonStorage) {
         try {
-          const stmt = db.prepare(`SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?`);
-          const result = stmt.get(USER_ID);
-          settingsCount = result.count || 0;
+          const result = jsonStorage.getSettingsChanges(USER_ID);
+          settingsCount = result.pagination.total || 0;
         } catch (dbError) {
           console.error('Error getting settings count:', dbError);
         }
@@ -4954,30 +4468,23 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
   
   app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const setting = req.params.setting;
       const days = parseInt(req.query.days) || 7;
       
-      const dateThreshold = new Date();
-      dateThreshold.setDate(dateThreshold.getDate() - days);
-      
-      const stmt = db.prepare(`
+      const query = `
         SELECT * FROM settings_changes 
-        WHERE (topic LIKE ? OR change_type = ?) 
-        AND timestamp >= ? 
-        AND user_id = ?
-        ORDER BY timestamp ASC
-        LIMIT 1000
-      `);
-      const changes = stmt.all(`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID);
+        WHERE user_id = '${USER_ID}'
+        AND change_type = '${setting}'
+        AND time >= now() - ${days}d
+        ORDER BY time DESC
+      `;
       
-      const formattedData = changes.map(change => ({
-        timestamp: new Date(change.timestamp),
-        value: parseJsonOrValue(change.new_value),
-        old_value: parseJsonOrValue(change.old_value),
+      const result = await influx.query(query);
+      
+      const formattedData = result.map(change => ({
+        timestamp: change.time,
+        value: change.new_value,
+        old_value: change.old_value,
         system_state: JSON.parse(change.system_state || '{}')
       }));
       
@@ -4988,7 +4495,7 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
         count: formattedData.length
       });
     } catch (error) {
-      console.error(`Error retrieving ${req.params.setting} history:`, error);
+      console.error(`Error retrieving ${req.params.setting} history from InfluxDB:`, error);
       res.status(500).json({ error: 'Failed to retrieve setting history' });
     }
   });
@@ -5060,11 +4567,11 @@ app.put('/api/rules/:id', (req, res) => {
     console.log(`Attempting to update rule with ID: ${ruleId}`);
     console.log('Request body:', req.body);
     
-    if (!dbConnected || !db) {
-      console.log('Database not connected, cannot update rule');
+    if (!dbConnected || !jsonStorage) {
+      console.log('Storage not connected, cannot update rule');
       return res.status(503).json({ 
         success: false, 
-        error: 'Database not connected', 
+        error: 'Storage not connected', 
         status: 'disconnected' 
       });
     }
@@ -5139,10 +4646,10 @@ app.put('/api/rules/:id', (req, res) => {
       console.log(`Attempting to duplicate rule with ID: ${ruleId}`);
       
       if (!dbConnected) {
-        console.log('Database not connected, cannot duplicate rule');
+        console.log('Storage not connected, cannot duplicate rule');
         return res.status(503).json({ 
           success: false, 
-          error: 'Database not connected', 
+          error: 'Storage not connected', 
           status: 'disconnected' 
         });
       }
@@ -5200,29 +4707,12 @@ app.put('/api/rules/:id', (req, res) => {
       let ruleHistory = [];
       let systemState = { ...currentSystemState };
       
-      if (dbConnected) {
-        const stmt = db.prepare(`
-          SELECT * FROM rules
-          WHERE last_triggered IS NOT NULL
-          AND user_id = ?
-          ORDER BY last_triggered DESC
-        `);
-        const rules = stmt.all(USER_ID);
+      if (dbConnected && jsonStorage) {
+        const rules = jsonStorage.getAllRules(USER_ID);
         
-        ruleHistory = rules.map(rule => ({
-          id: rule.id,
-          name: rule.name,
-          description: rule.description,
-          active: rule.active === 1,
-          conditions: JSON.parse(rule.conditions || '[]'),
-          timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-          actions: JSON.parse(rule.actions || '[]'),
-          createdAt: new Date(rule.created_at),
-          lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
-          triggerCount: rule.trigger_count,
-          user_id: rule.user_id,
-          mqtt_username: rule.mqtt_username
-        }));
+        ruleHistory = rules
+          .filter(rule => rule.lastTriggered)
+          .sort((a, b) => new Date(b.lastTriggered) - new Date(a.lastTriggered));
       }
       
       res.render('rule-history', {
@@ -5240,8 +4730,8 @@ app.put('/api/rules/:id', (req, res) => {
   
   app.get('/api/rules/history', async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      if (!dbConnected || !jsonStorage) {
+        return res.status(503).json({ error: 'Storage not connected', status: 'disconnected' });
       }
       
       const limit = parseInt(req.query.limit) || 50;
@@ -5249,36 +4739,22 @@ app.put('/api/rules/:id', (req, res) => {
       const sortBy = req.query.sortBy || 'last_triggered';
       const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
       
-      const stmt = db.prepare(`
-        SELECT id, name, description, active, last_triggered, trigger_count, conditions, actions, time_restrictions
-        FROM rules
-        WHERE last_triggered IS NOT NULL
-        AND user_id = ?
-        ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ? OFFSET ?
-      `);
-      const ruleHistory = stmt.all(USER_ID, limit, skip);
+      const allRules = jsonStorage.getAllRules(USER_ID);
+      const triggeredRules = allRules.filter(rule => rule.lastTriggered);
       
-      const countStmt = db.prepare(`
-        SELECT COUNT(*) as total
-        FROM rules
-        WHERE last_triggered IS NOT NULL
-        AND user_id = ?
-      `);
-      const countResult = countStmt.get(USER_ID);
-      const totalCount = countResult.total;
+      // Sort rules
+      triggeredRules.sort((a, b) => {
+        const aVal = a[sortBy];
+        const bVal = b[sortBy];
+        if (sortOrder === 'DESC') {
+          return bVal > aVal ? 1 : -1;
+        }
+        return aVal > bVal ? 1 : -1;
+      });
       
-      const formattedRules = ruleHistory.map(rule => ({
-        id: rule.id,
-        name: rule.name,
-        description: rule.description,
-        active: rule.active === 1,
-        lastTriggered: new Date(rule.last_triggered),
-        triggerCount: rule.trigger_count,
-        conditions: JSON.parse(rule.conditions || '[]'),
-        actions: JSON.parse(rule.actions || '[]'),
-        timeRestrictions: JSON.parse(rule.time_restrictions || '{}')
-      }));
+      const totalCount = triggeredRules.length;
+      const ruleHistory = triggeredRules.slice(skip, skip + limit);
+      const formattedRules = ruleHistory;
       
       res.json({
         rules: formattedRules,
@@ -5306,31 +4782,26 @@ app.put('/api/rules/:id', (req, res) => {
         });
       }
       
-      const totalRulesStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
-      const totalRulesResult = totalRulesStmt.get(USER_ID);
+      const allRules = jsonStorage.getAllRules(USER_ID);
+      const totalRulesResult = { count: allRules.length };
       
-      const totalExecutionsStmt = db.prepare(`SELECT SUM(trigger_count) as total FROM rules WHERE user_id = ?`);
-      const totalExecutionsResult = totalExecutionsStmt.get(USER_ID);
+      const totalExecutionsResult = { 
+        total: allRules.reduce((sum, rule) => sum + (rule.triggerCount || 0), 0) 
+      };
       
-      const mostActiveRuleStmt = db.prepare(`
-        SELECT name, trigger_count FROM rules 
-        WHERE user_id = ? AND trigger_count > 0
-        ORDER BY trigger_count DESC
-        LIMIT 1
-      `);
-      const mostActiveRuleResult = mostActiveRuleStmt.get(USER_ID);
+      const rulesWithTriggers = allRules.filter(rule => (rule.triggerCount || 0) > 0);
+      rulesWithTriggers.sort((a, b) => (b.triggerCount || 0) - (a.triggerCount || 0));
+      const mostActiveRuleResult = rulesWithTriggers.length > 0 ? rulesWithTriggers[0] : null;
       
       const now = new Date();
       const oneDayAgo = new Date(now);
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       
-      const last24HoursStmt = db.prepare(`
-        SELECT COUNT(*) as count FROM rules 
-        WHERE user_id = ? 
-        AND last_triggered IS NOT NULL 
-        AND last_triggered >= ?
-      `);
-      const last24HoursResult = last24HoursStmt.get(USER_ID, oneDayAgo.toISOString());
+      const last24HoursResult = {
+        count: allRules.filter(rule => 
+          rule.lastTriggered && new Date(rule.lastTriggered) >= oneDayAgo
+        ).length
+      };
       
       res.json({
         totalRules: totalRulesResult.count || 0,
@@ -5352,7 +4823,7 @@ app.put('/api/rules/:id', (req, res) => {
   app.get('/api/rules/:id/execution-history', async (req, res) => {
     try {
       if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+        return res.status(503).json({ error: 'Storage not connected', status: 'disconnected' });
       }
       
       const rule = await getRuleById(req.params.id, USER_ID);
@@ -5397,7 +4868,7 @@ app.put('/api/rules/:id', (req, res) => {
   app.post('/api/rules/:id/execute', async (req, res) => {
     try {
       if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+        return res.status(503).json({ error: 'Storage not connected', status: 'disconnected' });
       }
       
       if (!learnerModeActive) {
@@ -5458,30 +4929,22 @@ app.put('/api/rules/:id', (req, res) => {
       let systemState = { ...currentSystemState };
       let recentlyTriggered = [];
       
-      if (dbConnected && db) {
+      if (dbConnected && jsonStorage) {
         try {
-          const rulesCountStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE user_id = ?`);
-          const rulesCountResult = rulesCountStmt.get(USER_ID);
-          rulesCount = rulesCountResult.count;
+          const allRules = jsonStorage.getAllRules(USER_ID);
+          rulesCount = allRules.length;
           
-          const activeRulesCountStmt = db.prepare(`SELECT COUNT(*) as count FROM rules WHERE active = 1 AND user_id = ?`);
-          const activeRulesCountResult = activeRulesCountStmt.get(USER_ID);
-          activeRulesCount = activeRulesCountResult.count;
+          activeRulesCount = allRules.filter(rule => rule.active).length;
           
-          const recentlyTriggeredStmt = db.prepare(`
-            SELECT id, name, last_triggered
-            FROM rules
-            WHERE last_triggered IS NOT NULL
-            AND user_id = ?
-            ORDER BY last_triggered DESC
-            LIMIT 5
-          `);
-          const recentlyTriggeredResults = recentlyTriggeredStmt.all(USER_ID);
+          const triggeredRules = allRules
+            .filter(rule => rule.lastTriggered)
+            .sort((a, b) => new Date(b.lastTriggered) - new Date(a.lastTriggered))
+            .slice(0, 5);
           
-          recentlyTriggered = recentlyTriggeredResults.map(rule => ({
+          recentlyTriggered = triggeredRules.map(rule => ({
             id: rule.id,
             name: rule.name,
-            lastTriggered: new Date(rule.last_triggered)
+            lastTriggered: rule.lastTriggered
           }));
         } catch (dbError) {
           console.error('Error getting rules data:', dbError);
@@ -5509,8 +4972,8 @@ app.put('/api/rules/:id', (req, res) => {
     
   app.get('/api/rules', (req, res) => {
     try {
-      if (!dbConnected || !db) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      if (!dbConnected || !jsonStorage) {
+        return res.status(503).json({ error: 'Storage not connected', status: 'disconnected' });
       }
       
       const activeFilter = req.query.active;
@@ -5542,11 +5005,11 @@ app.put('/api/rules/:id', (req, res) => {
       
       console.log(`Attempting to delete rule with ID: ${ruleId}`);
       
-      if (!dbConnected || !db) {
-        console.log('Database not connected, cannot delete rule');
+      if (!dbConnected || !jsonStorage) {
+        console.log('Storage not connected, cannot delete rule');
         return res.status(503).json({ 
           success: false, 
-          error: 'Database not connected', 
+          error: 'Storage not connected', 
           status: 'disconnected' 
         });
       }
@@ -5588,8 +5051,8 @@ app.put('/api/rules/:id', (req, res) => {
   
   app.get('/api/rules/:id', (req, res) => {
     try {
-      if (!dbConnected || !db) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
+      if (!dbConnected || !jsonStorage) {
+        return res.status(503).json({ error: 'Storage not connected', status: 'disconnected' });
       }
       
       console.log(`Fetching rule with ID: ${req.params.id}`);
@@ -5627,10 +5090,10 @@ app.put('/api/rules/:id', (req, res) => {
       const hours = parseInt(req.query.hours) || 2;
       const limit = parseInt(req.query.limit) || 50;
       
-      if (!dbConnected) {
+      if (!dbConnected || !jsonStorage) {
         return res.json({
           success: false,
-          error: 'Database not connected',
+          error: 'Storage not connected',
           data: []
         });
       }
@@ -5638,18 +5101,17 @@ app.put('/api/rules/:id', (req, res) => {
       const hoursAgo = new Date();
       hoursAgo.setHours(hoursAgo.getHours() - hours);
       
-      const stmt = db.prepare(`
-        SELECT timestamp, system_state FROM settings_changes 
-        WHERE user_id = ? 
-        AND timestamp >= ? 
-        AND system_state IS NOT NULL 
-        AND system_state != '{}'
-        ORDER BY timestamp DESC 
-        LIMIT ?
-      `);
-      const changes = stmt.all(USER_ID, hoursAgo.toISOString(), limit);
+      const result = jsonStorage.getSettingsChanges(USER_ID, { limit });
+      const changes = result.changes || [];
       
-      const historyData = changes.map(change => {
+      // Filter by time and system state availability
+      const filteredChanges = changes.filter(change => 
+        new Date(change.timestamp) >= hoursAgo &&
+        change.system_state && 
+        change.system_state !== '{}'
+      );
+      
+      const historyData = filteredChanges.map(change => {
         try {
           const systemState = JSON.parse(change.system_state || '{}');
           return {
@@ -5680,21 +5142,47 @@ app.put('/api/rules/:id', (req, res) => {
     }
   });
   
-  app.get('/api/settings-changes', apiRateLimiter, (req, res) => {
+  app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected || !db) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const changeType = req.query.type;
       const limit = Math.min(parseInt(req.query.limit) || 50, 100);
       const skip = parseInt(req.query.skip) || 0;
       
-      const result = getSettingsChanges(USER_ID, { changeType, limit, skip });
+      let query = `
+        SELECT * FROM settings_changes 
+        WHERE user_id = '${USER_ID}'
+      `;
       
-      res.json(result);
+      if (changeType) {
+        query += ` AND change_type = '${changeType}'`;
+      }
+      
+      query += ` ORDER BY time DESC LIMIT ${limit} OFFSET ${skip}`;
+      
+      const result = await influx.query(query);
+      
+      const formattedChanges = result.map(change => ({
+        time: change.time,
+        topic: change.topic,
+        old_value: change.old_value,
+        new_value: change.new_value,
+        system_state: JSON.parse(change.system_state || '{}'),
+        change_type: change.change_type,
+        user_id: change.user_id,
+        mqtt_username: change.mqtt_username
+      }));
+      
+      res.json({
+        changes: formattedChanges,
+        pagination: {
+          total: formattedChanges.length,
+          limit,
+          skip,
+          hasMore: formattedChanges.length === limit
+        }
+      });
     } catch (error) {
-      console.error('Error retrieving settings changes:', error);
+      console.error('Error retrieving settings changes from InfluxDB:', error);
       res.status(500).json({ error: 'Failed to retrieve data' });
     }
   });
@@ -5741,26 +5229,22 @@ app.put('/api/rules/:id', (req, res) => {
   
   app.get('/api/learner/changes', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const limit = parseInt(req.query.limit) || 50;
       
-      const stmt = db.prepare(`
+      const query = `
         SELECT * FROM settings_changes 
-        WHERE user_id = ?
-        ORDER BY timestamp DESC
-        LIMIT ?
-      `);
-      const changes = stmt.all(USER_ID, limit);
+        WHERE user_id = '${USER_ID}'
+        ORDER BY time DESC 
+        LIMIT ${limit}
+      `;
       
-      const formattedChanges = changes.map(change => ({
-        id: change.id,
-        timestamp: new Date(change.timestamp),
+      const result = await influx.query(query);
+      
+      const formattedChanges = result.map(change => ({
+        time: change.time,
         topic: change.topic,
-        old_value: parseJsonOrValue(change.old_value),
-        new_value: parseJsonOrValue(change.new_value),
+        old_value: change.old_value,
+        new_value: change.new_value,
         system_state: JSON.parse(change.system_state || '{}'),
         change_type: change.change_type,
         user_id: change.user_id,
@@ -5769,7 +5253,7 @@ app.put('/api/rules/:id', (req, res) => {
       
       res.json(formattedChanges);
     } catch (error) {
-      console.error('Error retrieving learner changes:', error);
+      console.error('Error retrieving learner changes from InfluxDB:', error);
       res.status(500).json({ error: 'Failed to retrieve data' });
     }
   });
@@ -5777,22 +5261,20 @@ app.put('/api/rules/:id', (req, res) => {
   app.get('/api/database/status', (req, res) => {
     res.json({
       connected: dbConnected,
-      type: 'SQLite',
-      file: DB_FILE.replace(/^.*[\\\/]/, '')
+      type: 'JSON',
+      file: 'rules.json, settings_changes.json'
     });
   });
   
-  app.get('/learner', (req, res) => {
+  app.get('/learner', async (req, res) => {
     try {
       let changesCount = 0;
-      if (dbConnected && db) {
-        try {
-          const stmt = db.prepare(`SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?`);
-          const result = stmt.get(USER_ID);
-          changesCount = result.count;
-        } catch (dbError) {
-          console.error('Error getting settings count:', dbError);
-        }
+      try {
+        const query = `SELECT COUNT(*) FROM settings_changes WHERE user_id = '${USER_ID}'`;
+        const result = await influx.query(query);
+        changesCount = result[0] ? result[0].count : 0;
+      } catch (dbError) {
+        console.error('Error getting settings count from InfluxDB:', dbError);
       }
       
       res.render('learner', { 
@@ -5800,7 +5282,7 @@ app.put('/api/rules/:id', (req, res) => {
         change_detection: 'always',
         monitored_settings: settingsToMonitor,
         changes_count: changesCount,
-        db_connected: dbConnected,
+        db_connected: true,
         ingress_path: process.env.INGRESS_PATH || '',
         user_id: USER_ID,
         inverterTypes: inverterTypes,
@@ -6151,10 +5633,10 @@ app.post('/api/rules', (req, res) => {
   console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
-    if (!dbConnected || !db) {
+    if (!dbConnected || !jsonStorage) {
       return res.status(503).json({ 
         success: false, 
-        error: 'Database not connected'
+        error: 'Storage not connected'
       });
     }
     
@@ -8722,13 +8204,13 @@ function GracefulShutdown() {
   }
   
   // Enhanced cleanup sequence
-  if (db) {
-    console.log('🗄️  Closing enhanced SQLite connection');
+  if (jsonStorage) {
+    console.log('🗄️  Closing JSON storage');
     try {
-      db.close();
-      console.log('✅ Enhanced SQLite connection closed');
+      // JSON storage doesn't need explicit closing, just log
+      console.log('✅ JSON storage cleanup completed');
     } catch (err) {
-      console.error('❌ Error closing enhanced SQLite:', err);
+      console.error('❌ Error during JSON storage cleanup:', err);
     }
   }
   

@@ -24,7 +24,6 @@
     "moment-timezone": "^0.5.45",
     "mqtt": "^4.2.8",
     "node-cron": "^3.0.3",
-    "better-sqlite3": "^9.2.2",
     "ws": "^8.2.3"
   }
 }

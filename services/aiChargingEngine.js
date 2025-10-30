@@ -199,19 +199,13 @@ class AIChargingEngine {
         reasons.push(`Historical pattern suggests cheap prices now`);
       }
 
-      // Make final decision
-      let decision;
-      if (shouldStop) {
-        decision = 'STOP_CHARGING';
-      } else if (shouldCharge) {
-        decision = 'START_CHARGING';
-      } else {
-        decision = 'NO_CHANGE';
-      }
+      // Make descriptive decision based on conditions
+      let decision = this.makeDescriptiveDecision(batterySOC, pvPower, load, currentPrice, avgPrice, gridVoltage, config, shouldCharge, shouldStop, reasons);
 
       // Apply decision via MQTT
-      if (decision === 'START_CHARGING' || decision === 'STOP_CHARGING') {
-        this.applyDecision(decision);
+      if (decision.includes('CHARGE') || decision.includes('STOP')) {
+        const actionDecision = decision.includes('STOP') ? 'STOP_CHARGING' : 'START_CHARGING';
+        this.applyDecision(actionDecision);
       }
 
       return this.logDecision(decision, reasons);
@@ -222,6 +216,56 @@ class AIChargingEngine {
         reasons: [error.message]
       };
     }
+  }
+
+  makeDescriptiveDecision(batterySOC, pvPower, load, currentPrice, avgPrice, gridVoltage, config, shouldCharge, shouldStop, reasons) {
+    const pvSurplus = pvPower - load;
+    const priceIsGood = currentPrice && avgPrice ? currentPrice.total < avgPrice * 0.9 : false;
+    const priceIsHigh = currentPrice && avgPrice ? currentPrice.total > avgPrice * 1.2 : false;
+    
+    // Stop charging scenarios
+    if (shouldStop) {
+      if (batterySOC >= config.targetSoC) {
+        return `STOP CHARGING - Battery full at ${batterySOC}%`;
+      }
+      if (gridVoltage < 200 || gridVoltage > 250) {
+        return `STOP CHARGING - Grid voltage unstable (${gridVoltage}V)`;
+      }
+      if (priceIsHigh) {
+        return `STOP CHARGING - Price too high (${currentPrice.total.toFixed(2)}€ vs avg ${avgPrice.toFixed(2)}€)`;
+      }
+      return 'STOP CHARGING - Safety conditions triggered';
+    }
+    
+    // Charging scenarios
+    if (shouldCharge) {
+      if (batterySOC < config.minimumSoC) {
+        return `CHARGE WITH GRID - Emergency charging (SOC ${batterySOC}% < ${config.minimumSoC}%)`;
+      }
+      if (pvSurplus > 1000) {
+        return `CHARGE WITH SOLAR - Surplus ${pvSurplus}W available (PV: ${pvPower}W, Load: ${load}W)`;
+      }
+      if (priceIsGood && pvPower < 500) {
+        return `CHARGE WITH GRID - Cheap price ${currentPrice.total.toFixed(2)}€ (${currentPrice.level})`;
+      }
+      if (priceIsGood && pvSurplus > 0) {
+        return `CHARGE WITH SOLAR+GRID - Cheap price + PV surplus (${pvSurplus}W)`;
+      }
+      return `CHARGE WITH GRID - Good conditions (SOC: ${batterySOC}%)`;
+    }
+    
+    // No action scenarios
+    if (pvPower > load * 0.8 && batterySOC > 50) {
+      return `USE BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load, preserving battery (${batterySOC}%)`;
+    }
+    if (batterySOC > 70 && priceIsHigh) {
+      return `USE BATTERY - Avoiding expensive grid (${currentPrice?.total.toFixed(2)}€), battery at ${batterySOC}%`;
+    }
+    if (pvPower > load * 0.5) {
+      return `USE SOLAR+BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load (${pvPower}W/${load}W)`;
+    }
+    
+    return `MONITOR - Stable conditions (SOC: ${batterySOC}%, PV: ${pvPower}W, Load: ${load}W)`;
   }
 
   analyzeHistoricalPattern() {
@@ -268,10 +312,10 @@ class AIChargingEngine {
     }
 
     try {
-      const enableCharging = decision === 'START_CHARGING';
+      const enableCharging = decision.includes('START_CHARGING') || decision.includes('CHARGE WITH');
       const commandValue = enableCharging ? 'Enabled' : 'Disabled';
-      const inverterNumber = process.env.INVERTER_NUMBER || 1;
-      const mqttTopicPrefix = process.env.MQTT_TOPIC_PREFIX || 'solar';
+      const inverterNumber = global.inverterNumber || 1;
+      const mqttTopicPrefix = global.mqttTopicPrefix || 'solar';
       
       let commandsSent = 0;
       let totalInverters = 0;

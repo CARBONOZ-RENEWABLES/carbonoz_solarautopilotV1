@@ -57,13 +57,10 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with native compilation for better-sqlite3
+# Install dependencies
 RUN npm cache clean --force \
-    && npm install --omit=dev --build-from-source \
+    && npm install --omit=dev \
     && npm cache clean --force
-
-# Test better-sqlite3 module
-RUN node -e "const Database = require('better-sqlite3'); console.log('✅ better-sqlite3 loaded successfully');"
 
 # Copy application files
 COPY . .
