@@ -54,23 +54,6 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 
-// Raw body capture for debugging
-app.use((req, res, next) => {
-  if (req.path.includes('/api/rules') && (req.method === 'POST' || req.method === 'PUT')) {
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', chunk => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      req.rawBody = data;
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
 // JSON parsing with error handling
 app.use(express.json({ 
   limit: '10mb'
@@ -84,19 +67,10 @@ app.use((error, req, res, next) => {
     console.error('❌ JSON Syntax Error:', error.message);
     console.error('Request path:', req.path);
     console.error('Request method:', req.method);
-    console.error('Content-Type:', req.get('Content-Type'));
-    
-    // Log the raw body if available for debugging
-    if (req.rawBody) {
-      console.error('Raw body (first 200 chars):', req.rawBody.toString().substring(0, 200));
-    }
-    
     return res.status(400).json({
       success: false,
       error: 'Invalid JSON format in request body',
-      details: error.message,
-      path: req.path,
-      hint: 'Please check that your request body contains valid JSON'
+      details: error.message
     });
   }
   next(error);
@@ -171,6 +145,43 @@ const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end(); // Use .end() instead of .send() for better performance
+});
+
+// Test endpoint to check for corrupted data
+app.get('/api/debug/rules', (req, res) => {
+  if (!dbConnected || !db) {
+    return res.json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const stmt = db.prepare('SELECT id, name, conditions, time_restrictions, actions FROM rules LIMIT 5');
+    const rules = stmt.all();
+    
+    const debugInfo = rules.map(rule => {
+      const info = { id: rule.id, name: rule.name };
+      
+      // Test each JSON field
+      ['conditions', 'time_restrictions', 'actions'].forEach(field => {
+        try {
+          if (rule[field]) {
+            JSON.parse(rule[field]);
+            info[field] = 'valid';
+          } else {
+            info[field] = 'null';
+          }
+        } catch (e) {
+          info[field] = `corrupted: ${e.message}`;
+          info[`${field}_raw`] = rule[field];
+        }
+      });
+      
+      return info;
+    });
+    
+    res.json({ rules: debugInfo, total: rules.length });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
 });
 
 
@@ -5533,16 +5544,25 @@ app.put('/api/rules/:id', (req, res) => {
         return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
       }
       
+      console.log(`Fetching rule with ID: ${req.params.id}`);
       const rule = getRuleById(req.params.id, USER_ID);
       
       if (!rule) {
+        console.log(`Rule ${req.params.id} not found`);
         return res.status(404).json({ error: 'Rule not found' });
+      }
+      
+      if (rule.parseError) {
+        console.log(`Rule ${req.params.id} has parse errors, returning cleaned version`);
       }
       
       res.json(rule);
     } catch (error) {
       console.error('Error retrieving rule:', error);
-      res.status(500).json({ error: 'Failed to retrieve rule' });
+      res.status(500).json({ 
+        error: 'Failed to retrieve rule',
+        details: error.message
+      });
     }
   });
   
@@ -6069,8 +6089,18 @@ app.use('/api/rules', (req, res, next) => {
 app.post('/api/rules', (req, res) => {
   console.log('📝 Rules POST request received');
   console.log('Content-Type:', req.get('Content-Type'));
-  console.log('Raw body type:', typeof req.body);
-  console.log('Raw body:', JSON.stringify(req.body, null, 2));
+  
+  // Check if body exists and is an object
+  if (!req.body || typeof req.body !== 'object') {
+    console.error('❌ Invalid request body:', req.body);
+    return res.status(400).json({
+      success: false,
+      error: 'Request body must be a valid JSON object'
+    });
+  }
+  
+  console.log('Request body keys:', Object.keys(req.body));
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     if (!dbConnected || !db) {
