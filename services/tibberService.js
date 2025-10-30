@@ -205,7 +205,7 @@ class TibberService {
   getSupportedCountries() {
     return [
       { code: 'NO', name: 'Norway', timezone: 'Europe/Oslo', currency: 'NOK', flag: '🇳🇴' },
-      { code: 'SE', name: 'Sweden', timezone: 'Europe/Stockholm', currency: 'SEK', flag: '🇸🇪' },
+      { code: 'SE', name: 'Sweden', timezone: 'Europe/Stockholm', currency: 'EUR', flag: '🇸🇪' },
       { code: 'DK', name: 'Denmark', timezone: 'Europe/Copenhagen', currency: 'DKK', flag: '🇩🇰' },
       { code: 'FI', name: 'Finland', timezone: 'Europe/Helsinki', currency: 'EUR', flag: '🇫🇮' },
       { code: 'DE', name: 'Germany', timezone: 'Europe/Berlin', currency: 'EUR', flag: '🇩🇪' },

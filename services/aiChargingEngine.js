@@ -180,13 +180,13 @@ class AIChargingEngine {
         if (priceIsGood && gridVoltage >= 200 && gridVoltage <= 250) {
           shouldCharge = true;
           reasons.push(
-            `Good price: ${currentPrice.total.toFixed(2)} ${currentPrice.currency} ` +
+            `Good price: ${currentPrice.total.toFixed(2)} € ` +
             `(avg: ${avgPrice.toFixed(2)}, level: ${currentPrice.level})`
           );
         } else if (currentPrice.total > avgPrice * 1.2) {
           shouldStop = true;
           reasons.push(
-            `Price too high: ${currentPrice.total.toFixed(2)} ${currentPrice.currency} ` +
+            `Price too high: ${currentPrice.total.toFixed(2)} € ` +
             `(20% above avg: ${avgPrice.toFixed(2)})`
           );
         }
