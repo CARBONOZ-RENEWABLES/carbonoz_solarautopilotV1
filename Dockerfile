@@ -57,25 +57,35 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm cache clean --force \
-    && npm install --omit=dev \
+# Remove sqlite3 from package.json and add better-sqlite3
+RUN npm pkg delete dependencies.sqlite3 optional.sqlite3 optionalDependencies.sqlite3 || true \
+    && npm pkg set dependencies.better-sqlite3="^9.2.2"
+
+# Clean install with native compilation
+RUN rm -rf node_modules package-lock.json \
+    && npm cache clean --force \
+    && npm install --omit=dev --build-from-source \
     && npm cache clean --force
+
+# Test the sqlite module
+RUN node -e "const db = require('better-sqlite3'); console.log('✅ better-sqlite3 loaded successfully');"
 
 # Copy application files
 COPY . .
+
+# Update server.js to use better-sqlite3
+RUN sed -i "s/require('sqlite3').verbose()/require('better-sqlite3')/g" server.js || true \
+    && sed -i "s/const { open } = require('sqlite')/\/\/ const { open } = require('sqlite')/g" server.js || true
 
 # Copy configurations
 COPY rootfs /
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
-COPY scripts/memory-monitor.sh /usr/local/bin/memory-monitor
-RUN chmod +x /usr/local/bin/memory-monitor
 
 # Make scripts executable
 RUN find /etc/services.d -type f -name "run" -exec chmod a+x {} \; \
     && find /etc/services.d -type f -name "finish" -exec chmod a+x {} \; \
-    && chmod a+x /usr/bin/carbonoz.sh 2>/dev/null || true
+    && chmod a+x /usr/bin/carbonoz.sh
 
 # Build arguments for labels
 ARG BUILD_DATE
@@ -93,8 +103,7 @@ LABEL \
 
 # Environment variables
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--expose-gc --max-old-space-size=400 --max-semi-space-size=32 --optimize-for-size"
-ENV UV_THREADPOOL_SIZE=4
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Expose ports
 EXPOSE 3001 8086 6789 8000
