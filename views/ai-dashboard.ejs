@@ -561,7 +561,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Price (SEK/kWh)',
+                        label: 'Price (€/kWh)',
                         data: [],
                         borderColor: '#e74c3c',
                         backgroundColor: 'rgba(231, 76, 60, 0.1)',
@@ -584,7 +584,7 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: 'Price (SEK/kWh)'
+                                text: 'Price (€/kWh)'
                             }
                         }
                     },
@@ -745,7 +745,7 @@
                         if (tibberData.forecast && tibberData.forecast.length > 0) {
                             const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
                             document.getElementById('averagePrice').textContent = 
-                                `${avgPrice.toFixed(2)} ${tibberData.currentPrice?.currency || 'SEK'}`;
+                                `${avgPrice.toFixed(2)} €`;
                         }
                     } else {
                         document.getElementById('priceStatus').textContent = 'Not configured';
