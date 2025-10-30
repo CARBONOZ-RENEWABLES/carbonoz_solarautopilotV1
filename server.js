@@ -498,20 +498,6 @@ async function initializeDatabase() {
     });
     
     await db.exec(`
-      CREATE TABLE IF NOT EXISTS settings_changes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        topic TEXT,
-        old_value TEXT,
-        new_value TEXT,
-        system_state TEXT,
-        change_type TEXT,
-        user_id TEXT,
-        mqtt_username TEXT
-      )
-    `);
-    
-    await db.exec(`
       CREATE TABLE IF NOT EXISTS rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -529,17 +515,20 @@ async function initializeDatabase() {
     `);
     
     await db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_user_id ON settings_changes(user_id);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_timestamp ON settings_changes(timestamp);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_topic ON settings_changes(topic);
-      CREATE INDEX IF NOT EXISTS idx_settings_changes_change_type ON settings_changes(change_type);
-      
       CREATE INDEX IF NOT EXISTS idx_rules_user_id ON rules(user_id);
       CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(active);
       CREATE INDEX IF NOT EXISTS idx_rules_last_triggered ON rules(last_triggered);
     `);
     
-    console.log('SQLite database initialized');
+    // Drop old settings_changes table since we now use InfluxDB
+    try {
+      await db.exec('DROP TABLE IF EXISTS settings_changes');
+      console.log('Removed old settings_changes table (now using InfluxDB)');
+    } catch (error) {
+      console.log('Note: settings_changes table cleanup skipped');
+    }
+    
+    console.log('SQLite database initialized (rules only)');
     dbConnected = true;
     return true;
   } catch (error) {
@@ -553,10 +542,6 @@ async function connectToDatabase() {
   try {
     if (!dbConnected) {
       await initializeDatabase();
-      
-      if (dbConnected) {
-        await pruneOldSettingsChanges();
-      }
     }
     return dbConnected;
   } catch (error) {
@@ -624,11 +609,7 @@ async function retryDatabaseConnection() {
 // ================ SETTINGS CHANGE FUNCTIONS ================
 
 async function saveSettingsChange(changeData) {
-  if (!dbConnected) return false;
-  
   try {
-    const systemStateJson = JSON.stringify(changeData.system_state || {});
-    
     const oldValueStr = typeof changeData.old_value === 'object' ? 
       JSON.stringify(changeData.old_value) : 
       String(changeData.old_value || '');
@@ -637,24 +618,31 @@ async function saveSettingsChange(changeData) {
       JSON.stringify(changeData.new_value) : 
       String(changeData.new_value || '');
     
-    await db.run(`
-      INSERT INTO settings_changes 
-      (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      changeData.timestamp.toISOString(),
-      changeData.topic,
-      oldValueStr,
-      newValueStr,
-      systemStateJson,
-      changeData.change_type,
-      changeData.user_id,
-      changeData.mqtt_username
-    ]);
+    const point = {
+      measurement: 'settings_changes',
+      tags: {
+        topic: changeData.topic,
+        change_type: changeData.change_type,
+        user_id: changeData.user_id,
+        mqtt_username: changeData.mqtt_username
+      },
+      fields: {
+        old_value: oldValueStr,
+        new_value: newValueStr,
+        battery_soc: changeData.system_state?.battery_soc || 0,
+        pv_power: changeData.system_state?.pv_power || 0,
+        load: changeData.system_state?.load || 0,
+        grid_power: changeData.system_state?.grid_power || 0,
+        battery_power: changeData.system_state?.battery_power || 0,
+        grid_voltage: changeData.system_state?.grid_voltage || 0
+      },
+      timestamp: changeData.timestamp
+    };
     
+    await influx.writePoints([point]);
     return true;
   } catch (error) {
-    console.error('Error saving settings change to SQLite:', error.message);
+    console.error('Error saving settings change to InfluxDB:', error.message);
     return false;
   }
 }
@@ -674,15 +662,10 @@ async function handleSettingChange(specificTopic, messageContent, changeType) {
     
     previousSettings[specificTopic] = messageContent;
     
-    if (dbConnected) {
-      try {
-        await saveSettingsChange(changeData);
-      } catch (error) {
-        console.error('Error saving to database:', error.message);
-        retryDatabaseConnection();
-      }
-    } else {
-      retryDatabaseConnection();
+    try {
+      await saveSettingsChange(changeData);
+    } catch (error) {
+      console.error('Error saving to InfluxDB:', error.message);
     }
     
     if (changeType === 'grid_charge' || changeType === 'charger_source_priority') {
@@ -710,15 +693,10 @@ async function handleBatteryChargingSettingChange(specificTopic, messageContent,
     
     previousSettings[specificTopic] = messageContent;
     
-    if (dbConnected) {
-      try {
-        await saveSettingsChange(changeData);
-      } catch (error) {
-        console.error('Error saving to database:', error.message);
-        retryDatabaseConnection();
-      }
-    } else {
-      retryDatabaseConnection();
+    try {
+      await saveSettingsChange(changeData);
+    } catch (error) {
+      console.error('Error saving to InfluxDB:', error.message);
     }
     
     sendBatteryChargingNotification(changeData);
@@ -740,15 +718,10 @@ async function handleWorkModeSettingChange(specificTopic, messageContent, settin
     
     previousSettings[specificTopic] = messageContent;
     
-    if (dbConnected) {
-      try {
-        await saveSettingsChange(changeData);
-      } catch (error) {
-        console.error('Error saving to database:', error.message);
-        retryDatabaseConnection();
-      }
-    } else {
-      retryDatabaseConnection();
+    try {
+      await saveSettingsChange(changeData);
+    } catch (error) {
+      console.error('Error saving to InfluxDB:', error.message);
     }
     
     sendWorkModeNotification(changeData);
@@ -1028,61 +1001,58 @@ async function getRuleById(id, userId) {
 }
 
 async function getSettingsChanges(userId, options = {}) {
-  if (!dbConnected) return { changes: [], pagination: { total: 0 } };
-  
   try {
-    const { changeType, topic, limit = 100, skip = 0 } = options;
+    const { changeType, topic, limit = 100 } = options;
     
-    let query = 'SELECT * FROM settings_changes WHERE user_id = ?';
-    const countQuery = 'SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?';
-    const params = [userId];
-    const countParams = [userId];
+    let whereClause = `"user_id" = '${userId}'`;
     
     if (changeType) {
-      query += ' AND change_type = ?';
-      countQuery += ' AND change_type = ?';
-      params.push(changeType);
-      countParams.push(changeType);
+      whereClause += ` AND "change_type" = '${changeType}'`;
     }
     
     if (topic) {
-      query += ' AND topic LIKE ?';
-      countQuery += ' AND topic LIKE ?';
-      params.push(`%${topic}%`);
-      countParams.push(`%${topic}%`);
+      whereClause += ` AND "topic" =~ /${topic}/`;
     }
     
-    query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-    params.push(limit, skip);
+    const query = `
+      SELECT * FROM settings_changes 
+      WHERE ${whereClause}
+      ORDER BY time DESC 
+      LIMIT ${limit}
+    `;
     
-    const countResult = await db.get(countQuery, countParams);
-    const total = countResult.total;
+    const result = await influx.query(query);
     
-    const changes = await db.all(query, params);
-    
-    const formattedChanges = changes.map(change => ({
-      id: change.id,
-      timestamp: new Date(change.timestamp),
-      topic: change.topic,
-      old_value: parseJsonOrValue(change.old_value),
-      new_value: parseJsonOrValue(change.new_value),
-      system_state: JSON.parse(change.system_state || '{}'),
-      change_type: change.change_type,
-      user_id: change.user_id,
-      mqtt_username: change.mqtt_username
+    const formattedChanges = result.map((row, index) => ({
+      id: index + 1,
+      timestamp: new Date(row.time),
+      topic: row.topic,
+      old_value: parseJsonOrValue(row.old_value),
+      new_value: parseJsonOrValue(row.new_value),
+      system_state: {
+        battery_soc: row.battery_soc,
+        pv_power: row.pv_power,
+        load: row.load,
+        grid_power: row.grid_power,
+        battery_power: row.battery_power,
+        grid_voltage: row.grid_voltage
+      },
+      change_type: row.change_type,
+      user_id: row.user_id,
+      mqtt_username: row.mqtt_username
     }));
     
     return {
       changes: formattedChanges,
       pagination: {
-        total,
+        total: formattedChanges.length,
         limit,
-        skip,
-        hasMore: skip + limit < total
+        skip: 0,
+        hasMore: formattedChanges.length === limit
       }
     };
   } catch (error) {
-    console.error('Error getting settings changes from SQLite:', error.message);
+    console.error('Error getting settings changes from InfluxDB:', error.message);
     return { changes: [], pagination: { total: 0 } };
   }
 }
@@ -1597,10 +1567,7 @@ async function processSettingsChangesQueue() {
     const batchSize = Math.min(50, settingsChangesQueue.length);
     const currentBatch = settingsChangesQueue.splice(0, batchSize);
     
-    if (dbConnected) {
-      await batchSaveSettingsChanges(currentBatch);
-      await pruneOldSettingsChanges();
-    }
+    await batchSaveSettingsChanges(currentBatch);
     
     if (settingsChangesQueue.length > 0) {
       setTimeout(processSettingsChangesQueue, PROCESSING_INTERVAL);
@@ -1609,72 +1576,54 @@ async function processSettingsChangesQueue() {
     }
   } catch (error) {
     console.error('Error processing settings changes queue:', error.message);
-    processingQueue = false; // ✅ Reset the flag
+    processingQueue = false;
     setTimeout(() => {
-      processSettingsChangesQueue(); // ✅ Retry after delay
+      processSettingsChangesQueue();
     }, PROCESSING_INTERVAL * 2);
   }
 }
 
 async function batchSaveSettingsChanges(changes) {
-  if (!dbConnected || changes.length === 0) return;
+  if (changes.length === 0) return;
   
-  return executeWithDbMutex(async () => {
-    let transactionStarted = false;
+  try {
+    const points = changes.map(change => {
+      const oldValueStr = typeof change.old_value === 'object' ? 
+        JSON.stringify(change.old_value) : 
+        String(change.old_value || '');
+      
+      const newValueStr = typeof change.new_value === 'object' ? 
+        JSON.stringify(change.new_value) : 
+        String(change.new_value || '');
+      
+      return {
+        measurement: 'settings_changes',
+        tags: {
+          topic: change.topic,
+          change_type: change.change_type,
+          user_id: change.user_id,
+          mqtt_username: change.mqtt_username
+        },
+        fields: {
+          old_value: oldValueStr,
+          new_value: newValueStr,
+          battery_soc: change.system_state?.battery_soc || 0,
+          pv_power: change.system_state?.pv_power || 0,
+          load: change.system_state?.load || 0,
+          grid_power: change.system_state?.grid_power || 0,
+          battery_power: change.system_state?.battery_power || 0,
+          grid_voltage: change.system_state?.grid_voltage || 0
+        },
+        timestamp: change.timestamp
+      };
+    });
     
-    try {
-      await db.run('BEGIN TRANSACTION');
-      transactionStarted = true;
-      
-      for (const change of changes) {
-        const systemStateJson = JSON.stringify(change.system_state || {});
-        
-        const oldValueStr = typeof change.old_value === 'object' ? 
-          JSON.stringify(change.old_value) : 
-          String(change.old_value || '');
-        
-        const newValueStr = typeof change.new_value === 'object' ? 
-          JSON.stringify(change.new_value) : 
-          String(change.new_value || '');
-        
-        try {
-          await db.run(`
-            INSERT INTO settings_changes 
-            (timestamp, topic, old_value, new_value, system_state, change_type, user_id, mqtt_username)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            change.timestamp.toISOString(),
-            change.topic,
-            oldValueStr,
-            newValueStr,
-            systemStateJson,
-            change.change_type,
-            change.user_id,
-            change.mqtt_username
-          ]);
-        } catch (insertError) {
-          console.error(`Error inserting change for topic ${change.topic}:`, insertError.message);
-        }
-      }
-      
-      await db.run('COMMIT');
-      transactionStarted = false;
-      return true;
-    } catch (error) {
-      if (transactionStarted) {
-        try {
-          await db.run('ROLLBACK');
-        } catch (rollbackError) {
-          if (!rollbackError.message.includes('no transaction is active')) {
-            console.error('Error rolling back transaction:', rollbackError.message);
-          }
-        }
-      }
-      
-      console.error('Error batch saving settings changes to SQLite:', error.message);
-      return false;
-    }
-  });
+    await influx.writePoints(points);
+    return true;
+  } catch (error) {
+    console.error('Error batch saving settings changes to InfluxDB:', error.message);
+    return false;
+  }
 }
 
 const API_REQUEST_LIMIT = new Map();
@@ -3478,45 +3427,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   }
   
-  async function pruneOldSettingsChanges() {
-    if (!dbConnected) return;
-    
-    try {
-      const countResult = await db.get('SELECT COUNT(*) as total FROM settings_changes');
-      const totalRecords = countResult.total;
-      
-      if (totalRecords > 5000) {
-        const recordsToDelete = totalRecords - 5000;
-        
-        console.log(`Pruning ${recordsToDelete} old settings changes from database to maintain limit of 5000 records`);
-        
-        await db.run(`
-          DELETE FROM settings_changes 
-          WHERE id IN (
-            SELECT id FROM settings_changes 
-            ORDER BY timestamp ASC 
-            LIMIT ?
-          )
-        `, [recordsToDelete]);
-        
-        console.log(`Successfully pruned ${recordsToDelete} old records`);
-      }
-      
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const oldRecordsResult = await db.run(`
-        DELETE FROM settings_changes 
-        WHERE timestamp < ?
-      `, [thirtyDaysAgo.toISOString()]);
-      
-      if (oldRecordsResult.changes > 0) {
-        console.log(`Pruned ${oldRecordsResult.changes} records older than 30 days`);
-      }
-    } catch (error) {
-      console.error('Error pruning old settings changes:', error.message);
-    }
-  }
+  // InfluxDB handles data retention automatically, no manual pruning needed
   
 
 
@@ -4551,15 +4462,11 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
 app.get('/inverter-settings', async (req, res) => {
     try {
       let settingsCount = 0;
-      if (dbConnected) {
-        try {
-          const result = await db.get(`
-            SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-          `, [USER_ID]);
-          settingsCount = result.count || 0;
-        } catch (dbError) {
-          console.error('Error getting settings count:', dbError);
-        }
+      try {
+        const result = await getSettingsChanges(USER_ID, { limit: 1 });
+        settingsCount = result.changes.length > 0 ? 'Available' : 0;
+      } catch (error) {
+        console.error('Error getting settings count:', error);
       }
   
       const systemState = {
@@ -4839,37 +4746,33 @@ app.get('/inverter-settings', async (req, res) => {
   
   app.get('/api/settings-history/:setting', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const setting = req.params.setting;
       const days = parseInt(req.query.days) || 7;
       
+      const result = await getSettingsChanges(USER_ID, { 
+        topic: setting, 
+        changeType: setting,
+        limit: 1000 
+      });
+      
+      // Filter by days if needed
       const dateThreshold = new Date();
       dateThreshold.setDate(dateThreshold.getDate() - days);
       
-      const changes = await db.all(`
-        SELECT * FROM settings_changes 
-        WHERE (topic LIKE ? OR change_type = ?) 
-        AND timestamp >= ? 
-        AND user_id = ?
-        ORDER BY timestamp ASC
-        LIMIT 1000
-      `, [`%${setting}%`, setting, dateThreshold.toISOString(), USER_ID]);
-      
-      const formattedData = changes.map(change => ({
-        timestamp: new Date(change.timestamp),
-        value: parseJsonOrValue(change.new_value),
-        old_value: parseJsonOrValue(change.old_value),
-        system_state: JSON.parse(change.system_state || '{}')
-      }));
+      const filteredData = result.changes
+        .filter(change => change.timestamp >= dateThreshold)
+        .map(change => ({
+          timestamp: change.timestamp,
+          value: change.new_value,
+          old_value: change.old_value,
+          system_state: change.system_state
+        }));
       
       res.json({
         success: true,
         setting,
-        data: formattedData,
-        count: formattedData.length
+        data: filteredData,
+        count: filteredData.length
       });
     } catch (error) {
       console.error(`Error retrieving ${req.params.setting} history:`, error);
@@ -5557,58 +5460,14 @@ app.get('/inverter-settings', async (req, res) => {
   
   app.get('/api/settings-changes', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const changeType = req.query.type;
       const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-      const skip = parseInt(req.query.skip) || 0;
       
-      let query = `SELECT * FROM settings_changes WHERE user_id = ?`;
-      const params = [USER_ID];
-      
-      if (changeType) {
-        query += ` AND change_type = ?`;
-        params.push(changeType);
-      }
-      
-      query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
-      params.push(limit, skip);
-      
-      const changes = await db.all(query, params);
-      
-      const totalCountQuery = `SELECT COUNT(*) as total FROM settings_changes WHERE user_id = ?` + 
-        (changeType ? ` AND change_type = ?` : ``);
-      
-      const totalParams = changeType ? [USER_ID, changeType] : [USER_ID];
-      const totalResult = await db.get(totalCountQuery, totalParams);
-      
-      const formattedChanges = changes.map(change => ({
-        id: change.id,
-        timestamp: new Date(change.timestamp),
-        topic: change.topic,
-        old_value: parseJsonOrValue(change.old_value),
-        new_value: parseJsonOrValue(change.new_value),
-        system_state: {
-          battery_soc: JSON.parse(change.system_state || '{}').battery_soc,
-          pv_power: JSON.parse(change.system_state || '{}').pv_power,
-          load: JSON.parse(change.system_state || '{}').load,
-          grid_power: JSON.parse(change.system_state || '{}').grid_power,
-          timestamp: JSON.parse(change.system_state || '{}').timestamp
-        },
-        change_type: change.change_type,
-        user_id: change.user_id
-      }));
+      const result = await getSettingsChanges(USER_ID, { changeType, limit });
       
       res.json({
-        changes: formattedChanges,
-        pagination: {
-          total: totalResult.total,
-          limit,
-          skip,
-          hasMore: skip + limit < totalResult.total
-        }
+        changes: result.changes,
+        pagination: result.pagination
       });
     } catch (error) {
       console.error('Error retrieving settings changes:', error);
@@ -5658,32 +5517,11 @@ app.get('/inverter-settings', async (req, res) => {
   
   app.get('/api/learner/changes', apiRateLimiter, async (req, res) => {
     try {
-      if (!dbConnected) {
-        return res.status(503).json({ error: 'Database not connected', status: 'disconnected' });
-      }
-      
       const limit = parseInt(req.query.limit) || 50;
       
-      const changes = await db.all(`
-        SELECT * FROM settings_changes 
-        WHERE user_id = ?
-        ORDER BY timestamp DESC
-        LIMIT ?
-      `, [USER_ID, limit]);
+      const result = await getSettingsChanges(USER_ID, { limit });
       
-      const formattedChanges = changes.map(change => ({
-        id: change.id,
-        timestamp: new Date(change.timestamp),
-        topic: change.topic,
-        old_value: parseJsonOrValue(change.old_value),
-        new_value: parseJsonOrValue(change.new_value),
-        system_state: JSON.parse(change.system_state || '{}'),
-        change_type: change.change_type,
-        user_id: change.user_id,
-        mqtt_username: change.mqtt_username
-      }));
-      
-      res.json(formattedChanges);
+      res.json(result.changes);
     } catch (error) {
       console.error('Error retrieving learner changes:', error);
       res.status(500).json({ error: 'Failed to retrieve data' });
@@ -5701,12 +5539,11 @@ app.get('/inverter-settings', async (req, res) => {
   app.get('/learner', async (req, res) => {
     try {
       let changesCount = 0;
-      if (dbConnected) {
-        const result = await db.get(`
-          SELECT COUNT(*) as count FROM settings_changes WHERE user_id = ?
-        `, [USER_ID]);
-        
-        changesCount = result.count;
+      try {
+        const result = await getSettingsChanges(USER_ID, { limit: 1 });
+        changesCount = result.changes.length > 0 ? 'Available' : 0;
+      } catch (error) {
+        console.error('Error getting changes count:', error);
       }
       
       res.render('learner', { 

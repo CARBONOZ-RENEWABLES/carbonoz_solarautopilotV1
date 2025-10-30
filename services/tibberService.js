@@ -517,10 +517,14 @@ class TibberService {
   getStatus() {
     return {
       enabled: this.config.enabled,
-      configured: !!(this.config.apiKey && this.config.apiKey !== '***'),  // homeId is now optional
-      lastUpdate: this.lastUpdate,
+      configured: !!(this.config.apiKey && this.config.apiKey !== '***'),
+      lastUpdate: this.lastUpdate ? this.lastUpdate.toISOString() : null,
       hasCachedData: !!(this.cache.currentPrice && this.cache.forecast.length > 0),
-      currentPrice: this.cache.currentPrice,
+      currentPrice: this.cache.currentPrice ? {
+        total: this.cache.currentPrice.total,
+        level: this.cache.currentPrice.level,
+        currency: this.cache.currentPrice.currency
+      } : null,
       priceIsGood: this.cache.currentPrice ? this.isPriceGood() : false,
       forecastHours: this.cache.forecast.length,
       cacheAge: this.cache.timestamp ? Math.floor((Date.now() - this.cache.timestamp) / 1000) : null

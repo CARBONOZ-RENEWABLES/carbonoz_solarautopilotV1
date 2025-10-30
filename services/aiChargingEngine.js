@@ -498,12 +498,21 @@ class AIChargingEngine {
   }
 
   getStatus() {
+    const tibberStatus = tibberService.getStatus();
     return {
       enabled: this.enabled,
       running: !!this.evaluationInterval,
-      lastDecision: this.lastDecision,
+      lastDecision: this.lastDecision ? {
+        timestamp: this.lastDecision.timestamp,
+        decision: this.lastDecision.decision,
+        reasons: this.lastDecision.reasons
+      } : null,
       decisionCount: this.decisionHistory.length,
-      tibberStatus: tibberService.getStatus()
+      tibberStatus: {
+        enabled: tibberStatus.enabled,
+        configured: tibberStatus.configured,
+        lastUpdate: tibberStatus.lastUpdate
+      }
     };
   }
 
