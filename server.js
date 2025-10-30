@@ -54,9 +54,9 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 
-// JSON parsing with error handling
+// JSON parsing with error handling - reduced limit
 app.use(express.json({ 
-  limit: '10mb'
+  limit: '1mb'
 }));
 
 app.use(express.urlencoded({ extended: true }))
@@ -343,7 +343,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 500
+const MAX_MESSAGES = 100
 
 // Learner mode configuration
 global.learnerModeActive = false
@@ -588,7 +588,7 @@ async function initializeDatabase() {
 function cleanupCurrentSettingsState() {
   try {
     const now = Date.now();
-    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+    const MAX_AGE_MS = 60 * 60 * 1000; // Reduced to 1 hour
     
     Object.keys(currentSettingsState).forEach(category => {
       if (typeof currentSettingsState[category] === 'object' && category !== 'lastUpdated') {
@@ -901,22 +901,22 @@ function parseJsonOrValue(value) {
 // ================ COMPLETE ENHANCED MQTT MESSAGE HANDLING ================
 
 async function handleMqttMessage(topic, message) {
-  const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
+  const bufferSize = learnerModeActive ? Math.min(50, MAX_MESSAGES) : MAX_MESSAGES;
   
   const messageStr = message.toString();
-  const maxMessageSize = 10000;
+  const maxMessageSize = 1000; // Further reduced
   
   const truncatedMessage = messageStr.length > maxMessageSize 
-    ? messageStr.substring(0, maxMessageSize) + '... [truncated]' 
+    ? messageStr.substring(0, maxMessageSize) + '...' 
     : messageStr;
   
   const formattedMessage = `${topic}: ${truncatedMessage}`;
   
-  incomingMessages.push(formattedMessage);
-  if (incomingMessages.length > bufferSize) {
-    const excess = incomingMessages.length - bufferSize;
-    incomingMessages.splice(0, excess); // ✅ Remove multiple items at once
+  // More aggressive message buffer management
+  if (incomingMessages.length >= bufferSize) {
+    incomingMessages.shift(); // Remove oldest message
   }
+  incomingMessages.push(formattedMessage);
 
   let messageContent;
   try {
@@ -1323,7 +1323,7 @@ async function handleMqttMessage(topic, message) {
 
 // Create a settings changes queue with rate limiting
 const settingsChangesQueue = [];
-const MAX_QUEUE_SIZE = 500;
+const MAX_QUEUE_SIZE = 100;
 let processingQueue = false;
 const PROCESSING_INTERVAL = 1000;
 
@@ -1393,7 +1393,7 @@ async function processSettingsChangesQueue() {
   }
 
   try {
-    const batchSize = Math.min(50, settingsChangesQueue.length);
+    const batchSize = Math.min(20, settingsChangesQueue.length); // Smaller batches
     const currentBatch = settingsChangesQueue.splice(0, batchSize);
     
     if (dbConnected) {
@@ -1444,7 +1444,7 @@ async function batchSaveSettingsChanges(changes) {
 }
 
 const API_REQUEST_LIMIT = new Map();
-const MAX_RATE_LIMIT_ENTRIES = 1000;
+const MAX_RATE_LIMIT_ENTRIES = 200;
 
 function canMakeRequest(endpoint, userId, clientIp) {
   // Create a composite key using both user ID and IP for better security
@@ -1796,6 +1796,22 @@ function getGrafanaHost(req) {
 cron.schedule('0 * * * *', () => {
   console.log('🔄 Running hourly price data refresh...');
   refreshPricingData();
+});
+
+// Memory cleanup every 5 minutes
+cron.schedule('*/5 * * * *', () => {
+  console.log('🧹 Running memory cleanup...');
+  cleanupCurrentSettingsState();
+  
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+  }
+  
+  // Log memory usage
+  const used = process.memoryUsage();
+  const mb = (bytes) => Math.round(bytes / 1024 / 1024 * 100) / 100;
+  console.log(`📊 Memory: RSS: ${mb(used.rss)}MB, Heap: ${mb(used.heapUsed)}MB`);
 });
 
 // Initial price data refresh on startup

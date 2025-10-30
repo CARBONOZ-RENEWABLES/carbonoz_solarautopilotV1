@@ -69,6 +69,8 @@ COPY . .
 COPY rootfs /
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
+COPY scripts/memory-monitor.sh /usr/local/bin/memory-monitor
+RUN chmod +x /usr/local/bin/memory-monitor
 
 # Make scripts executable
 RUN find /etc/services.d -type f -name "run" -exec chmod a+x {} \; \
@@ -91,7 +93,8 @@ LABEL \
 
 # Environment variables
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=256"
+ENV NODE_OPTIONS="--expose-gc --max-old-space-size=400 --max-semi-space-size=32 --optimize-for-size"
+ENV UV_THREADPOOL_SIZE=4
 
 # Expose ports
 EXPOSE 3001 8086 6789 8000

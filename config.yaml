@@ -31,7 +31,7 @@ ingress_port: 6789
 ingress_stream: true
 startup: application
 init: false
-memory_limit: 512mb
+memory_limit: 1024mb
 options:
   mqtt_username: ""
   mqtt_password: ""

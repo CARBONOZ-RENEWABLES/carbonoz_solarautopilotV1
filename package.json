@@ -4,7 +4,8 @@
   "description": "CARBONOZ SolarAutopilot for Home Assistant",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node start-optimized.js",
+    "start-basic": "node server.js"
   },
   "dependencies": {
     "async-retry": "^1.3.3",
