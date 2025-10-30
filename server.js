@@ -54,6 +54,23 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 // Middleware setup
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 
+// Raw body capture for debugging
+app.use((req, res, next) => {
+  if (req.path.includes('/api/rules') && (req.method === 'POST' || req.method === 'PUT')) {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      req.rawBody = data;
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
 // JSON parsing with error handling
 app.use(express.json({ 
   limit: '10mb'
@@ -67,11 +84,19 @@ app.use((error, req, res, next) => {
     console.error('❌ JSON Syntax Error:', error.message);
     console.error('Request path:', req.path);
     console.error('Request method:', req.method);
+    console.error('Content-Type:', req.get('Content-Type'));
+    
+    // Log the raw body if available for debugging
+    if (req.rawBody) {
+      console.error('Raw body (first 200 chars):', req.rawBody.toString().substring(0, 200));
+    }
+    
     return res.status(400).json({
       success: false,
       error: 'Invalid JSON format in request body',
       details: error.message,
-      path: req.path
+      path: req.path,
+      hint: 'Please check that your request body contains valid JSON'
     });
   }
   next(error);
@@ -173,6 +198,79 @@ if (!fs.existsSync(path.join(__dirname, 'data'))) {
 // SQLite database instance
 let db;
 let dbConnected = false;
+
+// Database cleanup function to fix corrupted JSON data
+function cleanupCorruptedRules() {
+  if (!dbConnected || !db) return;
+  
+  try {
+    console.log('🔧 Checking for corrupted rule data...');
+    
+    const stmt = db.prepare('SELECT id, conditions, time_restrictions, actions FROM rules');
+    const rules = stmt.all();
+    
+    let fixedCount = 0;
+    
+    for (const rule of rules) {
+      let needsUpdate = false;
+      let fixedConditions = rule.conditions;
+      let fixedTimeRestrictions = rule.time_restrictions;
+      let fixedActions = rule.actions;
+      
+      // Check and fix conditions
+      try {
+        if (rule.conditions) {
+          JSON.parse(rule.conditions);
+        }
+      } catch (e) {
+        console.log(`Fixing corrupted conditions for rule ${rule.id}`);
+        fixedConditions = '[]';
+        needsUpdate = true;
+      }
+      
+      // Check and fix time_restrictions
+      try {
+        if (rule.time_restrictions) {
+          JSON.parse(rule.time_restrictions);
+        }
+      } catch (e) {
+        console.log(`Fixing corrupted time_restrictions for rule ${rule.id}`);
+        fixedTimeRestrictions = '{}';
+        needsUpdate = true;
+      }
+      
+      // Check and fix actions
+      try {
+        if (rule.actions) {
+          JSON.parse(rule.actions);
+        }
+      } catch (e) {
+        console.log(`Fixing corrupted actions for rule ${rule.id}`);
+        fixedActions = '[]';
+        needsUpdate = true;
+      }
+      
+      // Update the rule if needed
+      if (needsUpdate) {
+        const updateStmt = db.prepare(`
+          UPDATE rules 
+          SET conditions = ?, time_restrictions = ?, actions = ?
+          WHERE id = ?
+        `);
+        updateStmt.run(fixedConditions, fixedTimeRestrictions, fixedActions, rule.id);
+        fixedCount++;
+      }
+    }
+    
+    if (fixedCount > 0) {
+      console.log(`✅ Fixed ${fixedCount} corrupted rules`);
+    } else {
+      console.log('✅ No corrupted rules found');
+    }
+  } catch (error) {
+    console.error('❌ Error during rule cleanup:', error.message);
+  }
+}
 
 if (!fs.existsSync(SETTINGS_FILE)) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify({
@@ -563,6 +661,10 @@ async function initializeDatabase() {
     
     console.log('SQLite database initialized');
     dbConnected = true;
+    
+    // Clean up any corrupted rule data
+    setTimeout(() => cleanupCorruptedRules(), 1000);
+    
     return true;
   } catch (error) {
     console.error('Error initializing SQLite database:', error.message);
@@ -829,9 +931,21 @@ function saveRule(ruleData) {
     const timeRestrictions = (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') ? ruleData.timeRestrictions : {};
     const actions = Array.isArray(ruleData.actions) ? ruleData.actions : [];
     
-    const conditionsJson = JSON.stringify(conditions);
-    const timeRestrictionsJson = JSON.stringify(timeRestrictions);
-    const actionsJson = JSON.stringify(actions);
+    // Validate JSON stringification
+    let conditionsJson, timeRestrictionsJson, actionsJson;
+    try {
+      conditionsJson = JSON.stringify(conditions);
+      timeRestrictionsJson = JSON.stringify(timeRestrictions);
+      actionsJson = JSON.stringify(actions);
+      
+      // Test parsing to ensure valid JSON
+      JSON.parse(conditionsJson);
+      JSON.parse(timeRestrictionsJson);
+      JSON.parse(actionsJson);
+    } catch (jsonError) {
+      console.error('JSON validation error in saveRule:', jsonError.message);
+      throw new Error('Invalid JSON data in rule fields');
+    }
     
     const stmt = db.prepare(`
       INSERT INTO rules 
@@ -869,9 +983,26 @@ function updateRule(id, ruleData) {
   if (!dbConnected || !db) return false;
   
   try {
-    const conditionsJson = JSON.stringify(ruleData.conditions || []);
-    const timeRestrictionsJson = JSON.stringify(ruleData.timeRestrictions || {});
-    const actionsJson = JSON.stringify(ruleData.actions || []);
+    // Validate and stringify JSON fields
+    const conditions = Array.isArray(ruleData.conditions) ? ruleData.conditions : [];
+    const timeRestrictions = (ruleData.timeRestrictions && typeof ruleData.timeRestrictions === 'object') ? ruleData.timeRestrictions : {};
+    const actions = Array.isArray(ruleData.actions) ? ruleData.actions : [];
+    
+    let conditionsJson, timeRestrictionsJson, actionsJson;
+    try {
+      conditionsJson = JSON.stringify(conditions);
+      timeRestrictionsJson = JSON.stringify(timeRestrictions);
+      actionsJson = JSON.stringify(actions);
+      
+      // Test parsing to ensure valid JSON
+      JSON.parse(conditionsJson);
+      JSON.parse(timeRestrictionsJson);
+      JSON.parse(actionsJson);
+    } catch (jsonError) {
+      console.error('JSON validation error in updateRule:', jsonError.message);
+      throw new Error('Invalid JSON data in rule fields');
+    }
+    
     const activeValue = ruleData.active ? 1 : 0;
     
     const stmt = db.prepare(`
@@ -1005,15 +1136,32 @@ function getRuleById(id, userId) {
       return null;
     }
     
+    // Safe JSON parsing function
+    const safeParseJSON = (jsonString, defaultValue) => {
+      if (!jsonString || jsonString === 'null' || jsonString === 'undefined') {
+        return defaultValue;
+      }
+      
+      // Clean the string - remove any non-printable characters
+      const cleanString = jsonString.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+      
+      try {
+        return JSON.parse(cleanString);
+      } catch (error) {
+        console.error(`JSON parse error for rule ${rule.id}:`, error.message, 'Raw string:', jsonString);
+        return defaultValue;
+      }
+    };
+    
     try {
       return {
         id: rule.id,
         name: rule.name,
         description: rule.description,
         active: rule.active === 1,
-        conditions: JSON.parse(rule.conditions || '[]'),
-        timeRestrictions: JSON.parse(rule.time_restrictions || '{}'),
-        actions: JSON.parse(rule.actions || '[]'),
+        conditions: safeParseJSON(rule.conditions, []),
+        timeRestrictions: safeParseJSON(rule.time_restrictions, {}),
+        actions: safeParseJSON(rule.actions, []),
         createdAt: new Date(rule.created_at),
         lastTriggered: rule.last_triggered ? new Date(rule.last_triggered) : null,
         triggerCount: rule.trigger_count,
