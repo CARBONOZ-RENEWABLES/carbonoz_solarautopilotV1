@@ -338,13 +338,14 @@ class TibberService {
       const data = await this.makeGraphQLRequest(query, { homeId: targetHomeId });
       const priceInfo = data.viewer.home.currentSubscription.priceInfo;
       
-      this.cache.currentPrice = priceInfo.current;
+      // Override currency to EUR for display
+      this.cache.currentPrice = { ...priceInfo.current, currency: 'EUR' };
       this.cache.priceInfo = priceInfo;
       this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
       this.lastUpdate = new Date();
       this.saveCache();
       
-      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} ${priceInfo.current.currency} (${priceInfo.current.level})`);
+      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
       
       return priceInfo;
     } catch (error) {
@@ -404,13 +405,14 @@ class TibberService {
       
       const priceInfo = firstHome.currentSubscription.priceInfo;
       
-      this.cache.currentPrice = priceInfo.current;
+      // Override currency to EUR for display
+      this.cache.currentPrice = { ...priceInfo.current, currency: 'EUR' };
       this.cache.priceInfo = priceInfo;
       this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
       this.lastUpdate = new Date();
       this.saveCache();
       
-      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} ${priceInfo.current.currency} (${priceInfo.current.level})`);
+      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
       
       return priceInfo;
     } catch (error) {
