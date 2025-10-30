@@ -184,6 +184,30 @@ app.get('/api/debug/rules', (req, res) => {
   }
 });
 
+// Endpoint to fix all corrupted rules
+app.post('/api/debug/fix-rules', (req, res) => {
+  if (!dbConnected || !db) {
+    return res.json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const stmt = db.prepare('UPDATE rules SET conditions = "[]", time_restrictions = "{}", actions = "[]" WHERE conditions IS NULL OR time_restrictions IS NULL OR actions IS NULL');
+    const result = stmt.run();
+    
+    const stmt2 = db.prepare('UPDATE rules SET conditions = "[]", time_restrictions = "{}", actions = "[]"');
+    const result2 = stmt2.run();
+    
+    res.json({ 
+      success: true, 
+      message: `Fixed ${result.changes + result2.changes} rules`,
+      nullFixed: result.changes,
+      allFixed: result2.changes
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
 
 
 // ================ ENHANCED STATIC FILE HANDLER ================
@@ -1149,18 +1173,28 @@ function getRuleById(id, userId) {
     
     // Safe JSON parsing function
     const safeParseJSON = (jsonString, defaultValue) => {
-      if (!jsonString || jsonString === 'null' || jsonString === 'undefined') {
+      if (!jsonString || jsonString === 'null' || jsonString === 'undefined' || jsonString === '') {
         return defaultValue;
       }
       
-      // Clean the string - remove any non-printable characters
-      const cleanString = jsonString.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-      
       try {
-        return JSON.parse(cleanString);
+        // First try direct parsing
+        return JSON.parse(jsonString);
       } catch (error) {
-        console.error(`JSON parse error for rule ${rule.id}:`, error.message, 'Raw string:', jsonString);
-        return defaultValue;
+        console.error(`JSON parse error for rule ${rule.id}:`, error.message);
+        console.error('Problematic string:', JSON.stringify(jsonString));
+        
+        // Try to fix common issues
+        try {
+          // Remove BOM and control characters
+          let cleaned = jsonString.replace(/^\uFEFF/, '').replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+          
+          // Try parsing cleaned string
+          return JSON.parse(cleaned);
+        } catch (secondError) {
+          console.error(`Second parse attempt failed:`, secondError.message);
+          return defaultValue;
+        }
       }
     };
     
@@ -1181,6 +1215,20 @@ function getRuleById(id, userId) {
       };
     } catch (parseError) {
       console.error(`Error parsing rule ${rule.id}:`, parseError.message);
+      
+      // Immediately fix corrupted data
+      try {
+        const fixStmt = db.prepare(`
+          UPDATE rules 
+          SET conditions = '[]', time_restrictions = '{}', actions = '[]'
+          WHERE id = ?
+        `);
+        fixStmt.run(rule.id);
+        console.log(`Fixed corrupted data for rule ${rule.id}`);
+      } catch (fixError) {
+        console.error(`Failed to fix rule ${rule.id}:`, fixError.message);
+      }
+      
       return {
         id: rule.id,
         name: rule.name,
