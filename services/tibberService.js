@@ -6,7 +6,6 @@ class TibberService {
   constructor() {
     this.apiUrl = 'https://api.tibber.com/v1-beta/gql';
     this.configFile = path.join(__dirname, '../data/tibber_config.json');
-    this.cacheFile = path.join(__dirname, '../data/tibber_cache.json');
     this.config = this.loadConfig();
     this.cache = this.loadCache();
     this.lastUpdate = null;
