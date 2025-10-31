@@ -188,8 +188,8 @@ const TRUSTED_PROXIES = [
 app.set('trust proxy', TRUSTED_PROXIES);
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 200, // Increased limit for dashboard requests
   
   // Custom key generator that safely handles proxy headers
   keyGenerator: (req) => {
@@ -215,16 +215,29 @@ const limiter = rateLimit({
     return clientIp || 'unknown-client';
   },
   
-  // Skip rate limiting for health checks
+  // Skip rate limiting for health checks and dashboard endpoints
   skip: (req) => {
-    const skipPaths = ['/health', '/api/health', '/status'];
+    const skipPaths = ['/health', '/api/health', '/status', '/api/system-state', '/api/ai/', '/api/tibber/'];
     return skipPaths.some(path => req.path.includes(path));
+  },
+  
+  // Return JSON error response instead of HTML
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many requests',
+      message: 'Rate limit exceeded. Please try again later.',
+      retryAfter: Math.round(req.rateLimit.resetTime / 1000)
+    });
   }
 });
 
-app.use('/api/', limiter);
+// Apply rate limiting more selectively
+app.use('/api/rules', limiter);
+app.use('/api/settings', limiter);
+app.use('/api/command', limiter);
+// Skip rate limiting for dashboard endpoints that need frequent updates
 
-const API_REQUEST_INTERVAL = 2000; // 2 seconds between API requests
+const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better responsiveness
 
 // InfluxDB configuration
 const influxConfig = {
@@ -241,6 +254,7 @@ const influxConfig = {
 let influx
 try {
   influx = new Influx.InfluxDB(influxConfig)
+  global.influx = influx
   console.log('InfluxDB client initialized')
 } catch (error) {
   console.error('Error initializing InfluxDB client:', error.message)
@@ -250,6 +264,7 @@ try {
       return Promise.resolve()
     }
   }
+  global.influx = influx
 }
 
 // MQTT configuration
@@ -1644,13 +1659,18 @@ function canMakeRequest(endpoint, userId, clientIp) {
     }
   }
   
+  // Allow dashboard endpoints more frequently
+  const dashboardEndpoints = ['/api/system-state', '/api/ai/', '/api/tibber/'];
+  const isDashboardEndpoint = dashboardEndpoints.some(path => endpoint.includes(path));
+  const interval = isDashboardEndpoint ? 100 : API_REQUEST_INTERVAL; // 100ms for dashboard
+  
   if (!API_REQUEST_LIMIT.has(key)) {
     API_REQUEST_LIMIT.set(key, now);
     return true;
   }
   
   const timeSinceLastRequest = now - API_REQUEST_LIMIT.get(key);
-  if (timeSinceLastRequest < API_REQUEST_INTERVAL) {
+  if (timeSinceLastRequest < interval) {
     return false;
   }
   
@@ -1671,6 +1691,11 @@ function apiRateLimiter(req, res, next) {
   
     if (!canMakeRequest(endpoint, userId, clientIp)) {
       console.warn(`API rate limit exceeded for ${clientIp} on ${endpoint}`);
+      return res.status(429).json({
+        error: 'Too many requests',
+        message: 'Rate limit exceeded. Please try again later.',
+        endpoint: endpoint
+      });
   }
   
   next();

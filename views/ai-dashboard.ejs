@@ -293,6 +293,28 @@
         const STORAGE_KEY = 'ai_dashboard_chart_data';
         const MAX_DATA_POINTS = 50; // Increased from 20 to store more history
         const DATA_RETENTION_HOURS = 2; // Keep data for 2 hours
+        
+        // Helper function for safe API calls
+        async function safeFetch(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                
+                if (response.status === 429) {
+                    console.warn(`Rate limited for ${url}`);
+                    return { rateLimited: true };
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return { success: true, data };
+            } catch (error) {
+                console.error(`Error fetching ${url}:`, error);
+                return { success: false, error: error.message };
+            }
+        }
 
         // Toggle mobile menu
         function toggleMenu() {
@@ -365,8 +387,18 @@
             if (!dataLoaded) {
                 try {
                     console.log('Loading historical data from server...');
-                    const response = await fetch('<%= ingress_path %>/api/system-state/history?hours=2&limit=30');
-                    const result = await response.json();
+                    const fetchResult = await safeFetch('<%= ingress_path %>/api/system-state/history?hours=2&limit=30');
+                    
+                    if (fetchResult.rateLimited) {
+                        console.log('Rate limited while loading historical data');
+                        return false;
+                    }
+                    
+                    if (!fetchResult.success) {
+                        throw new Error(fetchResult.error);
+                    }
+                    
+                    const result = fetchResult.data;
                     
                     if (result.success && result.data && result.data.length > 0) {
                         systemData.labels = [];
@@ -659,191 +691,195 @@
 
         // Load system state
         async function loadSystemState() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/system-state');
-                const data = await response.json();
-                
-                if (data.current_state) {
-                    const state = data.current_state;
-                    updateMetricCard('batterySOC', state.battery_soc, '%');
-                    updateMetricCard('pvPower', state.pv_power, 'W');
-                    updateMetricCard('gridPower', state.grid_power, 'W');
-                    updateMetricCard('loadPower', state.load, 'W');
-                    
-                    // Only update chart if we have valid data
-                    if (state.battery_soc !== null || state.pv_power !== null || 
-                        state.grid_power !== null || state.load !== null) {
-                        updateSystemChart(state);
-                        updateEnergyChart(state);
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading system state:', error);
+            const result = await safeFetch('<%= ingress_path %>/api/system-state');
+            
+            if (result.rateLimited) {
+                return; // Skip silently if rate limited
+            }
+            
+            if (!result.success) {
                 showDataStatus('Error loading real-time data', 'warning');
+                return;
+            }
+            
+            const data = result.data;
+            if (data.current_state) {
+                const state = data.current_state;
+                updateMetricCard('batterySOC', state.battery_soc, '%');
+                updateMetricCard('pvPower', state.pv_power, 'W');
+                updateMetricCard('gridPower', state.grid_power, 'W');
+                updateMetricCard('loadPower', state.load, 'W');
+                
+                // Only update chart if we have valid data
+                if (state.battery_soc !== null || state.pv_power !== null || 
+                    state.grid_power !== null || state.load !== null) {
+                    updateSystemChart(state);
+                    updateEnergyChart(state);
+                }
             }
         }
 
         // Load AI status
         async function loadAIStatus() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/ai/status');
-                const data = await response.json();
+            const result = await safeFetch('<%= ingress_path %>/api/ai/status');
+            
+            if (result.rateLimited || !result.success) {
+                return; // Skip silently if rate limited or failed
+            }
+            
+            const data = result.data;
+            const statusElement = document.getElementById('aiStatus');
+            const statusTextElement = document.getElementById('aiStatusText');
+            const toggleBtn = document.getElementById('aiToggleBtn');
+            
+            if (data.success) {
+                const isActive = data.learner_mode && data.ai.enabled && data.ai.running;
                 
-                const statusElement = document.getElementById('aiStatus');
-                const statusTextElement = document.getElementById('aiStatusText');
-                const toggleBtn = document.getElementById('aiToggleBtn');
-                
-                if (data.success) {
-                    const isActive = data.learner_mode && data.ai.enabled && data.ai.running;
-                    
-                    if (isActive) {
-                        statusElement.className = 'ai-status active';
-                        statusTextElement.textContent = 'AI Engine Active - Making Smart Decisions';
-                        toggleBtn.innerHTML = '<i class="fas fa-stop"></i>';
-                    } else {
-                        statusElement.className = 'ai-status inactive';
-                        statusTextElement.textContent = data.learner_mode ? 'AI Engine Ready - Click to Start' : 'Learner Mode Required';
-                        toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
-                    }
-                    
-                    toggleBtn.disabled = !data.learner_mode;
-                    
-                    if (data.ai.lastDecision) {
-                        document.getElementById('lastDecision').textContent = data.ai.lastDecision.decision || '--';
-                    }
-                    
-                    if (data.ai.decisionCount !== undefined) {
-                        document.getElementById('decisionCount').textContent = data.ai.decisionCount;
-                    }
+                if (isActive) {
+                    statusElement.className = 'ai-status active';
+                    statusTextElement.textContent = 'AI Engine Active - Making Smart Decisions';
+                    toggleBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                } else {
+                    statusElement.className = 'ai-status inactive';
+                    statusTextElement.textContent = data.learner_mode ? 'AI Engine Ready - Click to Start' : 'Learner Mode Required';
+                    toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
                 }
-            } catch (error) {
-                console.error('Error loading AI status:', error);
+                
+                toggleBtn.disabled = !data.learner_mode;
+                
+                if (data.ai.lastDecision) {
+                    document.getElementById('lastDecision').textContent = data.ai.lastDecision.decision || '--';
+                }
+                
+                if (data.ai.decisionCount !== undefined) {
+                    document.getElementById('decisionCount').textContent = data.ai.decisionCount;
+                }
             }
         }
 
         // Load Tibber data
         async function loadTibberData() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/current');
-                const data = await response.json();
+            const result = await safeFetch('<%= ingress_path %>/api/tibber/current');
+            
+            if (result.rateLimited || !result.success) {
+                return; // Skip silently if rate limited or failed
+            }
+            
+            const data = result.data;
+            if (data.success && data.data) {
+                const tibberData = data.data;
                 
-                if (data.success && data.data) {
-                    const tibberData = data.data;
+                if (tibberData.currentPrice) {
+                    document.getElementById('currentPrice').textContent = 
+                        `${tibberData.currentPrice.total.toFixed(2)} ${tibberData.currentPrice.currency}`;
                     
-                    if (tibberData.currentPrice) {
-                        document.getElementById('currentPrice').textContent = 
-                            `${tibberData.currentPrice.total.toFixed(2)} ${tibberData.currentPrice.currency}`;
-                        
-                        const levelElement = document.getElementById('priceLevel');
-                        levelElement.textContent = tibberData.currentPrice.level || 'NORMAL';
-                        levelElement.className = `price-indicator price-${(tibberData.currentPrice.level || 'normal').toLowerCase().replace('_', '-')}`;
-                    }
+                    const levelElement = document.getElementById('priceLevel');
+                    levelElement.textContent = tibberData.currentPrice.level || 'NORMAL';
+                    levelElement.className = `price-indicator price-${(tibberData.currentPrice.level || 'normal').toLowerCase().replace('_', '-')}`;
+                }
+                
+                if (tibberData.config && tibberData.config.enabled) {
+                    document.getElementById('priceStatus').textContent = 'Connected';
                     
-                    if (tibberData.config && tibberData.config.enabled) {
-                        document.getElementById('priceStatus').textContent = 'Connected';
-                        
-                        if (tibberData.forecast && tibberData.forecast.length > 0) {
-                            const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
-                            document.getElementById('averagePrice').textContent = 
-                                `${avgPrice.toFixed(2)} €`;
-                        }
-                    } else {
-                        document.getElementById('priceStatus').textContent = 'Not configured';
+                    if (tibberData.forecast && tibberData.forecast.length > 0) {
+                        const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
+                        document.getElementById('averagePrice').textContent = 
+                            `${avgPrice.toFixed(2)} €`;
                     }
                 } else {
-                    document.getElementById('currentPrice').textContent = '--';
-                    document.getElementById('averagePrice').textContent = '--';
-                    document.getElementById('priceLevel').textContent = '--';
-                    document.getElementById('priceStatus').textContent = 'Service unavailable';
+                    document.getElementById('priceStatus').textContent = 'Not configured';
                 }
-            } catch (error) {
-                console.error('Error loading Tibber data:', error);
+            } else {
+                document.getElementById('currentPrice').textContent = '--';
+                document.getElementById('averagePrice').textContent = '--';
+                document.getElementById('priceLevel').textContent = '--';
+                document.getElementById('priceStatus').textContent = 'Service unavailable';
             }
         }
 
         // Load price data for charts
         async function loadPriceData() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/current');
-                const data = await response.json();
-                
-                if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
-                    updatePriceChart(data.data.forecast);
-                    updatePriceLevelChart(data.data.forecast);
-                } else {
-                    // Show no data message in charts
-                    showNoPriceData();
-                }
-            } catch (error) {
-                console.error('Error loading price data:', error);
+            const result = await safeFetch('<%= ingress_path %>/api/tibber/current');
+            
+            if (result.rateLimited) {
+                return; // Skip silently if rate limited
+            }
+            
+            if (!result.success) {
+                showNoPriceData();
+                return;
+            }
+            
+            const data = result.data;
+            if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
+                updatePriceChart(data.data.forecast);
+                updatePriceLevelChart(data.data.forecast);
+            } else {
                 showNoPriceData();
             }
         }
 
         // Load AI decisions
         async function loadAIDecisions() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/ai/decisions?limit=10');
-                const data = await response.json();
-                const decisionsContainer = document.getElementById('aiDecisions');
-                
-                if (data.success && data.decisions && data.decisions.length > 0) {
-                    decisionsContainer.innerHTML = data.decisions.map(decision => `
-                        <div class="decision-card">
-                            <div class="decision-timestamp">
-                                ${formatTimestamp(decision.timestamp)}
-                            </div>
-                            <div class="decision-action">
-                                <i class="fas fa-lightbulb me-1"></i>
-                                ${decision.decision}
-                            </div>
-                            <div class="decision-reasons">
-                                ${decision.reasons ? decision.reasons.map(reason => `• ${reason}`).join('<br>') : 'No reasons provided'}
-                            </div>
+            const result = await safeFetch('<%= ingress_path %>/api/ai/decisions?limit=10');
+            const decisionsContainer = document.getElementById('aiDecisions');
+            
+            if (result.rateLimited || !result.success) {
+                return; // Skip silently if rate limited or failed
+            }
+            
+            const data = result.data;
+            if (data.success && data.decisions && data.decisions.length > 0) {
+                decisionsContainer.innerHTML = data.decisions.map(decision => `
+                    <div class="decision-card">
+                        <div class="decision-timestamp">
+                            ${formatTimestamp(decision.timestamp)}
                         </div>
-                    `).join('');
-                } else {
-                    decisionsContainer.innerHTML = 
-                        '<div class="text-center text-muted">No AI decisions available yet</div>';
-                }
-            } catch (error) {
-                console.error('Error loading AI decisions:', error);
+                        <div class="decision-action">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            ${decision.decision}
+                        </div>
+                        <div class="decision-reasons">
+                            ${decision.reasons ? decision.reasons.map(reason => `• ${reason}`).join('<br>') : 'No reasons provided'}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                decisionsContainer.innerHTML = 
+                    '<div class="text-center text-muted">No AI decisions available yet</div>';
             }
         }
 
         // Load command history
         async function loadCommandHistory() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/ai/commands?limit=15');
-                const data = await response.json();
-                const commandContainer = document.getElementById('commandLog');
-                
-                if (data.success && data.commands && data.commands.length > 0) {
-                    commandContainer.innerHTML = data.commands.map(command => `
-                        <div class="command-item ${command.success ? 'success' : 'error'}">
-                            <div class="command-header">
-                                <div>
-                                    <i class="fas ${command.success ? 'fa-check-circle' : 'fa-times-circle'} me-1"></i>
-                                    <strong>${command.topic}</strong> = ${command.value}
-                                    <div class="command-details">
-                                        Source: ${command.source} | Status: ${command.success ? 'Success' : 'Failed'}
-                                    </div>
+            const result = await safeFetch('<%= ingress_path %>/api/ai/commands?limit=15');
+            const commandContainer = document.getElementById('commandLog');
+            
+            if (result.rateLimited || !result.success) {
+                return; // Skip silently if rate limited or failed
+            }
+            
+            const data = result.data;
+            if (data.success && data.commands && data.commands.length > 0) {
+                commandContainer.innerHTML = data.commands.map(command => `
+                    <div class="command-item ${command.success ? 'success' : 'error'}">
+                        <div class="command-header">
+                            <div>
+                                <i class="fas ${command.success ? 'fa-check-circle' : 'fa-times-circle'} me-1"></i>
+                                <strong>${command.topic}</strong> = ${command.value}
+                                <div class="command-details">
+                                    Source: ${command.source} | Status: ${command.success ? 'Success' : 'Failed'}
                                 </div>
-                                <small class="text-muted command-timestamp">
-                                    ${formatTimestamp(command.timestamp)}
-                                </small>
                             </div>
+                            <small class="text-muted command-timestamp">
+                                ${formatTimestamp(command.timestamp)}
+                            </small>
                         </div>
-                    `).join('');
-                } else {
-                    commandContainer.innerHTML = 
-                        '<div class="text-center text-muted">No AI commands sent yet</div>';
-                }
-            } catch (error) {
-                console.error('Error loading command history:', error);
-                const commandContainer = document.getElementById('commandLog');
+                    </div>
+                `).join('');
+            } else {
                 commandContainer.innerHTML = 
-                    '<div class="text-center text-muted">Error loading commands</div>';
+                    '<div class="text-center text-muted">No AI commands sent yet</div>';
             }
         }
 
@@ -1007,9 +1043,23 @@
             });
         }
 
-        // Start auto refresh
+        // Start auto refresh with staggered intervals to avoid rate limiting
         function startAutoRefresh() {
-            refreshInterval = setInterval(loadDashboardData, 30000);
+            // Stagger the refresh intervals to avoid hitting rate limits
+            setTimeout(() => loadSystemState(), 1000);
+            setTimeout(() => loadAIStatus(), 2000);
+            setTimeout(() => loadTibberData(), 3000);
+            setTimeout(() => loadAIDecisions(), 4000);
+            setTimeout(() => loadCommandHistory(), 5000);
+            
+            // Set up regular refresh with longer intervals
+            refreshInterval = setInterval(() => {
+                setTimeout(() => loadSystemState(), 0);
+                setTimeout(() => loadAIStatus(), 2000);
+                setTimeout(() => loadTibberData(), 4000);
+                setTimeout(() => loadAIDecisions(), 6000);
+                setTimeout(() => loadCommandHistory(), 8000);
+            }, 45000); // Refresh every 45 seconds instead of 30
         }
 
         // Toggle AI Engine
@@ -1108,7 +1158,7 @@
                 systemData.load = [];
                 systemData.timestamps = [];
                 
-                // Load fresh data
+                // Load fresh data with rate limit handling
                 const dataLoaded = await loadPersistedData();
                 
                 // Update chart

@@ -61,30 +61,14 @@ class TibberService {
   }
 
   loadCache() {
-    try {
-      if (fs.existsSync(this.cacheFile)) {
-        const fileContent = fs.readFileSync(this.cacheFile, 'utf8');
-        
-        try {
-          const cache = JSON.parse(fileContent);
-          
-          if (cache.timestamp && (Date.now() - cache.timestamp < 10 * 60 * 1000)) {
-            console.log('✅ Using valid cached Tibber data');
-            return cache;
-          } else {
-            console.log('⚠️  Tibber cache expired');
-          }
-        } catch (jsonError) {
-          console.error('❌ Tibber cache JSON is corrupted:', jsonError.message);
-          
-          const backupFile = this.cacheFile + '.corrupted.' + Date.now();
-          fs.writeFileSync(backupFile, fileContent);
-          console.log(`💾 Corrupted file backed up to: ${backupFile}`);
-        }
+    this.loadCacheFromInfluxDB().then(influxCache => {
+      if (influxCache) {
+        this.cache = influxCache;
+        console.log('✅ Loaded Tibber cache from InfluxDB');
       }
-    } catch (error) {
-      console.error('Error loading Tibber cache:', error);
-    }
+    }).catch(error => {
+      console.error('Error loading Tibber cache from InfluxDB:', error);
+    });
     
     return {
       currentPrice: null,
@@ -93,6 +77,64 @@ class TibberService {
       consumption: null,
       timestamp: null
     };
+  }
+  
+  async loadCacheFromInfluxDB() {
+    try {
+      if (!global.influx) {
+        return null;
+      }
+
+      const currentPriceQuery = `
+        SELECT last("total") as total, last("energy") as energy, last("tax") as tax, last("level") as level, last("currency") as currency
+        FROM "tibber_prices" 
+        WHERE "type" = 'current' AND time > now() - 1h
+      `;
+      
+      const forecastQuery = `
+        SELECT "total", "energy", "tax", "level", "currency"
+        FROM "tibber_forecast" 
+        WHERE time > now() - 2h AND time < now() + 48h
+        ORDER BY time ASC
+      `;
+      
+      const [currentResult, forecastResult] = await Promise.all([
+        global.influx.query(currentPriceQuery),
+        global.influx.query(forecastQuery)
+      ]);
+      
+      if (currentResult.length === 0) {
+        return null;
+      }
+      
+      const currentPrice = currentResult[0];
+      const forecast = forecastResult.map(row => ({
+        total: row.total,
+        energy: row.energy,
+        tax: row.tax,
+        level: row.level,
+        currency: row.currency,
+        startsAt: row.time
+      }));
+      
+      return {
+        currentPrice: {
+          total: currentPrice.total,
+          energy: currentPrice.energy,
+          tax: currentPrice.tax,
+          level: currentPrice.level,
+          currency: currentPrice.currency || 'EUR',
+          startsAt: currentPrice.time
+        },
+        priceInfo: null,
+        forecast: forecast,
+        consumption: null,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('Error loading Tibber cache from InfluxDB:', error);
+      return null;
+    }
   }
 
   saveConfigSync(config) {
@@ -117,18 +159,66 @@ class TibberService {
     }
   }
 
-  saveCache() {
+  async saveCache() {
     try {
-      const dataDir = path.dirname(this.cacheFile);
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
-      
+      await this.saveCacheToInfluxDB();
       this.cache.timestamp = Date.now();
-      fs.writeFileSync(this.cacheFile, JSON.stringify(this.cache, null, 2));
-      console.log('✅ Tibber cache saved successfully');
+      console.log('✅ Tibber cache saved to InfluxDB');
     } catch (error) {
       console.error('Error saving Tibber cache:', error);
+    }
+  }
+
+  async saveCacheToInfluxDB() {
+    try {
+      if (!global.influx) {
+        console.warn('InfluxDB not available for Tibber cache');
+        return;
+      }
+
+      const points = [];
+      
+      if (this.cache.currentPrice) {
+        points.push({
+          measurement: 'tibber_prices',
+          tags: {
+            type: 'current',
+            level: this.cache.currentPrice.level || 'NORMAL',
+            currency: this.cache.currentPrice.currency || 'EUR'
+          },
+          fields: {
+            total: this.cache.currentPrice.total || 0,
+            energy: this.cache.currentPrice.energy || 0,
+            tax: this.cache.currentPrice.tax || 0
+          },
+          timestamp: new Date(this.cache.currentPrice.startsAt || Date.now())
+        });
+      }
+      
+      if (this.cache.forecast && this.cache.forecast.length > 0) {
+        this.cache.forecast.forEach(price => {
+          points.push({
+            measurement: 'tibber_forecast',
+            tags: {
+              level: price.level || 'NORMAL',
+              currency: 'EUR'
+            },
+            fields: {
+              total: price.total || 0,
+              energy: price.energy || 0,
+              tax: price.tax || 0
+            },
+            timestamp: new Date(price.startsAt)
+          });
+        });
+      }
+      
+      if (points.length > 0) {
+        await global.influx.writePoints(points);
+        console.log(`✅ Saved ${points.length} Tibber data points to InfluxDB`);
+      }
+    } catch (error) {
+      console.error('Error saving Tibber cache to InfluxDB:', error);
     }
   }
 
@@ -343,7 +433,7 @@ class TibberService {
       this.cache.priceInfo = priceInfo;
       this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
       this.lastUpdate = new Date();
-      this.saveCache();
+      await this.saveCache();
       
       console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
       
@@ -410,7 +500,7 @@ class TibberService {
       this.cache.priceInfo = priceInfo;
       this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
       this.lastUpdate = new Date();
-      this.saveCache();
+      await this.saveCache();
       
       console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
       
