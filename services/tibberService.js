@@ -162,7 +162,6 @@ class TibberService {
     try {
       await this.saveCacheToInfluxDB();
       this.cache.timestamp = Date.now();
-      console.log('✅ Tibber cache saved to InfluxDB');
     } catch (error) {
       console.error('Error saving Tibber cache:', error);
     }
@@ -217,7 +216,11 @@ class TibberService {
         console.log(`✅ Saved ${points.length} Tibber data points to InfluxDB`);
       }
     } catch (error) {
-      console.error('Error saving Tibber cache to InfluxDB:', error);
+      if (error.message && error.message.includes('No host available')) {
+        console.warn('⚠️  InfluxDB service unavailable - skipping Tibber cache save');
+      } else {
+        console.error('Error saving Tibber cache to InfluxDB:', error);
+      }
     }
   }
 

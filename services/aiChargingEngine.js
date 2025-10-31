@@ -8,19 +8,38 @@ class AIChargingEngine {
     this.evaluationInterval = null;
     this.mqttClient = null;
     this.currentSystemState = null;
+    
+    // Store configuration from server
+    this.config = {
+      inverterNumber: 1,
+      mqttTopicPrefix: 'solar',
+      inverterTypes: {}
+    };
   }
 
-  initialize(mqttClient, currentSystemState) {
+  initialize(mqttClient, currentSystemState, config = {}) {
     this.mqttClient = mqttClient;
     this.currentSystemState = currentSystemState;
+    
+    // Store configuration
+    if (config.inverterNumber) this.config.inverterNumber = config.inverterNumber;
+    if (config.mqttTopicPrefix) this.config.mqttTopicPrefix = config.mqttTopicPrefix;
+    if (config.inverterTypes) this.config.inverterTypes = config.inverterTypes;
+    
     console.log('✅ AI Charging Engine initialized');
+    console.log(`   • Inverters: ${this.config.inverterNumber}`);
+    console.log(`   • MQTT Prefix: ${this.config.mqttTopicPrefix}`);
   }
 
   updateSystemState(systemState) {
     this.currentSystemState = systemState;
   }
 
-
+  updateConfig(config) {
+    if (config.inverterNumber) this.config.inverterNumber = config.inverterNumber;
+    if (config.mqttTopicPrefix) this.config.mqttTopicPrefix = config.mqttTopicPrefix;
+    if (config.inverterTypes) this.config.inverterTypes = config.inverterTypes;
+  }
 
   async logCommand(topic, value, success = true) {
     const command = {
@@ -221,11 +240,8 @@ class AIChargingEngine {
   }
 
   async analyzeHistoricalPattern() {
-    // Simple pattern analysis: check if current hour is typically cheap
     const now = new Date();
     const currentHour = now.getHours();
-    
-    // Get decisions from same hour in past 7 days
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
     try {
@@ -274,13 +290,16 @@ class AIChargingEngine {
     try {
       const enableCharging = decision.includes('START_CHARGING') || decision.includes('CHARGE WITH');
       const commandValue = enableCharging ? 'Enabled' : 'Disabled';
-      const inverterNumber = global.inverterNumber || 1;
-      const mqttTopicPrefix = global.mqttTopicPrefix || 'solar';
+      
+      // Use stored config values
+      const inverterNumber = this.config.inverterNumber;
+      const mqttTopicPrefix = this.config.mqttTopicPrefix;
       
       let commandsSent = 0;
       let totalInverters = 0;
       
-      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s) with intelligent type detection`);
+      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s)`);
+      console.log(`   • MQTT Prefix: ${mqttTopicPrefix}`);
       
       // Apply to each inverter with type-aware mapping
       for (let i = 1; i <= inverterNumber; i++) {
@@ -299,6 +318,9 @@ class AIChargingEngine {
             if (!err) {
               await this.logCommand(chargerTopic, settings.chargerPriority, true);
               commandsSent++;
+            } else {
+              console.error(`❌ Error publishing to ${chargerTopic}:`, err.message);
+              await this.logCommand(chargerTopic, settings.chargerPriority, false);
             }
           });
           
@@ -308,12 +330,15 @@ class AIChargingEngine {
             if (!err) {
               await this.logCommand(outputTopic, settings.outputPriority, true);
               commandsSent++;
+            } else {
+              console.error(`❌ Error publishing to ${outputTopic}:`, err.message);
+              await this.logCommand(outputTopic, settings.outputPriority, false);
             }
           });
           
           console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
           totalInverters++;
-          continue; // Skip the single command logic below
+          continue;
         } else {
           // Use legacy grid_charge for legacy inverters
           topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
@@ -321,8 +346,8 @@ class AIChargingEngine {
           console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
         }
         
-        // Only for legacy inverters (new inverters handled above)
-        if (inverterType === 'legacy') {
+        // Only for legacy inverters
+        if (inverterType === 'legacy' || inverterType === 'unknown') {
           this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, async (err) => {
             if (err) {
               console.error(`❌ Error publishing to ${topic}: ${err.message}`);
@@ -337,7 +362,7 @@ class AIChargingEngine {
       }
       
       const action = enableCharging ? 'enabled' : 'disabled';
-      console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands sent: ${commandsSent}/${totalInverters}`);
+      console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands sent: ${commandsSent}`);
       
       return commandsSent > 0;
     } catch (error) {
@@ -348,9 +373,16 @@ class AIChargingEngine {
 
   getInverterType(inverterId) {
     try {
+      // First try stored config
+      if (this.config.inverterTypes && this.config.inverterTypes[inverterId]) {
+        return this.config.inverterTypes[inverterId].type || 'legacy';
+      }
+      
+      // Fallback to global
       if (global.inverterTypes && global.inverterTypes[inverterId]) {
         return global.inverterTypes[inverterId].type || 'legacy';
       }
+      
       return 'legacy'; // Default to legacy for safety
     } catch (error) {
       console.error(`Error getting inverter type for ${inverterId}:`, error);
@@ -377,52 +409,44 @@ class AIChargingEngine {
     let outputPriority = 'Solar/Battery/Utility';
     let reason = '';
     
-    // SOC > target or grid unstable → Solar first + avoid grid for loads
     if (socAtTarget || gridUnstable) {
       chargerPriority = 'Solar first';
-      outputPriority = 'Solar/Battery/Utility';  // Use battery before expensive/unstable grid
+      outputPriority = 'Solar/Battery/Utility';
       reason = socAtTarget ? 'SOC at target' : 'Grid unstable';
     }
-    // Charging disabled → Conservative mode
     else if (!enableCharging) {
       chargerPriority = 'Solar first';
-      outputPriority = 'Solar/Battery/Utility';  // Standard priority sequence
+      outputPriority = 'Solar/Battery/Utility';
       reason = 'Charging disabled';
     }
-    // Strong solar surplus → Solar priority for everything
     else if (pvPower > load * 2 && batterySOC < 90) {
       chargerPriority = 'Solar only';
-      outputPriority = 'Solar first';  // Abundant solar, prioritize it
+      outputPriority = 'Solar first';
       reason = 'Strong solar surplus';
     }
-    // No PV, cheap prices → Use cheap grid
     else if (!pvAvailable && priceLow) {
       chargerPriority = 'Utility first';
-      outputPriority = 'Utility first';  // Cheap grid available
+      outputPriority = 'Utility first';
       reason = 'No PV, cheap grid';
     }
-    // No PV, expensive prices → Avoid grid for loads
     else if (!pvAvailable && priceHigh) {
       chargerPriority = 'Solar first';
-      outputPriority = 'Solar/Battery/Utility';  // Use battery before expensive grid
+      outputPriority = 'Solar/Battery/Utility';
       reason = 'No PV, expensive grid';
     }
-    // PV + cheap prices → Fast charging mode
     else if (pvAvailable && priceLow) {
       chargerPriority = 'Solar and utility simultaneously';
-      outputPriority = 'Solar/Utility/Battery';  // Use both solar and cheap grid
+      outputPriority = 'Solar/Utility/Battery';
       reason = 'PV + cheap grid';
     }
-    // PV + low battery → Balanced approach
     else if (pvAvailable && batterySOC < 50) {
       chargerPriority = 'Solar and utility simultaneously';
-      outputPriority = 'Solar/Utility/Battery';  // Mixed sources
+      outputPriority = 'Solar/Utility/Battery';
       reason = 'Mixed mode for low SOC';
     }
-    // Default conservative mode
     else {
       chargerPriority = 'Solar first';
-      outputPriority = 'Solar/Battery/Utility';  // Standard safe sequence
+      outputPriority = 'Solar/Battery/Utility';
       reason = 'Default safe mode';
     }
     
@@ -454,7 +478,7 @@ class AIChargingEngine {
       this.evaluationInterval = null;
     }
     this.enabled = false;
-    console.log('⏸️  AI Charging Engine stopped');
+    console.log('⸻  AI Charging Engine stopped');
   }
 
   getStatus() {
@@ -462,6 +486,10 @@ class AIChargingEngine {
     return {
       enabled: this.enabled,
       running: !!this.evaluationInterval,
+      config: {
+        inverterNumber: this.config.inverterNumber,
+        mqttTopicPrefix: this.config.mqttTopicPrefix
+      },
       lastDecision: this.lastDecision ? {
         timestamp: this.lastDecision.timestamp,
         decision: this.lastDecision.decision,

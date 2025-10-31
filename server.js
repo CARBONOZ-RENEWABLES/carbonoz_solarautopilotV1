@@ -32,21 +32,7 @@ const aiChargingEngine = require('./services/aiChargingEngine');
 
 let aiEngineInitialized = false;
 
-// Initialize AI engine after MQTT connection
-function initializeAIEngine() {
-  if (!aiEngineInitialized && mqttClient && mqttClient.connected) {
-    try {
-      // Set up AI engine with MQTT client and system state
-      if (aiChargingEngine && aiChargingEngine.initialize) {
-        aiChargingEngine.initialize(mqttClient, currentSystemState);
-        console.log('✅ AI Charging Engine initialized');
-        aiEngineInitialized = true;
-      }
-    } catch (error) {
-      console.error('❌ Error initializing AI engine:', error);
-    }
-  }
-}
+
 
 const GRAFANA_URL = 'http://localhost:3001';
 const BASE_PATH = process.env.INGRESS_PATH || '';
@@ -121,7 +107,12 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 
 // Optimized favicon handler
@@ -269,7 +260,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -500,6 +491,61 @@ function mapChargerSourcePriorityToGridCharge(chargerPriority) {
       return 'Disabled';
     default:
       return 'Disabled';
+  }
+}
+
+// Initialize AI engine after MQTT connection
+function initializeAIEngine() {
+  if (aiEngineInitialized) {
+    console.log('⚠️  AI Engine already initialized');
+    return;
+  }
+  
+  if (!mqttClient || !mqttClient.connected) {
+    console.log('⚠️  Cannot initialize AI Engine: MQTT not connected');
+    return;
+  }
+  
+  if (!currentSystemState) {
+    console.log('⚠️  Cannot initialize AI Engine: No system state available');
+    return;
+  }
+  
+  try {
+    console.log('🤖 Initializing AI Charging Engine...');
+    
+    // Pass complete configuration to AI engine
+    const aiConfig = {
+      inverterNumber: inverterNumber,
+      mqttTopicPrefix: mqttTopicPrefix,
+      inverterTypes: inverterTypes
+    };
+    
+    aiChargingEngine.initialize(mqttClient, currentSystemState, aiConfig);
+    aiEngineInitialized = true;
+    console.log('✅ AI Charging Engine initialized successfully');
+    console.log(`   • Inverters: ${inverterNumber}`);
+    console.log(`   • MQTT Prefix: ${mqttTopicPrefix}`);
+    
+    // Auto-start if Tibber is configured
+    if (tibberService.config.enabled && 
+        tibberService.config.apiKey && 
+        tibberService.config.homeId) {
+      console.log('🔋 Auto-starting AI Charging Engine...');
+      aiChargingEngine.start();
+    }
+  } catch (error) {
+    console.error('❌ Error initializing AI Engine:', error.message);
+  }
+}
+
+function updateAIEngineConfig() {
+  if (aiEngineInitialized && aiChargingEngine) {
+    aiChargingEngine.updateConfig({
+      inverterNumber: inverterNumber,
+      mqttTopicPrefix: mqttTopicPrefix,
+      inverterTypes: inverterTypes
+    });
   }
 }
 
@@ -1134,6 +1180,10 @@ async function handleMqttMessage(topic, message) {
   
   // Enhanced inverter type detection based on MQTT messages
   detectInverterType(inverterId, specificTopic, messageContent);
+
+  if (aiEngineInitialized) {
+  updateAIEngineConfig();
+}
 
   // ========= UPDATE CURRENT SETTINGS STATE IN MEMORY WITH ENHANCED SUPPORT =========
   
