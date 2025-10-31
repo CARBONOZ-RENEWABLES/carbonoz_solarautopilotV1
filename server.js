@@ -107,12 +107,7 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
-}
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
 
 // Optimized favicon handler
@@ -260,7 +255,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'core-mosquitto',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
