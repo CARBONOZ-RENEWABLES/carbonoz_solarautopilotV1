@@ -1,15 +1,10 @@
 const tibberService = require('./tibberService');
-const fs = require('fs');
-const path = require('path');
+const influxAIService = require('./influxAIService');
 
 class AIChargingEngine {
   constructor() {
-    this.decisionsFile = path.join(__dirname, '../data/ai_decisions.json');
-    this.commandsFile = path.join(__dirname, '../data/ai_commands.json');
     this.enabled = false;
     this.lastDecision = null;
-    this.decisionHistory = this.loadDecisionHistory();
-    this.commandHistory = this.loadCommandHistory();
     this.evaluationInterval = null;
     this.mqttClient = null;
     this.currentSystemState = null;
@@ -25,54 +20,9 @@ class AIChargingEngine {
     this.currentSystemState = systemState;
   }
 
-  loadDecisionHistory() {
-    try {
-      if (fs.existsSync(this.decisionsFile)) {
-        const data = JSON.parse(fs.readFileSync(this.decisionsFile, 'utf8'));
-        // Keep only last 500 decisions
-        return data.slice(-500);
-      }
-    } catch (error) {
-      console.error('Error loading decision history:', error);
-    }
-    return [];
-  }
 
-  loadCommandHistory() {
-    try {
-      if (fs.existsSync(this.commandsFile)) {
-        const data = JSON.parse(fs.readFileSync(this.commandsFile, 'utf8'));
-        return data.slice(-100);
-      }
-    } catch (error) {
-      console.error('Error loading command history:', error);
-    }
-    return [];
-  }
 
-  saveDecisionHistory() {
-    try {
-      fs.writeFileSync(
-        this.decisionsFile,
-        JSON.stringify(this.decisionHistory.slice(-500), null, 2)
-      );
-    } catch (error) {
-      console.error('Error saving decision history:', error);
-    }
-  }
-
-  saveCommandHistory() {
-    try {
-      fs.writeFileSync(
-        this.commandsFile,
-        JSON.stringify(this.commandHistory.slice(-100), null, 2)
-      );
-    } catch (error) {
-      console.error('Error saving command history:', error);
-    }
-  }
-
-  logCommand(topic, value, success = true) {
+  async logCommand(topic, value, success = true) {
     const command = {
       timestamp: new Date().toISOString(),
       topic: topic,
@@ -81,34 +31,36 @@ class AIChargingEngine {
       source: 'AI_ENGINE'
     };
     
-    this.commandHistory.push(command);
-    this.saveCommandHistory();
+    await influxAIService.saveCommand(topic, value, success);
     
     return command;
   }
 
-  logDecision(decision, reasons) {
+  async logDecision(decision, reasons) {
+    const systemState = {
+      battery_soc: this.currentSystemState?.battery_soc,
+      pv_power: this.currentSystemState?.pv_power,
+      load: this.currentSystemState?.load,
+      grid_power: this.currentSystemState?.grid_power,
+      grid_voltage: this.currentSystemState?.grid_voltage
+    };
+
+    const tibberData = {
+      currentPrice: tibberService.cache.currentPrice?.total,
+      priceLevel: tibberService.cache.currentPrice?.level,
+      averagePrice: tibberService.calculateAveragePrice()
+    };
+
     const entry = {
       timestamp: new Date().toISOString(),
       decision: decision,
       reasons: reasons,
-      systemState: {
-        battery_soc: this.currentSystemState?.battery_soc,
-        pv_power: this.currentSystemState?.pv_power,
-        load: this.currentSystemState?.load,
-        grid_power: this.currentSystemState?.grid_power,
-        grid_voltage: this.currentSystemState?.grid_voltage
-      },
-      tibberData: {
-        currentPrice: tibberService.cache.currentPrice?.total,
-        priceLevel: tibberService.cache.currentPrice?.level,
-        averagePrice: tibberService.calculateAveragePrice()
-      }
+      systemState: systemState,
+      tibberData: tibberData
     };
 
-    this.decisionHistory.push(entry);
     this.lastDecision = entry;
-    this.saveDecisionHistory();
+    await influxAIService.saveDecision(decision, reasons, systemState, tibberData);
 
     console.log(`🤖 AI Decision: ${decision}`);
     console.log(`   Reasons: ${reasons.join(', ')}`);
@@ -193,7 +145,7 @@ class AIChargingEngine {
       }
 
       // Learning from history: Check if this time of day is typically cheap
-      const historicalPattern = this.analyzeHistoricalPattern();
+      const historicalPattern = await this.analyzeHistoricalPattern();
       if (historicalPattern.isTypicallyCheap && batterySOC < config.targetSoC) {
         shouldCharge = true;
         reasons.push(`Historical pattern suggests cheap prices now`);
@@ -208,7 +160,7 @@ class AIChargingEngine {
         this.applyDecision(actionDecision);
       }
 
-      return this.logDecision(decision, reasons);
+      return await this.logDecision(decision, reasons);
     } catch (error) {
       console.error('❌ Error in AI evaluation:', error);
       return {
@@ -268,35 +220,43 @@ class AIChargingEngine {
     return `MONITOR - Stable conditions (SOC: ${batterySOC}%, PV: ${pvPower}W, Load: ${load}W)`;
   }
 
-  analyzeHistoricalPattern() {
+  async analyzeHistoricalPattern() {
     // Simple pattern analysis: check if current hour is typically cheap
     const now = new Date();
     const currentHour = now.getHours();
     
     // Get decisions from same hour in past 7 days
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const relevantDecisions = this.decisionHistory.filter(d => {
-      const decisionDate = new Date(d.timestamp);
-      const decisionHour = decisionDate.getHours();
-      return decisionDate > oneWeekAgo && decisionHour === currentHour;
-    });
+    
+    try {
+      const relevantDecisions = await influxAIService.getDecisionsByTimeRange(oneWeekAgo, now);
+      
+      const sameHourDecisions = relevantDecisions.filter(d => {
+        const decisionDate = new Date(d.timestamp);
+        const decisionHour = decisionDate.getHours();
+        return decisionHour === currentHour;
+      });
 
-    if (relevantDecisions.length < 3) {
+      if (sameHourDecisions.length < 3) {
+        return { isTypicallyCheap: false, confidence: 0 };
+      }
+
+      const cheapCount = sameHourDecisions.filter(d => 
+        d.tibberData?.priceLevel === 'VERY_CHEAP' || 
+        d.tibberData?.priceLevel === 'CHEAP'
+      ).length;
+
+      const ratio = cheapCount / sameHourDecisions.length;
+      
+      return {
+        isTypicallyCheap: ratio > 0.6,
+        confidence: ratio,
+        sampleSize: sameHourDecisions.length
+      };
+    } catch (error) {
+      console.error('Error analyzing historical pattern:', error);
       return { isTypicallyCheap: false, confidence: 0 };
     }
-
-    const cheapCount = relevantDecisions.filter(d => 
-      d.tibberData?.priceLevel === 'VERY_CHEAP' || 
-      d.tibberData?.priceLevel === 'CHEAP'
-    ).length;
-
-    const ratio = cheapCount / relevantDecisions.length;
-    
-    return {
-      isTypicallyCheap: ratio > 0.6,
-      confidence: ratio,
-      sampleSize: relevantDecisions.length
-    };
   }
 
   applyDecision(decision) {
@@ -335,18 +295,18 @@ class AIChargingEngine {
           
           // Send charger_source_priority command
           const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
-          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, (err) => {
+          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
             if (!err) {
-              this.logCommand(chargerTopic, settings.chargerPriority, true);
+              await this.logCommand(chargerTopic, settings.chargerPriority, true);
               commandsSent++;
             }
           });
           
           // Send output_source_priority command
           const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
-          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, (err) => {
+          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
             if (!err) {
-              this.logCommand(outputTopic, settings.outputPriority, true);
+              await this.logCommand(outputTopic, settings.outputPriority, true);
               commandsSent++;
             }
           });
@@ -363,13 +323,13 @@ class AIChargingEngine {
         
         // Only for legacy inverters (new inverters handled above)
         if (inverterType === 'legacy') {
-          this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, (err) => {
+          this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, async (err) => {
             if (err) {
               console.error(`❌ Error publishing to ${topic}: ${err.message}`);
-              this.logCommand(topic, mqttValue, false);
+              await this.logCommand(topic, mqttValue, false);
             } else {
               commandsSent++;
-              this.logCommand(topic, mqttValue, true);
+              await this.logCommand(topic, mqttValue, true);
             }
           });
           totalInverters++;
@@ -507,7 +467,7 @@ class AIChargingEngine {
         decision: this.lastDecision.decision,
         reasons: this.lastDecision.reasons
       } : null,
-      decisionCount: this.decisionHistory.length,
+      decisionCount: 'Available in InfluxDB',
       tibberStatus: {
         enabled: tibberStatus.enabled,
         configured: tibberStatus.configured,
@@ -516,12 +476,12 @@ class AIChargingEngine {
     };
   }
 
-  getDecisionHistory(limit = 50) {
-    return this.decisionHistory.slice(-limit).reverse();
+  async getDecisionHistory(limit = 50) {
+    return await influxAIService.getDecisionHistory(limit);
   }
 
-  getCommandHistory(limit = 50) {
-    return this.commandHistory.slice(-limit).reverse();
+  async getCommandHistory(limit = 50) {
+    return await influxAIService.getCommandHistory(limit);
   }
 
   getPredictedChargeWindows() {

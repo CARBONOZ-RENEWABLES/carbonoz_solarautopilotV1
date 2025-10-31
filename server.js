@@ -2540,10 +2540,10 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   });
 
-  app.get('/api/ai/decisions', (req, res) => {
+  app.get('/api/ai/decisions', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 10;
-      const decisions = aiChargingEngine.getDecisionHistory(limit);
+      const decisions = await aiChargingEngine.getDecisionHistory(limit);
       
       res.json({
         success: true,
@@ -2569,10 +2569,10 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   });
 
-  app.get('/api/ai/commands', (req, res) => {
+  app.get('/api/ai/commands', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 20;
-      const commands = aiChargingEngine.getCommandHistory(limit);
+      const commands = await aiChargingEngine.getCommandHistory(limit);
       
       res.json({
         success: true,
