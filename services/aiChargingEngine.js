@@ -26,9 +26,10 @@ class AIChargingEngine {
     if (config.mqttTopicPrefix) this.config.mqttTopicPrefix = config.mqttTopicPrefix;
     if (config.inverterTypes) this.config.inverterTypes = config.inverterTypes;
     
-    console.log('✅ AI Charging Engine initialized');
+    console.log('✅ AI Charging Engine initialized (Germany-optimized)');
     console.log(`   • Inverters: ${this.config.inverterNumber}`);
     console.log(`   • MQTT Prefix: ${this.config.mqttTopicPrefix}`);
+    console.log(`   • Emergency charging: DISABLED (reliable grid)`);
   }
 
   updateSystemState(systemState) {
@@ -119,7 +120,7 @@ class AIChargingEngine {
       const priceIsGood = tibberService.isPriceGood();
       const config = tibberService.config;
 
-      // Critical: Check grid voltage stability
+      // Check grid voltage stability
       if (gridVoltage < 200 || gridVoltage > 250) {
         shouldStop = true;
         reasons.push(`Grid voltage unstable: ${gridVoltage}V`);
@@ -131,13 +132,7 @@ class AIChargingEngine {
         reasons.push(`Battery SOC at target: ${batterySOC}%`);
       }
 
-      // Check if battery is critically low
-      if (batterySOC < config.minimumSoC) {
-        shouldCharge = true;
-        reasons.push(`Battery SOC below minimum: ${batterySOC}%`);
-      }
-
-      // PV is generating enough - charge from PV only
+      // PV is generating surplus - charge from solar only
       if (pvPower > load) {
         const surplus = pvPower - load;
         if (surplus > 1000 && batterySOC < config.targetSoC) {
@@ -146,7 +141,7 @@ class AIChargingEngine {
         }
       }
 
-      // Price-based charging logic
+      // Price-based charging logic (main strategy for Germany)
       if (currentPrice && avgPrice !== null && batterySOC < config.targetSoC) {
         if (priceIsGood && gridVoltage >= 200 && gridVoltage <= 250) {
           shouldCharge = true;
@@ -170,8 +165,17 @@ class AIChargingEngine {
         reasons.push(`Historical pattern suggests cheap prices now`);
       }
 
+      // Negative price handling (common in Germany with high renewables)
+      if (currentPrice && currentPrice.total < 0 && batterySOC < 95) {
+        shouldCharge = true;
+        reasons.push(`NEGATIVE PRICE! Getting paid to charge: ${currentPrice.total.toFixed(2)} €`);
+      }
+
       // Make descriptive decision based on conditions
-      let decision = this.makeDescriptiveDecision(batterySOC, pvPower, load, currentPrice, avgPrice, gridVoltage, config, shouldCharge, shouldStop, reasons);
+      let decision = this.makeDescriptiveDecision(
+        batterySOC, pvPower, load, currentPrice, avgPrice, 
+        gridVoltage, config, shouldCharge, shouldStop, reasons
+      );
 
       // Apply decision via MQTT
       if (decision.includes('CHARGE') || decision.includes('STOP')) {
@@ -193,6 +197,7 @@ class AIChargingEngine {
     const pvSurplus = pvPower - load;
     const priceIsGood = currentPrice && avgPrice ? currentPrice.total < avgPrice * 0.9 : false;
     const priceIsHigh = currentPrice && avgPrice ? currentPrice.total > avgPrice * 1.2 : false;
+    const priceIsNegative = currentPrice ? currentPrice.total < 0 : false;
     
     // Stop charging scenarios
     if (shouldStop) {
@@ -210,28 +215,42 @@ class AIChargingEngine {
     
     // Charging scenarios
     if (shouldCharge) {
-      if (batterySOC < config.minimumSoC) {
-        return `CHARGE WITH GRID - Emergency charging (SOC ${batterySOC}% < ${config.minimumSoC}%)`;
+      // Negative prices - charge aggressively!
+      if (priceIsNegative) {
+        return `CHARGE WITH GRID - NEGATIVE PRICE! Getting paid ${Math.abs(currentPrice.total).toFixed(2)}€/kWh`;
       }
+      
+      // Large PV surplus
       if (pvSurplus > 1000) {
         return `CHARGE WITH SOLAR - Surplus ${pvSurplus}W available (PV: ${pvPower}W, Load: ${load}W)`;
       }
+      
+      // Good price with little/no solar
       if (priceIsGood && pvPower < 500) {
         return `CHARGE WITH GRID - Cheap price ${currentPrice.total.toFixed(2)}€ (${currentPrice.level})`;
       }
+      
+      // Good price with some solar
       if (priceIsGood && pvSurplus > 0) {
         return `CHARGE WITH SOLAR+GRID - Cheap price + PV surplus (${pvSurplus}W)`;
       }
+      
       return `CHARGE WITH GRID - Good conditions (SOC: ${batterySOC}%)`;
     }
     
-    // No action scenarios
-    if (pvPower > load * 0.8 && batterySOC > 50) {
-      return `USE BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load, preserving battery (${batterySOC}%)`;
+    // No action scenarios - rely on grid when needed
+    if (pvPower > load * 0.8 && batterySOC > 30) {
+      return `USE BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load, battery at ${batterySOC}%`;
     }
-    if (batterySOC > 70 && priceIsHigh) {
+    
+    if (batterySOC > 50 && priceIsHigh) {
       return `USE BATTERY - Avoiding expensive grid (${currentPrice?.total.toFixed(2)}€), battery at ${batterySOC}%`;
     }
+    
+    if (batterySOC < 20 && priceIsHigh) {
+      return `USE GRID - Low battery (${batterySOC}%) but price too high to charge, grid is reliable`;
+    }
+    
     if (pvPower > load * 0.5) {
       return `USE SOLAR+BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load (${pvPower}W/${load}W)`;
     }
@@ -401,6 +420,8 @@ class AIChargingEngine {
     
     const pvAvailable = pvPower > 100;
     const priceLow = currentPrice && avgPrice ? currentPrice.total < avgPrice * 0.8 : false;
+    const priceVeryLow = currentPrice && avgPrice ? currentPrice.total < avgPrice * 0.5 : false;
+    const priceNegative = currentPrice ? currentPrice.total < 0 : false;
     const priceHigh = currentPrice && avgPrice ? currentPrice.total > avgPrice * 1.2 : false;
     const gridUnstable = gridVoltage < 200 || gridVoltage > 250;
     const socAtTarget = batterySOC >= (config?.targetSoC || 80);
@@ -409,6 +430,7 @@ class AIChargingEngine {
     let outputPriority = 'Solar/Battery/Utility';
     let reason = '';
     
+    // Stop charging conditions
     if (socAtTarget || gridUnstable) {
       chargerPriority = 'Solar first';
       outputPriority = 'Solar/Battery/Utility';
@@ -419,31 +441,49 @@ class AIChargingEngine {
       outputPriority = 'Solar/Battery/Utility';
       reason = 'Charging disabled';
     }
+    // NEGATIVE PRICES - charge aggressively!
+    else if (priceNegative) {
+      chargerPriority = 'Utility first';
+      outputPriority = 'Utility first';
+      reason = 'NEGATIVE price - getting paid!';
+    }
+    // Very cheap prices
+    else if (priceVeryLow && !pvAvailable) {
+      chargerPriority = 'Utility first';
+      outputPriority = 'Utility first';
+      reason = 'Very cheap grid, no PV';
+    }
+    // Strong solar surplus
     else if (pvPower > load * 2 && batterySOC < 90) {
       chargerPriority = 'Solar only';
       outputPriority = 'Solar first';
       reason = 'Strong solar surplus';
     }
+    // No PV but cheap grid
     else if (!pvAvailable && priceLow) {
       chargerPriority = 'Utility first';
       outputPriority = 'Utility first';
       reason = 'No PV, cheap grid';
     }
+    // No PV and expensive grid
     else if (!pvAvailable && priceHigh) {
       chargerPriority = 'Solar first';
       outputPriority = 'Solar/Battery/Utility';
-      reason = 'No PV, expensive grid';
+      reason = 'No PV, expensive grid - rely on battery';
     }
+    // PV available with cheap grid
     else if (pvAvailable && priceLow) {
       chargerPriority = 'Solar and utility simultaneously';
       outputPriority = 'Solar/Utility/Battery';
-      reason = 'PV + cheap grid';
+      reason = 'PV + cheap grid - fast charge';
     }
-    else if (pvAvailable && batterySOC < 50) {
+    // Mixed mode for medium SOC
+    else if (pvAvailable && batterySOC < 60) {
       chargerPriority = 'Solar and utility simultaneously';
       outputPriority = 'Solar/Utility/Battery';
-      reason = 'Mixed mode for low SOC';
+      reason = 'Mixed mode for charging';
     }
+    // Default: Solar first
     else {
       chargerPriority = 'Solar first';
       outputPriority = 'Solar/Battery/Utility';
@@ -478,7 +518,7 @@ class AIChargingEngine {
       this.evaluationInterval = null;
     }
     this.enabled = false;
-    console.log('⸻  AI Charging Engine stopped');
+    console.log('⏸️  AI Charging Engine stopped');
   }
 
   getStatus() {
