@@ -5480,55 +5480,50 @@ app.get('/inverter-settings', async (req, res) => {
     });
   });
   
-  // New endpoint for historical system data
+  // New endpoint for historical system data from InfluxDB
   app.get('/api/system-state/history', async (req, res) => {
     try {
       const hours = parseInt(req.query.hours) || 2;
       const limit = parseInt(req.query.limit) || 50;
       
-      if (!dbConnected) {
-        return res.json({
-          success: false,
-          error: 'Database not connected',
-          data: []
-        });
-      }
-      
       const hoursAgo = new Date();
       hoursAgo.setHours(hoursAgo.getHours() - hours);
       
-      // Get recent settings changes that include system state
-      const changes = await db.all(`
-        SELECT timestamp, system_state FROM settings_changes 
-        WHERE user_id = ? 
-        AND timestamp >= ? 
-        AND system_state IS NOT NULL 
-        AND system_state != '{}'
-        ORDER BY timestamp DESC 
-        LIMIT ?
-      `, [USER_ID, hoursAgo.toISOString(), limit]);
-      
-      const historyData = changes.map(change => {
-        try {
-          const systemState = JSON.parse(change.system_state || '{}');
-          return {
-            timestamp: change.timestamp,
-            battery_soc: systemState.battery_soc || 0,
-            pv_power: systemState.pv_power || 0,
-            grid_power: systemState.grid_power || 0,
-            load: systemState.load || 0,
-            battery_power: systemState.battery_power || 0
-          };
-        } catch (e) {
-          return null;
-        }
-      }).filter(item => item !== null).reverse(); // Reverse to get chronological order
-      
-      res.json({
-        success: true,
-        data: historyData,
-        count: historyData.length
-      });
+      try {
+        // Query InfluxDB for settings changes with system state
+        const query = `
+          SELECT battery_soc, pv_power, grid_power, load, battery_power
+          FROM settings_changes 
+          WHERE "user_id" = '${USER_ID}'
+          AND time >= '${hoursAgo.toISOString()}'
+          ORDER BY time DESC 
+          LIMIT ${limit}
+        `;
+        
+        const result = await influx.query(query);
+        
+        const historyData = result.map(row => ({
+          timestamp: new Date(row.time),
+          battery_soc: row.battery_soc || 0,
+          pv_power: row.pv_power || 0,
+          grid_power: row.grid_power || 0,
+          load: row.load || 0,
+          battery_power: row.battery_power || 0
+        })).reverse(); // Reverse to get chronological order
+        
+        res.json({
+          success: true,
+          data: historyData,
+          count: historyData.length
+        });
+      } catch (influxError) {
+        console.error('Error querying InfluxDB for system state history:', influxError);
+        res.json({
+          success: false,
+          error: 'No historical data available',
+          data: []
+        });
+      }
     } catch (error) {
       console.error('Error fetching system state history:', error);
       res.status(500).json({
