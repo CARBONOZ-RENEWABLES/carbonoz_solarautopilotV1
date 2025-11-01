@@ -7,10 +7,17 @@ class TibberService {
     this.apiUrl = 'https://api.tibber.com/v1-beta/gql';
     this.configFile = path.join(__dirname, '../data/tibber_config.json');
     this.config = this.loadConfig();
-    this.cache = this.loadCache();
+    this.cache = {
+      currentPrice: null,
+      priceInfo: null,
+      forecast: [],
+      consumption: null,
+      timestamp: null
+    };
     this.lastUpdate = null;
     this.retryAttempts = 3;
     this.retryDelay = 2000;
+    this.influxCacheLoaded = false;
   }
 
   loadConfig() {
@@ -59,6 +66,27 @@ class TibberService {
     return defaultConfig;
   }
 
+  // Initialize InfluxDB cache - call this after global.influx is available
+  async initializeInfluxCache() {
+    if (this.influxCacheLoaded) {
+      console.log('ℹ️  Tibber InfluxDB cache already loaded');
+      return;
+    }
+
+    try {
+      const influxCache = await this.loadCacheFromInfluxDB();
+      if (influxCache) {
+        this.cache = influxCache;
+        this.influxCacheLoaded = true;
+        console.log('✅ Loaded Tibber cache from InfluxDB');
+      } else {
+        console.log('ℹ️  No Tibber cache found in InfluxDB - starting fresh');
+      }
+    } catch (error) {
+      console.error('Error initializing Tibber InfluxDB cache:', error.message);
+    }
+  }
+
   loadCache() {
     this.loadCacheFromInfluxDB().then(influxCache => {
       if (influxCache) {
@@ -81,8 +109,19 @@ class TibberService {
   async loadCacheFromInfluxDB() {
     try {
       if (!global.influx) {
+        console.log('ℹ️  InfluxDB not initialized yet - Tibber cache will load after InfluxDB is ready');
         return null;
       }
+
+      // Test connection first
+      try {
+        await global.influx.ping(5000);
+      } catch (pingError) {
+        console.warn('⚠️  InfluxDB connection unavailable - Tibber using local cache only');
+        return null;
+      }
+
+      console.log('📊 Querying InfluxDB for Tibber cache...');
 
       const currentPriceQuery = `
         SELECT last("total") as total, last("energy") as energy, last("tax") as tax, last("level") as level, last("currency") as currency
@@ -103,6 +142,7 @@ class TibberService {
       ]);
       
       if (currentResult.length === 0) {
+        console.log('ℹ️  No current price data found in InfluxDB');
         return null;
       }
       
@@ -115,6 +155,8 @@ class TibberService {
         currency: row.currency,
         startsAt: row.time
       }));
+      
+      console.log(`✅ Loaded Tibber cache from InfluxDB: current price + ${forecast.length} forecast points`);
       
       return {
         currentPrice: {
@@ -131,7 +173,18 @@ class TibberService {
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error('Error loading Tibber cache from InfluxDB:', error);
+      const errorMessage = error.message || error.toString();
+      
+      if (error.code === 'ECONNREFUSED' || 
+          errorMessage.includes('ECONNREFUSED') ||
+          errorMessage.includes('No host available') ||
+          errorMessage.includes('connect ECONNREFUSED') ||
+          errorMessage.includes('timeout')) {
+        console.warn('⚠️  InfluxDB service unavailable - Tibber using local cache only');
+        console.warn('💡 Tip: Start InfluxDB service or the application will work without it');
+      } else {
+        console.error('❌ Error loading Tibber cache from InfluxDB:', errorMessage);
+      }
       return null;
     }
   }
@@ -169,8 +222,17 @@ class TibberService {
 
   async saveCacheToInfluxDB() {
     try {
+      // Check if InfluxDB is available and properly initialized
       if (!global.influx) {
-        console.warn('InfluxDB not available for Tibber cache');
+        console.warn('⚠️  InfluxDB not available for Tibber cache - using local storage only');
+        return;
+      }
+
+      // Test connection before attempting to write
+      try {
+        await global.influx.ping(5000); // 5 second timeout
+      } catch (pingError) {
+        console.warn('⚠️  InfluxDB connection test failed - skipping Tibber cache save');
         return;
       }
 
@@ -216,10 +278,18 @@ class TibberService {
         console.log(`✅ Saved ${points.length} Tibber data points to InfluxDB`);
       }
     } catch (error) {
-      if (error.message && error.message.includes('No host available')) {
-        console.warn('⚠️  InfluxDB service unavailable - skipping Tibber cache save');
+      // More comprehensive error handling
+      const errorMessage = error.message || error.toString();
+      
+      if (error.code === 'ECONNREFUSED' || 
+          errorMessage.includes('ECONNREFUSED') ||
+          errorMessage.includes('No host available') ||
+          errorMessage.includes('connect ECONNREFUSED') ||
+          errorMessage.includes('timeout')) {
+        console.warn('⚠️  InfluxDB service unavailable - Tibber data stored locally only');
+        console.warn('💡 Tip: Start InfluxDB service or the application will work without it');
       } else {
-        console.error('Error saving Tibber cache to InfluxDB:', error);
+        console.error('❌ Error saving Tibber cache to InfluxDB:', errorMessage);
       }
     }
   }

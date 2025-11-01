@@ -242,6 +242,17 @@ try {
   influx = new Influx.InfluxDB(influxConfig)
   global.influx = influx
   console.log('InfluxDB client initialized')
+  
+  // IMPORTANT: Initialize Tibber cache from InfluxDB after global.influx is available
+  setTimeout(async () => {
+    console.log('🔄 Loading Tibber cache from InfluxDB...');
+    try {
+      await tibberService.initializeInfluxCache();
+    } catch (error) {
+      console.error('⚠️  Could not load Tibber cache from InfluxDB:', error.message);
+    }
+  }, 1000); // Small delay to ensure InfluxDB is fully ready
+  
 } catch (error) {
   console.error('Error initializing InfluxDB client:', error.message)
   influx = {
@@ -7225,6 +7236,20 @@ async function initializeConnections() {
   // Initialize Telegram service
   const telegramService = require('./services/telegramService');
   console.log('✅ Telegram notification service initialized');
+
+  if (global.influx) {
+    console.log('🔄 Initializing Tibber cache from InfluxDB...');
+    try {
+      await tibberService.initializeInfluxCache();
+    } catch (error) {
+      console.error('⚠️  Could not initialize Tibber cache:', error.message);
+    }
+  } else {
+    console.log('⚠️  InfluxDB not available - Tibber will use local cache only');
+  }
+  
+  // Initialize data
+  await initializeData();
   
   // Initialize data
   await initializeData();
