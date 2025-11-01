@@ -57,25 +57,17 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Remove sqlite3 from package.json and add better-sqlite3
-RUN npm pkg delete dependencies.sqlite3 optional.sqlite3 optionalDependencies.sqlite3 || true \
-    && npm pkg set dependencies.better-sqlite3="^9.2.2"
-
-# Clean install with native compilation
+# Clean install with native compilation for sqlite3
 RUN rm -rf node_modules package-lock.json \
     && npm cache clean --force \
     && npm install --omit=dev --build-from-source \
     && npm cache clean --force
 
-# Test the sqlite module
-RUN node -e "const db = require('better-sqlite3'); console.log('✅ better-sqlite3 loaded successfully');"
+# Test the sqlite3 module
+RUN node -e "const sqlite3 = require('sqlite3').verbose(); console.log('✅ sqlite3 loaded successfully');"
 
 # Copy application files
 COPY . .
-
-# Update server.js to use better-sqlite3
-RUN sed -i "s/require('sqlite3').verbose()/require('better-sqlite3')/g" server.js || true \
-    && sed -i "s/const { open } = require('sqlite')/\/\/ const { open } = require('sqlite')/g" server.js || true
 
 # Copy configurations
 COPY rootfs /
