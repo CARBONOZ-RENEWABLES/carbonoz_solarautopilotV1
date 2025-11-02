@@ -294,101 +294,92 @@ class AIChargingEngine {
     }
   }
 
-  applyDecision(decision) {
-    if (!this.mqttClient || !this.mqttClient.connected) {
-      console.error('❌ MQTT client not connected, cannot apply decision');
-      return false;
-    }
-
-    // Check if learner mode is active
-    if (!global.learnerModeActive) {
-      console.log('⚠️  AI decision not applied: Learner mode is inactive');
-      return false;
-    }
-
-    try {
-      const enableCharging = decision.includes('START_CHARGING') || decision.includes('CHARGE WITH');
-      const commandValue = enableCharging ? 'Enabled' : 'Disabled';
-      
-      // Use stored config values
-      const inverterNumber = this.config.inverterNumber;
-      const mqttTopicPrefix = this.config.mqttTopicPrefix;
-      
-      let commandsSent = 0;
-      let totalInverters = 0;
-      
-      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s)`);
-      console.log(`   • MQTT Prefix: ${mqttTopicPrefix}`);
-      
-      // Apply to each inverter with type-aware mapping
-      for (let i = 1; i <= inverterNumber; i++) {
-        const inverterId = `inverter_${i}`;
-        const inverterType = this.getInverterType(inverterId);
-        
-        let topic, mqttValue;
-        
-        if (inverterType === 'new' || inverterType === 'hybrid') {
-          // Use intelligent settings for new inverters
-          const settings = this.getOptimalChargingSettings(enableCharging);
-          
-          // Send charger_source_priority command
-          const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
-          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
-            if (!err) {
-              await this.logCommand(chargerTopic, settings.chargerPriority, true);
-              commandsSent++;
-            } else {
-              console.error(`❌ Error publishing to ${chargerTopic}:`, err.message);
-              await this.logCommand(chargerTopic, settings.chargerPriority, false);
-            }
-          });
-          
-          // Send output_source_priority command
-          const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
-          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
-            if (!err) {
-              await this.logCommand(outputTopic, settings.outputPriority, true);
-              commandsSent++;
-            } else {
-              console.error(`❌ Error publishing to ${outputTopic}:`, err.message);
-              await this.logCommand(outputTopic, settings.outputPriority, false);
-            }
-          });
-          
-          console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
-          totalInverters++;
-          continue;
-        } else {
-          // Use legacy grid_charge for legacy inverters
-          topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
-          mqttValue = commandValue;
-          console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
-        }
-        
-        // Only for legacy inverters
-        if (inverterType === 'legacy' || inverterType === 'unknown') {
-          this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, async (err) => {
-            if (err) {
-              console.error(`❌ Error publishing to ${topic}: ${err.message}`);
-              await this.logCommand(topic, mqttValue, false);
-            } else {
-              commandsSent++;
-              await this.logCommand(topic, mqttValue, true);
-            }
-          });
-          totalInverters++;
-        }
-      }
-      
-      const action = enableCharging ? 'enabled' : 'disabled';
-      console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands sent: ${commandsSent}`);
-      
-      return commandsSent > 0;
-    } catch (error) {
-      console.error('❌ Error applying AI decision:', error);
-      return false;
-    }
+applyDecision(decision) {
+  if (!this.mqttClient || !this.mqttClient.connected) {
+    console.error('❌ MQTT client not connected, cannot apply decision');
+    return false;
   }
+
+  if (!global.learnerModeActive) {
+    console.log('⚠️  AI decision not applied: Learner mode is inactive');
+    return false;
+  }
+
+  try {
+    const enableCharging = decision.includes('START_CHARGING') || decision.includes('CHARGE WITH');
+    const commandValue = enableCharging ? 'Enabled' : 'Disabled';
+    
+    const inverterNumber = this.config.inverterNumber;
+    const mqttTopicPrefix = this.config.mqttTopicPrefix;
+    
+    let commandsQueued = 0; // Track commands queued, not sent
+    let totalInverters = 0;
+    
+    console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s)`);
+    console.log(`   • MQTT Prefix: ${mqttTopicPrefix}`);
+    
+    // Apply to each inverter with type-aware mapping
+    for (let i = 1; i <= inverterNumber; i++) {
+      const inverterId = `inverter_${i}`;
+      const inverterType = this.getInverterType(inverterId);
+      
+      if (inverterType === 'new' || inverterType === 'hybrid') {
+        const settings = this.getOptimalChargingSettings(enableCharging);
+        
+        // Send charger_source_priority command
+        const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
+        this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
+          if (!err) {
+            await this.logCommand(chargerTopic, settings.chargerPriority, true);
+          } else {
+            console.error(`❌ Error publishing to ${chargerTopic}:`, err.message);
+            await this.logCommand(chargerTopic, settings.chargerPriority, false);
+          }
+        });
+        commandsQueued++; // Count immediately
+        
+        // Send output_source_priority command
+        const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
+        this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
+          if (!err) {
+            await this.logCommand(outputTopic, settings.outputPriority, true);
+          } else {
+            console.error(`❌ Error publishing to ${outputTopic}:`, err.message);
+            await this.logCommand(outputTopic, settings.outputPriority, false);
+          }
+        });
+        commandsQueued++; // Count immediately
+        
+        console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
+        totalInverters++;
+      } else {
+        // Use legacy grid_charge for legacy inverters
+        const topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+        const mqttValue = commandValue;
+        console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
+        
+        this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, async (err) => {
+          if (err) {
+            console.error(`❌ Error publishing to ${topic}: ${err.message}`);
+            await this.logCommand(topic, mqttValue, false);
+          } else {
+            await this.logCommand(topic, mqttValue, true);
+          }
+        });
+        commandsQueued++; // Count immediately
+        totalInverters++;
+      }
+    }
+    
+    const action = enableCharging ? 'enabled' : 'disabled';
+    console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands queued: ${commandsQueued}`);
+    
+    return commandsQueued > 0;
+  } catch (error) {
+    console.error('❌ Error applying AI decision:', error);
+    return false;
+  }
+}
 
   getInverterType(inverterId) {
     try {
