@@ -10,7 +10,7 @@ class InfluxAIService {
   initializeInflux() {
     try {
       this.influx = new Influx.InfluxDB({
-        host: 'localhost',
+        host: '192.168.43.33',
         port: 8086,
         database: 'home_assistant',
         username: 'admin',
@@ -209,6 +209,45 @@ class InfluxAIService {
       return JSON.parse(reasonsString);
     } catch (error) {
       return [reasonsString];
+    }
+  }
+
+  async getHistoricalMinPrices(days = 30) {
+    if (!this.initialized) {
+      return { minPrice: 20, avgMin: 15, percentile10: 12 };
+    }
+
+    try {
+      const startTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const query = `
+        SELECT current_price FROM ai_decisions 
+        WHERE time >= '${startTime.toISOString()}' 
+        AND current_price > 0
+        ORDER BY current_price ASC
+      `;
+
+      const result = await this.influx.query(query);
+      
+      if (result.length === 0) {
+        return { minPrice: 20, avgMin: 15, percentile10: 12 };
+      }
+
+      const prices = result.map(row => row.current_price).sort((a, b) => a - b);
+      const minPrice = prices[0];
+      const percentile10 = prices[Math.floor(prices.length * 0.1)];
+      const percentile20 = prices[Math.floor(prices.length * 0.2)];
+      const avgMin = prices.slice(0, Math.floor(prices.length * 0.1)).reduce((sum, p) => sum + p, 0) / Math.floor(prices.length * 0.1);
+
+      return {
+        minPrice: minPrice,
+        avgMin: avgMin || minPrice,
+        percentile10: percentile10 || minPrice,
+        percentile20: percentile20 || minPrice,
+        sampleSize: prices.length
+      };
+    } catch (error) {
+      console.error('Error getting historical min prices:', error.message);
+      return { minPrice: 20, avgMin: 15, percentile10: 12 };
     }
   }
 }

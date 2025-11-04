@@ -593,7 +593,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Price (€/kWh)',
+                        label: 'Price (cent/kWh)',
                         data: [],
                         borderColor: '#e74c3c',
                         backgroundColor: 'rgba(231, 76, 60, 0.1)',
@@ -616,7 +616,7 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: 'Price (€/kWh)'
+                                text: 'Price (cent/kWh)'
                             }
                         }
                     },
@@ -771,7 +771,7 @@
                 
                 if (tibberData.currentPrice) {
                     document.getElementById('currentPrice').textContent = 
-                        `${tibberData.currentPrice.total.toFixed(2)} ${tibberData.currentPrice.currency}`;
+                        `${tibberData.currentPrice.total.toFixed(2)} cent`;
                     
                     const levelElement = document.getElementById('priceLevel');
                     levelElement.textContent = tibberData.currentPrice.level || 'NORMAL';
@@ -784,7 +784,7 @@
                     if (tibberData.forecast && tibberData.forecast.length > 0) {
                         const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
                         document.getElementById('averagePrice').textContent = 
-                            `${avgPrice.toFixed(2)} €`;
+                            `${avgPrice.toFixed(2)} cent`;
                     }
                 } else {
                     document.getElementById('priceStatus').textContent = 'Not configured';

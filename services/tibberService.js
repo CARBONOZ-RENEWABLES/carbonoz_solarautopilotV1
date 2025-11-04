@@ -160,15 +160,21 @@ class TibberService {
       
       return {
         currentPrice: {
-          total: currentPrice.total,
-          energy: currentPrice.energy,
-          tax: currentPrice.tax,
+          total: currentPrice.total * 100,
+          energy: currentPrice.energy * 100,
+          tax: currentPrice.tax * 100,
           level: currentPrice.level,
-          currency: currentPrice.currency || 'EUR',
+          currency: 'cent',
           startsAt: currentPrice.time
         },
         priceInfo: null,
-        forecast: forecast,
+        forecast: forecast.map(price => ({
+          ...price,
+          total: price.total * 100,
+          energy: price.energy * 100,
+          tax: price.tax * 100,
+          currency: 'cent'
+        })),
         consumption: null,
         timestamp: Date.now()
       };
@@ -244,12 +250,12 @@ class TibberService {
           tags: {
             type: 'current',
             level: this.cache.currentPrice.level || 'NORMAL',
-            currency: this.cache.currentPrice.currency || 'EUR'
+            currency: 'EUR'
           },
           fields: {
-            total: this.cache.currentPrice.total || 0,
-            energy: this.cache.currentPrice.energy || 0,
-            tax: this.cache.currentPrice.tax || 0
+            total: (this.cache.currentPrice.total || 0) / 100,
+            energy: (this.cache.currentPrice.energy || 0) / 100,
+            tax: (this.cache.currentPrice.tax || 0) / 100
           },
           timestamp: new Date(this.cache.currentPrice.startsAt || Date.now())
         });
@@ -264,9 +270,9 @@ class TibberService {
               currency: 'EUR'
             },
             fields: {
-              total: price.total || 0,
-              energy: price.energy || 0,
-              tax: price.tax || 0
+              total: (price.total || 0) / 100,
+              energy: (price.energy || 0) / 100,
+              tax: (price.tax || 0) / 100
             },
             timestamp: new Date(price.startsAt)
           });
@@ -500,16 +506,45 @@ class TibberService {
       const data = await this.makeGraphQLRequest(query, { homeId: targetHomeId });
       const priceInfo = data.viewer.home.currentSubscription.priceInfo;
       
-      // Override currency to EUR for display
-      this.cache.currentPrice = { ...priceInfo.current, currency: 'EUR' };
-      this.cache.priceInfo = priceInfo;
-      this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
+      // Convert prices from Euro to cents and update currency
+      const convertedCurrent = {
+        ...priceInfo.current,
+        total: priceInfo.current.total * 100,
+        energy: priceInfo.current.energy * 100,
+        tax: priceInfo.current.tax * 100,
+        currency: 'cent'
+      };
+      
+      const convertedToday = priceInfo.today.map(price => ({
+        ...price,
+        total: price.total * 100,
+        energy: price.energy * 100,
+        tax: price.tax * 100,
+        currency: 'cent'
+      }));
+      
+      const convertedTomorrow = (priceInfo.tomorrow || []).map(price => ({
+        ...price,
+        total: price.total * 100,
+        energy: price.energy * 100,
+        tax: price.tax * 100,
+        currency: 'cent'
+      }));
+      
+      this.cache.currentPrice = convertedCurrent;
+      this.cache.priceInfo = {
+        ...priceInfo,
+        current: convertedCurrent,
+        today: convertedToday,
+        tomorrow: convertedTomorrow
+      };
+      this.cache.forecast = [...convertedToday, ...convertedTomorrow];
       this.lastUpdate = new Date();
       await this.saveCache();
       
-      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
+      console.log(`✅ Price: ${convertedCurrent.total.toFixed(2)} cent (${convertedCurrent.level})`);
       
-      return priceInfo;
+      return this.cache.priceInfo;
     } catch (error) {
       console.error('❌ Error fetching price info:', error.message);
       throw error;
@@ -567,16 +602,45 @@ class TibberService {
       
       const priceInfo = firstHome.currentSubscription.priceInfo;
       
-      // Override currency to EUR for display
-      this.cache.currentPrice = { ...priceInfo.current, currency: 'EUR' };
-      this.cache.priceInfo = priceInfo;
-      this.cache.forecast = [...priceInfo.today, ...(priceInfo.tomorrow || [])];
+      // Convert prices from Euro to cents and update currency
+      const convertedCurrent = {
+        ...priceInfo.current,
+        total: priceInfo.current.total * 100,
+        energy: priceInfo.current.energy * 100,
+        tax: priceInfo.current.tax * 100,
+        currency: 'cent'
+      };
+      
+      const convertedToday = priceInfo.today.map(price => ({
+        ...price,
+        total: price.total * 100,
+        energy: price.energy * 100,
+        tax: price.tax * 100,
+        currency: 'cent'
+      }));
+      
+      const convertedTomorrow = (priceInfo.tomorrow || []).map(price => ({
+        ...price,
+        total: price.total * 100,
+        energy: price.energy * 100,
+        tax: price.tax * 100,
+        currency: 'cent'
+      }));
+      
+      this.cache.currentPrice = convertedCurrent;
+      this.cache.priceInfo = {
+        ...priceInfo,
+        current: convertedCurrent,
+        today: convertedToday,
+        tomorrow: convertedTomorrow
+      };
+      this.cache.forecast = [...convertedToday, ...convertedTomorrow];
       this.lastUpdate = new Date();
       await this.saveCache();
       
-      console.log(`✅ Price: ${priceInfo.current.total.toFixed(2)} € (${priceInfo.current.level})`);
+      console.log(`✅ Price: ${convertedCurrent.total.toFixed(2)} cent (${convertedCurrent.level})`);
       
-      return priceInfo;
+      return this.cache.priceInfo;
     } catch (error) {
       console.error('❌ Error fetching price info from first home:', error.message);
       throw error;

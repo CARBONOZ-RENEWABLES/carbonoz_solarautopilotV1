@@ -4,7 +4,7 @@
   "homeId": "",
   "country": "DE",
   "timezone": "Europe/Berlin",
-  "currency": "EUR",
+  "currency": "cent",
   "targetSoC": 80,
   "minimumSoC": 20,
   "maxPriceThreshold": null,

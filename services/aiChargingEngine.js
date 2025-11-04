@@ -141,19 +141,33 @@ class AIChargingEngine {
         }
       }
 
-      // Price-based charging logic (main strategy for Germany)
+      // Enhanced price-based charging logic using historical data
       if (currentPrice && avgPrice !== null && batterySOC < config.targetSoC) {
-        if (priceIsGood && gridVoltage >= 200 && gridVoltage <= 250) {
+        const historicalMins = await influxAIService.getHistoricalMinPrices(30);
+        const cheapestHours = tibberService.getCheapestHours(6, 24);
+        const isInCheapestPeriod = this.isCurrentTimeInCheapestPeriods(cheapestHours);
+        
+        // Use historical minimum + 2 cents as threshold (e.g., if min was 6, threshold is 8)
+        const smartThreshold = historicalMins.minPrice + 2;
+        const conservativeThreshold = historicalMins.percentile10 + 1;
+        
+        if (currentPrice.total <= smartThreshold && gridVoltage >= 200 && gridVoltage <= 250) {
           shouldCharge = true;
           reasons.push(
-            `Good price: ${currentPrice.total.toFixed(2)} € ` +
-            `(avg: ${avgPrice.toFixed(2)}, level: ${currentPrice.level})`
+            `Near historical minimum: ${currentPrice.total.toFixed(2)} cent ` +
+            `(min was ${historicalMins.minPrice.toFixed(2)}, threshold: ${smartThreshold.toFixed(2)})`
           );
-        } else if (currentPrice.total > avgPrice * 1.2) {
+        } else if (currentPrice.total <= conservativeThreshold && isInCheapestPeriod && batterySOC < 60) {
+          shouldCharge = true;
+          reasons.push(
+            `In cheapest period at low price: ${currentPrice.total.toFixed(2)} cent ` +
+            `(10th percentile: ${historicalMins.percentile10.toFixed(2)})`
+          );
+        } else if (currentPrice.total > historicalMins.percentile20 + 5) {
           shouldStop = true;
           reasons.push(
-            `Price too high: ${currentPrice.total.toFixed(2)} € ` +
-            `(20% above avg: ${avgPrice.toFixed(2)})`
+            `Price too high vs historical data: ${currentPrice.total.toFixed(2)} cent ` +
+            `(historical 20th percentile: ${historicalMins.percentile20.toFixed(2)})`
           );
         }
       }
@@ -168,7 +182,7 @@ class AIChargingEngine {
       // Negative price handling (common in Germany with high renewables)
       if (currentPrice && currentPrice.total < 0 && batterySOC < 95) {
         shouldCharge = true;
-        reasons.push(`NEGATIVE PRICE! Getting paid to charge: ${currentPrice.total.toFixed(2)} €`);
+        reasons.push(`NEGATIVE PRICE! Getting paid to charge: ${currentPrice.total.toFixed(2)} cent`);
       }
 
       // Make descriptive decision based on conditions
@@ -208,7 +222,7 @@ class AIChargingEngine {
         return `STOP CHARGING - Grid voltage unstable (${gridVoltage}V)`;
       }
       if (priceIsHigh) {
-        return `STOP CHARGING - Price too high (${currentPrice.total.toFixed(2)}€ vs avg ${avgPrice.toFixed(2)}€)`;
+        return `STOP CHARGING - Price too high (${currentPrice.total.toFixed(2)} cent vs avg ${avgPrice.toFixed(2)} cent)`;
       }
       return 'STOP CHARGING - Safety conditions triggered';
     }
@@ -217,7 +231,7 @@ class AIChargingEngine {
     if (shouldCharge) {
       // Negative prices - charge aggressively!
       if (priceIsNegative) {
-        return `CHARGE WITH GRID - NEGATIVE PRICE! Getting paid ${Math.abs(currentPrice.total).toFixed(2)}€/kWh`;
+        return `CHARGE WITH GRID - NEGATIVE PRICE! Getting paid ${Math.abs(currentPrice.total).toFixed(2)} cent/kWh`;
       }
       
       // Large PV surplus
@@ -227,7 +241,7 @@ class AIChargingEngine {
       
       // Good price with little/no solar
       if (priceIsGood && pvPower < 500) {
-        return `CHARGE WITH GRID - Cheap price ${currentPrice.total.toFixed(2)}€ (${currentPrice.level})`;
+        return `CHARGE WITH GRID - Cheap price ${currentPrice.total.toFixed(2)} cent (${currentPrice.level})`;
       }
       
       // Good price with some solar
@@ -244,7 +258,7 @@ class AIChargingEngine {
     }
     
     if (batterySOC > 50 && priceIsHigh) {
-      return `USE BATTERY - Avoiding expensive grid (${currentPrice?.total.toFixed(2)}€), battery at ${batterySOC}%`;
+      return `USE BATTERY - Avoiding expensive grid (${currentPrice?.total.toFixed(2)} cent), battery at ${batterySOC}%`;
     }
     
     if (batterySOC < 20 && priceIsHigh) {
@@ -256,6 +270,19 @@ class AIChargingEngine {
     }
     
     return `MONITOR - Stable conditions (SOC: ${batterySOC}%, PV: ${pvPower}W, Load: ${load}W)`;
+  }
+
+  isCurrentTimeInCheapestPeriods(cheapestHours) {
+    if (!cheapestHours || cheapestHours.length === 0) return false;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    return cheapestHours.some(period => {
+      const periodTime = new Date(period.time);
+      const periodHour = periodTime.getHours();
+      return Math.abs(currentHour - periodHour) <= 1; // Within 1 hour window
+    });
   }
 
   async analyzeHistoricalPattern() {
@@ -543,18 +570,101 @@ applyDecision(decision) {
     return await influxAIService.getCommandHistory(limit);
   }
 
-  getPredictedChargeWindows() {
-    const cheapestHours = tibberService.getCheapestHours(6, 24);
+  async analyzePriceOptimization() {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    try {
+      const historicalMins = await influxAIService.getHistoricalMinPrices(30);
+      const recentDecisions = await influxAIService.getDecisionsByTimeRange(yesterday, now);
+      const chargingDecisions = recentDecisions.filter(d => 
+        d.decision.includes('CHARGE WITH GRID') || d.decision.includes('CHARGE WITH SOLAR+GRID')
+      );
+      
+      const prices = chargingDecisions.map(d => d.tibberData?.currentPrice || 0).filter(p => p > 0);
+      const avgChargingPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      
+      const cheapestHours = tibberService.getCheapestHours(6, 24);
+      const cheapestPrice = cheapestHours.length > 0 ? Math.min(...cheapestHours.map(h => h.price)) : 0;
+      
+      const analysis = {
+        lastChargingPrice: prices[prices.length - 1] || 0,
+        averageChargingPrice: avgChargingPrice,
+        cheapestAvailablePrice: cheapestPrice,
+        historicalMinPrice: historicalMins.minPrice,
+        historicalAvgMin: historicalMins.avgMin,
+        smartThreshold: historicalMins.minPrice + 2,
+        potentialSavings: avgChargingPrice - historicalMins.minPrice,
+        chargingCount: chargingDecisions.length
+      };
+      
+      const recommendations = [];
+      
+      if (analysis.lastChargingPrice > historicalMins.minPrice + 5) {
+        recommendations.push(`Last charging at ${analysis.lastChargingPrice.toFixed(1)} cent - historical minimum was ${historicalMins.minPrice.toFixed(1)} cent`);
+      }
+      
+      recommendations.push(`Smart charging threshold: ${analysis.smartThreshold.toFixed(1)} cent (historical min + 2)`);
+      
+      if (cheapestPrice <= historicalMins.minPrice + 3) {
+        const nextCheap = cheapestHours.find(h => new Date(h.time) > now && h.price <= historicalMins.minPrice + 3);
+        if (nextCheap) {
+          recommendations.push(`EXCELLENT opportunity: ${new Date(nextCheap.time).toLocaleTimeString()} at ${nextCheap.price.toFixed(1)} cent`);
+        }
+      }
+      
+      return { analysis, recommendations, historicalData: historicalMins };
+    } catch (error) {
+      console.error('Error analyzing price optimization:', error);
+      return { analysis: 'Error analyzing prices', recommendations: [] };
+    }
+  }
+
+  async getPredictedChargeWindows() {
+    const cheapestHours = tibberService.getCheapestHours(8, 24);
     const config = tibberService.config;
     const batterySOC = this.currentSystemState?.battery_soc || 0;
+    const historicalMins = await influxAIService.getHistoricalMinPrices(30);
 
-    return cheapestHours.map(hour => ({
-      time: hour.time,
-      price: hour.price,
-      level: hour.level,
-      recommended: batterySOC < config.targetSoC,
-      reason: `Cheap price: ${hour.price.toFixed(2)} (${hour.level})`
-    }));
+    return cheapestHours.map((hour, index) => {
+      const hourTime = new Date(hour.time);
+      const isNow = Math.abs(Date.now() - hourTime.getTime()) < 60 * 60 * 1000;
+      const vsHistoricalMin = hour.price - historicalMins.minPrice;
+      
+      let recommendation = 'WAIT';
+      let reason = `Price: ${hour.price.toFixed(2)} cent`;
+      
+      if (hour.price < 0) {
+        recommendation = 'CHARGE NOW';
+        reason = `NEGATIVE PRICE! Getting paid ${Math.abs(hour.price).toFixed(2)} cent`;
+      } else if (hour.price <= historicalMins.minPrice + 1) {
+        recommendation = 'CHARGE NOW';
+        reason = `Near historical minimum: ${hour.price.toFixed(2)} cent (min: ${historicalMins.minPrice.toFixed(2)})`;
+      } else if (hour.price <= historicalMins.minPrice + 3 && batterySOC < config.targetSoC) {
+        recommendation = 'CHARGE';
+        reason = `Excellent value: ${hour.price.toFixed(2)} cent (+${vsHistoricalMin.toFixed(1)} vs min)`;
+      } else if (hour.price <= historicalMins.percentile10 && batterySOC < 60) {
+        recommendation = 'CONSIDER';
+        reason = `Good price: ${hour.price.toFixed(2)} cent (10th percentile: ${historicalMins.percentile10.toFixed(2)})`;
+      } else if (hour.price > historicalMins.percentile20 + 5) {
+        recommendation = 'AVOID';
+        reason = `Too expensive: ${hour.price.toFixed(2)} cent (vs 20th percentile: ${historicalMins.percentile20.toFixed(2)})`;
+      } else if (index < 3) {
+        recommendation = 'MAYBE';
+        reason = `Top 3 cheapest today: ${hour.price.toFixed(2)} cent`;
+      }
+      
+      return {
+        time: hour.time,
+        price: hour.price,
+        level: hour.level,
+        recommended: recommendation,
+        reason: reason,
+        isCurrentHour: isNow,
+        vsHistoricalMin: vsHistoricalMin,
+        rank: index + 1
+      };
+    }).sort((a, b) => new Date(a.time) - new Date(b.time));
   }
 }
 

@@ -2597,7 +2597,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (status.currentPrice) {
                         document.getElementById('currentPrice').textContent = 
-                            status.currentPrice.total.toFixed(2) + ' ' + status.currentPrice.currency;
+                            status.currentPrice.total.toFixed(2) + ' cent';
                         document.getElementById('priceLevel').textContent = 
                             status.currentPrice.level;
                     } else {
@@ -2630,17 +2630,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="price-card">
                             <h3>Current Price</h3>
                             <div class="value">${data.data.currentPrice.total.toFixed(2)}</div>
-                            <div class="level">${data.data.currentPrice.currency} • ${data.data.currentPrice.level}</div>
+                            <div class="level">cent • ${data.data.currentPrice.level}</div>
                         </div>
                         <div class="price-card" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">
                             <h3>Energy Cost</h3>
                             <div class="value">${data.data.currentPrice.energy.toFixed(2)}</div>
-                            <div class="level">${data.data.currentPrice.currency}/kWh</div>
+                            <div class="level">cent/kWh</div>
                         </div>
                         <div class="price-card" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);">
                             <h3>Tax</h3>
                             <div class="value">${data.data.currentPrice.tax.toFixed(2)}</div>
-                            <div class="level">${data.data.currentPrice.currency}</div>
+                            <div class="level">cent</div>
                         </div>
                     `;
                 }

@@ -107,8 +107,12 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -227,7 +231,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: 'localhost',
+  host: '192.168.43.33',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -2647,6 +2651,20 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     } catch (error) {
       console.error('Error getting AI predictions:', error);
       res.status(500).json({ error: 'Failed to get AI predictions' });
+    }
+  });
+
+  app.get('/api/ai/price-analysis', async (req, res) => {
+    try {
+      const analysis = await aiChargingEngine.analyzePriceOptimization();
+      
+      res.json({
+        success: true,
+        analysis: analysis
+      });
+    } catch (error) {
+      console.error('Error getting price analysis:', error);
+      res.status(500).json({ error: 'Failed to get price analysis' });
     }
   });
 
