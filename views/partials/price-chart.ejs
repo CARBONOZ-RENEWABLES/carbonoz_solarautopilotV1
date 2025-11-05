@@ -59,7 +59,7 @@
 }
 
 .dark-mode .price-chart-container {
-  background-color: rgba(24, 27, 31, 1);
+ background-color: rgba(24, 27, 31, 1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   color: #f5f6fa;
 }
@@ -223,7 +223,7 @@
 }
 
 .dark-mode .price-chart-wrapper {
-  background: rgba(255,255,255,0.02);
+   background-color: rgb(32, 36, 41);
 }
 
 .price-legend {
@@ -357,30 +357,60 @@ function initializePriceChart() {
       },
       scales: {
         x: {
+          display: true,
           grid: {
-            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-            drawBorder: false
+            display: true,
+            color: document.documentElement.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+            drawBorder: true,
+            borderColor: document.documentElement.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
           },
           ticks: {
-            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(47, 54, 64, 0.8)',
+            display: true,
+            color: '#DEAF0B',
             font: {
-              size: 11
+              size: 12,
+              weight: '500'
             },
-            maxTicksLimit: 8
+            maxTicksLimit: 8,
+            padding: 8
+          },
+          title: {
+            display: true,
+            text: 'Time',
+            color: '#DEAF0B',
+            font: {
+              size: 13,
+              weight: '600'
+            }
           }
         },
         y: {
+          display: true,
           grid: {
-            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-            drawBorder: false
+            display: true,
+            color: document.documentElement.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+            drawBorder: true,
+            borderColor: document.documentElement.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
           },
           ticks: {
-            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(47, 54, 64, 0.8)',
+            display: true,
+            color: '#DEAF0B',
             font: {
-              size: 11
+              size: 12,
+              weight: '500'
             },
+            padding: 8,
             callback: function(value) {
               return value + ' ¢';
+            }
+          },
+          title: {
+            display: true,
+            text: 'Price (cent/kWh)',
+            color: '#DEAF0B',
+            font: {
+              size: 13,
+              weight: '600'
             }
           }
         }
