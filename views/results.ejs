@@ -17,7 +17,7 @@
             margin-bottom: 2rem;
             flex-wrap: wrap;
             gap: 1rem;
-            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(56, 249, 215, 0.05) 100%);
+           background: #DEAF0B;
             padding: 1.5rem;
             border-radius: 1rem;
             border: 1px solid var(--border-color);
@@ -25,12 +25,12 @@
         }
         
         .results-header h1 {
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            background: #fff;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin: 0;
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 700;
         }
         
@@ -59,7 +59,7 @@
         }
         
         .period-tab.active {
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            background: linear-gradient(135deg, #DEAF0B, lab(88.11% -2.41 70.17));
             color: white;
             box-shadow: 0 4px 15px rgba(56, 249, 215, 0.4);
             transform: translateY(-1px);
@@ -89,7 +89,7 @@
         .export-btn:hover {
             color: white;
             border-color: #38f9d7;
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+           background: linear-gradient(135deg, #DEAF0B, lab(88.11% -2.41 70.17));
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(56, 249, 215, 0.3);
         }
@@ -120,7 +120,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #38f9d7, #4facfe, #f5576c);
+            background: linear-gradient(135deg, #ecfd2d, #DEAF0B);
         }
         
         .stat-card:hover {
@@ -132,7 +132,7 @@
         .stat-value {
             font-size: 2.5rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+          background: linear-gradient(135deg, #38f9d7, #4facfe);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -173,7 +173,7 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #38f9d7, #4facfe);
+            background: linear-gradient(135deg, #ecfd2d, #DEAF0B);
         }
         
         .chart-card:hover {
@@ -191,11 +191,14 @@
             gap: 0.5rem;
         }
         
+        .dark-mode  .chart-title {
+            color: #fff;
+        }
         .chart-title::before {
             content: '';
             width: 4px;
             height: 20px;
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            background: linear-gradient(135deg, #ecfd2d, #DEAF0B);
             border-radius: 2px;
         }
         
@@ -475,6 +478,7 @@
                 min-width: 600px;
             }
         }
+        
     </style>
 </head>
 <body>
@@ -620,97 +624,56 @@
     <script src="<%= ingress_path %>/js/mobile.js"></script>
     
     <script>
+        const serverPeriods = <%- JSON.stringify(periods) %>;
+        
         let currentPeriod = 'week';
-        let periodsData = {};
         let charts = {};
         let currentPage = 1;
         let entriesPerPage = 25;
         let totalEntries = 0;
         let currentData = [];
 
-        // Load period data from server
-        async function loadPeriodData(period) {
+        function loadPeriodData(period) {
             currentPeriod = period;
-            
-            // Show loading state
             document.getElementById('loadingOverlay').style.display = 'flex';
             
-            try {
-                const response = await fetch(`<%= ingress_path %>/api/energy-data/${period}`);
-                const result = await response.json();
-                
-                if (result.success && result.data) {
-                    periodsData[period] = result.data;
-                    currentData = result.data;
-                    totalEntries = result.data.length;
-                    currentPage = 1;
-
-                    const stats = calculateStats(result.data);
-                    updateStats(stats);
-                    updateGauges(stats);
-                    updateCharts(result.data);
-                    updateTable();
-                    
-                    // Show data source info
-                    console.log(`Loaded ${period} data from ${result.source}:`, result.data.length, 'entries');
-                    updateDataSourceIndicator(result.source, result.data.length);
-                } else {
-                    console.error('Failed to load energy data:', result.error);
-                    // Fallback to mock data
-                    loadFallbackData(period);
-                }
-            } catch (error) {
-                console.error('Error loading energy data:', error);
-                // Fallback to mock data
-                loadFallbackData(period);
-            } finally {
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }
-        }
-        
-        // Fallback mock data generator
-        function loadFallbackData(period) {
-            const days = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
-            const data = [];
-            
-            for (let i = 0; i < days; i++) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                
-                data.push({
-                    date: date.toISOString().split('T')[0],
-                    solarEnergy: Math.random() * 50 + 10,
-                    gridEnergy: Math.random() * 30 + 5,
-                    unavoidableEmissions: Math.random() * 15 + 2,
-                    avoidedEmissions: Math.random() * 25 + 5,
-                    selfSufficiencyScore: Math.random() * 40 + 60,
-                    carbonIntensity: Math.random() * 200 + 300
-                });
+            let data = [];
+            switch(period) {
+                case 'day':
+                    data = serverPeriods.today || [];
+                    break;
+                case 'week':
+                    data = serverPeriods.week || [];
+                    break;
+                case 'month':
+                    data = serverPeriods.month || [];
+                    break;
+                case 'year':
+                    data = serverPeriods.year || [];
+                    break;
             }
             
-            const fallbackData = data.reverse();
-            periodsData[period] = fallbackData;
-            currentData = fallbackData;
-            totalEntries = fallbackData.length;
+            currentData = data;
+            totalEntries = data.length;
             currentPage = 1;
 
-            const stats = calculateStats(fallbackData);
+            const stats = calculateStats(data);
             updateStats(stats);
             updateGauges(stats);
-            updateCharts(fallbackData);
+            updateCharts(data);
             updateTable();
             
-            console.log('Using fallback mock data for', period);
+            updateDataSourceIndicator('server', data.length);
+            document.getElementById('loadingOverlay').style.display = 'none';
         }
 
-        // Calculate statistics
         function calculateStats(data) {
-            const totalEmissions = data.reduce((sum, d) => sum + d.unavoidableEmissions, 0);
-            const totalAvoided = data.reduce((sum, d) => sum + d.avoidedEmissions, 0);
-            const avgEfficiency = data.reduce((sum, d) => sum + d.selfSufficiencyScore, 0) / data.length;
-            const totalSolar = data.reduce((sum, d) => sum + d.solarEnergy, 0);
-            const totalGrid = data.reduce((sum, d) => sum + d.gridEnergy, 0);
-            const avgCarbon = data.reduce((sum, d) => sum + (d.carbonIntensity || 0), 0) / data.length;
+            const totalEmissions = data.reduce((sum, day) => sum + (day.unavoidableEmissions || 0), 0);
+            const totalAvoided = data.reduce((sum, day) => sum + (day.avoidedEmissions || 0), 0);
+            const avgEfficiency = data.reduce((sum, d) => sum + (d.selfSufficiencyScore || 0), 0) / Math.max(1, data.length);
+            const totalSolar = data.reduce((sum, d) => sum + (d.solarEnergy || 0), 0);
+            const totalGrid = data.reduce((sum, d) => sum + (d.gridEnergy || 0), 0);
+            const avgCarbon = data.reduce((sum, day) => sum + (day.carbonIntensity || 233), 0) / Math.max(1, data.length);
 
             return {
                 emissions: totalEmissions,
@@ -722,14 +685,12 @@
             };
         }
 
-        // Update stats cards
         function updateStats(stats) {
             document.getElementById('stat-emissions').textContent = stats.emissions.toFixed(2);
             document.getElementById('stat-avoided').textContent = stats.avoided.toFixed(2);
             document.getElementById('stat-efficiency').textContent = stats.efficiency.toFixed(1) + '%';
         }
 
-        // Update gauges
         function updateGauges(stats) {
             document.getElementById('gauge-carbon-value').textContent = stats.carbon.toFixed(0);
             document.getElementById('gauge-solar-value').textContent = stats.solar.toFixed(1);
@@ -738,7 +699,6 @@
             createGauge('gauge-solar', stats.solar, Math.max(stats.solar * 1.5, 50), '#38f9d7');
         }
 
-        // Create gauge chart
         function createGauge(id, value, max, color) {
             const canvas = document.getElementById(id);
             const ctx = canvas.getContext('2d');
@@ -773,13 +733,11 @@
             });
         }
 
-        // Update charts
         function updateCharts(data) {
             updateEnergyChart(data);
             updateEmissionsChart(data);
         }
 
-        // Get dynamic colors for dark mode
         function getChartColors() {
             const isDark = document.documentElement.classList.contains('dark-mode');
             return {
@@ -790,7 +748,6 @@
             };
         }
 
-        // Energy flow chart
         function updateEnergyChart(data) {
             const ctx = document.getElementById('chart-energy');
             
@@ -807,14 +764,14 @@
                     labels: labels,
                     datasets: [{
                         label: 'Solar Energy',
-                        data: data.map(d => d.solarEnergy),
+                        data: data.map(d => d.solarEnergy || 0),
                         borderColor: '#38f9d7',
                         backgroundColor: 'rgba(56, 249, 215, 0.1)',
                         fill: true,
                         tension: 0.4
                     }, {
                         label: 'Grid Energy',
-                        data: data.map(d => d.gridEnergy),
+                        data: data.map(d => d.gridEnergy || 0),
                         borderColor: '#4facfe',
                         backgroundColor: 'rgba(79, 172, 254, 0.1)',
                         fill: true,
@@ -849,7 +806,6 @@
             });
         }
 
-        // Emissions chart
         function updateEmissionsChart(data) {
             const ctx = document.getElementById('chart-emissions');
             
@@ -858,8 +814,8 @@
             }
 
             const colors = getChartColors();
-            const totalEmissions = data.reduce((sum, d) => sum + d.unavoidableEmissions, 0);
-            const totalAvoided = data.reduce((sum, d) => sum + d.avoidedEmissions, 0);
+            const totalEmissions = data.reduce((sum, d) => sum + (d.unavoidableEmissions || 0), 0);
+            const totalAvoided = data.reduce((sum, d) => sum + (d.avoidedEmissions || 0), 0);
 
             charts['emissions'] = new Chart(ctx, {
                 type: 'doughnut',
@@ -888,7 +844,6 @@
             });
         }
 
-        // Update table with pagination
         function updateTable() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -907,16 +862,16 @@
 
                 const globalIndex = startIndex + index;
                 const trend = globalIndex > 0 && currentData[globalIndex - 1] 
-                    ? (row.selfSufficiencyScore > currentData[globalIndex - 1].selfSufficiencyScore ? 'up' : 'down')
+                    ? ((row.selfSufficiencyScore || 0) > (currentData[globalIndex - 1].selfSufficiencyScore || 0) ? 'up' : 'down')
                     : 'up';
 
                 tr.innerHTML = `
                     <td>${date}</td>
-                    <td>${row.solarEnergy.toFixed(2)}</td>
-                    <td>${row.gridEnergy.toFixed(2)}</td>
-                    <td>${row.unavoidableEmissions.toFixed(2)}</td>
-                    <td>${row.avoidedEmissions.toFixed(2)}</td>
-                    <td>${row.selfSufficiencyScore.toFixed(1)}%</td>
+                    <td>${(row.solarEnergy || 0).toFixed(2)}</td>
+                    <td>${(row.gridEnergy || 0).toFixed(2)}</td>
+                    <td>${(row.unavoidableEmissions || 0).toFixed(2)}</td>
+                    <td>${(row.avoidedEmissions || 0).toFixed(2)}</td>
+                    <td>${(row.selfSufficiencyScore || 0).toFixed(1)}%</td>
                     <td>
                         <span class="trend-indicator trend-${trend}">
                             <i class="fas fa-arrow-${trend}"></i>
@@ -929,7 +884,6 @@
             updatePaginationInfo();
         }
 
-        // Update pagination info and controls
         function updatePaginationInfo() {
             const startIndex = (currentPage - 1) * entriesPerPage + 1;
             const endIndex = Math.min(currentPage * entriesPerPage, totalEntries);
@@ -941,7 +895,6 @@
             document.getElementById('next-page').disabled = currentPage >= Math.ceil(totalEntries / entriesPerPage);
         }
 
-        // Export to CSV
         function exportToCSV() {
             const data = currentData;
             if (!data || data.length === 0) return;
@@ -949,7 +902,7 @@
             let csv = 'Date,Solar Energy (kWh),Grid Energy (kWh),Unavoidable Emissions (kg CO₂),Avoided Emissions (kg CO₂),Self-Sufficiency (%),Carbon Intensity (g/kWh)\n';
             
             data.forEach(row => {
-                csv += `${row.date},${row.solarEnergy.toFixed(2)},${row.gridEnergy.toFixed(2)},${row.unavoidableEmissions.toFixed(2)},${row.avoidedEmissions.toFixed(2)},${row.selfSufficiencyScore.toFixed(1)},${row.carbonIntensity || 0}\n`;
+                csv += `${row.date},${(row.solarEnergy || 0).toFixed(2)},${(row.gridEnergy || 0).toFixed(2)},${(row.unavoidableEmissions || 0).toFixed(2)},${(row.avoidedEmissions || 0).toFixed(2)},${(row.selfSufficiencyScore || 0).toFixed(1)},${row.carbonIntensity || 0}\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -963,7 +916,6 @@
             window.URL.revokeObjectURL(url);
         }
 
-        // Export to PDF
         function exportToPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -990,11 +942,11 @@
             
             const tableData = data.slice(0, 20).map(row => [
                 new Date(row.date).toLocaleDateString(),
-                row.solarEnergy.toFixed(2),
-                row.gridEnergy.toFixed(2),
-                row.unavoidableEmissions.toFixed(2),
-                row.avoidedEmissions.toFixed(2),
-                row.selfSufficiencyScore.toFixed(1) + '%'
+                (row.solarEnergy || 0).toFixed(2),
+                (row.gridEnergy || 0).toFixed(2),
+                (row.unavoidableEmissions || 0).toFixed(2),
+                (row.avoidedEmissions || 0).toFixed(2),
+                (row.selfSufficiencyScore || 0).toFixed(1) + '%'
             ]);
             
             doc.autoTable({
@@ -1008,7 +960,6 @@
             doc.save(`energy-report-${currentPeriod}-${new Date().toISOString().split('T')[0]}.pdf`);
         }
 
-        // Refresh charts on theme change
         function refreshChartsForTheme() {
             if (currentData && currentData.length > 0) {
                 const stats = calculateStats(currentData);
@@ -1017,44 +968,19 @@
             }
         }
 
-        // Auto-refresh data every 5 minutes
-        function startAutoRefresh() {
-            setInterval(() => {
-                if (currentPeriod) {
-                    console.log('Auto-refreshing data for period:', currentPeriod);
-                    loadPeriodData(currentPeriod);
-                }
-            }, 5 * 60 * 1000); // 5 minutes
-        }
-        
-        // Manual refresh function
-        function refreshData() {
-            if (currentPeriod) {
-                // Clear cached data to force fresh fetch
-                delete periodsData[currentPeriod];
-                loadPeriodData(currentPeriod);
-            }
-        }
-        
-        // Add refresh button functionality
-        function addRefreshButton() {
-            const exportButtons = document.querySelector('.export-buttons');
-            if (exportButtons) {
-                const refreshBtn = document.createElement('button');
-                refreshBtn.className = 'export-btn';
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
-                refreshBtn.addEventListener('click', refreshData);
-                exportButtons.insertBefore(refreshBtn, exportButtons.firstChild);
+        function updateDataSourceIndicator(source, count) {
+            const indicator = document.getElementById('data-source-indicator');
+            const text = document.getElementById('data-source-text');
+            
+            if (indicator && text) {
+                text.textContent = `Energy data loaded (${count} entries)`;
+                indicator.style.display = 'block';
             }
         }
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadPeriodData('week');
-            addRefreshButton();
-            startAutoRefresh();
             
-            // Period tabs
             document.querySelectorAll('[data-period]').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const period = this.dataset.period;
@@ -1066,11 +992,9 @@
                 });
             });
             
-            // Export buttons
             document.getElementById('export-csv').addEventListener('click', exportToCSV);
             document.getElementById('export-pdf').addEventListener('click', exportToPDF);
             
-            // Pagination
             document.getElementById('prev-page').addEventListener('click', function() {
                 if (currentPage > 1) {
                     currentPage--;
@@ -1085,14 +1009,12 @@
                 }
             });
             
-            // Entries per page
             document.getElementById('entries-per-page').addEventListener('change', function() {
                 entriesPerPage = parseInt(this.value);
                 currentPage = 1;
                 updateTable();
             });
             
-            // Listen for theme changes
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
