@@ -231,7 +231,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: '192.168.1.106',
+  host: '192.168.43.33',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',

@@ -191,8 +191,28 @@
             gap: 0.5rem;
         }
         
-        .dark-mode  .chart-title {
-            color: #fff;
+        /* Dark Mode Chart Styles */
+        .dark-mode .chart-card {
+         background-color: rgba(24, 27, 31, 1);
+            border-color: #334155;
+        }
+        
+        .dark-mode .chart-title {
+            color: #f1f5f9;
+        }
+        
+        .dark-mode .chart-container {
+          background-color: rgb(32, 36, 41);
+            border-radius: 0.5rem;
+        }
+        
+        .dark-mode .chart-container canvas {
+            filter: brightness(1.1) contrast(1.05);
+        }
+        
+        .dark-mode .gauge-value {
+            color: #38f9d7;
+            text-shadow: 0 0 10px rgba(56, 249, 215, 0.3);
         }
         .chart-title::before {
             content: '';
@@ -244,7 +264,7 @@
         
         .table-header {
             padding: 1.5rem 2rem;
-            background: linear-gradient(135deg, rgba(56, 249, 215, 0.1), rgba(79, 172, 254, 0.1));
+            background: #DEAF0B;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -254,7 +274,7 @@
         .table-title {
             font-size: 1.3rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            background: #fff;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -290,25 +310,32 @@
             font-size: 0.95rem;
         }
         
+        /* White Mode Table Optimization */
         .data-table th {
             padding: 1.25rem 1rem;
             text-align: left;
-            background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(51, 65, 85, 0.9));
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
             font-weight: 700;
-            color: #f8fafc;
+            color: #1e293b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-size: 0.85rem;
-            border-bottom: 3px solid #38f9d7;
+            border-bottom: 3px solid #DEAF0B;
             position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .data-table th:hover {
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
         }
         
         .data-table td {
             padding: 1rem;
-            border-bottom: 1px solid rgba(226, 232, 240, 0.1);
-            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+            color: #475569;
             font-weight: 500;
             transition: all 0.2s;
+            background: #ffffff;
         }
         
         .data-table tbody tr {
@@ -317,12 +344,69 @@
         }
         
         .data-table tbody tr:hover {
-            background: rgba(56, 249, 215, 0.05);
+            background: linear-gradient(135deg, rgba(222, 175, 11, 0.08), rgba(236, 253, 45, 0.05));
             transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         
         .data-table tbody tr:nth-child(even) {
-            background: rgba(248, 250, 252, 0.02);
+            background: #f8fafc;
+        }
+        
+        .data-table tbody tr:nth-child(even):hover {
+            background: linear-gradient(135deg, rgba(222, 175, 11, 0.08), rgba(236, 253, 45, 0.05));
+        }
+        
+        /* Dark Mode Table Styles */
+        .dark-mode .data-table-container {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        
+
+        
+        .dark-mode .table-title {
+            color: #ecfd2d;
+        }
+        
+        .dark-mode .data-table th {
+            background: linear-gradient(135deg, #334155, #475569);
+            color: #f1f5f9;
+            border-bottom-color: #38f9d7;
+        }
+        
+        .dark-mode .data-table th:hover {
+            background: linear-gradient(135deg, #475569, #64748b);
+        }
+        
+        .dark-mode .data-table td {
+           background-color: rgba(24, 27, 31, 1);
+            color: #cbd5e1;
+            border-bottom-color: rgba(51, 65, 85, 0.5);
+        }
+        
+        .dark-mode .data-table tbody tr:nth-child(even) {
+            background: #0f172a;
+        }
+        
+        .dark-mode .data-table tbody tr:hover {
+            background: linear-gradient(135deg, rgba(236, 253, 45, 0.1), rgba(56, 249, 215, 0.05));
+        }
+        
+        .dark-mode .data-table tbody tr:nth-child(even):hover {
+            background: linear-gradient(135deg, rgba(236, 253, 45, 0.1), rgba(56, 249, 215, 0.05));
+        }
+        
+        .dark-mode .pagination {
+            background: linear-gradient(135deg, rgba(24, 27, 31, 1), rgba(30, 41, 59, 0.5));
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+        
+        .dark-mode .entries-select {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-color: #475569;
         }
         
         .trend-indicator {
@@ -377,7 +461,7 @@
         .pagination-btn {
             padding: 0.75rem 1.25rem;
             border: 2px solid var(--border-color);
-            background: var(--card-bg);
+            background: #DEAF0B;
             color: var(--text-color);
             border-radius: 0.5rem;
             cursor: pointer;
@@ -389,6 +473,7 @@
             position: relative;
             overflow: hidden;
         }
+       
         
         .pagination-btn:hover:not(:disabled) {
             color: white;
@@ -479,9 +564,15 @@
             }
         }
         
+  
+        
     </style>
 </head>
 <body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div id="pageContent">
     <button class="mobile-toggle" id="mobileToggle">
         <span></span>
         <span></span>
@@ -489,9 +580,6 @@
     </button>
     
     <div class="container">
-        <div id="loadingOverlay" class="loading-overlay">
-            <div class="loading-spinner"></div>
-        </div>
         
         <%- include('partials/sidebar') %>
         
@@ -618,8 +706,9 @@
             </div>
         </div>
     </div>
+    </div>
     
-    <script src="<%= ingress_path %>/js/loading.js"></script>
+
     <script src="<%= ingress_path %>/js/dark-mode.js"></script>
     <script src="<%= ingress_path %>/js/mobile.js"></script>
     
