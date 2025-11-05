@@ -47,11 +47,9 @@
 
 <style>
 .price-chart-container {
-  border: none;
-  border-radius: 15px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 20px;
   color: #2f3640;
   position: relative;
@@ -61,8 +59,8 @@
 }
 
 .dark-mode .price-chart-container {
-  background: rgba(34, 37, 41, 0.85);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  background-color: rgba(24, 27, 31, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   color: #f5f6fa;
 }
 
@@ -306,22 +304,14 @@ function initializePriceChart() {
     priceHistoryChart.destroy();
   }
   
-  // Sample data - replace with real data from your API
-  const sampleData = {
-    labels: Array.from({length: 24}, (_, i) => {
-      const hour = i.toString().padStart(2, '0');
-      return `${hour}:00`;
-    }),
-    prices: [28, 26, 25, 24, 26, 28, 32, 35, 38, 36, 34, 32, 30, 28, 26, 28, 30, 32, 35, 38, 36, 34, 30, 28]
-  };
-  
+  // Initialize with empty data - will be populated by real Tibber data
   priceHistoryChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: sampleData.labels,
+      labels: [],
       datasets: [{
         label: 'Price (cent/kWh)',
-        data: sampleData.prices,
+        data: [],
         borderColor: '#00d4aa',
         backgroundColor: (context) => {
           const chart = context.chart;
@@ -368,15 +358,11 @@ function initializePriceChart() {
       scales: {
         x: {
           grid: {
-            color: function(context) {
-              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            },
+            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
             drawBorder: false
           },
           ticks: {
-            color: function(context) {
-              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
-            },
+            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(47, 54, 64, 0.8)',
             font: {
               size: 11
             },
@@ -385,15 +371,11 @@ function initializePriceChart() {
         },
         y: {
           grid: {
-            color: function(context) {
-              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            },
+            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
             drawBorder: false
           },
           ticks: {
-            color: function(context) {
-              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
-            },
+            color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(47, 54, 64, 0.8)',
             font: {
               size: 11
             },
@@ -428,34 +410,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updatePriceChart(period) {
-  if (!priceHistoryChart) return;
-  
-  // Generate sample data based on period
-  let dataPoints, labels;
-  
-  if (period === '15min') {
-    dataPoints = 96; // 24 hours * 4 (15-min intervals)
-    labels = Array.from({length: dataPoints}, (_, i) => {
-      const minutes = i * 15;
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    });
-  } else {
-    dataPoints = 24;
-    labels = Array.from({length: dataPoints}, (_, i) => {
-      return `${i.toString().padStart(2, '0')}:00`;
-    });
-  }
-  
-  // Generate sample price data
-  const prices = Array.from({length: dataPoints}, () => {
-    return Math.floor(Math.random() * 15) + 25; // Random prices between 25-40
-  });
-  
-  priceHistoryChart.data.labels = labels;
-  priceHistoryChart.data.datasets[0].data = prices;
-  priceHistoryChart.update();
+  // This will be called by the main dashboard to update with real Tibber data
+  console.log('Price chart period changed to:', period);
 }
 
 // Function to update current price display

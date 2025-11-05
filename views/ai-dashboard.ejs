@@ -1062,6 +1062,13 @@
                 priceChart.data.labels = labels;
                 priceChart.data.datasets[0].data = prices;
                 priceChart.update();
+                
+                // Also update the price trends chart with same data
+                if (typeof priceHistoryChart !== 'undefined' && priceHistoryChart) {
+                    priceHistoryChart.data.labels = labels;
+                    priceHistoryChart.data.datasets[0].data = prices;
+                    priceHistoryChart.update();
+                }
             }
         }
 
