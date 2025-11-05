@@ -594,9 +594,10 @@
                     </div>
                     
                     <div class="period-tabs">
-                        <button class="period-tab" data-period="day">Day</button>
-                        <button class="period-tab active" data-period="week">Week</button>
+                        <button class="period-tab active" data-period="day">Today</button>
+                        <button class="period-tab" data-period="week">Week</button>
                         <button class="period-tab" data-period="month">Month</button>
+                        <button class="period-tab" data-period="quarter">Quarter</button>
                         <button class="period-tab" data-period="year">Year</button>
                     </div>
                     
@@ -715,7 +716,7 @@
     <script>
         const serverPeriods = <%- JSON.stringify(periods) %>;
         
-        let currentPeriod = 'week';
+        let currentPeriod = 'day';
         let charts = {};
         let currentPage = 1;
         let entriesPerPage = 25;
@@ -736,6 +737,9 @@
                     break;
                 case 'month':
                     data = serverPeriods.month || [];
+                    break;
+                case 'quarter':
+                    data = serverPeriods.quarter || [];
                     break;
                 case 'year':
                     data = serverPeriods.year || [];
@@ -1068,7 +1072,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            loadPeriodData('week');
+            loadPeriodData('day');
             
             document.querySelectorAll('[data-period]').forEach(btn => {
                 btn.addEventListener('click', function() {
