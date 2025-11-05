@@ -3,934 +3,1109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbonoz SolarAutopilot</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-    <!-- Added Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="<%= ingress_path %>/css/results.css">
-  
+    <title>Carbon Intensity Results - Carbonoz SolarAutopilot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+    <style>
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(56, 249, 215, 0.05) 100%);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .results-header h1 {
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .period-tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .period-tab {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .period-tab.active {
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            color: white;
+            box-shadow: 0 4px 15px rgba(56, 249, 215, 0.4);
+            transform: translateY(-1px);
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .export-btn {
+            padding: 0.75rem 1.25rem;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .export-btn:hover {
+            color: white;
+            border-color: #38f9d7;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(56, 249, 215, 0.3);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #38f9d7, #4facfe, #f5576c);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border-color: rgba(56, 249, 215, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #38f9d7, #4facfe);
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chart-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            border-radius: 2px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 320px;
+        }
+        
+        .gauge-container {
+            position: relative;
+            height: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .gauge-value {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .data-table-container {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .data-table-container:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .table-header {
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, rgba(56, 249, 215, 0.1), rgba(79, 172, 254, 0.1));
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .table-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .entries-select {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-weight: 500;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .entries-select:focus {
+            outline: none;
+            border-color: #38f9d7;
+            box-shadow: 0 0 0 3px rgba(56, 249, 215, 0.1);
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        
+        .data-table th {
+            padding: 1.25rem 1rem;
+            text-align: left;
+            background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(51, 65, 85, 0.9));
+            font-weight: 700;
+            color: #f8fafc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85rem;
+            border-bottom: 3px solid #38f9d7;
+            position: relative;
+        }
+        
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.1);
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .data-table tbody tr {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .data-table tbody tr:hover {
+            background: rgba(56, 249, 215, 0.05);
+            transform: scale(1.01);
+        }
+        
+        .data-table tbody tr:nth-child(even) {
+            background: rgba(248, 250, 252, 0.02);
+        }
+        
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        
+        .trend-up {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.25));
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .trend-down {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.25));
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .trend-indicator:hover {
+            transform: scale(1.1);
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.5), rgba(241, 245, 249, 0.5));
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .pagination-btn {
+            padding: 0.75rem 1.25rem;
+            border: 2px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            color: white;
+            border-color: #38f9d7;
+            background: linear-gradient(135deg, #38f9d7, #4facfe);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(56, 249, 215, 0.3);
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        @media (max-width: 768px) {
+            .results-header {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 1rem;
+            }
+            
+            .results-header h1 {
+                font-size: 1.5rem;
+                text-align: center;
+            }
+            
+            .period-tabs {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .period-tab {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .export-buttons {
+                justify-content: center;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
+            
+            .table-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+                padding: 1rem;
+            }
+            
+            .table-controls {
+                justify-content: center;
+            }
+            
+            .data-table {
+                font-size: 0.85rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .pagination {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .pagination-controls {
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .data-table-container {
+                overflow-x: auto;
+            }
+            
+            .data-table {
+                min-width: 600px;
+            }
+        }
+    </style>
 </head>
 <body>
-   <!-- Add hamburger menu button -->
-   <button class="mobile-toggle" id="mobileToggle">
-    <span></span>
-    <span></span>
-    <span></span>
-</button>
-  <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-</div>
-<div id="pageContent">
-    <!-- Sidebar -->
- 
-    <%- include('partials/sidebar') %>
-      
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container mx-auto px-4 py-8">
-            <!-- Header Section -->
-            <header class="mb-8">
-              <p class="text-gray-600"><%= formattedDate %></p>
-              
-              <!-- Zone Selection -->
-              <div class="mt-4 flex flex-wrap items-center gap-3">
-                <label for="zoneSelect" class="font-medium text-gray-700">Zone:</label>
-                <select id="zoneSelect" class="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  <% zones.zones.forEach(function(zone) { %>
-                    <option value="<%= zone.code %>" <%= zone.code === selectedZone ? 'selected' : '' %>><%= zone.zoneName %></option>
-                  <% }); %>
-                </select>
-                <button id="saveZoneBtn" class=""></button>
-              </div>
-            </header>
-        
-            <% if (isLoading) { %>
-              <div class="flex justify-center items-center h-64">
-                <div class="text-center">
-                  <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                  <p class="mt-4 text-lg text-gray-700">Loading emissions data...</p>
-                </div>
-              </div>
-            <% } else if (error) { %>
-              <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                <p><%= error %></p>
-              </div>
-            <% } else { %>
-              <!-- Period Filter Buttons -->
-              <div class="mb-6 flex flex-wrap gap-2">
-                <button class="period-btn px-5 py-2 rounded-lg shadow transition-all" data-period="today">Today</button>
-                <button class="period-btn px-5 py-2 rounded-lg shadow transition-all" data-period="week">Week</button>
-                <button class="period-btn px-5 py-2 rounded-lg shadow transition-all" data-period="month">Month</button>
-                <button class="period-btn px-5 py-2 rounded-lg shadow transition-all" data-period="quarter">Quarter</button>
-                <button class="period-btn px-5 py-2 rounded-lg shadow transition-all" data-period="year">Year</button>
-              </div>
-        
-              <!-- Summary Cards -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <!-- Unavoidable Emissions Card with icon -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-lg font-semibold text-gray-700">Unavoidable Emissions</h3>
-                    <i class="fas fa-industry text-red-500 text-2xl"></i>
-                  </div>
-                  <p class="text-3xl font-bold text-red-500" id="unavoidableEmissions"><%= unavoidableEmissions.toFixed(2) %> kg</p>
-                  <p class="text-sm text-gray-500 mt-1">Carbon from grid usage</p>
-                </div>
-                
-                <!-- Avoided Emissions Card with icon -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-lg font-semibold text-gray-700">Avoided Emissions</h3>
-                    <i class="fas fa-leaf text-green-500 text-2xl"></i>
-                  </div>
-                  <p class="text-3xl font-bold text-green-600" id="avoidedEmissions"><%= avoidedEmissions.toFixed(2) %> kg</p>
-                  <p class="text-sm text-gray-500 mt-1">Carbon saved by solar production</p>
-                </div>
-                
-                <!-- Self-Sufficiency Score Card with icon and progress bar -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-lg font-semibold text-gray-700">Self-Sufficiency Score</h3>
-                    <i class="fas fa-solar-panel text-blue-500 text-2xl"></i>
-                  </div>
-                  <p class="text-3xl font-bold text-blue-600" id="selfSufficiencyScore"><%= selfSufficiencyScore.toFixed(1) %>%</p>
-                  
-                  <!-- Added progress bar -->
-                  <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2 mb-2">
-                    <div id="selfSufficiencyProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: <%= selfSufficiencyScore %>%"></div>
-                  </div>
-                  
-                  <p class="text-sm text-gray-500 mt-1">Percentage of energy from solar</p>
-                </div>
-              </div>
-        
-              <!-- Charts Section -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Emissions Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <h3 class="text-xl font-semibold text-gray-800 mb-4">Emissions Comparison</h3>
-                  <div class="h-64">
-                    <canvas id="emissionsChart"></canvas>
-                  </div>
-                </div>
-                
-                <!-- Energy Sources Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <h3 class="text-xl font-semibold text-gray-800 mb-4">Energy Sources</h3>
-                  <div class="h-64">
-                    <canvas id="energySourcesChart"></canvas>
-                  </div>
-                </div>
-        
-                <!-- Carbon Intensity Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <h3 class="text-xl font-semibold text-gray-800 mb-4">Carbon Intensity</h3>
-                  <div class="h-64">
-                    <canvas id="carbonIntensityChart"></canvas>
-                  </div>
-                </div>
-                
-                <!-- Self-Sufficiency Score Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                  <h3 class="text-xl font-semibold text-gray-800 mb-4">Self-Sufficiency Score</h3>
-                  <div class="h-64">
-                    <canvas id="selfSufficiencyChart"></canvas>
-                  </div>
-                </div>
-              </div>
-        
-              <!-- Detailed Data Table -->
-              <div class="mt-8 bg-white rounded-xl shadow-md p-6">
-                <div class="flex justify-between items-center mb-4">
-                  <h3 class="text-xl font-semibold text-gray-800">Detailed Results</h3>
-                  
-                  <!-- Added CSV export button with yellow background -->
-                  <button id="exportCSVBtn" class="px-4 py-2 custom-button rounded-md shadow transition flex items-center">
-                    <i class="fas fa-file-csv mr-2"></i> Export CSV
-                  </button>
-                </div>
-                
-                <!-- Added table filter inputs -->
-                <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label for="dateFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Date</label>
-                    <input type="date" id="dateFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                  </div>
-                  <div>
-                    <label for="carbonIntensityFilter" class="block text-sm font-medium text-gray-700 mb-1">Min Carbon Intensity</label>
-                    <input type="number" id="carbonIntensityFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Min gCO2eq/kWh">
-                  </div>
-                  <div>
-                    <label for="selfSufficiencyFilter" class="block text-sm font-medium text-gray-700 mb-1">Min Self-Sufficiency</label>
-                    <input type="number" id="selfSufficiencyFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Min %">
-                  </div>
-                </div>
-                
-                <div class="mb-4 flex justify-between items-center">
-                  <div class="flex items-center">
-                    <span class="text-sm text-gray-700">Show 
-                      <select id="pageSizeSelect" class="mx-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                      </select>
-                      entries
-                    </span>
-                  </div>
-                  <button id="clearFiltersBtn" class="px-3 py-1 text-sm custom-button rounded hover:bg-gray-300 transition">
-                    Clear Filters
-                  </button>
-                </div>
-                
-                <div class="overflow-x-auto">
-                  <table id="resultsTable" class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="date">
-                          Date <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="carbonIntensity">
-                          Carbon Intensity <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="gridEnergy">
-                          Grid Energy <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="solarEnergy">
-                          Solar Energy <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="unavoidableEmissions">
-                          Unavoidable Emissions <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="avoidedEmissions">
-                          Avoided Emissions <i class="fas fa-sort ml-1"></i>
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="selfSufficiencyScore">
-                          Self-Sufficiency <i class="fas fa-sort ml-1"></i>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-200">
-                      <!-- Table rows will be inserted here by JavaScript -->
-                    </tbody>
-                  </table>
-                </div>
-                
-                <!-- Added pagination controls with yellow buttons -->
-                <div class="mt-4 flex justify-between items-center">
-                  <div id="tableInfo" class="text-sm text-gray-700">
-                    Showing <span id="showingStart">1</span> to <span id="showingEnd">10</span> of <span id="totalEntries">0</span> entries
-                  </div>
-                  <div class="flex space-x-2">
-                    <button id="prevPageBtn" class="px-3 py-1 custom-button rounded transition disabled:opacity-50 disabled:cursor-not-allowed">
-                      <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                    <div id="paginationNumbers" class="flex space-x-1">
-                      <!-- Page numbers will be inserted here -->
-                    </div>
-                    <button id="nextPageBtn" class="px-3 py-1 custom-button rounded transition disabled:opacity-50 disabled:cursor-not-allowed">
-                      Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            <% } %>
-          </div>
-    </main>
-</div>
-  
-<script>
-  // Store the periods data from the server
-  const periodsData = <%- JSON.stringify(periods) %>;
-  let currentPeriod = 'today';
-  let charts = {};
-  
-  // Table pagination and filtering variables
-  let tableData = [];
-  let filteredData = [];
-  let currentPage = 1;
-  let pageSize = 10;
-  let sortColumn = 'date';
-  let sortDirection = 'desc';
-
-  // Function to format dates
-  function formatDate(dateString) {
-    return moment(dateString).format('MMM D, YYYY');
-  }
-
-  // Function to update the summary cards
-  function updateSummaryCards(data) {
-// Calculate aggregated values for the current period
-let unavoidableEmissionsTotal = data.reduce((sum, day) => sum + day.unavoidableEmissions, 0);
-let avoidedEmissionsTotal = data.reduce((sum, day) => sum + day.avoidedEmissions, 0);
-let avgSelfSufficiencyScore = data.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, data.length);
-
-// Update the displayed values
-document.getElementById('unavoidableEmissions').textContent = unavoidableEmissionsTotal.toFixed(2) + ' kg';
-document.getElementById('avoidedEmissions').textContent = avoidedEmissionsTotal.toFixed(2) + ' kg';
-
-// Update self-sufficiency score with color coding
-const selfSufficiencyElement = document.getElementById('selfSufficiencyScore');
-selfSufficiencyElement.textContent = avgSelfSufficiencyScore.toFixed(1) + '%';
-selfSufficiencyElement.className = 'text-3xl font-bold ' + getSelfSufficiencyTextColor(avgSelfSufficiencyScore);
-
-// Update progress bar width and color
-const progressBar = document.getElementById('selfSufficiencyProgress');
-progressBar.style.width = avgSelfSufficiencyScore + '%';
-progressBar.className = 'h-2.5 rounded-full ' + getSelfSufficiencyColor(avgSelfSufficiencyScore);
-}
-
-  // Function to update the emissions chart
-  function updateEmissionsChart(data) {
-    const ctx = document.getElementById('emissionsChart').getContext('2d');
+    <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
     
-    // Prepare the data
-    const labels = data.map(day => formatDate(day.date));
-    const unavoidableEmissions = data.map(day => day.unavoidableEmissions);
-    const avoidedEmissions = data.map(day => day.avoidedEmissions);
-    
-    // Destroy existing chart if it exists
-    if (charts.emissions) charts.emissions.destroy();
-    
-    // Create the new chart
-    charts.emissions = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Unavoidable Emissions (kg)',
-            data: unavoidableEmissions,
-            backgroundColor: 'rgba(239, 68, 68, 0.7)',
-            borderColor: 'rgba(239, 68, 68, 1)',
-            borderWidth: 1
-          },
-          {
-            label: 'Avoided Emissions (kg)',
-            data: avoidedEmissions,
-            backgroundColor: 'rgba(16, 185, 129, 0.7)',
-            borderColor: 'rgba(16, 185, 129, 1)',
-            borderWidth: 1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false
-          }
-        },
-        scales: {
-          x: {
-            stacked: true,
-            display: data.length <= 14 // Only show x-axis labels if there are few data points
-          },
-          y: {
-            stacked: false,
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Emissions (kg CO2)'
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // Function to update the energy sources chart
-  function updateEnergySourcesChart(data) {
-    const ctx = document.getElementById('energySourcesChart').getContext('2d');
-    
-    // Prepare the data
-    const labels = data.map(day => formatDate(day.date));
-    const gridEnergy = data.map(day => day.gridEnergy);
-    const solarEnergy = data.map(day => day.solarEnergy);
-    
-    // Destroy existing chart if it exists
-    if (charts.energySources) charts.energySources.destroy();
-    
-    // Create the new chart
-    charts.energySources = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Grid Energy (kWh)',
-            data: gridEnergy,
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderColor: 'rgba(59, 130, 246, 1)',
-            borderWidth: 1
-          },
-          {
-            label: 'Solar Energy (kWh)',
-            data: solarEnergy,
-            backgroundColor: 'rgba(251, 191, 36, 0.7)',
-            borderColor: 'rgba(251, 191, 36, 1)',
-            borderWidth: 1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false
-          }
-        },
-        scales: {
-          x: {
-            stacked: true,
-            display: data.length <= 14 // Only show x-axis labels if there are few data points
-          },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Energy (kWh)'
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // Function to update the carbon intensity chart
-  function updateCarbonIntensityChart(data) {
-    const ctx = document.getElementById('carbonIntensityChart').getContext('2d');
-    
-    // Prepare the data
-    const labels = data.map(day => formatDate(day.date));
-    const carbonIntensity = data.map(day => day.carbonIntensity);
-    
-    // Destroy existing chart if it exists
-    if (charts.carbonIntensity) charts.carbonIntensity.destroy();
-    
-    // Create the new chart
-    charts.carbonIntensity = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Carbon Intensity (gCO2eq/kWh)',
-            data: carbonIntensity,
-            backgroundColor: 'rgba(22, 49, 226, 0.2)',
-            borderColor: 'rgb(0, 36, 237)',
-            borderWidth: 2,
-            tension: 0.1,
-            fill: true
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-          }
-        },
-        scales: {
-          x: {
-            display: data.length <= 14 // Only show x-axis labels if there are few data points
-          },
-          y: {
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Carbon Intensity (gCO2eq/kWh)'
-            }
-          }
-        }
-      }
-    });
-  }
-
- // Update the self-sufficiency chart function to include color gradients
-function updateSelfSufficiencyChart(data) {
-const ctx = document.getElementById('selfSufficiencyChart').getContext('2d');
-
-// Prepare the data
-const labels = data.map(day => formatDate(day.date));
-const selfSufficiencyScores = data.map(day => day.selfSufficiencyScore);
-
-// Create color gradient for the area under the line
-const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-gradient.addColorStop(0, 'rgba(16, 185, 129, 0.7)');  // Green at top (100%)
-gradient.addColorStop(0.4, 'rgba(251, 191, 36, 0.7)'); // Yellow at middle (60%)
-gradient.addColorStop(1, 'rgba(239, 68, 68, 0.7)');   // Red at bottom (0%)
-
-// Destroy existing chart if it exists
-if (charts.selfSufficiency) charts.selfSufficiency.destroy();
-
-// Create the new chart
-charts.selfSufficiency = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Self-Sufficiency Score (%)',
-        data: selfSufficiencyScores,
-        backgroundColor: gradient,
-        borderColor: 'rgba(16, 185, 129, 1)',
-        borderWidth: 2,
-        tension: 0.1,
-        fill: true
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            const score = context.raw;
-            let label = score.toFixed(1) + '%';
-            
-            // Add rating text based on score
-            if (score >= 80) label += ' (Excellent)';
-            else if (score >= 60) label += ' (Good)';
-            else if (score >= 40) label += ' (Moderate)';
-            else if (score >= 20) label += ' (Poor)';
-            else label += ' (Very Poor)';
-            
-            return label;
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        display: data.length <= 14 // Only show x-axis labels if there are few data points
-      },
-      y: {
-        beginAtZero: true,
-        max: 100,
-        title: {
-          display: true,
-          text: 'Self-Sufficiency (%)'
-        }
-      }
-    }
-  }
-});
-}
-  // Function to filter table data based on input filters
-  function filterTableData() {
-    const dateFilter = document.getElementById('dateFilter').value;
-    const carbonIntensityFilter = parseFloat(document.getElementById('carbonIntensityFilter').value) || 0;
-    const selfSufficiencyFilter = parseFloat(document.getElementById('selfSufficiencyFilter').value) || 0;
-    
-    filteredData = tableData.filter(row => {
-      // Date filter
-      const dateMatch = !dateFilter || moment(row.date).format('YYYY-MM-DD') === dateFilter;
-      
-      // Carbon intensity filter
-      const carbonMatch = row.carbonIntensity >= carbonIntensityFilter;
-      
-      // Self-sufficiency filter
-      const sufficiencyMatch = row.selfSufficiencyScore >= selfSufficiencyFilter;
-      
-      return dateMatch && carbonMatch && sufficiencyMatch;
-    });
-    
-    // Reset to first page when filters change
-    currentPage = 1;
-    
-    // Sort the filtered data
-    sortTableData();
-    
-    // Update the table with the filtered and sorted data
-    updateTablePagination();
-  }
-
-  // Function to sort table data
-  function sortTableData() {
-    filteredData.sort((a, b) => {
-      let valA = a[sortColumn];
-      let valB = b[sortColumn];
-      
-      // Special handling for date values
-      if (sortColumn === 'date') {
-        valA = new Date(valA).getTime();
-        valB = new Date(valB).getTime();
-      }
-      
-      if (valA < valB) {
-        return sortDirection === 'asc' ? -1 : 1;
-      }
-      if (valA > valB) {
-        return sortDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  }
-
-  // Function to update the table pagination
-  function updateTablePagination() {
-    // Calculate pagination values
-    const totalEntries = filteredData.length;
-    const totalPages = Math.ceil(totalEntries / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalEntries);
-    
-    // Update pagination display
-    document.getElementById('showingStart').textContent = totalEntries > 0 ? startIndex + 1 : 0;
-    document.getElementById('showingEnd').textContent = endIndex;
-    document.getElementById('totalEntries').textContent = totalEntries;
-    
-    // Enable/disable pagination buttons
-    document.getElementById('prevPageBtn').disabled = currentPage <= 1;
-    document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
-    
-    // Generate pagination numbers
-    const paginationContainer = document.getElementById('paginationNumbers');
-    paginationContainer.innerHTML = '';
-    
-    // Determine which page numbers to show
-    const pagesToShow = [];
-    if (totalPages <= 7) {
-      // Show all pages if 7 or fewer
-      for (let i = 1; i <= totalPages; i++) {
-        pagesToShow.push(i);
-      }
-    } else {
-      // Show current page, 2 before, 2 after, first and last
-      pagesToShow.push(1);
-      if (currentPage > 3) pagesToShow.push('...');
-      
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(currentPage + 1, totalPages - 1);
-      
-      for (let i = start; i <= end; i++) {
-        pagesToShow.push(i);
-      }
-      
-      if (currentPage < totalPages - 2) pagesToShow.push('...');
-      if (totalPages > 1) pagesToShow.push(totalPages);
-    }
-    
-    // Create the page number buttons
-    pagesToShow.forEach(page => {
-      if (page === '...') {
-        const ellipsis = document.createElement('span');
-        ellipsis.textContent = '...';
-        ellipsis.className = 'px-3 py-1 text-gray-700';
-        paginationContainer.appendChild(ellipsis);
-      } else {
-        const pageBtn = document.createElement('button');
-        pageBtn.textContent = page;
-        pageBtn.className = 'px-3 py-1 rounded transition';
-        
-        if (page === currentPage) {
-          pageBtn.classList.add('bg-blue-600', 'text-white');
-        } else {
-          pageBtn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-        }
-        
-        pageBtn.addEventListener('click', () => {
-          currentPage = page;
-          updateTablePagination();
-        });
-        
-        paginationContainer.appendChild(pageBtn);
-      }
-    });
-    
-    // Update the table with the current page data
-    updateDataTable(filteredData.slice(startIndex, endIndex));
-  }
-
-
-  // Function to get color based on self-sufficiency score
-function getSelfSufficiencyColor(score) {
-if (score >= 80) return 'bg-green-600'; // Excellent - Dark Green
-if (score >= 60) return 'bg-green-400'; // Good - Light Green
-if (score >= 40) return 'bg-yellow-400'; // Moderate - Yellow
-if (score >= 20) return 'bg-orange-400'; // Poor - Orange
-return 'bg-red-600'; // Very Poor - Red
-}
-
-// Function to get text color for self-sufficiency score
-function getSelfSufficiencyTextColor(score) {
-if (score >= 60) return 'text-green-600'; // Green text for good scores
-if (score >= 40) return 'text-yellow-600'; // Yellow text for moderate scores
-if (score >= 20) return 'text-orange-600'; // Orange text for poor scores
-return 'text-red-600'; // Red text for very poor scores
-}
-
-  
-// Update the data table function to include color-coded self-sufficiency cells
-function updateDataTable(data) {
-const tableBody = document.getElementById('resultsTableBody');
-tableBody.innerHTML = '';
-
-data.forEach(day => {
-  const row = document.createElement('tr');
-  row.className = 'hover:bg-gray-50';
-  
-  // Create cells for each data point
-  row.innerHTML = `
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDate(day.date)}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.carbonIntensity.toFixed(1)} gCO2eq/kWh</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.gridEnergy.toFixed(2)} kWh</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.solarEnergy.toFixed(2)} kWh</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.unavoidableEmissions.toFixed(2)} kg</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.avoidedEmissions.toFixed(2)} kg</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm">
-      <div class="flex items-center">
-        <span class="mr-2 ${getSelfSufficiencyTextColor(day.selfSufficiencyScore)} font-medium">${day.selfSufficiencyScore.toFixed(1)}%</span>
-        <div class="w-24 bg-gray-200 rounded-full h-1.5">
-          <div class="${getSelfSufficiencyColor(day.selfSufficiencyScore)} h-1.5 rounded-full" style="width: ${day.selfSufficiencyScore}%"></div>
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
         </div>
-      </div>
-    </td>
-  `;
-  
-  tableBody.appendChild(row);
-});
-}
-
-  // Function to export table data to CSV
-  function exportTableToCSV() {
-    // Create CSV headers
-    const headers = ['Date', 'Carbon Intensity (gCO2eq/kWh)', 'Grid Energy (kWh)', 'Solar Energy (kWh)', 
-                    'Unavoidable Emissions (kg)', 'Avoided Emissions (kg)', 'Self-Sufficiency (%)'];
-    
-    // Convert data to CSV format
-    let csvContent = headers.join(',') + '\n';
-    
-   // Export to CSV function continues...
-filteredData.forEach(row => {
-  const rowData = [
-    moment(row.date).format('YYYY-MM-DD'),
-    row.carbonIntensity.toFixed(1),
-    row.gridEnergy.toFixed(2),
-    row.solarEnergy.toFixed(2),
-    row.unavoidableEmissions.toFixed(2),
-    row.avoidedEmissions.toFixed(2),
-    row.selfSufficiencyScore.toFixed(1)
-  ];
-  csvContent += rowData.join(',') + '\n';
-});
-
-// Create a download link for the CSV file
-const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-const link = document.createElement('a');
-link.setAttribute('href', encodedUri);
-link.setAttribute('download', `emissions_data_${moment().format('YYYY-MM-DD')}.csv`);
-document.body.appendChild(link);
-link.click();
-document.body.removeChild(link);
-}
-
-// Function to update all charts and data displays
-function updateDisplayForPeriod(periodName) {
-// Get data for the selected period
-const periodData = periodsData[periodName];
-
-if (!periodData || !periodData.length) {
-  console.error('No data available for period:', periodName);
-  return;
-}
-
-// Update the period buttons styling
-document.querySelectorAll('.period-btn').forEach(btn => {
-  if (btn.dataset.period === periodName) {
-    btn.classList.add('bg-blue-600', 'text-white');
-    btn.classList.remove('bg-gray-200', 'text-gray-700');
-  } else {
-    btn.classList.remove('bg-blue-600', 'text-white');
-    btn.classList.add('bg-gray-200', 'text-gray-700');
-  }
-});
-
-// Update all visual elements with the new data
-updateSummaryCards(periodData);
-updateEmissionsChart(periodData);
-updateEnergySourcesChart(periodData);
-updateCarbonIntensityChart(periodData);
-updateSelfSufficiencyChart(periodData);
-
-// Update the table data
-tableData = [...periodData];
-filteredData = [...tableData];
-sortTableData();
-updateTablePagination();
-}
-
-// Event listeners for period buttons
-document.querySelectorAll('.period-btn').forEach(btn => {
-btn.addEventListener('click', () => {
-  currentPeriod = btn.dataset.period;
-  updateDisplayForPeriod(currentPeriod);
-});
-});
-
-// Event listeners for table sorting
-document.querySelectorAll('th[data-sort]').forEach(th => {
-th.addEventListener('click', () => {
-  const column = th.dataset.sort;
-  
-  // If clicking the same column, toggle direction
-  if (sortColumn === column) {
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    // New column, default to descending for date, ascending for others
-    sortColumn = column;
-    sortDirection = column === 'date' ? 'desc' : 'asc';
-  }
-  
-  // Update the sort indicators in the UI
-  document.querySelectorAll('th[data-sort] i').forEach(icon => {
-    icon.className = 'fas fa-sort ml-1';
-  });
-  
-  const sortIcon = th.querySelector('i');
-  sortIcon.className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'} ml-1`;
-  
-  // Sort and update the table
-  sortTableData();
-  updateTablePagination();
-});
-});
-
-// Event listeners for pagination controls
-document.getElementById('prevPageBtn').addEventListener('click', () => {
-if (currentPage > 1) {
-  currentPage--;
-  updateTablePagination();
-}
-});
-
-document.getElementById('nextPageBtn').addEventListener('click', () => {
-const totalPages = Math.ceil(filteredData.length / pageSize);
-if (currentPage < totalPages) {
-  currentPage++;
-  updateTablePagination();
-}
-});
-
-// Event listener for page size select
-document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
-pageSize = parseInt(e.target.value);
-currentPage = 1; // Reset to first page
-updateTablePagination();
-});
-
-// Event listeners for table filters
-document.getElementById('dateFilter').addEventListener('change', filterTableData);
-document.getElementById('carbonIntensityFilter').addEventListener('input', filterTableData);
-document.getElementById('selfSufficiencyFilter').addEventListener('input', filterTableData);
-
-// Event listener for clear filters button
-document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-document.getElementById('dateFilter').value = '';
-document.getElementById('carbonIntensityFilter').value = '';
-document.getElementById('selfSufficiencyFilter').value = '';
-
-filteredData = [...tableData];
-currentPage = 1;
-updateTablePagination();
-});
-
-// Event listener for CSV export button
-document.getElementById('exportCSVBtn').addEventListener('click', exportTableToCSV);
-
-// Event listener for zone selection
-document.getElementById('saveZoneBtn').addEventListener('click', () => {
-const selectedZone = document.getElementById('zoneSelect').value;
-window.location.href = `/?zone=${selectedZone}`;
-});
-
-// Initialize the dashboard with the default period
-document.addEventListener('DOMContentLoaded', () => {
-// Set default period button as active
-const defaultPeriodBtn = document.querySelector(`.period-btn[data-period="${currentPeriod}"]`);
-if (defaultPeriodBtn) {
-  defaultPeriodBtn.classList.add('bg-blue-600', 'text-white');
-  defaultPeriodBtn.classList.remove('bg-gray-200', 'text-gray-700');
-}
-
-// Set default sort column indicator
-const defaultSortHeader = document.querySelector(`th[data-sort="${sortColumn}"]`);
-if (defaultSortHeader) {
-  const sortIcon = defaultSortHeader.querySelector('i');
-  sortIcon.className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'} ml-1`;
-}
-
-// Initial update of all visual elements
-updateDisplayForPeriod(currentPeriod);
-});
-</script>
-
-<script>
-// Add JavaScript to handle the period buttons and apply the active class
-document.addEventListener('DOMContentLoaded', function() {
-  const periodBtns = document.querySelectorAll('.period-btn');
-  
-  // Set default active button
-  if (periodBtns.length > 0) {
-    periodBtns[0].classList.add('active');
-  }
-  
-  periodBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      // Remove active class from all buttons
-      periodBtns.forEach(b => b.classList.remove('active'));
-      
-      // Add active class to clicked button
-      this.classList.add('active');
-    });
-  });
-});
-</script>
-
-<script>
-  // Add JavaScript to handle the period buttons and apply the active class
-  document.addEventListener('DOMContentLoaded', function() {
-    const periodBtns = document.querySelectorAll('.period-btn');
-    
-    // Set default active button
-    if (periodBtns.length > 0) {
-      periodBtns[0].classList.add('active');
-    }
-    
-    periodBtns.forEach(btn => {
-      btn.addEventListener('click', function() {
-        // Remove active class from all buttons
-        periodBtns.forEach(b => b.classList.remove('active'));
         
-        // Add active class to clicked button
-        this.classList.add('active');
-      });
-    });
-  });
-</script>
-<script src="<%= ingress_path %>/js/loading.js"></script>
-<script src="<%= ingress_path %>/js/dark-mode.js"></script>
-<script src="<%= ingress_path %>/js/mobile.js"></script>
+        <%- include('partials/sidebar') %>
+        
+        <div class="main-content">
+            <div class="container">
+                <div class="results-header">
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <h1>Carbon Intensity Results</h1>
+                        <div id="data-source-indicator" style="font-size: 0.85rem; color: var(--text-secondary); display: none;">
+                            <i class="fas fa-info-circle"></i> <span id="data-source-text">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="period-tabs">
+                        <button class="period-tab" data-period="day">Day</button>
+                        <button class="period-tab active" data-period="week">Week</button>
+                        <button class="period-tab" data-period="month">Month</button>
+                        <button class="period-tab" data-period="year">Year</button>
+                    </div>
+                    
+                    <div class="export-buttons">
+                        <button class="export-btn" id="export-csv">
+                            <i class="fas fa-file-csv"></i> CSV
+                        </button>
+                        <button class="export-btn" id="export-pdf">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-emissions">0.00</div>
+                        <div class="stat-label">Total Emissions (kg CO₂)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-avoided">0.00</div>
+                        <div class="stat-label">Avoided Emissions (kg CO₂)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-efficiency">0.0%</div>
+                        <div class="stat-label">Self-Sufficiency Score</div>
+                    </div>
+                </div>
+                
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-title">Energy Flow</div>
+                        <div class="chart-container">
+                            <canvas id="chart-energy"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-title">Emissions Breakdown</div>
+                        <div class="chart-container">
+                            <canvas id="chart-emissions"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-title">Carbon Intensity</div>
+                        <div class="gauge-container">
+                            <canvas id="gauge-carbon" width="200" height="100"></canvas>
+                            <div class="gauge-value" id="gauge-carbon-value">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-title">Solar Energy</div>
+                        <div class="gauge-container">
+                            <canvas id="gauge-solar" width="200" height="100"></canvas>
+                            <div class="gauge-value" id="gauge-solar-value">0.0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <div class="table-title">Energy Data</div>
+                        <div class="table-controls">
+                            <label>Show 
+                                <select class="entries-select" id="entries-per-page">
+                                    <option value="10">10</option>
+                                    <option value="25" selected>25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                entries
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Solar Energy (kWh)</th>
+                                <th>Grid Energy (kWh)</th>
+                                <th>Emissions (kg CO₂)</th>
+                                <th>Avoided (kg CO₂)</th>
+                                <th>Efficiency (%)</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination">
+                        <div class="pagination-info" id="pagination-info">
+                            Showing 0 to 0 of 0 entries
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="prev-page" disabled>
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </button>
+                            <button class="pagination-btn" id="next-page" disabled>
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="<%= ingress_path %>/js/loading.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/mobile.js"></script>
+    
+    <script>
+        let currentPeriod = 'week';
+        let periodsData = {};
+        let charts = {};
+        let currentPage = 1;
+        let entriesPerPage = 25;
+        let totalEntries = 0;
+        let currentData = [];
+
+        // Load period data from server
+        async function loadPeriodData(period) {
+            currentPeriod = period;
+            
+            // Show loading state
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            try {
+                const response = await fetch(`<%= ingress_path %>/api/energy-data/${period}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    periodsData[period] = result.data;
+                    currentData = result.data;
+                    totalEntries = result.data.length;
+                    currentPage = 1;
+
+                    const stats = calculateStats(result.data);
+                    updateStats(stats);
+                    updateGauges(stats);
+                    updateCharts(result.data);
+                    updateTable();
+                    
+                    // Show data source info
+                    console.log(`Loaded ${period} data from ${result.source}:`, result.data.length, 'entries');
+                    updateDataSourceIndicator(result.source, result.data.length);
+                } else {
+                    console.error('Failed to load energy data:', result.error);
+                    // Fallback to mock data
+                    loadFallbackData(period);
+                }
+            } catch (error) {
+                console.error('Error loading energy data:', error);
+                // Fallback to mock data
+                loadFallbackData(period);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+        
+        // Fallback mock data generator
+        function loadFallbackData(period) {
+            const days = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
+            const data = [];
+            
+            for (let i = 0; i < days; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                
+                data.push({
+                    date: date.toISOString().split('T')[0],
+                    solarEnergy: Math.random() * 50 + 10,
+                    gridEnergy: Math.random() * 30 + 5,
+                    unavoidableEmissions: Math.random() * 15 + 2,
+                    avoidedEmissions: Math.random() * 25 + 5,
+                    selfSufficiencyScore: Math.random() * 40 + 60,
+                    carbonIntensity: Math.random() * 200 + 300
+                });
+            }
+            
+            const fallbackData = data.reverse();
+            periodsData[period] = fallbackData;
+            currentData = fallbackData;
+            totalEntries = fallbackData.length;
+            currentPage = 1;
+
+            const stats = calculateStats(fallbackData);
+            updateStats(stats);
+            updateGauges(stats);
+            updateCharts(fallbackData);
+            updateTable();
+            
+            console.log('Using fallback mock data for', period);
+        }
+
+        // Calculate statistics
+        function calculateStats(data) {
+            const totalEmissions = data.reduce((sum, d) => sum + d.unavoidableEmissions, 0);
+            const totalAvoided = data.reduce((sum, d) => sum + d.avoidedEmissions, 0);
+            const avgEfficiency = data.reduce((sum, d) => sum + d.selfSufficiencyScore, 0) / data.length;
+            const totalSolar = data.reduce((sum, d) => sum + d.solarEnergy, 0);
+            const totalGrid = data.reduce((sum, d) => sum + d.gridEnergy, 0);
+            const avgCarbon = data.reduce((sum, d) => sum + (d.carbonIntensity || 0), 0) / data.length;
+
+            return {
+                emissions: totalEmissions,
+                avoided: totalAvoided,
+                efficiency: avgEfficiency,
+                solar: totalSolar,
+                grid: totalGrid,
+                carbon: avgCarbon
+            };
+        }
+
+        // Update stats cards
+        function updateStats(stats) {
+            document.getElementById('stat-emissions').textContent = stats.emissions.toFixed(2);
+            document.getElementById('stat-avoided').textContent = stats.avoided.toFixed(2);
+            document.getElementById('stat-efficiency').textContent = stats.efficiency.toFixed(1) + '%';
+        }
+
+        // Update gauges
+        function updateGauges(stats) {
+            document.getElementById('gauge-carbon-value').textContent = stats.carbon.toFixed(0);
+            document.getElementById('gauge-solar-value').textContent = stats.solar.toFixed(1);
+
+            createGauge('gauge-carbon', stats.carbon, 500, '#f5576c');
+            createGauge('gauge-solar', stats.solar, Math.max(stats.solar * 1.5, 50), '#38f9d7');
+        }
+
+        // Create gauge chart
+        function createGauge(id, value, max, color) {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            
+            if (charts[id]) {
+                charts[id].destroy();
+            }
+
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            const bgColor = isDark ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.4)';
+
+            charts[id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, max - value],
+                        backgroundColor: [color, bgColor],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    circumference: 180,
+                    rotation: 270,
+                    cutout: '75%',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        // Update charts
+        function updateCharts(data) {
+            updateEnergyChart(data);
+            updateEmissionsChart(data);
+        }
+
+        // Get dynamic colors for dark mode
+        function getChartColors() {
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            return {
+                textColor: getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || (isDark ? '#f8fafc' : '#1e293b'),
+                textSecondary: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || (isDark ? '#94a3b8' : '#64748b'),
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || (isDark ? '#334155' : '#e2e8f0'),
+                gridColor: isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(226, 232, 240, 0.5)'
+            };
+        }
+
+        // Energy flow chart
+        function updateEnergyChart(data) {
+            const ctx = document.getElementById('chart-energy');
+            
+            if (charts['energy']) {
+                charts['energy'].destroy();
+            }
+
+            const colors = getChartColors();
+            const labels = data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            
+            charts['energy'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Solar Energy',
+                        data: data.map(d => d.solarEnergy),
+                        borderColor: '#38f9d7',
+                        backgroundColor: 'rgba(56, 249, 215, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Grid Energy',
+                        data: data.map(d => d.gridEnergy),
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { 
+                                color: colors.textColor,
+                                font: { size: 12, weight: '500' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: colors.gridColor },
+                            ticks: { color: colors.textSecondary },
+                            border: { color: colors.borderColor }
+                        },
+                        x: {
+                            grid: { color: colors.gridColor },
+                            ticks: { color: colors.textSecondary },
+                            border: { color: colors.borderColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Emissions chart
+        function updateEmissionsChart(data) {
+            const ctx = document.getElementById('chart-emissions');
+            
+            if (charts['emissions']) {
+                charts['emissions'].destroy();
+            }
+
+            const colors = getChartColors();
+            const totalEmissions = data.reduce((sum, d) => sum + d.unavoidableEmissions, 0);
+            const totalAvoided = data.reduce((sum, d) => sum + d.avoidedEmissions, 0);
+
+            charts['emissions'] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Unavoidable', 'Avoided'],
+                    datasets: [{
+                        data: [totalEmissions, totalAvoided],
+                        backgroundColor: ['#f5576c', '#38f9d7'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                color: colors.textColor,
+                                padding: 20,
+                                font: { size: 14, weight: '500' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update table with pagination
+        function updateTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * entriesPerPage;
+            const endIndex = Math.min(startIndex + entriesPerPage, totalEntries);
+            const pageData = currentData.slice(startIndex, endIndex);
+
+            pageData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                const date = new Date(row.date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+
+                const globalIndex = startIndex + index;
+                const trend = globalIndex > 0 && currentData[globalIndex - 1] 
+                    ? (row.selfSufficiencyScore > currentData[globalIndex - 1].selfSufficiencyScore ? 'up' : 'down')
+                    : 'up';
+
+                tr.innerHTML = `
+                    <td>${date}</td>
+                    <td>${row.solarEnergy.toFixed(2)}</td>
+                    <td>${row.gridEnergy.toFixed(2)}</td>
+                    <td>${row.unavoidableEmissions.toFixed(2)}</td>
+                    <td>${row.avoidedEmissions.toFixed(2)}</td>
+                    <td>${row.selfSufficiencyScore.toFixed(1)}%</td>
+                    <td>
+                        <span class="trend-indicator trend-${trend}">
+                            <i class="fas fa-arrow-${trend}"></i>
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updatePaginationInfo();
+        }
+
+        // Update pagination info and controls
+        function updatePaginationInfo() {
+            const startIndex = (currentPage - 1) * entriesPerPage + 1;
+            const endIndex = Math.min(currentPage * entriesPerPage, totalEntries);
+            
+            document.getElementById('pagination-info').textContent = 
+                `Showing ${startIndex} to ${endIndex} of ${totalEntries} entries`;
+            
+            document.getElementById('prev-page').disabled = currentPage === 1;
+            document.getElementById('next-page').disabled = currentPage >= Math.ceil(totalEntries / entriesPerPage);
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            const data = currentData;
+            if (!data || data.length === 0) return;
+
+            let csv = 'Date,Solar Energy (kWh),Grid Energy (kWh),Unavoidable Emissions (kg CO₂),Avoided Emissions (kg CO₂),Self-Sufficiency (%),Carbon Intensity (g/kWh)\n';
+            
+            data.forEach(row => {
+                csv += `${row.date},${row.solarEnergy.toFixed(2)},${row.gridEnergy.toFixed(2)},${row.unavoidableEmissions.toFixed(2)},${row.avoidedEmissions.toFixed(2)},${row.selfSufficiencyScore.toFixed(1)},${row.carbonIntensity || 0}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `energy-data-${currentPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Export to PDF
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const data = currentData;
+            if (!data || data.length === 0) return;
+
+            const stats = calculateStats(data);
+            
+            doc.setFontSize(20);
+            doc.text('CARBONOZ Solar Autopilot Report', 20, 30);
+            
+            doc.setFontSize(14);
+            doc.text(`Period: ${currentPeriod.charAt(0).toUpperCase() + currentPeriod.slice(1)}`, 20, 45);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 55);
+            
+            doc.setFontSize(12);
+            doc.text('Summary Statistics:', 20, 75);
+            doc.text(`Total Emissions: ${stats.emissions.toFixed(2)} kg CO₂`, 30, 85);
+            doc.text(`Avoided Emissions: ${stats.avoided.toFixed(2)} kg CO₂`, 30, 95);
+            doc.text(`Average Efficiency: ${stats.efficiency.toFixed(1)}%`, 30, 105);
+            doc.text(`Total Solar Energy: ${stats.solar.toFixed(2)} kWh`, 30, 115);
+            doc.text(`Total Grid Energy: ${stats.grid.toFixed(2)} kWh`, 30, 125);
+            
+            const tableData = data.slice(0, 20).map(row => [
+                new Date(row.date).toLocaleDateString(),
+                row.solarEnergy.toFixed(2),
+                row.gridEnergy.toFixed(2),
+                row.unavoidableEmissions.toFixed(2),
+                row.avoidedEmissions.toFixed(2),
+                row.selfSufficiencyScore.toFixed(1) + '%'
+            ]);
+            
+            doc.autoTable({
+                head: [['Date', 'Solar (kWh)', 'Grid (kWh)', 'Emissions (kg)', 'Avoided (kg)', 'Efficiency']],
+                body: tableData,
+                startY: 140,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [51, 65, 85] }
+            });
+            
+            doc.save(`energy-report-${currentPeriod}-${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        // Refresh charts on theme change
+        function refreshChartsForTheme() {
+            if (currentData && currentData.length > 0) {
+                const stats = calculateStats(currentData);
+                updateCharts(currentData);
+                updateGauges(stats);
+            }
+        }
+
+        // Auto-refresh data every 5 minutes
+        function startAutoRefresh() {
+            setInterval(() => {
+                if (currentPeriod) {
+                    console.log('Auto-refreshing data for period:', currentPeriod);
+                    loadPeriodData(currentPeriod);
+                }
+            }, 5 * 60 * 1000); // 5 minutes
+        }
+        
+        // Manual refresh function
+        function refreshData() {
+            if (currentPeriod) {
+                // Clear cached data to force fresh fetch
+                delete periodsData[currentPeriod];
+                loadPeriodData(currentPeriod);
+            }
+        }
+        
+        // Add refresh button functionality
+        function addRefreshButton() {
+            const exportButtons = document.querySelector('.export-buttons');
+            if (exportButtons) {
+                const refreshBtn = document.createElement('button');
+                refreshBtn.className = 'export-btn';
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+                refreshBtn.addEventListener('click', refreshData);
+                exportButtons.insertBefore(refreshBtn, exportButtons.firstChild);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPeriodData('week');
+            addRefreshButton();
+            startAutoRefresh();
+            
+            // Period tabs
+            document.querySelectorAll('[data-period]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const period = this.dataset.period;
+                    
+                    document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    loadPeriodData(period);
+                });
+            });
+            
+            // Export buttons
+            document.getElementById('export-csv').addEventListener('click', exportToCSV);
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+            
+            // Pagination
+            document.getElementById('prev-page').addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable();
+                }
+            });
+            
+            document.getElementById('next-page').addEventListener('click', function() {
+                if (currentPage < Math.ceil(totalEntries / entriesPerPage)) {
+                    currentPage++;
+                    updateTable();
+                }
+            });
+            
+            // Entries per page
+            document.getElementById('entries-per-page').addEventListener('change', function() {
+                entriesPerPage = parseInt(this.value);
+                currentPage = 1;
+                updateTable();
+            });
+            
+            // Listen for theme changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        setTimeout(refreshChartsForTheme, 100);
+                    }
+                });
+            });
+            
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        });
+    </script>
 </body>
 </html>
