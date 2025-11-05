@@ -2697,6 +2697,88 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   });
 
+  // Battery charging history API
+  app.get('/api/battery/charging-history', async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours) || 24;
+      const limit = parseInt(req.query.limit) || 100;
+      
+      // Query InfluxDB for battery charging events
+      const query = `
+        SELECT battery_soc, grid_power, battery_power, time
+        FROM settings_changes 
+        WHERE "user_id" = '${USER_ID}'
+        AND "change_type" = 'grid_charge'
+        AND "new_value" = 'Enabled'
+        AND time >= now() - ${hours}h
+        ORDER BY time DESC 
+        LIMIT ${limit}
+      `;
+      
+      try {
+        const result = await influx.query(query);
+        
+        const chargingEvents = result.map(row => ({
+          timestamp: new Date(row.time),
+          battery_soc: row.battery_soc || 0,
+          grid_power: row.grid_power || 0,
+          battery_power: row.battery_power || 0
+        }));
+        
+        // Calculate charging statistics
+        const lastCharge = chargingEvents.length > 0 ? chargingEvents[0] : null;
+        const avgChargingPower = chargingEvents.length > 0 ? 
+          chargingEvents.reduce((sum, event) => sum + Math.abs(event.battery_power), 0) / chargingEvents.length : 0;
+        
+        res.json({
+          success: true,
+          data: {
+            events: chargingEvents,
+            statistics: {
+              lastChargeTime: lastCharge ? lastCharge.timestamp : null,
+              totalEvents: chargingEvents.length,
+              avgChargingPower: Math.round(avgChargingPower),
+              lastBatterySoC: lastCharge ? lastCharge.battery_soc : 0
+            }
+          }
+        });
+      } catch (influxError) {
+        console.error('Error querying InfluxDB for charging history:', influxError);
+        
+        // Return sample data if InfluxDB is not available
+        const now = new Date();
+        const sampleData = {
+          events: [
+            {
+              timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+              battery_soc: 85,
+              grid_power: 3500,
+              battery_power: -3200
+            }
+          ],
+          statistics: {
+            lastChargeTime: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+            totalEvents: 1,
+            avgChargingPower: 3200,
+            lastBatterySoC: 85
+          }
+        };
+        
+        res.json({
+          success: true,
+          data: sampleData,
+          source: 'sample'
+        });
+      }
+    } catch (error) {
+      console.error('Error getting battery charging history:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to get battery charging history' 
+      });
+    }
+  });
+
   app.post('/api/tibber/refresh', async (req, res) => {
     try {
       const success = await tibberService.refreshData();

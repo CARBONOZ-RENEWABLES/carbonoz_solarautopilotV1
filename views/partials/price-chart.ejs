@@ -1,0 +1,483 @@
+<!-- Price Chart Component -->
+<div class="price-chart-container">
+  <div class="chart-header">
+    <h6><i class="fas fa-chart-line me-2"></i>Electricity Price Trends</h6>
+    <div class="time-selector">
+      <button class="time-btn active" data-period="15min">15 Min</button>
+      <button class="time-btn" data-period="60min">60 Min</button>
+    </div>
+  </div>
+  
+  <div class="current-price-display">
+    <div class="price-circle">
+      <div class="price-value">
+        <span id="currentPriceValue">28</span>
+        <small>cent</small>
+      </div>
+      <div class="price-time" id="priceTimeRange">02:30 - 02:45</div>
+    </div>
+    
+    <div class="price-stats">
+      <div class="stat-item">
+        <span class="stat-label">Average Price:</span>
+        <span class="stat-value" id="avgPrice">31 cent</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Including:</span>
+        <span class="stat-value">Taxes & Fees</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="price-chart-wrapper">
+    <canvas id="priceHistoryChart"></canvas>
+  </div>
+  
+  <div class="price-legend">
+    <div class="legend-item">
+      <div class="legend-color" style="background: #00d4aa;"></div>
+      <span>Low Price (< 30 cent)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #ff6b6b;"></div>
+      <span>High Price (> 35 cent)</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.price-chart-container {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  color: #2f3640;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark-mode .price-chart-container {
+  background: rgba(34, 37, 41, 0.85);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  color: #f5f6fa;
+}
+
+.price-chart-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.price-chart-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  pointer-events: none;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.chart-header {
+  background: #DEAF0B;
+  color: white;
+  border-radius: 15px 15px 0 0;
+  padding: 15px 20px;
+  margin: -20px -20px 20px -20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-header h6 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.time-selector {
+  display: flex;
+  gap: 5px;
+}
+
+.time-btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.time-btn.active,
+.time-btn:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.current-price-display {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+  position: relative;
+  z-index: 2;
+}
+
+.price-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d4aa, #00b894);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
+}
+
+.price-circle::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+}
+
+.price-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+}
+
+.price-value small {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.price-time {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-top: 5px;
+  position: relative;
+  z-index: 2;
+}
+
+.price-stats {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 10px;
+}
+
+.dark-mode .stat-item {
+  background: rgba(255,255,255,0.05);
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.stat-value {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.price-chart-wrapper {
+  height: 200px;
+  margin: 20px 0;
+  position: relative;
+  z-index: 2;
+  background: rgba(0,0,0,0.02);
+  border-radius: 15px;
+  padding: 15px;
+}
+
+.dark-mode .price-chart-wrapper {
+  background: rgba(255,255,255,0.02);
+}
+
+.price-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 15px;
+  position: relative;
+  z-index: 2;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+  .price-chart-container {
+    padding: 15px;
+  }
+  
+  .current-price-display {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .price-circle {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .price-value {
+    font-size: 1.5rem;
+  }
+  
+  .price-stats {
+    width: 100%;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .price-legend {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .price-chart-wrapper {
+    height: 150px;
+  }
+}
+</style>
+
+<script>
+// Price Chart Functionality
+let priceHistoryChart;
+
+function initializePriceChart() {
+  const ctx = document.getElementById('priceHistoryChart');
+  if (!ctx) return;
+  
+  // Destroy existing chart if it exists
+  if (priceHistoryChart) {
+    priceHistoryChart.destroy();
+  }
+  
+  // Sample data - replace with real data from your API
+  const sampleData = {
+    labels: Array.from({length: 24}, (_, i) => {
+      const hour = i.toString().padStart(2, '0');
+      return `${hour}:00`;
+    }),
+    prices: [28, 26, 25, 24, 26, 28, 32, 35, 38, 36, 34, 32, 30, 28, 26, 28, 30, 32, 35, 38, 36, 34, 30, 28]
+  };
+  
+  priceHistoryChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sampleData.labels,
+      datasets: [{
+        label: 'Price (cent/kWh)',
+        data: sampleData.prices,
+        borderColor: '#00d4aa',
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(0, 212, 170, 0.3)');
+          gradient.addColorStop(1, 'rgba(0, 212, 170, 0.05)');
+          return gradient;
+        },
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#00d4aa',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          borderColor: '#00d4aa',
+          borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return `${context.parsed.y} cent/kWh`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: function(context) {
+              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            },
+            drawBorder: false
+          },
+          ticks: {
+            color: function(context) {
+              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+            },
+            font: {
+              size: 11
+            },
+            maxTicksLimit: 8
+          }
+        },
+        y: {
+          grid: {
+            color: function(context) {
+              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            },
+            drawBorder: false
+          },
+          ticks: {
+            color: function(context) {
+              return document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+            },
+            font: {
+              size: 11
+            },
+            callback: function(value) {
+              return value + ' ¢';
+            }
+          }
+        }
+      },
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      }
+    }
+  });
+}
+
+// Time period selector
+document.addEventListener('DOMContentLoaded', function() {
+  initializePriceChart();
+  
+  // Handle time period buttons
+  document.querySelectorAll('.time-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      
+      const period = this.dataset.period;
+      updatePriceChart(period);
+    });
+  });
+});
+
+function updatePriceChart(period) {
+  if (!priceHistoryChart) return;
+  
+  // Generate sample data based on period
+  let dataPoints, labels;
+  
+  if (period === '15min') {
+    dataPoints = 96; // 24 hours * 4 (15-min intervals)
+    labels = Array.from({length: dataPoints}, (_, i) => {
+      const minutes = i * 15;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    });
+  } else {
+    dataPoints = 24;
+    labels = Array.from({length: dataPoints}, (_, i) => {
+      return `${i.toString().padStart(2, '0')}:00`;
+    });
+  }
+  
+  // Generate sample price data
+  const prices = Array.from({length: dataPoints}, () => {
+    return Math.floor(Math.random() * 15) + 25; // Random prices between 25-40
+  });
+  
+  priceHistoryChart.data.labels = labels;
+  priceHistoryChart.data.datasets[0].data = prices;
+  priceHistoryChart.update();
+}
+
+// Function to update current price display
+function updateCurrentPrice(price, timeRange, avgPrice) {
+  const priceElement = document.getElementById('currentPriceValue');
+  const timeElement = document.getElementById('priceTimeRange');
+  const avgElement = document.getElementById('avgPrice');
+  
+  if (priceElement) priceElement.textContent = price;
+  if (timeElement) timeElement.textContent = timeRange;
+  if (avgElement) avgElement.textContent = avgPrice + ' cent';
+  
+  // Update price circle color based on price level
+  const priceCircle = document.querySelector('.price-circle');
+  if (priceCircle && price) {
+    if (price < 30) {
+      priceCircle.style.background = 'linear-gradient(135deg, #00d4aa, #00b894)';
+    } else if (price > 35) {
+      priceCircle.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a52)';
+    } else {
+      priceCircle.style.background = 'linear-gradient(135deg, #feca57, #ff9ff3)';
+    }
+  }
+}
+</script>

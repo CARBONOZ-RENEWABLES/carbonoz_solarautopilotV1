@@ -1,0 +1,235 @@
+<!-- Battery Charging Gauge Component -->
+<div class="charging-gauge-container">
+  <div class="gauge-header">
+    <h6><i class="fas fa-battery-three-quarters me-2"></i>Battery Charging Status</h6>
+    <div class="charging-info">
+      <span id="lastChargeTime" class="last-charge-time">--</span>
+      <span id="chargeCost" class="charge-cost">-- cent</span>
+    </div>
+  </div>
+  
+  <div class="gauge-wrapper">
+    <div class="circular-gauge" id="batteryGauge">
+      <div class="gauge-inner">
+        <div class="gauge-value">
+          <span id="batteryPercentage">--</span>
+          <small>%</small>
+        </div>
+        <div class="gauge-label">Battery SOC</div>
+      </div>
+      <svg class="gauge-svg" viewBox="0 0 200 200">
+        <circle class="gauge-bg" cx="100" cy="100" r="85" fill="none" stroke="#e0e0e0" stroke-width="8"/>
+        <circle class="gauge-progress" cx="100" cy="100" r="85" fill="none" stroke="#27ae60" stroke-width="8" 
+                stroke-linecap="round" transform="rotate(-90 100 100)" 
+                stroke-dasharray="534.07" stroke-dashoffset="534.07" id="gaugeProgress"/>
+      </svg>
+    </div>
+  </div>
+  
+  <div class="charging-details">
+    <div class="detail-item">
+      <span class="detail-label">Last Grid Charge:</span>
+      <span id="lastGridCharge" class="detail-value">--</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Charge Duration:</span>
+      <span id="chargeDuration" class="detail-value">--</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Energy Added:</span>
+      <span id="energyAdded" class="detail-value">-- kWh</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.charging-gauge-container {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  color: #2f3640;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark-mode .charging-gauge-container {
+  background: rgba(34, 37, 41, 0.85);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  color: #f5f6fa;
+}
+
+.charging-gauge-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.charging-gauge-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  pointer-events: none;
+}
+
+.gauge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.gauge-header {
+  background: #DEAF0B;
+  color: white;
+  border-radius: 15px 15px 0 0;
+  padding: 15px 20px;
+  margin: -20px -20px 20px -20px;
+}
+
+.gauge-header h6 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.charging-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.last-charge-time {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.charge-cost {
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: rgba(255,255,255,0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.gauge-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.circular-gauge {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.gauge-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 3;
+}
+
+.gauge-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.gauge-value small {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.gauge-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 5px;
+}
+
+.gauge-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gauge-bg {
+  opacity: 0.3;
+}
+
+.gauge-progress {
+  transition: stroke-dashoffset 1s ease-in-out;
+}
+
+.charging-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+}
+
+.dark-mode .detail-item {
+  background: rgba(255,255,255,0.05);
+}
+
+.detail-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.detail-value {
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .charging-gauge-container {
+    padding: 15px;
+  }
+  
+  .circular-gauge {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .gauge-value {
+    font-size: 2rem;
+  }
+  
+  .gauge-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .charging-info {
+    align-items: flex-start;
+  }
+}
+</style>
