@@ -28,28 +28,11 @@ function cleanupTibberCache(filePath) {
     }
 }
 
-function cleanupDynamicPricing(filePath) {
-    try {
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const today = new Date().toISOString().split('T')[0];
-        
-        if (data.pricingData) {
-            data.pricingData = data.pricingData.filter(entry => 
-                entry.timestamp >= today
-            );
-        }
-        
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        return data.pricingData?.length || 0;
-    } catch (e) {
-        console.error('Error cleaning dynamic_pricing_config.json:', e.message);
-        return 0;
-    }
-}
+// Dynamic pricing cleanup removed - using InfluxDB for pricing data storage
 
 const dataPath = path.join(__dirname, '..', 'data');
 const tibberFile = path.join(dataPath, 'tibber_cache.json');
-const pricingFile = path.join(dataPath, 'dynamic_pricing_config.json');
+// Pricing file cleanup removed - using InfluxDB
 
 console.log(`Starting cleanup at ${new Date()}`);
 
@@ -58,9 +41,6 @@ if (fs.existsSync(tibberFile)) {
     console.log(`Tibber cache: kept ${tibberEntries} current entries`);
 }
 
-if (fs.existsSync(pricingFile)) {
-    const pricingEntries = cleanupDynamicPricing(pricingFile);
-    console.log(`Pricing config: kept ${pricingEntries} current entries`);
-}
+// Dynamic pricing cleanup skipped - using InfluxDB for pricing data
 
 console.log('Cleanup completed');

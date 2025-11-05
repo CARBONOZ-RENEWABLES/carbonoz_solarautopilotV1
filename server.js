@@ -231,7 +231,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: '192.168.43.33',
+  host: '192.168.1.106',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -4169,54 +4169,7 @@ function generateAdaptiveActions(actionType, value, detectedTypes) {
   
 
   
-  function generateInitialSampleData(timezone = 'Europe/Berlin') {
-    const prices = [];
-    
-    const now = new Date();
-    const nowInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
-    
-    const startHour = new Date(nowInTimezone);
-    startHour.setMinutes(0, 0, 0);
-    
-    for (let i = 0; i < 48; i++) {
-      const timestamp = new Date(startHour);
-      timestamp.setHours(timestamp.getHours() + i);
-      
-      const hour = timestamp.getHours();
-      const dayOfWeek = timestamp.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
-      let basePrice = 0.10;
-      
-      if (hour >= 7 && hour <= 9) {
-        basePrice = 0.18;
-      } else if (hour >= 17 && hour <= 21) {
-        basePrice = 0.20;
-      } else if (hour >= 1 && hour <= 5) {
-        basePrice = 0.06;
-      } else if (hour >= 11 && hour <= 14) {
-        basePrice = 0.08;
-      }
-      
-      if (isWeekend) {
-        basePrice *= 0.85;
-      }
-      
-      const randomFactor = 0.85 + (Math.random() * 0.3);
-      const price = basePrice * randomFactor;
-      
-      prices.push({
-        timestamp: timestamp.toISOString(),
-        price: parseFloat(price.toFixed(4)),
-        currency: 'EUR',
-        unit: 'kWh',
-        timezone: timezone,
-        localHour: hour
-      });
-    }
-    
-    return prices;
-  }
+  // generateInitialSampleData function removed - using InfluxDB for pricing data
   
   function refreshPricingData() {
     try {
@@ -7261,11 +7214,7 @@ async function initializeConnections() {
     console.log('⚠️  InfluxDB not available - Tibber will use local cache only');
   }
   
-  // Initialize data
-  await initializeData();
-  
-  // Initialize data
-  await initializeData();
+  // Data initialization skipped - using InfluxDB for pricing data
   
   // Dynamic pricing integration removed
   try {
@@ -7301,109 +7250,7 @@ async function initializeConnections() {
 
   async function initializeData() {
     try {
-      console.log('Initializing data with inverter type support...');
-      
-      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
-      
-      let config = null;
-      if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
-        const configData = fs.readFileSync(DYNAMIC_PRICING_CONFIG_FILE, 'utf8');
-        config = JSON.parse(configData);
-      }
-      
-      if (!config) {
-        console.log('No config found, creating default with inverter type support...');
-        config = {
-          enabled: false,
-          country: 'DE',
-          market: 'DE', 
-          apiKey: '',
-          priceBasedCharging: {
-            enabled: true,
-            maxPriceThreshold: 0.25,
-            useTibberLevels: true,
-            lowPriceLevels: ['VERY_CHEAP', 'CHEAP']
-          },
-          battery: {
-            targetSoC: 80,
-            minimumSoC: 20,
-            emergencySoC: 10,
-            maxSoC: 95
-          },
-          conditions: {
-            weather: {
-              enabled: false,
-              chargeOnCloudyDays: true,
-              chargeBeforeStorm: true,
-              weatherApiKey: '',
-              location: { lat: 52.5200, lon: 13.4050 }
-            },
-            time: {
-              enabled: true,
-              preferNightCharging: false,
-              nightStart: '22:00',
-              nightEnd: '06:00',
-              avoidPeakHours: true,
-              peakStart: '17:00',
-              peakEnd: '21:00'
-            },
-            power: {
-              load: { enabled: false, maxLoadForCharging: 8000, minLoadForCharging: 0 },
-              pv: { enabled: false, minPvForCharging: 5000, maxPvForCharging: 50000, pvPriority: true },
-              battery: { enabled: false, maxBatteryPowerForCharging: 3000, preferLowBatteryPower: true }
-            }
-          },
-          cooldown: {
-            enabled: true,
-            chargingCooldownMinutes: 30,
-            errorCooldownMinutes: 60,
-            maxChargingCyclesPerDay: 6
-          },
-          scheduledCharging: false,
-          chargingHours: [],
-          lastUpdate: null,
-          pricingData: [],
-          timezone: 'Europe/Berlin',
-          currency: 'EUR',
-          // Features
-          inverterSupport: true,
-          autoCommandMapping: true,
-          intelligentCurrentAdjustment: true,
-          supportedInverterTypes: ['legacy', 'new', 'hybrid']
-        };
-      } else {
-        // Ensure features are present in existing config
-        if (!config.inverterSupport) {
-          config.inverterSupport = true;
-          config.autoCommandMapping = true;
-          config.intelligentCurrentAdjustment = true;
-          config.supportedInverterTypes = ['legacy', 'new', 'hybrid'];
-          console.log('✅ Added inverter type support to existing configuration');
-        }
-      }
-      
-      const hasData = config.pricingData && config.pricingData.length > 0;
-      const isRecent = config.lastUpdate && 
-        (Date.now() - new Date(config.lastUpdate).getTime()) < (6 * 60 * 60 * 1000);
-      
-      if (!hasData || !isRecent) {
-        console.log('Generating initial pricing data with inverter type awareness...');
-        
-        config.pricingData = generateInitialSampleData(config.timezone || 'Europe/Berlin');
-        config.lastUpdate = new Date().toISOString();
-        
-        const configDir = path.dirname(DYNAMIC_PRICING_CONFIG_FILE);
-        if (!fs.existsSync(configDir)) {
-          fs.mkdirSync(configDir, { recursive: true });
-        }
-        
-        fs.writeFileSync(DYNAMIC_PRICING_CONFIG_FILE, JSON.stringify(config, null, 2));
-        
-        console.log(`✅ Initial pricing data generated: ${config.pricingData.length} data points with inverter type support`);
-      } else {
-        console.log('✅ Existing pricing data is recent, no generation needed');
-      }
-      
+      console.log('✅ Data initialization skipped - using InfluxDB for pricing data storage');
       return true;
     } catch (error) {
       console.error('❌ Error initializing data:', error);
