@@ -270,7 +270,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
