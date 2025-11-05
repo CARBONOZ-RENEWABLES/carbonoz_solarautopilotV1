@@ -147,17 +147,21 @@ class AIChargingEngine {
         const cheapestHours = tibberService.getCheapestHours(6, 24);
         const isInCheapestPeriod = this.isCurrentTimeInCheapestPeriods(cheapestHours);
         
+        // VERY CHEAP THRESHOLD: Any price under 6 cents is excellent for charging
+        if (currentPrice.total < 6 && gridVoltage >= 200 && gridVoltage <= 250) {
+          shouldCharge = true;
+          reasons.push(
+            `VERY CHEAP PRICE: ${currentPrice.total.toFixed(2)} cent (under 6 cent threshold)`
+          );
+        }
         // Use historical minimum + 2 cents as threshold (e.g., if min was 6, threshold is 8)
-        const smartThreshold = historicalMins.minPrice + 2;
-        const conservativeThreshold = historicalMins.percentile10 + 1;
-        
-        if (currentPrice.total <= smartThreshold && gridVoltage >= 200 && gridVoltage <= 250) {
+        else if (currentPrice.total <= Math.max(historicalMins.minPrice + 2, 6) && gridVoltage >= 200 && gridVoltage <= 250) {
           shouldCharge = true;
           reasons.push(
             `Near historical minimum: ${currentPrice.total.toFixed(2)} cent ` +
-            `(min was ${historicalMins.minPrice.toFixed(2)}, threshold: ${smartThreshold.toFixed(2)})`
+            `(min was ${historicalMins.minPrice.toFixed(2)}, threshold: ${Math.max(historicalMins.minPrice + 2, 6).toFixed(2)})`
           );
-        } else if (currentPrice.total <= conservativeThreshold && isInCheapestPeriod && batterySOC < 60) {
+        } else if (currentPrice.total <= Math.max(historicalMins.percentile10 + 1, 6) && isInCheapestPeriod && batterySOC < 60) {
           shouldCharge = true;
           reasons.push(
             `In cheapest period at low price: ${currentPrice.total.toFixed(2)} cent ` +
@@ -600,16 +604,22 @@ applyDecision(decision) {
       
       const recommendations = [];
       
-      if (analysis.lastChargingPrice > historicalMins.minPrice + 5) {
-        recommendations.push(`Last charging at ${analysis.lastChargingPrice.toFixed(1)} cent - historical minimum was ${historicalMins.minPrice.toFixed(1)} cent`);
+      if (analysis.lastChargingPrice > 6) {
+        recommendations.push(`Last charging at ${analysis.lastChargingPrice.toFixed(1)} cent - consider waiting for under 6 cent prices`);
       }
       
-      recommendations.push(`Smart charging threshold: ${analysis.smartThreshold.toFixed(1)} cent (historical min + 2)`);
+      recommendations.push(`VERY CHEAP threshold: 6.0 cent (always charge below this)`);
+      recommendations.push(`Smart charging threshold: ${Math.max(analysis.smartThreshold, 6).toFixed(1)} cent (historical min + 2 or 6 cent minimum)`);
       
-      if (cheapestPrice <= historicalMins.minPrice + 3) {
+      if (cheapestPrice < 6) {
+        const nextCheap = cheapestHours.find(h => new Date(h.time) > now && h.price < 6);
+        if (nextCheap) {
+          recommendations.push(`EXCELLENT opportunity: ${new Date(nextCheap.time).toLocaleTimeString()} at ${nextCheap.price.toFixed(1)} cent (under 6 cent!)`);
+        }
+      } else if (cheapestPrice <= historicalMins.minPrice + 3) {
         const nextCheap = cheapestHours.find(h => new Date(h.time) > now && h.price <= historicalMins.minPrice + 3);
         if (nextCheap) {
-          recommendations.push(`EXCELLENT opportunity: ${new Date(nextCheap.time).toLocaleTimeString()} at ${nextCheap.price.toFixed(1)} cent`);
+          recommendations.push(`Good opportunity: ${new Date(nextCheap.time).toLocaleTimeString()} at ${nextCheap.price.toFixed(1)} cent`);
         }
       }
       
@@ -637,10 +647,13 @@ applyDecision(decision) {
       if (hour.price < 0) {
         recommendation = 'CHARGE NOW';
         reason = `NEGATIVE PRICE! Getting paid ${Math.abs(hour.price).toFixed(2)} cent`;
+      } else if (hour.price < 6) {
+        recommendation = 'CHARGE NOW';
+        reason = `VERY CHEAP: ${hour.price.toFixed(2)} cent (under 6 cent threshold)`;
       } else if (hour.price <= historicalMins.minPrice + 1) {
         recommendation = 'CHARGE NOW';
         reason = `Near historical minimum: ${hour.price.toFixed(2)} cent (min: ${historicalMins.minPrice.toFixed(2)})`;
-      } else if (hour.price <= historicalMins.minPrice + 3 && batterySOC < config.targetSoC) {
+      } else if (hour.price <= Math.max(historicalMins.minPrice + 3, 6) && batterySOC < config.targetSoC) {
         recommendation = 'CHARGE';
         reason = `Excellent value: ${hour.price.toFixed(2)} cent (+${vsHistoricalMin.toFixed(1)} vs min)`;
       } else if (hour.price <= historicalMins.percentile10 && batterySOC < 60) {
