@@ -628,7 +628,7 @@
                 
                 <div class="charts-grid">
                     <div class="chart-card">
-                        <div class="chart-title">Energy Flow</div>
+                        <div class="chart-title">Energy Flow & Emissions</div>
                         <div class="chart-container">
                             <canvas id="chart-energy"></canvas>
                         </div>
@@ -854,38 +854,111 @@ function updateEnergyChart(data) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Solar Energy',
+                label: 'Solar Energy (kWh)',
                 data: data.map(d => d.solarEnergy || 0),
                 borderColor: '#38f9d7',
                 backgroundColor: 'rgba(56, 249, 215, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                yAxisID: 'y'
             }, {
-                label: 'Grid Energy',
+                label: 'Grid Energy (kWh)',
                 data: data.map(d => d.gridEnergy || 0),
                 borderColor: '#4facfe',
                 backgroundColor: 'rgba(79, 172, 254, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                yAxisID: 'y'
+            }, {
+                label: 'Unavoided Emissions (kg CO₂)',
+                data: data.map(d => d.unavoidableEmissions || 0),
+                borderColor: '#f5576c',
+                backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                fill: false,
+                tension: 0.4,
+                yAxisID: 'y1'
+            }, {
+                label: 'Avoided Emissions (kg CO₂)',
+                data: data.map(d => d.avoidedEmissions || 0),
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                fill: false,
+                tension: 0.4,
+                yAxisID: 'y1'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 legend: {
                     labels: { 
                         color: colors.textColor,
-                        font: { size: 12, weight: '500' }
+                        font: { size: 11, weight: '500' },
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            if (label.includes('Emissions')) {
+                                return `${label}: ${value.toFixed(3)} kg CO₂`;
+                            } else {
+                                return `${label}: ${value.toFixed(2)} kWh`;
+                            }
+                        }
                     }
                 }
             },
             scales: {
                 y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
                     beginAtZero: true,
                     grid: { color: colors.gridColor },
-                    ticks: { color: colors.textSecondary },
-                    border: { color: colors.borderColor }
+                    ticks: { 
+                        color: colors.textSecondary,
+                        callback: function(value) {
+                            return value.toFixed(0) + ' kWh';
+                        }
+                    },
+                    border: { color: colors.borderColor },
+                    title: {
+                        display: true,
+                        text: 'Energy (kWh)',
+                        color: colors.textColor,
+                        font: { size: 12, weight: '600' }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: { 
+                        color: colors.textSecondary,
+                        callback: function(value) {
+                            return value.toFixed(2) + ' kg';
+                        }
+                    },
+                    border: { color: colors.borderColor },
+                    title: {
+                        display: true,
+                        text: 'CO₂ Emissions (kg)',
+                        color: colors.textColor,
+                        font: { size: 12, weight: '600' }
+                    }
                 },
                 x: {
                     grid: { color: colors.gridColor },
@@ -1080,11 +1153,12 @@ function exportToPDF() {
     
     doc.setFontSize(12);
     doc.text('Summary Statistics:', 20, 75);
-    doc.text(`Total Emissions: ${stats.emissions.toFixed(2)} kg CO₂`, 30, 85);
-    doc.text(`Avoided Emissions: ${stats.avoided.toFixed(2)} kg CO₂`, 30, 95);
-    doc.text(`Average Efficiency: ${stats.efficiency.toFixed(1)}%`, 30, 105);
-    doc.text(`Total Solar Energy: ${stats.solar.toFixed(2)} kWh`, 30, 115);
-    doc.text(`Total Grid Energy: ${stats.grid.toFixed(2)} kWh`, 30, 125);
+    doc.text(`Total Unavoided Emissions: ${stats.emissions.toFixed(2)} kg CO₂`, 30, 85);
+    doc.text(`Total Avoided Emissions: ${stats.avoided.toFixed(2)} kg CO₂`, 30, 95);
+    doc.text(`Net Emissions Reduction: ${(stats.avoided - stats.emissions).toFixed(2)} kg CO₂`, 30, 105);
+    doc.text(`Average Efficiency: ${stats.efficiency.toFixed(1)}%`, 30, 115);
+    doc.text(`Total Solar Energy: ${stats.solar.toFixed(2)} kWh`, 30, 125);
+    doc.text(`Total Grid Energy: ${stats.grid.toFixed(2)} kWh`, 30, 135);
     
     const tableData = sortedData.slice(0, 20).map(row => [
         new Date(row.date).toLocaleDateString(),
@@ -1098,7 +1172,7 @@ function exportToPDF() {
     doc.autoTable({
         head: [['Date', 'Solar (kWh)', 'Grid (kWh)', 'Emissions (kg)', 'Avoided (kg)', 'Efficiency']],
         body: tableData,
-        startY: 140,
+        startY: 150,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [51, 65, 85] }
     });
