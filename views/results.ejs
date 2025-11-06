@@ -985,9 +985,12 @@ function updateTable() {
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
+    // Sort data by date in descending order (newest first)
+    const sortedData = [...currentData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
     const startIndex = (currentPage - 1) * entriesPerPage;
     const endIndex = Math.min(startIndex + entriesPerPage, totalEntries);
-    const pageData = currentData.slice(startIndex, endIndex);
+    const pageData = sortedData.slice(startIndex, endIndex);
 
     pageData.forEach((row, index) => {
         const tr = document.createElement('tr');
@@ -997,9 +1000,9 @@ function updateTable() {
             year: 'numeric'
         });
 
-        const globalIndex = startIndex + index;
-        const trend = globalIndex > 0 && currentData[globalIndex - 1] 
-            ? ((row.selfSufficiencyScore || 0) > (currentData[globalIndex - 1].selfSufficiencyScore || 0) ? 'up' : 'down')
+        const sortedIndex = startIndex + index;
+        const trend = sortedIndex > 0 && sortedData[sortedIndex - 1] 
+            ? ((row.selfSufficiencyScore || 0) > (sortedData[sortedIndex - 1].selfSufficiencyScore || 0) ? 'up' : 'down')
             : 'up';
 
         tr.innerHTML = `
@@ -1036,9 +1039,12 @@ function exportToCSV() {
     const data = currentData;
     if (!data || data.length === 0) return;
 
+    // Sort data by date in descending order (newest first) for consistent export
+    const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+
     let csv = 'Date,Solar Energy (kWh),Grid Energy (kWh),Unavoidable Emissions (kg CO₂),Avoided Emissions (kg CO₂),Self-Sufficiency (%),Carbon Intensity (g/kWh)\n';
     
-    data.forEach(row => {
+    sortedData.forEach(row => {
         csv += `${row.date},${(row.solarEnergy || 0).toFixed(2)},${(row.gridEnergy || 0).toFixed(2)},${(row.unavoidableEmissions || 0).toFixed(2)},${(row.avoidedEmissions || 0).toFixed(2)},${(row.selfSufficiencyScore || 0).toFixed(1)},${row.carbonIntensity || 0}\n`;
     });
 
@@ -1060,6 +1066,9 @@ function exportToPDF() {
     const data = currentData;
     if (!data || data.length === 0) return;
 
+    // Sort data by date in descending order (newest first) for consistent export
+    const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+
     const stats = calculateStats(data);
     
     doc.setFontSize(20);
@@ -1077,7 +1086,7 @@ function exportToPDF() {
     doc.text(`Total Solar Energy: ${stats.solar.toFixed(2)} kWh`, 30, 115);
     doc.text(`Total Grid Energy: ${stats.grid.toFixed(2)} kWh`, 30, 125);
     
-    const tableData = data.slice(0, 20).map(row => [
+    const tableData = sortedData.slice(0, 20).map(row => [
         new Date(row.date).toLocaleDateString(),
         (row.solarEnergy || 0).toFixed(2),
         (row.gridEnergy || 0).toFixed(2),
