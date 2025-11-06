@@ -8,6 +8,7 @@ class AIChargingEngine {
     this.evaluationInterval = null;
     this.mqttClient = null;
     this.currentSystemState = null;
+    this.lastCommandState = new Map(); // Track last sent commands
     
     // Store configuration from server
     this.config = {
@@ -343,11 +344,8 @@ applyDecision(decision) {
     const inverterNumber = this.config.inverterNumber;
     const mqttTopicPrefix = this.config.mqttTopicPrefix;
     
-    let commandsQueued = 0; // Track commands queued, not sent
+    let commandsQueued = 0;
     let totalInverters = 0;
-    
-    console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s)`);
-    console.log(`   • MQTT Prefix: ${mqttTopicPrefix}`);
     
     // Apply to each inverter with type-aware mapping
     for (let i = 1; i <= inverterNumber; i++) {
@@ -357,53 +355,66 @@ applyDecision(decision) {
       if (inverterType === 'new' || inverterType === 'hybrid') {
         const settings = this.getOptimalChargingSettings(enableCharging);
         
-        // Send charger_source_priority command
+        // Check and send charger_source_priority command
         const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
-        this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
-          if (!err) {
-            await this.logCommand(chargerTopic, settings.chargerPriority, true);
-          } else {
-            console.error(`❌ Error publishing to ${chargerTopic}:`, err.message);
-            await this.logCommand(chargerTopic, settings.chargerPriority, false);
-          }
-        });
-        commandsQueued++; // Count immediately
+        if (this.shouldSendCommand(chargerTopic, settings.chargerPriority)) {
+          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
+            if (!err) {
+              this.lastCommandState.set(chargerTopic, settings.chargerPriority);
+              await this.logCommand(chargerTopic, settings.chargerPriority, true);
+            } else {
+              console.error(`❌ Error publishing to ${chargerTopic}:`, err.message);
+              await this.logCommand(chargerTopic, settings.chargerPriority, false);
+            }
+          });
+          commandsQueued++;
+        }
         
-        // Send output_source_priority command
+        // Check and send output_source_priority command
         const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
-        this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
-          if (!err) {
-            await this.logCommand(outputTopic, settings.outputPriority, true);
-          } else {
-            console.error(`❌ Error publishing to ${outputTopic}:`, err.message);
-            await this.logCommand(outputTopic, settings.outputPriority, false);
-          }
-        });
-        commandsQueued++; // Count immediately
+        if (this.shouldSendCommand(outputTopic, settings.outputPriority)) {
+          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
+            if (!err) {
+              this.lastCommandState.set(outputTopic, settings.outputPriority);
+              await this.logCommand(outputTopic, settings.outputPriority, true);
+            } else {
+              console.error(`❌ Error publishing to ${outputTopic}:`, err.message);
+              await this.logCommand(outputTopic, settings.outputPriority, false);
+            }
+          });
+          commandsQueued++;
+        }
         
-        console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
+        if (commandsQueued > 0) {
+          console.log(`🧠 AI Charging: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason}) for ${inverterId}`);
+        }
         totalInverters++;
       } else {
         // Use legacy grid_charge for legacy inverters
         const topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
-        const mqttValue = commandValue;
-        console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
-        
-        this.mqttClient.publish(topic, mqttValue.toString(), { qos: 1, retain: false }, async (err) => {
-          if (err) {
-            console.error(`❌ Error publishing to ${topic}: ${err.message}`);
-            await this.logCommand(topic, mqttValue, false);
-          } else {
-            await this.logCommand(topic, mqttValue, true);
-          }
-        });
-        commandsQueued++; // Count immediately
+        if (this.shouldSendCommand(topic, commandValue)) {
+          this.mqttClient.publish(topic, commandValue.toString(), { qos: 1, retain: false }, async (err) => {
+            if (err) {
+              console.error(`❌ Error publishing to ${topic}: ${err.message}`);
+              await this.logCommand(topic, commandValue, false);
+            } else {
+              this.lastCommandState.set(topic, commandValue);
+              await this.logCommand(topic, commandValue, true);
+            }
+          });
+          commandsQueued++;
+          console.log(`🔄 AI Charging: Legacy grid_charge "${commandValue}" for ${inverterId}`);
+        }
         totalInverters++;
       }
     }
     
-    const action = enableCharging ? 'enabled' : 'disabled';
-    console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands queued: ${commandsQueued}`);
+    if (commandsQueued > 0) {
+      const action = enableCharging ? 'enabled' : 'disabled';
+      console.log(`🤖 AI Charging: Grid charging ${action} for ${totalInverters} inverter(s) - Commands sent: ${commandsQueued}`);
+    } else {
+      console.log(`⏭️  AI Charging: Commands already active, skipping duplicate sends`);
+    }
     
     return commandsQueued > 0;
   } catch (error) {
@@ -429,6 +440,11 @@ applyDecision(decision) {
       console.error(`Error getting inverter type for ${inverterId}:`, error);
       return 'legacy';
     }
+  }
+
+  shouldSendCommand(topic, value) {
+    const lastValue = this.lastCommandState.get(topic);
+    return lastValue !== value;
   }
 
   getOptimalChargingSettings(enableCharging) {
