@@ -223,7 +223,7 @@ class InfluxAIService {
         SELECT current_price FROM ai_decisions 
         WHERE time >= '${startTime.toISOString()}' 
         AND current_price > 0
-        ORDER BY current_price ASC
+        ORDER BY time DESC
       `;
 
       const result = await this.influx.query(query);
