@@ -84,9 +84,9 @@
             </div>
         </div>
 
-        <!-- AI Status Row -->
+        <!-- AI Status and Price Info Row -->
         <div class="row">
-            <div class="col-12">
+            <div class="col-6">
                 <div class="card">
                     <div class="card-header">
                         <h5>
@@ -116,6 +116,20 @@
                                 <div class="stat-label">Decision Count:</div>
                                 <div class="stat-value" id="decisionCount">--</div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>
+                            <i class="fas fa-euro-sign me-2"></i>
+                            Tibber Price Info
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-row">
                             <div class="stat-item">
                                 <div class="stat-label">Current Price:</div>
                                 <div class="price-display">
@@ -134,16 +148,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Battery Charging and Price Info Row -->
-        <div class="row">
-            <div class="col-6">
-                <%- include('partials/battery-charging-gauge') %>
-            </div>
-            <div class="col-6">
-                <%- include('partials/price-chart') %>
             </div>
         </div>
 
@@ -322,11 +326,6 @@
         document.addEventListener('DOMContentLoaded', async function() {
             const dataRestored = await loadPersistedData();
             initializeCharts();
-            
-            // Initialize price chart
-            if (typeof initializePriceChart === 'function') {
-                initializePriceChart();
-            }
             
             // Show data status indicator
             if (dataRestored) {
@@ -594,7 +593,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Price (cent/kWh)',
+                        label: 'Price (€/kWh)',
                         data: [],
                         borderColor: '#e74c3c',
                         backgroundColor: 'rgba(231, 76, 60, 0.1)',
@@ -617,7 +616,7 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: 'Price (cent/kWh)'
+                                text: 'Price (€/kWh)'
                             }
                         }
                     },
@@ -685,55 +684,8 @@
                 await loadPriceData();
                 await loadAIDecisions();
                 await loadCommandHistory();
-                await loadBatteryChargingData();
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
-            }
-        }
-        
-        // Load battery charging data
-        async function loadBatteryChargingData() {
-            const result = await safeFetch('<%= ingress_path %>/api/battery/charging-history?hours=24&limit=10');
-            
-            if (result.rateLimited || !result.success) {
-                return; // Skip silently if rate limited or failed
-            }
-            
-            const data = result.data;
-            if (data.success && data.data) {
-                const chargingData = data.data;
-                const stats = chargingData.statistics;
-                
-                // Format last charge time
-                let lastChargeTimeFormatted = '--';
-                if (stats.lastChargeTime) {
-                    const lastCharge = new Date(stats.lastChargeTime);
-                    const now = new Date();
-                    const diffHours = Math.floor((now - lastCharge) / (1000 * 60 * 60));
-                    const diffMinutes = Math.floor((now - lastCharge) / (1000 * 60));
-                    
-                    if (diffHours > 0) {
-                        lastChargeTimeFormatted = `${diffHours} hours ago`;
-                    } else {
-                        lastChargeTimeFormatted = `${diffMinutes} minutes ago`;
-                    }
-                }
-                
-                // Get current price for cost calculation
-                const currentPriceElement = document.getElementById('currentPrice');
-                const currentPriceText = currentPriceElement ? currentPriceElement.textContent : '28 cent';
-                const currentPrice = parseFloat(currentPriceText.replace(/[^0-9.]/g, '')) || 28;
-                
-                // Calculate estimated energy added (assuming 45 min charge at avg power)
-                const estimatedEnergyAdded = (stats.avgChargingPower * 0.75) / 1000; // 45 min = 0.75 hours
-                
-                updateChargingInfo({
-                    lastChargeTime: lastChargeTimeFormatted,
-                    chargeCost: currentPrice.toFixed(2),
-                    lastGridCharge: lastChargeTimeFormatted,
-                    chargeDuration: '45 min',
-                    energyAdded: estimatedEnergyAdded.toFixed(1)
-                });
             }
         }
 
@@ -818,20 +770,12 @@
                 const tibberData = data.data;
                 
                 if (tibberData.currentPrice) {
-                    const currentPrice = tibberData.currentPrice.total.toFixed(2);
-                    document.getElementById('currentPrice').textContent = `${currentPrice} cent`;
+                    document.getElementById('currentPrice').textContent = 
+                        `${tibberData.currentPrice.total.toFixed(2)} ${tibberData.currentPrice.currency}`;
                     
                     const levelElement = document.getElementById('priceLevel');
                     levelElement.textContent = tibberData.currentPrice.level || 'NORMAL';
                     levelElement.className = `price-indicator price-${(tibberData.currentPrice.level || 'normal').toLowerCase().replace('_', '-')}`;
-                    
-                    // Update price chart component
-                    const now = new Date();
-                    const timeRange = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} - ${(now.getHours()).toString().padStart(2, '0')}:${(now.getMinutes() + 15).toString().padStart(2, '0')}`;
-                    
-                    if (typeof updateCurrentPrice === 'function') {
-                        updateCurrentPrice(currentPrice, timeRange, tibberData.forecast ? (tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length).toFixed(2) : '31');
-                    }
                 }
                 
                 if (tibberData.config && tibberData.config.enabled) {
@@ -840,20 +784,11 @@
                     if (tibberData.forecast && tibberData.forecast.length > 0) {
                         const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
                         document.getElementById('averagePrice').textContent = 
-                            `${avgPrice.toFixed(2)} cent`;
+                            `${avgPrice.toFixed(2)} €`;
                     }
                 } else {
                     document.getElementById('priceStatus').textContent = 'Not configured';
                 }
-                
-                // Update charging info with sample data (replace with real data)
-                updateChargingInfo({
-                    lastChargeTime: '02:30 - 02:45',
-                    chargeCost: tibberData.currentPrice ? tibberData.currentPrice.total.toFixed(2) : '28',
-                    lastGridCharge: '2 hours ago',
-                    chargeDuration: '45 min',
-                    energyAdded: '12.5'
-                });
             } else {
                 document.getElementById('currentPrice').textContent = '--';
                 document.getElementById('averagePrice').textContent = '--';
@@ -876,7 +811,7 @@
             }
             
             const data = result.data;
-            if (data.success && data.data && data.data.forecast && Array.isArray(data.data.forecast) && data.data.forecast.length > 0) {
+            if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
                 updatePriceChart(data.data.forecast);
                 updatePriceLevelChart(data.data.forecast);
             } else {
@@ -1001,9 +936,6 @@
             
             systemChart.update('none');
             
-            // Update battery gauge
-            updateBatteryGauge(state.battery_soc || 0);
-            
             // Save to localStorage for persistence
             saveDataToStorage();
         }
@@ -1043,33 +975,18 @@
 
         // Update price chart
         function updatePriceChart(forecast) {
-            if (!priceChart || !forecast || !Array.isArray(forecast)) {
-                return;
-            }
-            
             const labels = [];
             const prices = [];
             
             forecast.forEach(item => {
-                if (item && item.startsAt && item.total !== undefined) {
-                    const date = new Date(item.startsAt);
-                    labels.push(date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
-                    prices.push(item.total);
-                }
+                const date = new Date(item.startsAt);
+                labels.push(date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+                prices.push(item.total);
             });
             
-            if (labels.length > 0) {
-                priceChart.data.labels = labels;
-                priceChart.data.datasets[0].data = prices;
-                priceChart.update();
-                
-                // Also update the price trends chart with same data
-                if (typeof priceHistoryChart !== 'undefined' && priceHistoryChart) {
-                    priceHistoryChart.data.labels = labels;
-                    priceHistoryChart.data.datasets[0].data = prices;
-                    priceHistoryChart.update();
-                }
-            }
+            priceChart.data.labels = labels;
+            priceChart.data.datasets[0].data = prices;
+            priceChart.update();
         }
 
         // Update price level chart
@@ -1134,7 +1051,6 @@
             setTimeout(() => loadTibberData(), 3000);
             setTimeout(() => loadAIDecisions(), 4000);
             setTimeout(() => loadCommandHistory(), 5000);
-            setTimeout(() => loadBatteryChargingData(), 6000);
             
             // Set up regular refresh with longer intervals
             refreshInterval = setInterval(() => {
@@ -1143,7 +1059,6 @@
                 setTimeout(() => loadTibberData(), 4000);
                 setTimeout(() => loadAIDecisions(), 6000);
                 setTimeout(() => loadCommandHistory(), 8000);
-                setTimeout(() => loadBatteryChargingData(), 10000);
             }, 45000); // Refresh every 45 seconds instead of 30
         }
 
@@ -1224,61 +1139,6 @@
                     notification.remove();
                 }
             }, 5000);
-        }
-        
-        // Update battery gauge
-        function updateBatteryGauge(percentage) {
-            const gaugeProgress = document.getElementById('gaugeProgress');
-            const batteryPercentage = document.getElementById('batteryPercentage');
-            
-            if (gaugeProgress && batteryPercentage) {
-                const circumference = 534.07; // 2 * π * 85
-                const offset = circumference - (percentage / 100) * circumference;
-                
-                gaugeProgress.style.strokeDashoffset = offset;
-                batteryPercentage.textContent = Math.round(percentage);
-                
-                // Update gauge color based on battery level
-                if (percentage < 20) {
-                    gaugeProgress.style.stroke = '#e74c3c';
-                } else if (percentage < 50) {
-                    gaugeProgress.style.stroke = '#f39c12';
-                } else {
-                    gaugeProgress.style.stroke = '#27ae60';
-                }
-            }
-        }
-        
-        // Update charging information
-        function updateChargingInfo(data) {
-            // Update last charge time
-            const lastChargeTime = document.getElementById('lastChargeTime');
-            if (lastChargeTime && data.lastChargeTime) {
-                lastChargeTime.textContent = data.lastChargeTime;
-            }
-            
-            // Update charge cost
-            const chargeCost = document.getElementById('chargeCost');
-            if (chargeCost && data.chargeCost) {
-                chargeCost.textContent = data.chargeCost + ' cent';
-            }
-            
-            // Update charging details
-            const lastGridCharge = document.getElementById('lastGridCharge');
-            const chargeDuration = document.getElementById('chargeDuration');
-            const energyAdded = document.getElementById('energyAdded');
-            
-            if (lastGridCharge && data.lastGridCharge) {
-                lastGridCharge.textContent = data.lastGridCharge;
-            }
-            
-            if (chargeDuration && data.chargeDuration) {
-                chargeDuration.textContent = data.chargeDuration;
-            }
-            
-            if (energyAdded && data.energyAdded) {
-                energyAdded.textContent = data.energyAdded + ' kWh';
-            }
         }
 
         // Manual refresh chart data
