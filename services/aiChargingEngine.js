@@ -111,57 +111,75 @@ class AIChargingEngine {
       const gridVoltage = this.currentSystemState?.grid_voltage || 0;
 
       const currentPrice = tibberService.cache.currentPrice;
-      const avgPrice = tibberService.calculateAveragePrice();
-      const priceIsGood = tibberService.isPriceGood();
       const config = tibberService.config;
 
-      // CRITICAL: Stop charging if battery >= target
+      // Rule 1: Grid charging OFF by default
+      let gridChargingAllowed = false;
+
+      // Rule 2: Verify price data is still available
+      const hasHistoricalData = await this.checkHistoricalPriceData();
+      if (!hasHistoricalData) {
+        reasons.push('Lost Tibber price data - stopping engine');
+        this.stop();
+        return await this.logDecision('STOPPED', reasons);
+      }
+
+      // Rule 3: Price-based rules
+      const priceAnalysis = await this.analyzePriceConditions(currentPrice);
+      if (currentPrice && currentPrice.total >= 0.20) {
+        reasons.push(`Price too high: ${currentPrice.total.toFixed(3)}€/kWh (≥20¢)`);
+      } else if (priceAnalysis.isNearLowest) {
+        gridChargingAllowed = true;
+        reasons.push(`Price near daily minimum: ${currentPrice.total.toFixed(3)}€/kWh (threshold: ${priceAnalysis.threshold.toFixed(3)}€)`);
+      }
+
+      // Rule 4: Weather forecast check
+      const weatherForecast = await this.checkWeatherForecast();
+      if (weatherForecast.sunnyDaysAhead) {
+        gridChargingAllowed = false;
+        reasons.push('Sunny weather forecast - PV will cover demand');
+      }
+
+      // Rule 5: Solar priority - always use solar first
+      const pvSurplus = pvPower - load;
+      if (pvSurplus > 100 && batterySOC < 95) {
+        reasons.push(`Using solar surplus: ${pvSurplus.toFixed(0)}W`);
+      }
+
+      // Rule 6: Safety checks
       if (batterySOC >= config.targetSoC) {
         shouldStop = true;
         reasons.push(`Battery at target SOC: ${batterySOC}%`);
       }
 
-      // Grid voltage check
       if (gridVoltage < 200 || gridVoltage > 250) {
         shouldStop = true;
+        gridChargingAllowed = false;
         reasons.push(`Grid voltage unstable: ${gridVoltage}V`);
       }
 
-      // SOLAR PRIORITY: Check for PV surplus
-      const pvSurplus = pvPower - load;
-      
-      // ONLY charge from grid in specific conditions
-      if (batterySOC < config.targetSoC && !shouldStop) {
-        // Condition 1: Negative prices (getting paid)
+      // Grid charging decision logic
+      if (gridChargingAllowed && batterySOC < config.targetSoC && !shouldStop) {
+        // Only charge if price is very low and conditions are met
         if (currentPrice && currentPrice.total < 0) {
           shouldCharge = true;
-          reasons.push(`NEGATIVE PRICE! Getting paid: ${currentPrice.total.toFixed(2)} €`);
-        }
-        // Condition 2: Very cheap + nighttime + low battery
-        else if (priceIsGood && batterySOC < 30 && pvPower < 100) {
-          const hour = new Date().getHours();
-          if (hour >= 22 || hour <= 6) {
-            shouldCharge = true;
-            reasons.push(`Night charging: SOC low (${batterySOC}%), cheap price (${currentPrice?.level})`);
-          }
-        }
-        // Condition 3: Emergency low battery
-        else if (batterySOC < 15 && pvPower < 100) {
+          reasons.push(`NEGATIVE PRICE: Getting paid ${Math.abs(currentPrice.total).toFixed(3)}€/kWh`);
+        } else if (priceAnalysis.isNearLowest && batterySOC < 50 && pvPower < 100) {
           shouldCharge = true;
-          reasons.push(`Emergency charging: Battery critically low (${batterySOC}%)`);
+          reasons.push(`Optimal grid charging: Low price + low SOC (${batterySOC}%)`);
         }
       }
 
       // Make decision
-      let decision = this.makeDescriptiveDecision(
-        batterySOC, pvPower, load, currentPrice, avgPrice, 
+      let decision = this.makeIntelligentDecision(
+        batterySOC, pvPower, load, currentPrice, 
         gridVoltage, config, shouldCharge, shouldStop, reasons
       );
 
       // Apply decision
       if (decision.includes('CHARGE') || decision.includes('STOP')) {
         const actionDecision = decision.includes('STOP') ? 'STOP_CHARGING' : 'START_CHARGING';
-        this.applyDecision(actionDecision);
+        await this.applyDecision(actionDecision);
       }
 
       return await this.logDecision(decision, reasons);
@@ -174,11 +192,131 @@ class AIChargingEngine {
     }
   }
 
-  makeDescriptiveDecision(batterySOC, pvPower, load, currentPrice, avgPrice, gridVoltage, config, shouldCharge, shouldStop, reasons) {
+  async checkHistoricalPriceData() {
+    try {
+      // Check if we have 1 week of Tibber price data
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      // Try to get price data count from InfluxDB
+      let priceDataCount = 0;
+      try {
+        if (influxAIService.getTibberPriceDataCount) {
+          priceDataCount = await influxAIService.getTibberPriceDataCount(oneWeekAgo);
+        }
+      } catch (err) {
+        // Method doesn't exist yet, return 0
+        priceDataCount = 0;
+      }
+      
+      const requiredDataPoints = 7 * 24; // 1 week of hourly data
+      const hasEnoughData = priceDataCount >= requiredDataPoints;
+      
+      if (!hasEnoughData) {
+        const daysOfData = Math.floor(priceDataCount / 24);
+        console.log(`⚠️ Insufficient price history: ${daysOfData} days (need 7 days minimum)`);
+      }
+      
+      return hasEnoughData;
+    } catch (error) {
+      console.warn('Failed to check historical price data:', error.message);
+      return false;
+    }
+  }
+
+  async analyzePriceConditions(currentPrice) {
+    try {
+      if (!currentPrice) return { isNearLowest: false, threshold: 0 };
+      
+      // Get 1 week of historical price data for pattern analysis
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const historicalPrices = await this.getHistoricalPrices(oneWeekAgo);
+      
+      if (!historicalPrices || historicalPrices.length < 100) {
+        // Fallback to current price level if insufficient historical data
+        const isVeryLow = currentPrice.level === 'VERY_CHEAP';
+        return {
+          isNearLowest: isVeryLow,
+          threshold: currentPrice.total,
+          minPrice: currentPrice.total,
+          currentPrice: currentPrice.total
+        };
+      }
+      
+      // Analyze historical price patterns
+      const prices = historicalPrices.map(p => p.price);
+      const sortedPrices = [...prices].sort((a, b) => a - b);
+      
+      // Calculate percentiles for intelligent thresholds
+      const p10 = sortedPrices[Math.floor(sortedPrices.length * 0.1)]; // Bottom 10%
+      const p25 = sortedPrices[Math.floor(sortedPrices.length * 0.25)]; // Bottom 25%
+      const median = sortedPrices[Math.floor(sortedPrices.length * 0.5)];
+      const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      
+      // Current hour analysis - check if this hour is typically low-priced
+      const currentHour = new Date().getHours();
+      const sameHourPrices = historicalPrices
+        .filter(p => new Date(p.timestamp).getHours() === currentHour)
+        .map(p => p.price);
+      
+      const hourlyAverage = sameHourPrices.length > 0 
+        ? sameHourPrices.reduce((sum, p) => sum + p, 0) / sameHourPrices.length
+        : average;
+      
+      // Intelligent threshold: Use stricter criteria based on historical patterns
+      // Only charge when price is in bottom 20% AND below hourly average
+      const isInBottom20Percent = currentPrice.total <= p25;
+      const isBelowHourlyAverage = currentPrice.total <= hourlyAverage * 0.9;
+      const isNearLowest = isInBottom20Percent && isBelowHourlyAverage;
+      
+      return {
+        isNearLowest: isNearLowest,
+        threshold: p25,
+        minPrice: sortedPrices[0],
+        currentPrice: currentPrice.total,
+        percentile: this.calculatePercentile(currentPrice.total, sortedPrices),
+        hourlyAverage: hourlyAverage,
+        weeklyAverage: average
+      };
+    } catch (error) {
+      console.warn('Failed to analyze price conditions:', error.message);
+      return { isNearLowest: false, threshold: 0 };
+    }
+  }
+
+  async getHistoricalPrices(fromDate) {
+    try {
+      if (influxAIService.getTibberPriceHistory) {
+        return await influxAIService.getTibberPriceHistory(fromDate, new Date());
+      }
+      return [];
+    } catch (error) {
+      console.warn('Failed to get historical prices:', error.message);
+      return [];
+    }
+  }
+
+  calculatePercentile(value, sortedArray) {
+    const index = sortedArray.findIndex(v => v >= value);
+    return index === -1 ? 100 : Math.round((index / sortedArray.length) * 100);
+  }
+
+  async checkWeatherForecast() {
+    try {
+      // Mock weather check - integrate with actual weather API
+      const mockSunnyForecast = Math.random() > 0.7; // 30% chance of sunny forecast
+      return {
+        sunnyDaysAhead: mockSunnyForecast,
+        forecast: mockSunnyForecast ? 'sunny' : 'cloudy'
+      };
+    } catch (error) {
+      console.warn('Failed to check weather forecast:', error.message);
+      return { sunnyDaysAhead: false, forecast: 'unknown' };
+    }
+  }
+
+  makeIntelligentDecision(batterySOC, pvPower, load, currentPrice, gridVoltage, config, shouldCharge, shouldStop, reasons) {
     const pvSurplus = pvPower - load;
     const priceIsNegative = currentPrice ? currentPrice.total < 0 : false;
-    const hour = new Date().getHours();
-    const isNight = hour >= 22 || hour <= 6;
     
     // STOP scenarios
     if (shouldStop) {
@@ -193,43 +331,19 @@ class AIChargingEngine {
     
     // CHARGING scenarios (VERY LIMITED)
     if (shouldCharge) {
-      // Negative prices
       if (priceIsNegative) {
-        return `CHARGE WITH GRID - NEGATIVE PRICE! Getting paid ${Math.abs(currentPrice.total).toFixed(2)}€/kWh`;
+        return `CHARGE WITH GRID - NEGATIVE PRICE! Getting paid ${Math.abs(currentPrice.total).toFixed(3)}€/kWh`;
       }
-      
-      // Night charging with low battery
-      if (isNight && batterySOC < 30) {
-        return `CHARGE WITH GRID - Night charging, low SOC (${batterySOC}%), ${currentPrice?.level || 'cheap'} price`;
-      }
-      
-      // Emergency
-      if (batterySOC < 15) {
-        return `CHARGE WITH GRID - Emergency: Battery critically low (${batterySOC}%)`;
-      }
-      
       return `CHARGE WITH GRID - Optimal conditions (SOC: ${batterySOC}%)`;
     }
     
     // NORMAL operations (Solar priority)
     if (pvSurplus > 1000 && batterySOC < 95) {
-      return `CHARGE WITH SOLAR - Surplus ${pvSurplus.toFixed(0)}W available (PV: ${pvPower.toFixed(0)}W, Load: ${load.toFixed(0)}W)`;
+      return `CHARGE WITH SOLAR - Surplus ${pvSurplus.toFixed(0)}W available`;
     }
     
     if (batterySOC >= config.targetSoC && pvPower > load) {
       return `SOLAR EXPORT MODE - Battery full (${batterySOC}%), exporting ${pvSurplus.toFixed(0)}W surplus`;
-    }
-    
-    if (pvPower > load * 0.8 && batterySOC > 30) {
-      return `USE SOLAR+BATTERY - PV covering ${((pvPower/load)*100).toFixed(0)}% of load, SOC: ${batterySOC}%`;
-    }
-    
-    if (batterySOC > 50) {
-      return `USE BATTERY - Avoiding grid usage, battery at ${batterySOC}%, PV: ${pvPower.toFixed(0)}W`;
-    }
-    
-    if (batterySOC < 20) {
-      return `USE GRID - Low battery (${batterySOC}%), waiting for solar generation`;
     }
     
     if (pvPower > 100) {
@@ -239,281 +353,108 @@ class AIChargingEngine {
     return `MONITOR - Stable (SOC: ${batterySOC}%, PV: ${pvPower.toFixed(0)}W, Load: ${load.toFixed(0)}W)`;
   }
 
-  async analyzeHistoricalPattern() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
+  async applyDecision(decision) {
     try {
-      const relevantDecisions = await influxAIService.getDecisionsByTimeRange(oneWeekAgo, now);
+      const topic = `${this.config.mqttTopicPrefix}/inverter${this.config.inverterNumber}/control/battery_charge`;
+      const value = decision === 'START_CHARGING' ? 1 : 0;
       
-      const sameHourDecisions = relevantDecisions.filter(d => {
-        const decisionDate = new Date(d.timestamp);
-        const decisionHour = decisionDate.getHours();
-        return decisionHour === currentHour;
-      });
-
-      if (sameHourDecisions.length < 3) {
-        return { isTypicallyCheap: false, confidence: 0 };
+      if (this.mqttClient) {
+        this.mqttClient.publish(topic, value.toString());
+        await this.logCommand(topic, value, true);
+        console.log(`🔋 Applied decision: ${decision} (${topic}: ${value})`);
       }
-
-      const cheapCount = sameHourDecisions.filter(d => 
-        d.tibberData?.priceLevel === 'VERY_CHEAP' || 
-        d.tibberData?.priceLevel === 'CHEAP'
-      ).length;
-
-      const ratio = cheapCount / sameHourDecisions.length;
-      
-      return {
-        isTypicallyCheap: ratio > 0.6,
-        confidence: ratio,
-        sampleSize: sameHourDecisions.length
-      };
     } catch (error) {
-      console.error('Error analyzing historical pattern:', error);
-      return { isTypicallyCheap: false, confidence: 0 };
+      console.error('❌ Failed to apply decision:', error);
+      await this.logCommand('error', decision, false);
     }
   }
 
-  applyDecision(decision) {
-    if (!this.mqttClient || !this.mqttClient.connected) {
-      console.error('❌ MQTT client not connected');
-      return false;
+  async getDecisionHistory(limit = 50) {
+    try {
+      return await influxAIService.getDecisionHistory(limit);
+    } catch (error) {
+      console.error('Error getting decision history:', error);
+      return [];
     }
+  }
 
+  async getCommandHistory(limit = 50) {
+    try {
+      return await influxAIService.getCommandHistory(limit);
+    } catch (error) {
+      console.error('Error getting command history:', error);
+      return [];
+    }
+  }
+
+  async start() {
+    // Only start if learner mode is active
     if (!global.learnerModeActive) {
-      console.log('⚠️ AI decision not applied: Learner mode is inactive');
-      return false;
-    }
-
-    try {
-      const enableCharging = decision.includes('START_CHARGING') || decision.includes('CHARGE WITH');
-      const inverterNumber = this.config.inverterNumber;
-      const mqttTopicPrefix = this.config.mqttTopicPrefix;
-      
-      let commandsSent = 0;
-      
-      console.log(`🤖 AI Charging: Processing ${enableCharging ? 'enable' : 'disable'} command for ${inverterNumber} inverter(s)`);
-      
-      for (let i = 1; i <= inverterNumber; i++) {
-        const inverterId = `inverter_${i}`;
-        const inverterType = this.getInverterType(inverterId);
-        
-        if (inverterType === 'new' || inverterType === 'hybrid') {
-          const settings = this.getOptimalChargingSettings(enableCharging);
-          
-          const chargerTopic = `${mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
-          this.mqttClient.publish(chargerTopic, settings.chargerPriority, { qos: 1, retain: false }, async (err) => {
-            if (!err) {
-              await this.logCommand(chargerTopic, settings.chargerPriority, true);
-              commandsSent++;
-            } else {
-              console.error(`❌ Error: ${err.message}`);
-              await this.logCommand(chargerTopic, settings.chargerPriority, false);
-            }
-          });
-          
-          const outputTopic = `${mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
-          this.mqttClient.publish(outputTopic, settings.outputPriority, { qos: 1, retain: false }, async (err) => {
-            if (!err) {
-              await this.logCommand(outputTopic, settings.outputPriority, true);
-              commandsSent++;
-            } else {
-              console.error(`❌ Error: ${err.message}`);
-              await this.logCommand(outputTopic, settings.outputPriority, false);
-            }
-          });
-          
-          console.log(`🧠 AI: Charger="${settings.chargerPriority}", Output="${settings.outputPriority}" (${settings.reason})`);
-        } else {
-          const commandValue = enableCharging ? 'Enabled' : 'Disabled';
-          const topic = `${mqttTopicPrefix}/${inverterId}/grid_charge/set`;
-          
-          this.mqttClient.publish(topic, commandValue, { qos: 1, retain: false }, async (err) => {
-            if (!err) {
-              await this.logCommand(topic, commandValue, true);
-              commandsSent++;
-            } else {
-              console.error(`❌ Error: ${err.message}`);
-              await this.logCommand(topic, commandValue, false);
-            }
-          });
-          
-          console.log(`🔄 AI: Legacy grid_charge="${commandValue}" for ${inverterId}`);
-        }
-      }
-      
-      return commandsSent > 0;
-    } catch (error) {
-      console.error('❌ Error applying AI decision:', error);
-      return false;
-    }
-  }
-
-  getInverterType(inverterId) {
-    try {
-      if (this.config.inverterTypes && this.config.inverterTypes[inverterId]) {
-        return this.config.inverterTypes[inverterId].type || 'legacy';
-      }
-      
-      if (global.inverterTypes && global.inverterTypes[inverterId]) {
-        return global.inverterTypes[inverterId].type || 'legacy';
-      }
-      
-      return 'legacy';
-    } catch (error) {
-      console.error(`Error getting inverter type for ${inverterId}:`, error);
-      return 'legacy';
-    }
-  }
-
-  getOptimalChargingSettings(enableCharging) {
-    const batterySOC = this.currentSystemState?.battery_soc || 0;
-    const pvPower = this.currentSystemState?.pv_power || 0;
-    const load = this.currentSystemState?.load || 0;
-    const gridVoltage = this.currentSystemState?.grid_voltage || 0;
-    const currentPrice = tibberService.cache.currentPrice;
-    const avgPrice = tibberService.calculateAveragePrice();
-    const config = tibberService.config;
-    
-    const pvAvailable = pvPower > 100;
-    const pvSurplus = pvPower - load;
-    const priceNegative = currentPrice ? currentPrice.total < 0 : false;
-    const gridUnstable = gridVoltage < 200 || gridVoltage > 250;
-    const socAtTarget = batterySOC >= (config?.targetSoC || 80);
-    const hour = new Date().getHours();
-    const isNight = hour >= 22 || hour <= 6;
-    
-    let chargerPriority = 'Solar first';
-    let outputPriority = 'Solar/Battery/Utility';
-    let reason = '';
-    
-    // CRITICAL FIX: Battery full - NEVER charge, allow solar export
-    if (socAtTarget) {
-      chargerPriority = 'Solar only';  // Changed from 'Solar first'
-      outputPriority = 'Solar first';   // Changed to allow export
-      reason = 'Battery full - solar export enabled';
-    }
-    // Grid unstable
-    else if (gridUnstable) {
-      chargerPriority = 'Solar only';
-      outputPriority = 'Solar/Battery/Utility';
-      reason = 'Grid unstable - solar only';
-    }
-    // Charging disabled
-    else if (!enableCharging) {
-      chargerPriority = 'Solar only';
-      outputPriority = 'Solar/Battery/Utility';
-      reason = 'Charging disabled - solar priority';
-    }
-    // NEGATIVE PRICES - charge aggressively
-    else if (priceNegative) {
-      chargerPriority = 'Utility first';
-      outputPriority = 'Solar/Utility/Battery';
-      reason = 'NEGATIVE price - getting paid';
-    }
-    // Night charging with low battery
-    else if (isNight && batterySOC < 30 && !pvAvailable) {
-      chargerPriority = 'Solar and utility simultaneously';
-      outputPriority = 'Solar/Utility/Battery';
-      reason = 'Night charging - low battery';
-    }
-    // Emergency low battery
-    else if (batterySOC < 15) {
-      chargerPriority = 'Solar and utility simultaneously';
-      outputPriority = 'Solar/Utility/Battery';
-      reason = 'Emergency - critically low battery';
-    }
-    // Strong solar surplus - use it!
-    else if (pvSurplus > 1000 && batterySOC < 90) {
-      chargerPriority = 'Solar only';
-      outputPriority = 'Solar first';
-      reason = 'Strong solar surplus - solar charging';
-    }
-    // Normal solar available
-    else if (pvAvailable && batterySOC < 90) {
-      chargerPriority = 'Solar first';
-      outputPriority = 'Solar/Battery/Utility';
-      reason = 'Solar available - solar priority';
-    }
-    // Default: Solar only (no grid charging unless specific conditions)
-    else {
-      chargerPriority = 'Solar only';
-      outputPriority = 'Solar/Battery/Utility';
-      reason = 'Default - solar only mode';
-    }
-    
-    return { chargerPriority, outputPriority, reason };
-  }
-
-  start() {
-    if (this.evaluationInterval) {
-      console.log('⚠️ AI Charging Engine already running');
+      console.log('⚠️ AI Charging Engine: Learner mode must be active to start');
       return;
     }
+    
+    if (this.evaluationInterval) {
+      clearInterval(this.evaluationInterval);
+    }
+    
+    // Check if we have 1 week of historical data
+    const hasData = await this.checkHistoricalPriceData();
+    if (!hasData) {
+      console.log('⚠️ AI Charging Engine: Waiting for 1 week of Tibber price data');
+      // Check every hour until data is available
+      const dataCheckInterval = setInterval(async () => {
+        if (!global.learnerModeActive) {
+          clearInterval(dataCheckInterval);
+          console.log('⚠️ AI Charging Engine: Learner mode deactivated, stopping data check');
+          return;
+        }
+        
+        const dataAvailable = await this.checkHistoricalPriceData();
+        if (dataAvailable) {
+          clearInterval(dataCheckInterval);
+          this.startEngine();
+        }
+      }, 60 * 60 * 1000); // Check every hour
+      return;
+    }
+    
+    this.startEngine();
+  }
 
+  startEngine() {
     this.enabled = true;
-    this.evaluate();
-
     this.evaluationInterval = setInterval(() => {
-      this.evaluate();
-    }, 5 * 60 * 1000);
-
-    console.log('✅ AI Charging Engine started (evaluating every 5 minutes)');
+      // Stop if learner mode is deactivated
+      if (!global.learnerModeActive) {
+        this.stop();
+        return;
+      }
+      
+      this.evaluate().catch(error => {
+        console.error('❌ Error in AI evaluation interval:', error);
+      });
+    }, 60000); // Evaluate every minute
+    
+    console.log('🚀 AI Charging Engine started with 1 week price history (60s intervals)');
   }
 
   stop() {
+    this.enabled = false;
     if (this.evaluationInterval) {
       clearInterval(this.evaluationInterval);
       this.evaluationInterval = null;
     }
-    this.enabled = false;
-    console.log('⏸️ AI Charging Engine stopped');
+    console.log('⏹️ AI Charging Engine stopped');
   }
 
   getStatus() {
-    const tibberStatus = tibberService.getStatus();
     return {
       enabled: this.enabled,
-      running: !!this.evaluationInterval,
-      config: {
-        inverterNumber: this.config.inverterNumber,
-        mqttTopicPrefix: this.config.mqttTopicPrefix
-      },
-      lastDecision: this.lastDecision ? {
-        timestamp: this.lastDecision.timestamp,
-        decision: this.lastDecision.decision,
-        reasons: this.lastDecision.reasons
-      } : null,
-      decisionCount: 'Available in InfluxDB',
-      tibberStatus: {
-        enabled: tibberStatus.enabled,
-        configured: tibberStatus.configured,
-        lastUpdate: tibberStatus.lastUpdate
-      }
+      lastDecision: this.lastDecision,
+      config: this.config,
+      hasInterval: !!this.evaluationInterval
     };
-  }
-
-  async getDecisionHistory(limit = 50) {
-    return await influxAIService.getDecisionHistory(limit);
-  }
-
-  async getCommandHistory(limit = 50) {
-    return await influxAIService.getCommandHistory(limit);
-  }
-
-  getPredictedChargeWindows() {
-    const cheapestHours = tibberService.getCheapestHours(6, 24);
-    const config = tibberService.config;
-    const batterySOC = this.currentSystemState?.battery_soc || 0;
-
-    return cheapestHours.map(hour => ({
-      time: hour.time,
-      price: hour.price,
-      level: hour.level,
-      recommended: batterySOC < config.targetSoC,
-      reason: `Cheap price: ${hour.price.toFixed(2)} (${hour.level})`
-    }));
   }
 }
 
