@@ -850,40 +850,36 @@ function updateEnergyChart(data) {
     const labels = data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     
     charts['energy'] = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Solar Energy (kWh)',
                 data: data.map(d => d.solarEnergy || 0),
                 borderColor: '#38f9d7',
-                backgroundColor: 'rgba(56, 249, 215, 0.1)',
-                fill: true,
-                tension: 0.4,
+                backgroundColor: 'rgba(56, 249, 215, 0.8)',
+                borderWidth: 1,
                 yAxisID: 'y'
             }, {
                 label: 'Grid Energy (kWh)',
                 data: data.map(d => d.gridEnergy || 0),
                 borderColor: '#4facfe',
-                backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                fill: true,
-                tension: 0.4,
+                backgroundColor: 'rgba(79, 172, 254, 0.8)',
+                borderWidth: 1,
                 yAxisID: 'y'
             }, {
                 label: 'Unavoided Emissions (kg CO₂)',
                 data: data.map(d => d.unavoidableEmissions || 0),
                 borderColor: '#f5576c',
-                backgroundColor: 'rgba(245, 87, 108, 0.1)',
-                fill: false,
-                tension: 0.4,
+                backgroundColor: 'rgba(245, 87, 108, 0.8)',
+                borderWidth: 1,
                 yAxisID: 'y1'
             }, {
                 label: 'Avoided Emissions (kg CO₂)',
                 data: data.map(d => d.avoidedEmissions || 0),
                 borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                fill: false,
-                tension: 0.4,
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderWidth: 1,
                 yAxisID: 'y1'
             }]
         },
