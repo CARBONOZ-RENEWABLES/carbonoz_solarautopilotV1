@@ -391,7 +391,7 @@ class AIChargingEngine {
     // Only start if learner mode is active
     if (!global.learnerModeActive) {
       console.log('⚠️ AI Charging Engine: Learner mode must be active to start');
-      return;
+      return { success: false, message: 'Learner mode must be active to start AI engine' };
     }
     
     if (this.evaluationInterval) {
@@ -420,6 +420,7 @@ class AIChargingEngine {
     }
     
     this.startEngine();
+    return { success: true, message: 'AI Charging Engine started successfully' };
   }
 
   startEngine() {
@@ -437,6 +438,7 @@ class AIChargingEngine {
     }, 60000); // Evaluate every minute
     
     console.log('🚀 AI Charging Engine started with 1 week price history (60s intervals)');
+    return { success: true, message: 'AI Charging Engine started successfully' };
   }
 
   stop() {
@@ -446,6 +448,7 @@ class AIChargingEngine {
       this.evaluationInterval = null;
     }
     console.log('⏹️ AI Charging Engine stopped');
+    return { success: true, message: 'AI Charging Engine stopped successfully' };
   }
 
   getStatus() {

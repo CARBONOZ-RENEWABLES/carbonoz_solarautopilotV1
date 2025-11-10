@@ -2700,17 +2700,24 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
   });
 
   // AI Engine Control Endpoints
-  app.post('/api/ai/start', (req, res) => {
+  app.post('/api/ai/start', async (req, res) => {
     try {
       if (!aiChargingEngine) {
         return res.status(500).json({ error: 'AI Charging Engine not available' });
       }
       
-      aiChargingEngine.start();
+      const result = await aiChargingEngine.start();
+      
+      if (result && !result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.message || 'Failed to start AI engine'
+        });
+      }
       
       res.json({
         success: true,
-        message: 'AI Charging Engine started successfully',
+        message: result?.message || 'AI Charging Engine started successfully',
         status: aiChargingEngine.getStatus()
       });
     } catch (error) {
@@ -2725,11 +2732,11 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
         return res.status(500).json({ error: 'AI Charging Engine not available' });
       }
       
-      aiChargingEngine.stop();
+      const result = aiChargingEngine.stop();
       
       res.json({
         success: true,
-        message: 'AI Charging Engine stopped successfully',
+        message: result?.message || 'AI Charging Engine stopped successfully',
         status: aiChargingEngine.getStatus()
       });
     } catch (error) {
@@ -2738,25 +2745,35 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   });
 
-  app.post('/api/ai/toggle', (req, res) => {
+  app.post('/api/ai/toggle', async (req, res) => {
     try {
       if (!aiChargingEngine) {
         return res.status(500).json({ error: 'AI Charging Engine not available' });
       }
       
       const currentStatus = aiChargingEngine.getStatus();
+      let result;
       
-      if (currentStatus.running) {
-        aiChargingEngine.stop();
+      if (currentStatus.enabled) {
+        result = aiChargingEngine.stop();
       } else {
-        aiChargingEngine.start();
+        result = await aiChargingEngine.start();
+      }
+      
+      // Check if start failed due to learner mode
+      if (result && !result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.message,
+          requiresLearnerMode: true
+        });
       }
       
       const newStatus = aiChargingEngine.getStatus();
       
       res.json({
         success: true,
-        message: `AI Charging Engine ${newStatus.running ? 'started' : 'stopped'} successfully`,
+        message: result?.message || `AI Charging Engine ${newStatus.enabled ? 'started' : 'stopped'} successfully`,
         status: newStatus
       });
     } catch (error) {

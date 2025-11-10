@@ -733,19 +733,24 @@
             const toggleBtn = document.getElementById('aiToggleBtn');
             
             if (data.success) {
-                const isActive = data.learner_mode && data.ai.enabled && data.ai.running;
+                const isActive = data.learner_mode && data.ai.enabled;
                 
                 if (isActive) {
                     statusElement.className = 'ai-status active';
                     statusTextElement.textContent = 'AI Engine Active - Making Smart Decisions';
                     toggleBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                    toggleBtn.disabled = false;
+                } else if (data.learner_mode && !data.ai.enabled) {
+                    statusElement.className = 'ai-status inactive';
+                    statusTextElement.textContent = 'AI Engine Ready - Click to Start';
+                    toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    toggleBtn.disabled = false;
                 } else {
                     statusElement.className = 'ai-status inactive';
-                    statusTextElement.textContent = data.learner_mode ? 'AI Engine Ready - Click to Start' : 'Learner Mode Required';
-                    toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    statusTextElement.textContent = 'Learner Mode Required - Enable in Settings';
+                    toggleBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                    toggleBtn.disabled = true;
                 }
-                
-                toggleBtn.disabled = !data.learner_mode;
                 
                 if (data.ai.lastDecision) {
                     document.getElementById('lastDecision').textContent = data.ai.lastDecision.decision || '--';
@@ -1084,7 +1089,14 @@
                     await loadAIStatus();
                     showNotification(data.message, 'success');
                 } else {
-                    throw new Error(data.error || 'Failed to toggle AI engine');
+                    // Handle specific error cases
+                    if (data.requiresLearnerMode) {
+                        showNotification('Please enable Learner Mode first to start the AI engine', 'error');
+                    } else {
+                        showNotification(data.error || 'Failed to toggle AI engine', 'error');
+                    }
+                    toggleBtn.innerHTML = originalContent;
+                    toggleBtn.disabled = false;
                 }
             } catch (error) {
                 console.error('Error toggling AI engine:', error);

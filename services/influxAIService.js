@@ -211,6 +211,53 @@ class InfluxAIService {
       return [reasonsString];
     }
   }
+
+  async getTibberPriceDataCount(fromDate) {
+    if (!this.initialized) {
+      return 0;
+    }
+
+    try {
+      const query = `
+        SELECT COUNT(total) FROM tibber_prices 
+        WHERE time >= '${fromDate.toISOString()}'
+      `;
+
+      const result = await this.influx.query(query);
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error('Error getting Tibber price data count:', error.message);
+      return 0;
+    }
+  }
+
+  async getTibberPriceHistory(fromDate, toDate) {
+    if (!this.initialized) {
+      return [];
+    }
+
+    try {
+      const query = `
+        SELECT * FROM tibber_prices 
+        WHERE time >= '${fromDate.toISOString()}' 
+        AND time <= '${toDate.toISOString()}'
+        ORDER BY time ASC
+      `;
+
+      const result = await this.influx.query(query);
+      
+      return result.map(row => ({
+        timestamp: row.time,
+        price: row.total || row.energy || 0,
+        currency: row.currency,
+        level: row.level,
+        tax: row.tax
+      }));
+    } catch (error) {
+      console.error('Error getting Tibber price history:', error.message);
+      return [];
+    }
+  }
 }
 
 module.exports = new InfluxAIService();
