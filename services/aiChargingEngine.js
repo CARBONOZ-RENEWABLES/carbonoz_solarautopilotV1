@@ -532,9 +532,9 @@ class AIChargingEngine {
       this.evaluate().catch(error => {
         console.error('❌ Error in AI evaluation interval:', error);
       });
-    }, 60000); // Evaluate every minute
+    }, 300000); // Evaluate every 5 minutes
     
-    console.log('🚀 AI Charging Engine started with 1 week price history (60s intervals)');
+    console.log('🚀 AI Charging Engine started with 1 week price history (5min intervals)');
     return { success: true, message: 'AI Charging Engine started successfully' };
   }
 
