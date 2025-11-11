@@ -1,5 +1,5 @@
 {
-    "inverter_number": 1,
+    "inverter_number": 6,
     "battery_number": 1,
     "mqtt_topic_prefix": "solar_assistant",
     "mqtt_host": "homeassistant-andreas-raspberry.zebu-beaufort.ts.net",

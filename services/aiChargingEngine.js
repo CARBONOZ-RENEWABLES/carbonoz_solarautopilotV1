@@ -8,6 +8,7 @@ class AIChargingEngine {
     this.evaluationInterval = null;
     this.mqttClient = null;
     this.currentSystemState = null;
+    this.lastCommand = null; // Track last sent command
     
     this.config = {
       inverterNumber: 1,
@@ -355,18 +356,114 @@ class AIChargingEngine {
 
   async applyDecision(decision) {
     try {
-      const topic = `${this.config.mqttTopicPrefix}/inverter${this.config.inverterNumber}/control/battery_charge`;
-      const value = decision === 'START_CHARGING' ? 1 : 0;
+      const enableCharging = decision === 'START_CHARGING';
+      const commandValue = this.getOptimalChargingMode(enableCharging);
       
-      if (this.mqttClient) {
-        this.mqttClient.publish(topic, value.toString());
-        await this.logCommand(topic, value, true);
-        console.log(`🔋 Applied decision: ${decision} (${topic}: ${value})`);
+      // Check if this is the same command as last time
+      if (this.lastCommand === commandValue) {
+        console.log(`⏭️ Skipping duplicate command: ${decision} (${commandValue})`);
+        return;
       }
+      
+      // Send command to all detected inverters
+      let commandsSent = 0;
+      for (let i = 1; i <= this.config.inverterNumber; i++) {
+        const inverterId = `inverter_${i}`;
+        const inverterType = this.config.inverterTypes[inverterId]?.type || 'unknown';
+        
+        let topic, value;
+        
+        if (inverterType === 'new') {
+          // Send both charger and output priority commands
+          const chargerTopic = `${this.config.mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
+          const outputTopic = `${this.config.mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
+          const outputValue = this.getOptimalOutputPriority(enableCharging);
+          
+          if (this.mqttClient) {
+            this.mqttClient.publish(chargerTopic, commandValue);
+            this.mqttClient.publish(outputTopic, outputValue);
+            await this.logCommand(chargerTopic, commandValue, true);
+            await this.logCommand(outputTopic, outputValue, true);
+            commandsSent++;
+          }
+        } else {
+          // Legacy inverter
+          topic = `${this.config.mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+          value = enableCharging ? 'Enabled' : 'Disabled';
+          
+          if (this.mqttClient) {
+            this.mqttClient.publish(topic, value);
+            await this.logCommand(topic, value, true);
+            commandsSent++;
+          }
+        }
+      }
+      
+      this.lastCommand = commandValue;
+      console.log(`🔋 Applied decision: ${decision} to ${commandsSent} inverter(s) (${commandValue})`);
+      
     } catch (error) {
       console.error('❌ Failed to apply decision:', error);
       await this.logCommand('error', decision, false);
     }
+  }
+
+  getOptimalChargingMode(enableCharging) {
+    if (!enableCharging) {
+      return 'Solar first'; // Stop grid charging, solar priority
+    }
+
+    const pvPower = this.currentSystemState?.pv_power || 0;
+    const load = this.currentSystemState?.load || 0;
+    const batterySOC = this.currentSystemState?.battery_soc || 0;
+    const pvSurplus = pvPower - load;
+    const currentPrice = tibberService.cache.currentPrice;
+    const priceIsNegative = currentPrice ? currentPrice.total < 0 : false;
+
+    // Strong solar surplus (>1000W) - use solar only
+    if (pvSurplus > 1000 && batterySOC < 90) {
+      return 'Solar only';
+    }
+    
+    // Negative prices - use both sources aggressively
+    if (priceIsNegative) {
+      return 'Solar and utility simultaneously';
+    }
+    
+    // Moderate solar with very cheap prices - use both
+    if (pvSurplus > 200 && currentPrice && currentPrice.total < 0.05) {
+      return 'Solar and utility simultaneously';
+    }
+    
+    // Default - solar priority
+    return 'Solar first';
+  }
+
+  getOptimalOutputPriority(enableCharging) {
+    const pvPower = this.currentSystemState?.pv_power || 0;
+    const load = this.currentSystemState?.load || 0;
+    const batterySOC = this.currentSystemState?.battery_soc || 0;
+    const pvSurplus = pvPower - load;
+    const currentPrice = tibberService.cache.currentPrice;
+    const priceIsNegative = currentPrice ? currentPrice.total < 0 : false;
+
+    // Strong solar surplus - prioritize solar for loads
+    if (pvSurplus > 1000) {
+      return 'Solar first';
+    }
+    
+    // Negative prices - use grid for loads, save battery
+    if (priceIsNegative) {
+      return 'Utility first';
+    }
+    
+    // Low battery - preserve battery, use solar/grid
+    if (batterySOC < 30) {
+      return 'Solar/Utility/Battery';
+    }
+    
+    // Default - solar → battery → grid sequence
+    return 'Solar/Battery/Utility';
   }
 
   async getDecisionHistory(limit = 50) {
