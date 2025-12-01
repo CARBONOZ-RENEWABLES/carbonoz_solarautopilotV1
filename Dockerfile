@@ -1,104 +1,92 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Build arguments
 ARG BUILD_ARCH
 ARG S6_OVERLAY_VERSION=3.1.5.0
 
-# Install S6 overlay
-RUN \
-    curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -Jxpf - -C / \
-    && case "${BUILD_ARCH}" in \
-    "aarch64") S6_ARCH="aarch64" ;; \
-    "amd64") S6_ARCH="x86_64" ;; \
-    "armhf") S6_ARCH="armhf" ;; \
-    "armv7") S6_ARCH="arm" ;; \
-    "i386") S6_ARCH="i686" ;; \
-    *) S6_ARCH="x86_64" ;; \
-    esac \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" | tar -Jxpf - -C /
+# --- Install S6 overlay (correct order for Alpine) ---
+RUN apk add --no-cache xz
 
-# Install system dependencies
+RUN \
+    curl -L -s \
+    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
+    | tar -Jxpf - -C / \
+    && case "${BUILD_ARCH}" in \
+        "aarch64") S6_ARCH="aarch64" ;; \
+        "amd64") S6_ARCH="x86_64" ;; \
+        "armhf") S6_ARCH="armhf" ;; \
+        "armv7") S6_ARCH="arm" ;; \
+        "i386") S6_ARCH="i686" ;; \
+        *) S6_ARCH="x86_64" ;; \
+    esac \
+    && curl -L -s \
+    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
+    | tar -Jxpf - -C /
+
+# Required for s6-overlay v3
+RUN apk add --no-cache execline
+
+# --- Install system dependencies ---
 RUN apk add --no-cache \
-    nodejs \
-    npm \
-    sqlite \
-    sqlite-dev \
-    openssl \
-    openssl-dev \
-    curl \
-    bash \
-    tzdata \
-    wget \
-    gnupg \
-    python3 \
-    make \
-    g++ \
-    gcc \
+    nodejs npm \
+    sqlite sqlite-dev \
+    openssl openssl-dev \
+    bash curl wget tzdata \
+    python3 make g++ gcc \
     linux-headers
 
-# Add community repositories and install Grafana and InfluxDB
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories && \
-    apk update && \
-    apk add --no-cache grafana influxdb
+# --- Install Grafana & InfluxDB ---
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+    && apk update \
+    && apk add --no-cache grafana influxdb
 
-# Set up directories
-RUN mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
-    && mkdir -p /data/backup \
+# --- Prepare directories ---
+RUN mkdir -p /data/influxdb/meta \
+    /data/influxdb/data \
+    /data/influxdb/wal \
+    /data/backup \
     && chown -R nobody:nobody /data
 
-# Set work directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# --- Install Node dependencies (forced native build on correct arch) ---
 COPY package*.json ./
 
-# Clean install with native compilation for sqlite3
-RUN rm -rf node_modules package-lock.json \
-    && npm cache clean --force \
-    && npm install --omit=dev --build-from-source \
+RUN npm config set unsafe-perm true \
+    && npm install --omit=dev --build-from-source=sqlite3 \
+    && npm rebuild sqlite3 --build-from-source \
     && npm cache clean --force
 
-# Test the sqlite3 module
-RUN node -e "const sqlite3 = require('sqlite3').verbose(); console.log('✅ sqlite3 loaded successfully');"
+# --- Test sqlite3 ---
+RUN node -e "require('sqlite3').verbose(); console.log('SQLite3 OK');"
 
-# Copy application files
+# --- Copy application ---
 COPY . .
 
-# Copy configurations
 COPY rootfs /
 COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
 
-# Make scripts executable
-RUN find /etc/services.d -type f -name "run" -exec chmod a+x {} \; \
-    && find /etc/services.d -type f -name "finish" -exec chmod a+x {} \; \
-    && chmod a+x /usr/bin/carbonoz.sh
+RUN chmod +x /usr/bin/carbonoz.sh \
+    && find /etc/services.d -name run -exec chmod +x {} \; \
+    && find /etc/services.d -name finish -exec chmod +x {} \;
 
-# Build arguments for labels
 ARG BUILD_DATE
 ARG BUILD_REF
 ARG BUILD_VERSION
 
-# Labels
 LABEL \
-    io.hass.name="Carbonoz SolarAutopilot" \
-    io.hass.description="CARBONOZ SolarAutopilot for Home Assistant" \
+    io.hass.name="CARBONOZ SolarAutopilot" \
+    io.hass.description="Home Assistant Add-on" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="addon" \
-    io.hass.version=${BUILD_VERSION} \
-    maintainer="Elite Desire <eelitedesire@gmail.com>"
+    io.hass.version=${BUILD_VERSION}
 
-# Environment variables
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=256"
 
-# Expose ports
 EXPOSE 3001 8086 6789 8000
 
-# Entrypoint
 ENTRYPOINT ["/init"]
