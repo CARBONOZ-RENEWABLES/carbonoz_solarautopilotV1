@@ -114,40 +114,42 @@ class AIChargingEngine {
       const currentPrice = tibberService.cache.currentPrice;
       const config = tibberService.config;
 
-      // Rule 1: Grid charging OFF by default
+      // Rule 1: Price threshold - never charge above 15 cents
+      const maxPriceThreshold = 0.15; // 15 cents
+      if (currentPrice && currentPrice.total > maxPriceThreshold) {
+        reasons.push(`Price too high: ${(currentPrice.total * 100).toFixed(1)}¢ (max: 15¢)`);
+        shouldStop = true;
+      }
+
+      // Rule 2: Find lowest price in available forecast
+      const lowestPrice = await this.findLowestPrice();
       let gridChargingAllowed = false;
-
-      // Rule 2: Verify price data is still available
-      const hasHistoricalData = await this.checkHistoricalPriceData();
-      if (!hasHistoricalData) {
-        reasons.push('Lost Tibber price data - stopping engine');
-        this.stop();
-        return await this.logDecision('STOPPED', reasons);
+      
+      if (currentPrice && lowestPrice) {
+        const priceMargin = 0.02; // 2 cent margin
+        const isAtLowestPrice = currentPrice.total <= (lowestPrice + priceMargin);
+        
+        if (isAtLowestPrice && currentPrice.total <= maxPriceThreshold) {
+          gridChargingAllowed = true;
+          reasons.push(`At lowest price: ${(currentPrice.total * 100).toFixed(1)}¢ (min: ${(lowestPrice * 100).toFixed(1)}¢)`);
+        } else if (currentPrice.total <= maxPriceThreshold) {
+          reasons.push(`Price acceptable but not lowest: ${(currentPrice.total * 100).toFixed(1)}¢ (min: ${(lowestPrice * 100).toFixed(1)}¢)`);
+        }
       }
 
-      // Rule 3: Price-based rules
-      const priceAnalysis = await this.analyzePriceConditions(currentPrice);
-      if (currentPrice && currentPrice.total >= 0.20) {
-        reasons.push(`Price too high: ${currentPrice.total.toFixed(3)}€/kWh (≥20¢)`);
-      } else if (priceAnalysis.isNearLowest) {
+      // Rule 3: Negative prices - always charge
+      if (currentPrice && currentPrice.total < 0) {
         gridChargingAllowed = true;
-        reasons.push(`Price near daily minimum: ${currentPrice.total.toFixed(3)}€/kWh (threshold: ${priceAnalysis.threshold.toFixed(3)}€)`);
+        reasons.push(`NEGATIVE PRICE: Getting paid ${Math.abs(currentPrice.total * 100).toFixed(1)}¢/kWh`);
       }
 
-      // Rule 4: Weather forecast check
-      const weatherForecast = await this.checkWeatherForecast();
-      if (weatherForecast.sunnyDaysAhead) {
-        gridChargingAllowed = false;
-        reasons.push('Sunny weather forecast - PV will cover demand');
-      }
-
-      // Rule 5: Solar priority - always use solar first
+      // Rule 4: Solar priority - always use solar first
       const pvSurplus = pvPower - load;
       if (pvSurplus > 100 && batterySOC < 95) {
         reasons.push(`Using solar surplus: ${pvSurplus.toFixed(0)}W`);
       }
 
-      // Rule 6: Safety checks
+      // Rule 5: Safety checks
       if (batterySOC >= config.targetSoC) {
         shouldStop = true;
         reasons.push(`Battery at target SOC: ${batterySOC}%`);
@@ -161,14 +163,8 @@ class AIChargingEngine {
 
       // Grid charging decision logic
       if (gridChargingAllowed && batterySOC < config.targetSoC && !shouldStop) {
-        // Only charge if price is very low and conditions are met
-        if (currentPrice && currentPrice.total < 0) {
-          shouldCharge = true;
-          reasons.push(`NEGATIVE PRICE: Getting paid ${Math.abs(currentPrice.total).toFixed(3)}€/kWh`);
-        } else if (priceAnalysis.isNearLowest && batterySOC < 50 && pvPower < 100) {
-          shouldCharge = true;
-          reasons.push(`Optimal grid charging: Low price + low SOC (${batterySOC}%)`);
-        }
+        shouldCharge = true;
+        reasons.push(`Grid charging enabled: Low price + SOC ${batterySOC}%`);
       }
 
       // Make decision
@@ -193,127 +189,51 @@ class AIChargingEngine {
     }
   }
 
-  async checkHistoricalPriceData() {
+  async findLowestPrice() {
     try {
-      // Check if we have 1 week of Tibber price data
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      // Get current price and forecast from Tibber
+      const forecast = tibberService.cache.forecast || [];
+      const currentPrice = tibberService.cache.currentPrice;
       
-      // Try to get price data count from InfluxDB
-      let priceDataCount = 0;
-      try {
-        if (influxAIService.getTibberPriceDataCount) {
-          priceDataCount = await influxAIService.getTibberPriceDataCount(oneWeekAgo);
-        }
-      } catch (err) {
-        // Method doesn't exist yet, return 0
-        priceDataCount = 0;
+      if (!forecast.length && !currentPrice) {
+        console.log('⚠️ No price data available');
+        return null;
       }
       
-      const requiredDataPoints = 7 * 24; // 1 week of hourly data
-      const hasEnoughData = priceDataCount >= requiredDataPoints;
-      
-      if (!hasEnoughData) {
-        const daysOfData = Math.floor(priceDataCount / 24);
-        console.log(`⚠️ Insufficient price history: ${daysOfData} days (need 7 days minimum)`);
+      // Combine current price with forecast
+      const allPrices = [];
+      if (currentPrice) {
+        allPrices.push(currentPrice.total);
       }
       
-      return hasEnoughData;
+      // Add next 24 hours from forecast
+      const now = new Date();
+      const next24Hours = forecast
+        .filter(price => {
+          const priceTime = new Date(price.startsAt);
+          return priceTime > now && priceTime <= new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        })
+        .map(price => price.total);
+      
+      allPrices.push(...next24Hours);
+      
+      if (allPrices.length === 0) {
+        return null;
+      }
+      
+      const lowestPrice = Math.min(...allPrices);
+      console.log(`📊 Lowest price in next 24h: ${(lowestPrice * 100).toFixed(1)}¢`);
+      
+      return lowestPrice;
     } catch (error) {
-      console.warn('Failed to check historical price data:', error.message);
-      return false;
+      console.warn('Failed to find lowest price:', error.message);
+      return null;
     }
   }
 
-  async analyzePriceConditions(currentPrice) {
-    try {
-      if (!currentPrice) return { isNearLowest: false, threshold: 0 };
-      
-      // Get 1 week of historical price data for pattern analysis
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const historicalPrices = await this.getHistoricalPrices(oneWeekAgo);
-      
-      if (!historicalPrices || historicalPrices.length < 100) {
-        // Fallback to current price level if insufficient historical data
-        const isVeryLow = currentPrice.level === 'VERY_CHEAP';
-        return {
-          isNearLowest: isVeryLow,
-          threshold: currentPrice.total,
-          minPrice: currentPrice.total,
-          currentPrice: currentPrice.total
-        };
-      }
-      
-      // Analyze historical price patterns
-      const prices = historicalPrices.map(p => p.price);
-      const sortedPrices = [...prices].sort((a, b) => a - b);
-      
-      // Calculate percentiles for intelligent thresholds
-      const p10 = sortedPrices[Math.floor(sortedPrices.length * 0.1)]; // Bottom 10%
-      const p25 = sortedPrices[Math.floor(sortedPrices.length * 0.25)]; // Bottom 25%
-      const median = sortedPrices[Math.floor(sortedPrices.length * 0.5)];
-      const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      
-      // Current hour analysis - check if this hour is typically low-priced
-      const currentHour = new Date().getHours();
-      const sameHourPrices = historicalPrices
-        .filter(p => new Date(p.timestamp).getHours() === currentHour)
-        .map(p => p.price);
-      
-      const hourlyAverage = sameHourPrices.length > 0 
-        ? sameHourPrices.reduce((sum, p) => sum + p, 0) / sameHourPrices.length
-        : average;
-      
-      // Intelligent threshold: Use stricter criteria based on historical patterns
-      // Only charge when price is in bottom 20% AND below hourly average
-      const isInBottom20Percent = currentPrice.total <= p25;
-      const isBelowHourlyAverage = currentPrice.total <= hourlyAverage * 0.9;
-      const isNearLowest = isInBottom20Percent && isBelowHourlyAverage;
-      
-      return {
-        isNearLowest: isNearLowest,
-        threshold: p25,
-        minPrice: sortedPrices[0],
-        currentPrice: currentPrice.total,
-        percentile: this.calculatePercentile(currentPrice.total, sortedPrices),
-        hourlyAverage: hourlyAverage,
-        weeklyAverage: average
-      };
-    } catch (error) {
-      console.warn('Failed to analyze price conditions:', error.message);
-      return { isNearLowest: false, threshold: 0 };
-    }
-  }
 
-  async getHistoricalPrices(fromDate) {
-    try {
-      if (influxAIService.getTibberPriceHistory) {
-        return await influxAIService.getTibberPriceHistory(fromDate, new Date());
-      }
-      return [];
-    } catch (error) {
-      console.warn('Failed to get historical prices:', error.message);
-      return [];
-    }
-  }
 
-  calculatePercentile(value, sortedArray) {
-    const index = sortedArray.findIndex(v => v >= value);
-    return index === -1 ? 100 : Math.round((index / sortedArray.length) * 100);
-  }
 
-  async checkWeatherForecast() {
-    try {
-      // Mock weather check - integrate with actual weather API
-      const mockSunnyForecast = Math.random() > 0.7; // 30% chance of sunny forecast
-      return {
-        sunnyDaysAhead: mockSunnyForecast,
-        forecast: mockSunnyForecast ? 'sunny' : 'cloudy'
-      };
-    } catch (error) {
-      console.warn('Failed to check weather forecast:', error.message);
-      return { sunnyDaysAhead: false, forecast: 'unknown' };
-    }
-  }
 
   makeIntelligentDecision(batterySOC, pvPower, load, currentPrice, gridVoltage, config, shouldCharge, shouldStop, reasons) {
     const pvSurplus = pvPower - load;
@@ -495,27 +415,7 @@ class AIChargingEngine {
       clearInterval(this.evaluationInterval);
     }
     
-    // Check if we have 1 week of historical data
-    const hasData = await this.checkHistoricalPriceData();
-    if (!hasData) {
-      console.log('⚠️ AI Charging Engine: Waiting for 1 week of Tibber price data');
-      // Check every hour until data is available
-      const dataCheckInterval = setInterval(async () => {
-        if (!global.learnerModeActive) {
-          clearInterval(dataCheckInterval);
-          console.log('⚠️ AI Charging Engine: Learner mode deactivated, stopping data check');
-          return;
-        }
-        
-        const dataAvailable = await this.checkHistoricalPriceData();
-        if (dataAvailable) {
-          clearInterval(dataCheckInterval);
-          this.startEngine();
-        }
-      }, 60 * 60 * 1000); // Check every hour
-      return;
-    }
-    
+    // Start immediately - no historical data requirement
     this.startEngine();
     return { success: true, message: 'AI Charging Engine started successfully' };
   }
@@ -534,7 +434,7 @@ class AIChargingEngine {
       });
     }, 300000); // Evaluate every 5 minutes
     
-    console.log('🚀 AI Charging Engine started with 1 week price history (5min intervals)');
+    console.log('🚀 AI Charging Engine started - Simple lowest price strategy (5min intervals)');
     return { success: true, message: 'AI Charging Engine started successfully' };
   }
 

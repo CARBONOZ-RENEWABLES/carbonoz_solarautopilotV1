@@ -5,11 +5,10 @@
   "apiKey": "",
   "priceBasedCharging": {
     "enabled": true,
-    "maxPriceThreshold": 0.25,
-    "useTibberLevels": true,
+    "maxPriceThreshold": 0.15,
+    "useTibberLevels": false,
     "lowPriceLevels": [
-      "VERY_CHEAP",
-      "CHEAP"
+      "VERY_CHEAP"
     ]
   },
   "battery": {
