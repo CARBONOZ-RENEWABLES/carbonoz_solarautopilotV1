@@ -1706,8 +1706,8 @@ setTimeout(() => {
 
 
 app.get('/', async (req, res) => {
-  // Redirect to AI dashboard as main page
-  res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
+  // Redirect to energy dashboard as main page
+  res.redirect(`${process.env.INGRESS_PATH || ''}/energy-dashboard`);
 });
 
 app.get('/energy-dashboard', async (req, res) => {
