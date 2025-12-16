@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: carbonoz-renewables/carbonoz-solarautopilotv1
+  IMAGE_NAME: carbonoz-renewables/solarautopilot
 
 jobs:
   build:

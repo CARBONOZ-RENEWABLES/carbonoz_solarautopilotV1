@@ -1,9 +1,9 @@
-name: "CARBONOZ SolarAutopilot - AI Charging"
-version: "1.0.1"
-slug: "carbonoz_solarautopilot"
-description: "CARBONOZ SolarAutopilot - AI-powered battery charging optimization with Tibber integration for Home Assistant."
-url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
-image: "ghcr.io/carbonoz-renewables/solarautopilot:{arch}-{version}"
+name: "CARBONOZ SolarAutopilot - AI Charging (Test)"
+version: "1.0.1-test"
+slug: "carbonoz_solarautopilot_test"
+description: "Test version of CARBONOZ SolarAutopilot"
+url: "https://github.com/CARBONOZ-RENEWABLES/carbonoz_solarautopilotV1"
+image: "ghcr.io/carbonoz-renewables/carbonoz-solarautopilotv1:{arch}-latest"
 map:
   - share:rw
   - ssl
@@ -20,7 +20,7 @@ ports_description:
   8000/tcp: "WebSocket"
   8086/tcp: "InfluxDB"
 panel_icon: "mdi:solar-power"
-panel_title: "Carbonoz SolarAutopilot"
+panel_title: "Carbonoz SolarAutopilot Test"
 ingress: true
 ingress_port: 6789
 ingress_stream: true
