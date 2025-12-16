@@ -38,23 +38,10 @@ RUN apk add --no-cache \
     python3 make g++ gcc \
     linux-headers
 
-# --- Install InfluxDB ---
-RUN apk add --no-cache influxdb
-
-# --- Install Grafana ---
-RUN case "${TARGETARCH}" in \
-        "arm64") GRAFANA_ARCH="arm64" ;; \
-        "amd64") GRAFANA_ARCH="amd64" ;; \
-        "arm") GRAFANA_ARCH="armv7" ;; \
-        *) GRAFANA_ARCH="amd64" ;; \
-    esac \
-    && GRAFANA_VERSION="10.2.2" \
-    && wget -O /tmp/grafana.tar.gz "https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-${GRAFANA_ARCH}.tar.gz" \
-    && tar -xzf /tmp/grafana.tar.gz -C /opt \
-    && mv /opt/grafana-* /opt/grafana \
-    && rm /tmp/grafana.tar.gz \
-    && mkdir -p /etc/grafana /var/lib/grafana /var/log/grafana \
-    && chown -R nobody:nobody /opt/grafana /var/lib/grafana /var/log/grafana
+# --- Install InfluxDB and Grafana ---
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
+    && apk update \
+    && apk add --no-cache influxdb grafana || apk add --no-cache influxdb
 
 # --- Prepare directories ---
 RUN mkdir -p /data/influxdb/meta \
