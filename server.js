@@ -1091,6 +1091,25 @@ async function handleMqttMessage(topic, message) {
     if (aiChargingEngine && aiChargingEngine.updateSystemState) {
       aiChargingEngine.updateSystemState(currentSystemState);
     }
+  } else if (specificTopic.match(/battery_\d+\/capacity\/state/)) {
+    // Extract battery number dynamically
+    const batteryMatch = specificTopic.match(/battery_(\d+)\/capacity\/state/);
+    if (batteryMatch) {
+      const batteryNum = batteryMatch[1];
+      const capacityKey = `battery_${batteryNum}_capacity_ah`;
+      currentSystemState[capacityKey] = parseFloat(messageContent);
+      
+      // Update AI engine with new battery data
+      if (aiChargingEngine && aiChargingEngine.updateSystemState) {
+        aiChargingEngine.updateSystemState(currentSystemState);
+      }
+    }
+  } else if (specificTopic.includes('battery_voltage/state') || specificTopic.includes('inverter_1/battery_voltage')) {
+    currentSystemState.battery_voltage = parseFloat(messageContent);
+    // Update AI engine with voltage data
+    if (aiChargingEngine && aiChargingEngine.updateSystemState) {
+      aiChargingEngine.updateSystemState(currentSystemState);
+    }
   } else if (specificTopic.includes('total/pv_power')) {
     currentSystemState.pv_power = parseFloat(messageContent);
   } else if (specificTopic.includes('total/load_power')) {
@@ -1101,8 +1120,18 @@ async function handleMqttMessage(topic, message) {
     currentSystemState.grid_power = parseFloat(messageContent);
   } else if (specificTopic.includes('total/battery_power')) {
     currentSystemState.battery_power = parseFloat(messageContent);
+  } else if (specificTopic.includes('total/bus_voltage')) {
+    currentSystemState.total_battery_voltage = parseFloat(messageContent);
   } else if (specificTopic.includes('inverter_state') || specificTopic.includes('device_mode')) {
     currentSystemState.inverter_state = messageContent;
+  } else if (specificTopic.match(/battery_\d+\/capacity\/state/)) {
+    // Handle any battery number dynamically
+    const batteryMatch = specificTopic.match(/battery_(\d+)\/capacity\/state/);
+    if (batteryMatch) {
+      const batteryNum = batteryMatch[1];
+      const capacityKey = `battery_${batteryNum}_capacity_ah`;
+      currentSystemState[capacityKey] = parseFloat(messageContent);
+    }
   }
 
   // ========= ENHANCED DYNAMIC PRICING INTEGRATION WITH INTELLIGENT INVERTER TYPE SUPPORT =========

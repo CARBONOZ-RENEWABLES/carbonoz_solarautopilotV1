@@ -1258,3 +1258,100 @@
             margin-right: 10px;
             animation: spin 1s linear infinite;
         }
+
+        /* Academic Strategy Styles */
+        .strategy-display {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        .strategy-info {
+            flex: 1;
+        }
+
+        .strategy-name {
+            margin-bottom: 15px;
+        }
+
+        .strategy-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-right: 10px;
+        }
+
+        .strategy-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .strategy-description {
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .improvement-metrics {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .improvement-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            min-width: 120px;
+        }
+
+        .improvement-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .improvement-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--success-color);
+        }
+
+        .dark-mode .strategy-label {
+            color: #aaa;
+        }
+
+        .dark-mode .strategy-description {
+            color: #ccc;
+        }
+
+        .dark-mode .improvement-item {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1));
+        }
+
+        .dark-mode .improvement-label {
+            color: #aaa;
+        }
+
+        @media (max-width: 768px) {
+            .strategy-display {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .improvement-metrics {
+                justify-content: center;
+                gap: 15px;
+            }
+
+            .improvement-item {
+                min-width: 100px;
+                padding: 12px;
+            }
+
+            .improvement-value {
+                font-size: 1.2rem;
+            }
+        }
