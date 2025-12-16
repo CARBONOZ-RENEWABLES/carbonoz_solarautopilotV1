@@ -7,6 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="<%= ingress_path %>/css/solar-cards.css">
     <style>
      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 body {
@@ -986,56 +989,74 @@ body.dark-mode {
     <!-- Main Content -->
     <main class="main-content">
       
-        <div class="dashboard">
-            <div class="cards">
-                <div class="cards-title">Today's Solar PV</div>
-                <div class="cards-content">
-                    <span class="cards-value today" id="daily-solar-pv-total"></span>
-                    <svg class="icon today" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                        <line x1="1" y1="12" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
+        <div class="solar-pv-dashboard">
+            <div class="solar-card today-card">
+                <div class="card-header">
+                    <div class="card-icon today-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"/>
+                        </svg>
+                    </div>
+                    <div class="card-title">Today's Solar PV</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-value" id="daily-solar-pv-total">0 kWh</div>
+                    <div class="card-subtitle">Current Day Production</div>
+                </div>
+                <div class="card-footer">
+                    <div class="progress-bar">
+                        <div class="progress-fill today-progress"></div>
+                    </div>
                 </div>
             </div>
-            <div class="cards">
-                <div class="cards-title">Last 7 Days Solar PV</div>
-                <div class="cards-content">
-                    <span class="cards-value week" id="weekly-solar-pv-total"></span>
-                    <svg class="icon week" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                        <line x1="1" y1="12" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
+            
+            <div class="solar-card week-card">
+                <div class="card-header">
+                    <div class="card-icon week-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 4.5A1.5 1.5 0 014.5 3h15A1.5 1.5 0 0121 4.5v15a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 19.5v-15zM4.5 4.5v15h15v-15h-15z"/>
+                            <path d="M12 7.5a.75.75 0 01.75.75v3.75H16.5a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75V8.25a.75.75 0 01.75-.75z"/>
+                            <circle cx="12" cy="12" r="2" fill="#FFA500"/>
+                            <path d="M12 6l1.5 1.5L12 9 10.5 7.5 12 6zM18 12l-1.5-1.5L15 12l1.5 1.5L18 12zM12 18l-1.5-1.5L12 15l1.5 1.5L12 18zM6 12l1.5 1.5L9 12 7.5 10.5 6 12z" fill="#FFA500" opacity="0.6"/>
+                        </svg>
+                    </div>
+                    <div class="card-title">Last 7 Days Solar PV</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-value" id="weekly-solar-pv-total">0 kWh</div>
+                    <div class="card-subtitle">Weekly Production Total</div>
+                </div>
+                <div class="card-footer">
+                    <div class="progress-bar">
+                        <div class="progress-fill week-progress"></div>
+                    </div>
                 </div>
             </div>
-            <div class="cards">
-                <div class="cards-title">Last 30 Days Solar PV</div>
-                <div class="cards-content">
-                    <span class="cards-value month" id="monthly-solar-pv-total"></span>
-                    <svg class="icon month" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                        <line x1="1" y1="12" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
+            
+            <div class="solar-card month-card">
+                <div class="card-header">
+                    <div class="card-icon month-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 10.5h.5c0-.8-.7-1.5-1.5-1.5v1.5zM21 12v-1.5H3V12h18zM3 10.5V9c-.8 0-1.5.7-1.5 1.5H3zM3 12h-.5c0 .8.7 1.5 1.5 1.5V12zM21 12v1.5c.8 0 1.5-.7 1.5-1.5H21z"/>
+                            <path d="M19.5 3h-15A1.5 1.5 0 003 4.5V6h18V4.5A1.5 1.5 0 0019.5 3z"/>
+                            <path d="M3 7.5h18v11.25A1.5 1.5 0 0119.5 20.25h-15A1.5 1.5 0 013 18.75V7.5z"/>
+                            <circle cx="8" cy="14" r="1.5" fill="#FFA500"/>
+                            <circle cx="12" cy="14" r="1.5" fill="#FFA500"/>
+                            <circle cx="16" cy="14" r="1.5" fill="#FFA500"/>
+                            <circle cx="8" cy="17" r="1.5" fill="#FFA500" opacity="0.6"/>
+                            <circle cx="12" cy="17" r="1.5" fill="#FFA500" opacity="0.6"/>
+                        </svg>
+                    </div>
+                    <div class="card-title">Last 30 Days Solar PV</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-value" id="monthly-solar-pv-total">0 kWh</div>
+                    <div class="card-subtitle">Monthly Production Total</div>
+                </div>
+                <div class="card-footer">
+                    <div class="progress-bar">
+                        <div class="progress-fill month-progress"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1166,7 +1187,10 @@ body.dark-mode {
                         </tbody>
                     </table>
                 </div>
-                <a href="#" id="last30days-table-download" class="btn">Download CSV</a>
+                <div class="export-buttons-table">
+                    <a href="#" id="last30days-table-download" class="btn">📄 CSV</a>
+                    <a href="#" id="last30days-pdf-download" class="btn btn-pdf">📋 PDF</a>
+                </div>
             </div>
               
 
@@ -1443,7 +1467,10 @@ body.dark-mode {
         </tbody>
         </table>
     </div>
-    <a href="#" id="last12months-table-download" class="btn">Download CSV</a>
+    <div class="export-buttons-table">
+        <a href="#" id="last12months-table-download" class="btn">📄 CSV</a>
+        <a href="#" id="last12months-pdf-download" class="btn btn-pdf">📋 PDF</a>
+    </div>
 </div>
  <!-- Energy Overview - Last 10 Years -->
 <div class="chart-container">
@@ -1509,7 +1536,10 @@ body.dark-mode {
             </tbody>
           </table>
       </div>
-      <a href="#" id="last10years-table-download" class="btn">Download CSV</a>
+      <div class="export-buttons-table">
+          <a href="#" id="last10years-table-download" class="btn">📄 CSV</a>
+          <a href="#" id="last10years-pdf-download" class="btn btn-pdf">📋 PDF</a>
+      </div>
   </div>
 
            
@@ -2089,6 +2119,68 @@ setupTableDownload('last10years-table', 'last10years-table-download', 'last_10_y
     document.getElementById('daily-solar-pv-total').textContent = todaysPV.toFixed(1) + ' kWh';
     document.getElementById('weekly-solar-pv-total').textContent = last7DaysPV.toFixed(1) + ' kWh';
     document.getElementById('monthly-solar-pv-total').textContent = last30DaysPV.toFixed(1) + ' kWh';
+    
+    // PDF Export functions
+    function exportTableToPDF(tableId, title, filename) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(20);
+        doc.text('CARBONOZ SolarAutopilot', 20, 30);
+        
+        doc.setFontSize(16);
+        doc.text(title, 20, 45);
+        
+        doc.setFontSize(12);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 55);
+        
+        const table = document.getElementById(tableId);
+        if (table) {
+            const tableData = [];
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = [];
+                cells.forEach(cell => {
+                    rowData.push(cell.textContent.trim().replace(/ (kg|kWh)$/, ''));
+                });
+                if (rowData.length > 0) tableData.push(rowData);
+            });
+            
+            const headers = [];
+            const headerCells = table.querySelectorAll('thead th');
+            headerCells.forEach(cell => {
+                headers.push(cell.textContent.trim());
+            });
+            
+            doc.autoTable({
+                head: [headers],
+                body: tableData,
+                startY: 70,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [222, 175, 11] }
+            });
+        }
+        
+        doc.save(filename);
+    }
+    
+    // PDF Export event listeners
+    document.getElementById('last30days-pdf-download').addEventListener('click', function(e) {
+        e.preventDefault();
+        exportTableToPDF('last30days-table', 'Last 30 Days Data', 'last_30_days_data.pdf');
+    });
+    
+    document.getElementById('last12months-pdf-download').addEventListener('click', function(e) {
+        e.preventDefault();
+        exportTableToPDF('last12months-table', 'Last 12 Months Data', 'last_12_months_data.pdf');
+    });
+    
+    document.getElementById('last10years-pdf-download').addEventListener('click', function(e) {
+        e.preventDefault();
+        exportTableToPDF('last10years-table', 'Last 10 Years Data', 'last_10_years_data.pdf');
+    });
 });
 </script>
 <script src="<%= ingress_path %>/js/loading.js"></script>

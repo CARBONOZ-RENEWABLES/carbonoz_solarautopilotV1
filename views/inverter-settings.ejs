@@ -24,23 +24,7 @@
           
           
         <div class="main-content">
-            <div class="d-flex flex-wrap justify-content-center gap-3 p-2 bg-light rounded shadow-sm">
-                <a class="nav-link  text-nowrap" href="<%= ingress_path %>/learner">
-                    <i class="fas fa-brain me-1" style="color: #6C757D;"></i>Learner
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/inverter-settings">
-                    <i class="fas fa-cogs me-1" style="color: #fd7e14;"></i>Inverter Settings
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/rules">
-                    <i class="fas fa-tasks me-1" style="color: #6610F2;"></i>Rules
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/wizard">
-                    <i class="fas fa-magic me-1" style="color: #20c997;"></i>Rule Wizard
-                </a>
-                <a class="nav-link text-nowrap" href="<%= ingress_path %>/rule-history">
-                    <i class="fas fa-history me-1" style="color: #6f42c1;"></i>Rule History
-                </a>
-            </div>
+
             
             
             <br>
@@ -65,11 +49,7 @@
                     </div>
                 </div>
         
-                <!-- Learner Mode Status -->
-                <div class="learner-status" id="learner-status">
-                    <strong>⚡ Learner Mode: <span id="learner-mode-status">DETECTING...</span></strong>
-                    <span id="learner-mode-description">- Loading status...</span>
-                </div>
+
         
                 <div class="settings-grid">
                     <!-- System State (Always visible, real-time) -->
@@ -120,7 +100,6 @@
   <script>
       // Global variables
       let currentInverter = 1;
-      let isLearnerModeActive = false;
       let updateInterval;
       let pendingChanges = new Set();
       let inverterTypes = {};
@@ -135,9 +114,6 @@
           try {
               // Initialize tracking variable
               window.lastSystemUpdate = Date.now();
-              
-              // Load learner status
-              await loadLearnerStatus();
               
               // Load system configuration
               await loadSystemConfiguration();
@@ -155,13 +131,7 @@
               // Set up event handlers
               setupEventHandlers();
               
-              // Auto-hide learner status after 5 seconds
-              setTimeout(function() {
-                  const learnerStatus = document.getElementById('learner-status');
-                  if (learnerStatus) {
-                      learnerStatus.classList.add('hidden');
-                  }
-              }, 5000);
+
               
               console.log('Page initialized successfully - System state updates every 2 seconds');
               
@@ -176,18 +146,7 @@
           }
       }
 
-      async function loadLearnerStatus() {
-          try {
-              const response = await fetch('<%= ingress_path %>/api/learner/status');
-              const data = await response.json();
-              
-              isLearnerModeActive = data.active;
-              updateLearnerStatusDisplay();
-              
-          } catch (error) {
-              console.error('Error loading learner status:', error);
-          }
-      }
+
 
       async function loadSystemConfiguration() {
           try {
@@ -223,18 +182,7 @@
           });
       }
 
-      function updateLearnerStatusDisplay() {
-          const statusElement = document.getElementById('learner-mode-status');
-          const descriptionElement = document.getElementById('learner-mode-description');
-          const learnerStatus = document.getElementById('learner-status');
-          
-          statusElement.textContent = isLearnerModeActive ? 'ACTIVE' : 'INACTIVE';
-          descriptionElement.textContent = isLearnerModeActive ? 
-              '- Commands can be sent to inverter' : 
-              '- Commands are blocked for safety';
-          
-          learnerStatus.className = `learner-status ${isLearnerModeActive ? 'learner-active' : 'learner-inactive'}`;
-      }
+
 
       function updateInverterTypeIndicator() {
           const indicator = document.getElementById('inverterTypeIndicator');
@@ -831,11 +779,6 @@
       }
 
       function saveSetting(settingKey, settingConfig) {
-          if (!isLearnerModeActive) {
-              showNotification('Learner mode is not active. Cannot send commands.', 'error');
-              return;
-          }
-
           const inputElement = document.getElementById(`input-${settingKey}`);
           const saveBtn = inputElement.parentElement.querySelector('.save-btn');
           const value = inputElement.value;
@@ -953,7 +896,6 @@
           
           try {
               // Reload all data
-              await loadLearnerStatus();
               await loadAllSettings();
               
               // Force immediate system state update
@@ -1017,7 +959,7 @@
           console.log('- Last update time:', window.lastSystemUpdate ? new Date(window.lastSystemUpdate) : 'Never');
           console.log('- Time since last update:', window.lastSystemUpdate ? (Date.now() - window.lastSystemUpdate) + 'ms' : 'N/A');
           console.log('- Page visibility:', document.hidden ? 'Hidden' : 'Visible');
-          console.log('- Learner mode active:', isLearnerModeActive);
+
       };
   </script>
 <script src="<%= ingress_path %>/js/loading.js"></script>

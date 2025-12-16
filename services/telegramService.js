@@ -15,7 +15,13 @@ const defaultConfig = {
   notificationRules: [], // User must manually configure these
   enhancedFeatures: true,
   inverterTypeSupport: true,
-  autoNotifications: false // Explicitly disabled
+  autoNotifications: false, // Explicitly disabled
+  aiChargingNotifications: {
+    chargingStarted: false,
+    chargingStopped: false,
+    optimalPrice: false,
+    negativePrice: false
+  }
 };
 
 // Ensure configuration file exists
@@ -255,6 +261,81 @@ function formatRuleTriggerMessage(rule, systemState) {
   return message;
 }
 
+// Update AI charging notification settings
+function updateAIChargingNotifications(settings) {
+  const config = getConfig();
+  config.aiChargingNotifications = { ...config.aiChargingNotifications, ...settings };
+  return saveConfig(config);
+}
+
+// Check if AI charging notifications are enabled
+function shouldNotifyForAICharging(eventType) {
+  const config = getConfig();
+  
+  if (!config.enabled || !config.botToken || config.chatIds.length === 0) {
+    return false;
+  }
+  
+  return config.aiChargingNotifications[eventType] || false;
+}
+
+// Format AI charging message
+function formatAIChargingMessage(eventType, data) {
+  const timestamp = new Date().toLocaleString();
+  let message = '';
+  
+  switch (eventType) {
+    case 'chargingStarted':
+      message = `🔋 *AI Charging Started*\n\n`;
+      message += `🤖 The AI charging engine has started charging your battery\n\n`;
+      if (data.reason) message += `📝 Reason: ${data.reason}\n`;
+      if (data.price) message += `💰 Current Price: ${data.price}¢/kWh\n`;
+      break;
+      
+    case 'chargingStopped':
+      message = `⏹️ *AI Charging Stopped*\n\n`;
+      message += `🤖 The AI charging engine has stopped charging your battery\n\n`;
+      if (data.reason) message += `📝 Reason: ${data.reason}\n`;
+      if (data.batterySOC) message += `🔋 Battery SOC: ${data.batterySOC}%\n`;
+      break;
+      
+    case 'optimalPrice':
+      message = `💰 *Optimal Price Alert*\n\n`;
+      message += `⚡ Electricity price has reached optimal charging levels!\n\n`;
+      message += `💲 Current Price: ${data.price}¢/kWh (≤8¢/kWh)\n`;
+      message += `🎯 This is a great time to charge your battery\n`;
+      break;
+      
+    case 'negativePrice':
+      message = `🎉 *Negative Price Alert*\n\n`;
+      message += `💸 You're getting PAID to use electricity!\n\n`;
+      message += `💲 Current Price: ${data.price}¢/kWh\n`;
+      message += `⚡ Maximum charging recommended\n`;
+      break;
+  }
+  
+  if (data.systemState) {
+    message += `\n⚡ *Current System:*\n`;
+    if (data.systemState.battery_soc !== null) message += `🔋 Battery: ${data.systemState.battery_soc}%\n`;
+    if (data.systemState.pv_power !== null) message += `☀️ Solar: ${data.systemState.pv_power}W\n`;
+    if (data.systemState.load !== null) message += `🏠 Load: ${data.systemState.load}W\n`;
+  }
+  
+  message += `\n📅 ${timestamp}`;
+  
+  return message;
+}
+
+// Send AI charging notification
+async function sendAIChargingNotification(eventType, data) {
+  if (!shouldNotifyForAICharging(eventType)) {
+    return false;
+  }
+  
+  const message = formatAIChargingMessage(eventType, data);
+  return await broadcastMessage(message);
+}
+
 // Send message to all configured chat IDs
 async function broadcastMessage(message) {
   const config = getConfig();
@@ -302,5 +383,8 @@ module.exports = {
   shouldNotifyForRule,
   formatWarningMessage,
   formatRuleTriggerMessage,
-  broadcastMessage
+  broadcastMessage,
+  updateAIChargingNotifications,
+  shouldNotifyForAICharging,
+  sendAIChargingNotification
 };

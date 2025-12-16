@@ -1,9 +1,9 @@
-# CARBONOZ SolarAutopilot
+# CARBONOZ SolarAutopilot - AI Charging Engine
 
 
 ## Home Assistant Add-on: CARBONOZ SolarAutopilot
 
-CARBONOZ Solar Autopilot is the dashboard of your choice for every day use of your Hybrid Solar system. We offer easy to use data logging, analytics, CO2 avoidance and powerful export features. Solar Autopilot is your first line of defence against overconsuming devices, drowning batteries and cloudy days. Manage easy to setup templates, automations and alerts by setting up event triggers. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
+CARBONOZ Solar Autopilot is an intelligent AI-powered battery charging system for your Hybrid Solar setup. Our advanced AI engine automatically optimizes battery charging based on real-time solar production, energy prices, and consumption patterns. The system integrates seamlessly with Tibber dynamic pricing to maximize your energy savings and minimize grid dependency. Solar Autopilot is available via Home Assistant Add-On Store so you can still benefit from the many other Home Assistant IoT integrations, features and automations available.
 
 ### 🌱 Environmental Impact & CO2 Offsetting
 

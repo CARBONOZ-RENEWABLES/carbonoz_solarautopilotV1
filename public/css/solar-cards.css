@@ -1,0 +1,225 @@
+/* Export buttons for tables */
+.export-buttons-table {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-pdf {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.btn-pdf:hover {
+    background-color: #c82333 !important;
+    border-color: #bd2130 !important;
+}
+
+/* Enhanced Solar PV Dashboard */
+.solar-pv-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+    padding: 0 1rem;
+}
+
+.solar-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.solar-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #FFA500, #FF6B35, #F7931E);
+}
+
+.solar-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.card-icon svg {
+    width: 32px;
+    height: 32px;
+    z-index: 2;
+}
+
+.today-icon {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(255, 165, 0, 0.3);
+}
+
+.week-icon {
+    background: linear-gradient(135deg, #32CD32 0%, #228B22 100%);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(50, 205, 50, 0.3);
+}
+
+.month-icon {
+    background: linear-gradient(135deg, #FF6B35 0%, #E74C3C 100%);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.card-content {
+    margin-bottom: 1.5rem;
+}
+
+.card-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.card-subtitle {
+    font-size: 0.875rem;
+    color: #718096;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-footer {
+    margin-top: auto;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 75%;
+    transition: width 0.3s ease;
+}
+
+.today-progress {
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+}
+
+.week-progress {
+    background: linear-gradient(90deg, #32CD32, #228B22);
+}
+
+.month-progress {
+    background: linear-gradient(90deg, #FF6B35, #E74C3C);
+}
+
+/* Dark mode styles */
+.dark-mode .solar-card {
+    background: linear-gradient(135deg, rgba(45, 55, 72, 0.95) 0%, rgba(26, 32, 44, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .card-title {
+    color: #e2e8f0;
+}
+
+.dark-mode .card-value {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dark-mode .card-subtitle {
+    color: #a0aec0;
+}
+
+.dark-mode .progress-bar {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .solar-pv-dashboard {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 0 0.5rem;
+    }
+    
+    .solar-card {
+        padding: 1.5rem;
+    }
+    
+    .card-icon {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .card-icon svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .card-value {
+        font-size: 2rem;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .solar-card {
+        padding: 1.25rem;
+    }
+    
+    .card-header {
+        gap: 0.75rem;
+    }
+    
+    .card-value {
+        font-size: 1.75rem;
+    }
+}

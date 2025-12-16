@@ -2222,7 +2222,7 @@ body {
                 
                 <div class="tabs">
                     <div class="tab active" data-tab="telegram">Telegram Setup</div>
-                    <div class="tab" data-tab="rules">Rule Notifications</div>
+                    <div class="tab" data-tab="ai-charging">AI Charging Notifications</div>
                     <div class="tab" data-tab="warnings">Warning Notifications</div>
                     <div class="tab" data-tab="history">Notification History</div>
                 </div>
@@ -2286,39 +2286,112 @@ body {
                     </div>
                 </div>
                 
-                <div class="tab-content" id="rules-tab">
+                <div class="tab-content" id="ai-charging-tab">
                     <div class="panel">
                         <div class="panel-header">
-                            <h2>Rule Notifications</h2>
-                            <button id="add-rule-notification" class="btn btn-primary">Add New</button>
+                            <h2>AI Charging Notifications</h2>
                         </div>
                         
-                        <div class="info-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                            <h4 style="margin: 0 0 0.5rem 0; color: #856404;">
-                                <i class="fas fa-exclamation-triangle"></i> Manual Configuration Required
+                        <div class="info-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #e8f4fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: #1976D2;">
+                                <i class="fas fa-robot"></i> AI Charging Notifications
                             </h4>
-                            <p style="margin: 0; color: #856404;">
-                                Rule notifications are disabled by default. You must manually add notification rules for each automation rule you want to be notified about.
+                            <p style="margin: 0; color: #1976D2;">
+                                Configure notifications for AI charging decisions and events. All notifications are disabled by default and must be manually enabled.
                             </p>
                         </div>
                         
-                        <div class="loader" id="rules-loader">
-                            <div class="loader-spinner"></div>
-                            <p>Loading rule notifications...</p>
+                        <div class="notification-list">
+                            <div class="notification-item">
+                                <div class="notification-header">
+                                    <div class="notification-title">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                        </svg>
+                                        AI Charging Started
+                                    </div>
+                                </div>
+                                <div class="notification-description">Get notified when AI charging engine starts charging the battery</div>
+                                <div class="notification-meta">
+                                    <span class="notification-tag">AI Engine</span>
+                                    <span class="notification-tag" id="ai-started-status">Disabled</span>
+                                </div>
+                                <div class="notification-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="ai-charging-started">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="notification-item">
+                                <div class="notification-header">
+                                    <div class="notification-title">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                        </svg>
+                                        AI Charging Stopped
+                                    </div>
+                                </div>
+                                <div class="notification-description">Get notified when AI charging engine stops charging the battery</div>
+                                <div class="notification-meta">
+                                    <span class="notification-tag">AI Engine</span>
+                                    <span class="notification-tag" id="ai-stopped-status">Disabled</span>
+                                </div>
+                                <div class="notification-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="ai-charging-stopped">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="notification-item">
+                                <div class="notification-header">
+                                    <div class="notification-title">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                        </svg>
+                                        Optimal Price Alert
+                                    </div>
+                                </div>
+                                <div class="notification-description">Get notified when electricity prices reach optimal charging levels (≤8¢/kWh)</div>
+                                <div class="notification-meta">
+                                    <span class="notification-tag">Price Alert</span>
+                                    <span class="notification-tag" id="optimal-price-status">Disabled</span>
+                                </div>
+                                <div class="notification-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="optimal-price-alert">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="notification-item">
+                                <div class="notification-header">
+                                    <div class="notification-title">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                        </svg>
+                                        Negative Price Alert
+                                    </div>
+                                </div>
+                                <div class="notification-description">Get notified when electricity prices go negative (you get paid to use electricity)</div>
+                                <div class="notification-meta">
+                                    <span class="notification-tag">Price Alert</span>
+                                    <span class="notification-tag" id="negative-price-status">Disabled</span>
+                                </div>
+                                <div class="notification-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="negative-price-alert">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="notification-list" id="rule-notifications-list">
-                            <!-- Rule notifications will be dynamically added here -->
-                        </div>
-                        
-                        <div class="empty-state" id="rule-notifications-empty" style="display: none;">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                            </svg>
-                            <div class="empty-state-text">No rule notifications configured</div>
-                            <p style="color: #666; margin: 0.5rem 0;">Add notification rules to get notified when your automation rules trigger.</p>
-                            <button id="add-rule-notification-empty" class="btn btn-primary">Add Rule Notification</button>
-                        </div>
+
                     </div>
                 </div>
                 
@@ -2334,11 +2407,17 @@ body {
                         
                         <div class="info-box" style="margin-bottom: 1rem; padding: 1rem; background: #e8f4fd; border-left: 4px solid #2196F3; border-radius: 4px;">
                             <h4 style="margin: 0 0 0.5rem 0; color: #1976D2;">
-                                <i class="fas fa-info-circle"></i> Warning Types
+                                <i class="fas fa-lightbulb"></i> Create Your Warning Types
                             </h4>
-                            <p style="margin: 0; color: #1976D2;">
-                                Configure warning types to monitor your system. Each warning type can be enabled/disabled and has configurable thresholds.
+                            <p style="margin: 0 0 0.5rem 0; color: #1976D2;">
+                                Create custom warning types to monitor your solar system. Examples:
                             </p>
+                            <ul style="margin: 0; padding-left: 1.5rem; color: #1976D2;">
+                                <li><strong>Low Battery:</strong> Battery SOC < 20% (High Priority)</li>
+                                <li><strong>High Load:</strong> Load > 5000W (Medium Priority)</li>
+                                <li><strong>Grid Issues:</strong> Grid Voltage < 200V (High Priority)</li>
+                                <li><strong>PV Underperformance:</strong> PV Power < 1000W during daytime (Low Priority)</li>
+                            </ul>
                         </div>
                         
                         <div class="loader" id="warning-types-loader">
@@ -2352,11 +2431,11 @@ body {
                         
                         <div class="empty-state" id="warning-types-empty" style="display: none;">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                             </svg>
-                            <div class="empty-state-text">No warning types configured</div>
-                            <p style="color: #666; margin: 0.5rem 0;">Add warning types to monitor your system for specific conditions.</p>
-                            <button id="add-warning-type-empty" class="btn btn-primary">Add Warning Type</button>
+                            <div class="empty-state-text">Create Your First Warning Type</div>
+                            <p style="color: #666; margin: 0.5rem 0;">Start monitoring your solar system by creating custom warning types for the parameters that matter to you.</p>
+                            <button id="add-warning-type-empty" class="btn btn-primary">Create Warning Type</button>
                         </div>
                     </div>
                     
@@ -2367,13 +2446,16 @@ body {
                             <button id="add-warning-notification" class="btn btn-primary">Add New</button>
                         </div>
                         
-                        <div class="info-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;">
-                            <h4 style="margin: 0 0 0.5rem 0; color: #721c24;">
-                                <i class="fas fa-shield-alt"></i> Warning System Information
+                        <div class="info-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: #856404;">
+                                <i class="fas fa-bell"></i> How Warning Notifications Work
                             </h4>
-                            <p style="margin: 0; color: #721c24;">
-                                All warning notifications are disabled by default. You must manually enable the specific warnings you want to receive notifications for.
-                            </p>
+                            <ol style="margin: 0; padding-left: 1.5rem; color: #856404;">
+                                <li>First, create warning types in the section above</li>
+                                <li>Enable the warning types you want to monitor</li>
+                                <li>Then create notification rules here for those warning types</li>
+                                <li>Configure Telegram to receive the notifications</li>
+                            </ol>
                         </div>
                         
                         <div class="loader" id="warnings-loader">
@@ -2387,11 +2469,11 @@ body {
                         
                         <div class="empty-state" id="warning-notifications-empty" style="display: none;">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                             </svg>
-                            <div class="empty-state-text">No warning notifications configured</div>
-                            <p style="color: #666; margin: 0.5rem 0;">Add warning notifications to get alerted about system issues.</p>
-                            <button id="add-warning-notification-empty" class="btn btn-primary">Add Warning Notification</button>
+                            <div class="empty-state-text">No Warning Notifications Yet</div>
+                            <p style="color: #666; margin: 0.5rem 0;">Create warning types first, then add notification rules for them here.</p>
+                            <button id="add-warning-notification-empty" class="btn btn-primary">Add Notification Rule</button>
                         </div>
                     </div>
                 </div>
@@ -2431,17 +2513,27 @@ body {
                         <button class="modal-close" id="close-warning-type-modal">&times;</button>
                     </div>
                     <div class="modal-body">
+                        <div style="margin-bottom: 1.5rem; padding: 0.75rem; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #28a745;">
+                            <strong style="color: #155724;">💡 Quick Examples:</strong>
+                            <div style="font-size: 0.875rem; color: #155724; margin-top: 0.25rem;">
+                                • <strong>Low Battery:</strong> Battery SOC < 20% • <strong>High Load:</strong> Load > 5000W<br>
+                                • <strong>Grid Issue:</strong> Grid Voltage < 200V • <strong>PV Low:</strong> PV Power < 500W (daytime)
+                            </div>
+                        </div>
+                        
                         <form id="warning-type-form">
                             <input type="hidden" id="warning-type-id">
                             
                             <div class="form-group">
                                 <label for="warning-type-name">Name *</label>
                                 <input type="text" id="warning-type-name" class="form-control" placeholder="E.g., Low Battery Alert" required>
+                                <small style="color: #666;">Give your warning a descriptive name</small>
                             </div>
                             
                             <div class="form-group">
                                 <label for="warning-type-description">Description</label>
-                                <textarea id="warning-type-description" class="form-control" rows="2" placeholder="Describe what this warning monitors"></textarea>
+                                <textarea id="warning-type-description" class="form-control" rows="2" placeholder="E.g., Alerts when battery level is critically low"></textarea>
+                                <small style="color: #666;">Optional: Explain when this warning should trigger</small>
                             </div>
                             
                             <div class="form-row">
@@ -2449,12 +2541,13 @@ body {
                                     <label for="warning-type-parameter">Parameter *</label>
                                     <select id="warning-type-parameter" class="form-control" required>
                                         <option value="">Select Parameter</option>
-                                        <option value="battery_soc">Battery SOC (%)</option>
-                                        <option value="pv_power">PV Power (W)</option>
-                                        <option value="load">Load Power (W)</option>
-                                        <option value="grid_voltage">Grid Voltage (V)</option>
-                                        <option value="grid_power">Grid Power (W)</option>
+                                        <option value="battery_soc">Battery SOC (%) - Battery charge level</option>
+                                        <option value="pv_power">PV Power (W) - Solar panel output</option>
+                                        <option value="load">Load Power (W) - Power consumption</option>
+                                        <option value="grid_voltage">Grid Voltage (V) - Electrical grid voltage</option>
+                                        <option value="grid_power">Grid Power (W) - Power from/to grid</option>
                                     </select>
+                                    <small style="color: #666;">Choose what system parameter to monitor</small>
                                 </div>
                                 
                                 <div class="form-group">
@@ -2471,7 +2564,8 @@ body {
                                 
                                 <div class="form-group">
                                     <label for="warning-type-threshold">Threshold *</label>
-                                    <input type="number" id="warning-type-threshold" class="form-control threshold-input" placeholder="0" step="0.1" required>
+                                    <input type="number" id="warning-type-threshold" class="form-control threshold-input" placeholder="20" step="0.1" required>
+                                    <small style="color: #666;">The value that triggers the warning</small>
                                 </div>
                             </div>
                             
@@ -2496,6 +2590,7 @@ body {
                                 <div class="form-group">
                                     <label for="warning-type-cooldown">Cooldown (min)</label>
                                     <input type="number" id="warning-type-cooldown" class="form-control cooldown-input" placeholder="30" min="1" max="1440" value="30">
+                                    <small style="color: #666;">Wait time before sending same warning again</small>
                                 </div>
                             </div>
                             
@@ -2516,54 +2611,7 @@ body {
                 </div>
             </div>
             
-            <!-- Add Rule Notification Modal -->
-            <div class="modal" id="rule-notification-modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="rule-modal-title">Add Rule Notification</h3>
-                        <button class="modal-close" id="close-rule-modal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="rule-notification-form">
-                            <input type="hidden" id="rule-notification-id">
-                            <div class="form-group">
-                                <label for="rule-notification-name">Name</label>
-                                <input type="text" id="rule-notification-name" class="form-control" placeholder="E.g., Battery Low Rule Notification" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="rule-notification-description">Description</label>
-                                <textarea id="rule-notification-description" class="form-control" rows="3" placeholder="Describe this notification rule"></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="rule-select">Select Rule</label>
-                                <div class="rules-select" id="rule-select">
-                                    <!-- Rules will be dynamically added here -->
-                                    <div class="loader" id="rule-select-loader">
-                                        <div class="loader-spinner"></div>
-                                        <p>Loading rules...</p>
-                                    </div>
-                                    <div id="rule-select-list"></div>
-                                    <div class="empty-state" id="rule-select-empty" style="display: none;">
-                                        <div class="empty-state-text">No rules available</div>
-                                        <p style="color: #666; margin: 0.5rem 0;">Create automation rules first, then add notifications for them.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="switch">
-                                    <input type="checkbox" id="rule-notification-enabled" checked>
-                                    <span class="slider"></span>
-                                </label>
-                                <label for="rule-notification-enabled" style="display: inline-block; margin-left: 10px;">Enable notifications for this rule</label>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn" id="cancel-rule-notification">Cancel</button>
-                        <button type="button" class="btn btn-primary" id="save-rule-notification">Save</button>
-                    </div>
-                </div>
-            </div>
+            <!-- AI Charging notifications modal will be added in future update -->
             
             <!-- Add Warning Notification Modal -->
             <div class="modal" id="warning-notification-modal">
@@ -2684,9 +2732,6 @@ body {
             }
             
             // Close modals with X button or Cancel button
-            document.getElementById('close-rule-modal').addEventListener('click', () => closeModal('rule-notification-modal'));
-            document.getElementById('cancel-rule-notification').addEventListener('click', () => closeModal('rule-notification-modal'));
-            
             document.getElementById('close-warning-modal').addEventListener('click', () => closeModal('warning-notification-modal'));
             document.getElementById('cancel-warning-notification').addEventListener('click', () => closeModal('warning-notification-modal'));
             
@@ -3161,343 +3206,89 @@ body {
                 }
             });
             
-            // =================== RULE NOTIFICATIONS ===================
+            // =================== AI CHARGING NOTIFICATIONS ===================
             
-            // Add rule notification button
-            document.getElementById('add-rule-notification').addEventListener('click', () => {
-                document.getElementById('rule-modal-title').textContent = 'Add Rule Notification';
-                document.getElementById('rule-notification-id').value = '';
-                document.getElementById('rule-notification-name').value = '';
-                document.getElementById('rule-notification-description').value = '';
-                document.getElementById('rule-notification-enabled').checked = true;
-                
-                // Load rules for selection
-                loadRules();
-                
-                openModal('rule-notification-modal');
-            });
-            
-            document.getElementById('add-rule-notification-empty').addEventListener('click', () => {
-                document.getElementById('add-rule-notification').click();
-            });
-            
-            // Load rules from SQLite database for selection
-            async function loadRules() {
-                const ruleSelectLoader = document.getElementById('rule-select-loader');
-                const ruleSelectList = document.getElementById('rule-select-list');
-                const ruleSelectEmpty = document.getElementById('rule-select-empty');
-                
-                ruleSelectLoader.classList.add('show');
-                ruleSelectList.innerHTML = '';
-                ruleSelectEmpty.style.display = 'none';
-                
+            // Load AI charging notification settings
+            async function loadAIChargingSettings() {
                 try {
-                    const response = await fetch('<%= ingress_path %>/api/rules');
-                    const rules = await response.json();
+                    const response = await fetch('<%= ingress_path %>/api/notifications/ai-charging/config');
+                    const config = await response.json();
                     
-                    ruleSelectLoader.classList.remove('show');
-                    
-                    if (rules.length === 0) {
-                        ruleSelectEmpty.style.display = 'block';
-                        return;
+                    if (config.success) {
+                        document.getElementById('ai-charging-started').checked = config.settings.chargingStarted || false;
+                        document.getElementById('ai-charging-stopped').checked = config.settings.chargingStopped || false;
+                        document.getElementById('optimal-price-alert').checked = config.settings.optimalPrice || false;
+                        document.getElementById('negative-price-alert').checked = config.settings.negativePrice || false;
+                        
+                        updateAINotificationStatus();
                     }
-                    
-                    rules.forEach(rule => {
-                        const ruleOption = document.createElement('div');
-                        ruleOption.className = 'rule-option';
-                        ruleOption.setAttribute('data-rule-id', rule.id);
-                        ruleOption.innerHTML = `
-                            <strong>${rule.name}</strong>
-                            ${rule.description ? `<p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem;">${rule.description}</p>` : ''}
-                            <div style="margin-top: 0.5rem;">
-                                <span class="badge ${rule.active ? 'badge-success' : 'badge-danger'}">${rule.active ? 'Active' : 'Inactive'}</span>
-                                <span class="badge badge-primary">Rule ID: ${rule.id}</span>
-                            </div>
-                        `;
-                        
-                        ruleOption.addEventListener('click', () => {
-                            // Toggle selection
-                            document.querySelectorAll('.rule-option').forEach(opt => {
-                                opt.classList.remove('selected');
-                            });
-                            
-                            ruleOption.classList.add('selected');
-                        });
-                        
-                        ruleSelectList.appendChild(ruleOption);
-                    });
                 } catch (error) {
-                    ruleSelectLoader.classList.remove('show');
-                    ruleSelectEmpty.style.display = 'block';
-                    ruleSelectEmpty.querySelector('.empty-state-text').textContent = 'Error loading rules';
-                    console.error('Error loading rules:', error);
+                    console.log('AI charging settings not yet configured');
                 }
             }
             
-            // Save rule notification
-            document.getElementById('save-rule-notification').addEventListener('click', async () => {
-                const id = document.getElementById('rule-notification-id').value;
-                const name = document.getElementById('rule-notification-name').value;
-                const description = document.getElementById('rule-notification-description').value;
-                const enabled = document.getElementById('rule-notification-enabled').checked;
+            // Update status tags
+            function updateAINotificationStatus() {
+                const startedEnabled = document.getElementById('ai-charging-started').checked;
+                const stoppedEnabled = document.getElementById('ai-charging-stopped').checked;
+                const optimalEnabled = document.getElementById('optimal-price-alert').checked;
+                const negativeEnabled = document.getElementById('negative-price-alert').checked;
                 
-                // Get selected rule
-                const selectedRule = document.querySelector('.rule-option.selected');
-                if (!selectedRule) {
-                    showToast('Please select a rule', true);
-                    return;
-                }
-                
-                const ruleId = selectedRule.getAttribute('data-rule-id');
-                
-                // Prepare notification rule data
-                const notificationRule = {
-                    type: 'rule',
-                    name,
-                    description,
-                    enabled,
-                    ruleId
+                document.getElementById('ai-started-status').textContent = startedEnabled ? 'Enabled' : 'Disabled';
+                document.getElementById('ai-stopped-status').textContent = stoppedEnabled ? 'Enabled' : 'Disabled';
+                document.getElementById('optimal-price-status').textContent = optimalEnabled ? 'Enabled' : 'Disabled';
+                document.getElementById('negative-price-status').textContent = negativeEnabled ? 'Enabled' : 'Disabled';
+            }
+            
+            // Save AI charging notification settings
+            async function saveAIChargingSettings() {
+                const settings = {
+                    chargingStarted: document.getElementById('ai-charging-started').checked,
+                    chargingStopped: document.getElementById('ai-charging-stopped').checked,
+                    optimalPrice: document.getElementById('optimal-price-alert').checked,
+                    negativePrice: document.getElementById('negative-price-alert').checked
                 };
                 
                 try {
-                    let url = '<%= ingress_path %>/api/notifications/rules';
-                    let method = 'POST';
-                    
-                    // If editing an existing rule
-                    if (id) {
-                        url = `<%= ingress_path %>/api/notifications/rules/${id}`;
-                        method = 'PUT';
-                        notificationRule.id = id;
-                    }
-                    
-                    const response = await fetch(url, {
-                        method,
+                    const response = await fetch('<%= ingress_path %>/api/notifications/ai-charging/config', {
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(notificationRule)
+                        body: JSON.stringify({ settings })
                     });
                     
                     const result = await response.json();
                     
                     if (result.success) {
-                        showToast(`Rule notification ${id ? 'updated' : 'added'} successfully!`);
-                        closeModal('rule-notification-modal');
-                        loadRuleNotifications(); // Reload to show changes
+                        showToast('AI charging notification settings saved!');
+                        updateAINotificationStatus();
                     } else {
-                        showToast(result.error || 'Failed to save rule notification', true);
+                        showToast('Failed to save AI charging settings', true);
                     }
                 } catch (error) {
-                    showToast('Error saving rule notification', true);
-                    console.error('Error:', error);
-                }
-            });
-            
-            // Load rule notifications
-            async function loadRuleNotifications() {
-                const rulesLoader = document.getElementById('rules-loader');
-                const ruleNotificationsList = document.getElementById('rule-notifications-list');
-                const ruleNotificationsEmpty = document.getElementById('rule-notifications-empty');
-                
-                rulesLoader.classList.add('show');
-                ruleNotificationsList.innerHTML = '';
-                ruleNotificationsEmpty.style.display = 'none';
-                
-                try {
-                    const response = await fetch('<%= ingress_path %>/api/notifications/rules');
-                    const result = await response.json();
-                    
-                    rulesLoader.classList.remove('show');
-                    
-                    if (!result.success || !result.rules || result.rules.length === 0) {
-                        ruleNotificationsEmpty.style.display = 'block';
-                        return;
-                    }
-                    
-                    // Filter only rule-type notifications
-                    const ruleNotifications = result.rules.filter(rule => rule.type === 'rule');
-                    
-                    if (ruleNotifications.length === 0) {
-                        ruleNotificationsEmpty.style.display = 'block';
-                        return;
-                    }
-                    
-                    ruleNotifications.forEach(rule => {
-                        const ruleItem = document.createElement('div');
-                        ruleItem.className = 'notification-item rule';
-                        ruleItem.innerHTML = `
-                            <div class="notification-header">
-                                <div class="notification-title">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M16 2H8C4.691 2 2 4.691 2 8v13a1 1 0 0 0 1 1h5v-7h8v7h5a1 1 0 0 0 1-1V8c0-3.309-2.691-6-6-6z"/>
-                                    </svg>
-                                    ${rule.name}
-                                </div>
-                                <div class="notification-actions">
-                                    <button class="btn btn-secondary btn-sm edit-rule" data-id="${rule.id}">Edit</button>
-                                    <button class="btn btn-danger btn-sm delete-rule" data-id="${rule.id}">Delete</button>
-                                </div>
-                            </div>
-                            ${rule.description ? `<div class="notification-description">${rule.description}</div>` : ''}
-                            <div class="notification-meta">
-                                <span class="notification-tag">Rule ID: ${rule.ruleId}</span>
-                                <span class="notification-tag">${rule.enabled ? 'Enabled' : 'Disabled'}</span>
-                            </div>
-                            <div class="notification-toggle">
-                                <label class="switch">
-                                    <input type="checkbox" class="toggle-rule" data-id="${rule.id}" ${rule.enabled ? 'checked' : ''}>
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                        `;
-                        
-                        ruleNotificationsList.appendChild(ruleItem);
-                    });
-                    
-                    // Add event listeners for actions
-                    document.querySelectorAll('.edit-rule').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const id = e.target.getAttribute('data-id');
-                            editRuleNotification(id);
-                        });
-                    });
-                    
-                    document.querySelectorAll('.delete-rule').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const id = e.target.getAttribute('data-id');
-                            deleteRuleNotification(id);
-                        });
-                    });
-                    
-                    document.querySelectorAll('.toggle-rule').forEach(checkbox => {
-                        checkbox.addEventListener('change', (e) => {
-                            const id = e.target.getAttribute('data-id');
-                            toggleRuleNotification(id, e.target.checked);
-                        });
-                    });
-                } catch (error) {
-                    rulesLoader.classList.remove('show');
-                    ruleNotificationsEmpty.style.display = 'block';
-                    ruleNotificationsEmpty.querySelector('.empty-state-text').textContent = 'Error loading rule notifications';
-                    console.error('Error loading rule notifications:', error);
-                }
-            }
-            
-            // Edit rule notification
-            async function editRuleNotification(id) {
-                try {
-                    const response = await fetch('<%= ingress_path %>/api/notifications/rules');
-                    const result = await response.json();
-                    
-                    if (!result.success) {
-                        showToast('Failed to load rule notification', true);
-                        return;
-                    }
-                    
-                    const rule = result.rules.find(r => r.id === id);
-                    
-                    if (!rule) {
-                        showToast('Rule notification not found', true);
-                        return;
-                    }
-                    
-                    // Fill the form
-                    document.getElementById('rule-modal-title').textContent = 'Edit Rule Notification';
-                    document.getElementById('rule-notification-id').value = rule.id;
-                    document.getElementById('rule-notification-name').value = rule.name;
-                    document.getElementById('rule-notification-description').value = rule.description || '';
-                    document.getElementById('rule-notification-enabled').checked = rule.enabled;
-                    
-                    // Load rules and select the current one
-                    await loadRules();
-                    
-                    // Select the current rule
-                    setTimeout(() => {
-                        const ruleOption = document.querySelector(`.rule-option[data-rule-id="${rule.ruleId}"]`);
-                        if (ruleOption) {
-                            ruleOption.classList.add('selected');
-                        }
-                    }, 100);
-                    
-                    openModal('rule-notification-modal');
-                } catch (error) {
-                    showToast('Error loading rule notification', true);
+                    showToast('Error saving AI charging settings', true);
                     console.error('Error:', error);
                 }
             }
             
-            // Delete rule notification
-            async function deleteRuleNotification(id) {
-                if (!confirm('Are you sure you want to delete this rule notification?')) {
-                    return;
-                }
-                
-                try {
-                    const response = await fetch(`<%= ingress_path %>/api/notifications/rules/${id}`, {
-                        method: 'DELETE'
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showToast('Rule notification deleted successfully!');
-                        loadRuleNotifications(); // Reload to update the list
-                    } else {
-                        showToast(result.error || 'Failed to delete rule notification', true);
-                    }
-                } catch (error) {
-                    showToast('Error deleting rule notification', true);
-                    console.error('Error:', error);
-                }
-            }
+            // Add event listeners for AI charging toggles
+            document.getElementById('ai-charging-started').addEventListener('change', saveAIChargingSettings);
+            document.getElementById('ai-charging-stopped').addEventListener('change', saveAIChargingSettings);
+            document.getElementById('optimal-price-alert').addEventListener('change', saveAIChargingSettings);
+            document.getElementById('negative-price-alert').addEventListener('change', saveAIChargingSettings);
             
-            // Toggle rule notification enabled state
-            async function toggleRuleNotification(id, enabled) {
-                try {
-                    // First, get the current rule data
-                    const response = await fetch('<%= ingress_path %>/api/notifications/rules');
-                    const result = await response.json();
-                    
-                    if (!result.success) {
-                        showToast('Failed to load rule notification', true);
-                        return;
-                    }
-                    
-                    const rule = result.rules.find(r => r.id === id);
-                    
-                    if (!rule) {
-                        showToast('Rule notification not found', true);
-                        return;
-                    }
-                    
-                    // Update the rule with new enabled state
-                    const updateResponse = await fetch(`<%= ingress_path %>/api/notifications/rules/${id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            ...rule,
-                            enabled
-                        })
-                    });
-                    
-                    const updateResult = await updateResponse.json();
-                    
-                    if (updateResult.success) {
-                        showToast(`Rule notification ${enabled ? 'enabled' : 'disabled'} successfully!`);
-                    } else {
-                        showToast(updateResult.error || 'Failed to update rule notification', true);
-                        // Revert checkbox state
-                        loadRuleNotifications();
-                    }
-                } catch (error) {
-                    showToast('Error updating rule notification', true);
-                    console.error('Error:', error);
-                    // Revert checkbox state
-                    loadRuleNotifications();
-                }
-            }
+            // AI charging notification functions will be implemented here
+            
+            // AI charging notification save functionality will be implemented here
+            
+            // AI charging notification loading will be implemented here
+            
+            // AI charging notification editing will be implemented here
+            
+            // AI charging notification deletion will be implemented here
+            
+            // AI charging notification toggle will be implemented here
             
             // =================== WARNING NOTIFICATIONS ===================
             
@@ -3895,8 +3686,8 @@ body {
                 // Load warning types
                 loadWarningTypes();
                 
-                // Load rule notifications
-                loadRuleNotifications();
+                // Load AI charging notification settings
+                loadAIChargingSettings();
                 
                 // Load warning notifications
                 loadWarningNotifications();

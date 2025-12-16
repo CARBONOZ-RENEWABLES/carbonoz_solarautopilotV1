@@ -109,7 +109,6 @@
                         const [topic, value] = message.split(': ');
                         const messageElement = document.createElement('div');
                         messageElement.className = 'message';
-                        messageElement.style.animationDelay = `${index * 0.05}s`;
                         
                         const messageIcon = getMessageIcon(topic);
                         const timestamp = new Date().toLocaleTimeString();
@@ -147,14 +146,7 @@
         return '📡';
     }
     
-    // Live indicator animation
-    function animateLiveIndicator() {
-        const indicator = document.getElementById('liveIndicator');
-        indicator.style.color = '#00ff00';
-        setTimeout(() => {
-            indicator.style.color = '#666';
-        }, 500);
-    }
+
     
     // Clear messages function
     document.getElementById('clearButton').addEventListener('click', () => {
@@ -167,7 +159,6 @@
     // Auto-refresh every 5 seconds
     setInterval(() => {
         fetchMessages();
-        animateLiveIndicator();
     }, 5000);
     
     // Initial fetch

@@ -610,6 +610,55 @@ router.post('/warnings/test', async (req, res) => {
   }
 });
 
+// AI Charging Notification Routes
+
+// Get AI charging notification configuration
+router.get('/ai-charging/config', (req, res) => {
+  try {
+    const config = telegramService.getConfig();
+    
+    res.json({
+      success: true,
+      settings: config.aiChargingNotifications || {
+        chargingStarted: false,
+        chargingStopped: false,
+        optimalPrice: false,
+        negativePrice: false
+      }
+    });
+  } catch (error) {
+    console.error('Error getting AI charging config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while getting AI charging configuration'
+    });
+  }
+});
+
+// Update AI charging notification configuration
+router.post('/ai-charging/config', (req, res) => {
+  try {
+    const { settings } = req.body;
+    
+    if (!settings) {
+      return res.status(400).json({ success: false, error: 'Settings are required' });
+    }
+    
+    const success = telegramService.updateAIChargingNotifications(settings);
+    
+    res.json({
+      success,
+      message: success ? 'AI charging notification settings updated successfully' : 'Failed to update AI charging settings'
+    });
+  } catch (error) {
+    console.error('Error updating AI charging config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while updating AI charging configuration'
+    });
+  }
+});
+
 // Trigger a rule test notification
 router.post('/rules/test', async (req, res) => {
   try {

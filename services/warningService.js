@@ -6,70 +6,13 @@ const path = require('path');
 // Configuration file path
 const WARNINGS_CONFIG_FILE = path.join(__dirname, '..', 'data', 'warnings_config.json');
 
-// Available warning types that users can choose from - ALL DISABLED BY DEFAULT
-const availableWarningTypes = [
-  {
-    id: 'low-battery',
-    name: 'Low Battery',
-    description: 'Battery state of charge is critically low',
-    parameter: 'battery_soc',
-    condition: 'lt', // less than
-    threshold: 15,
-    enabled: false, // DISABLED BY DEFAULT
-    priority: 'high',
-    cooldownMinutes: 60 // How long to wait before sending the same warning again
-  },
-  {
-    id: 'high-load',
-    name: 'High Load',
-    description: 'System load is unusually high',
-    parameter: 'load',
-    condition: 'gt', // greater than
-    threshold: 8000,
-    enabled: false, // DISABLED BY DEFAULT
-    priority: 'medium',
-    cooldownMinutes: 30
-  },
-  {
-    id: 'grid-outage',
-    name: 'Grid Outage',
-    description: 'Grid voltage is too low or unstable',
-    parameter: 'grid_voltage',
-    condition: 'lt',
-    threshold: 190,
-    enabled: false, // DISABLED BY DEFAULT
-    priority: 'high',
-    cooldownMinutes: 15
-  },
-  {
-    id: 'battery-full-discharge',
-    name: 'Battery Full Discharge Warning',
-    description: 'Battery is being fully discharged too frequently',
-    parameter: 'battery_soc',
-    condition: 'lt',
-    threshold: 10,
-    enabled: false, // DISABLED BY DEFAULT
-    priority: 'high',
-    cooldownMinutes: 120
-  },
-  {
-    id: 'pv-underperformance',
-    name: 'PV System Underperformance',
-    description: 'PV power generation is lower than expected',
-    parameter: 'pv_power',
-    condition: 'lt',
-    threshold: 500, // Adjust based on system size
-    timeCondition: 'daytime', // Only check during daylight hours
-    enabled: false, // DISABLED BY DEFAULT
-    priority: 'medium',
-    cooldownMinutes: 240
-  }
-];
+// No default warning types - users create their own
+const availableWarningTypes = [];
 
-// Default configuration structure - NO WARNINGS ENABLED BY DEFAULT
+// Default configuration structure - empty, user creates their own
 const defaultConfig = {
-  enabled: true, // Warning system enabled, but individual warnings disabled
-  warningTypes: availableWarningTypes, // All warnings disabled by default
+  enabled: true,
+  warningTypes: [], // Empty - users create their own
   warningHistory: [],
   maxHistoryItems: 100
 };
@@ -92,13 +35,7 @@ function getConfig() {
   try {
     const config = JSON.parse(fs.readFileSync(WARNINGS_CONFIG_FILE, 'utf8'));
     
-    // Ensure all available warning types are present but disabled by default
-    const existingIds = config.warningTypes.map(w => w.id);
-    availableWarningTypes.forEach(availableType => {
-      if (!existingIds.includes(availableType.id)) {
-        config.warningTypes.push({ ...availableType, enabled: false });
-      }
-    });
+    // No default warning types to add
     
     return config;
   } catch (error) {

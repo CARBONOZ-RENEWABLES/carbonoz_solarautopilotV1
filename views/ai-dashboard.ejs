@@ -733,23 +733,18 @@
             const toggleBtn = document.getElementById('aiToggleBtn');
             
             if (data.success) {
-                const isActive = data.learner_mode && data.ai.enabled;
+                const isActive = data.ai.enabled;
                 
                 if (isActive) {
                     statusElement.className = 'ai-status active';
                     statusTextElement.textContent = 'AI Engine Active - Making Smart Decisions';
                     toggleBtn.innerHTML = '<i class="fas fa-stop"></i>';
                     toggleBtn.disabled = false;
-                } else if (data.learner_mode && !data.ai.enabled) {
+                } else {
                     statusElement.className = 'ai-status inactive';
                     statusTextElement.textContent = 'AI Engine Ready - Click to Start';
                     toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
                     toggleBtn.disabled = false;
-                } else {
-                    statusElement.className = 'ai-status inactive';
-                    statusTextElement.textContent = 'Learner Mode Required - Enable in Settings';
-                    toggleBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
-                    toggleBtn.disabled = true;
                 }
                 
                 if (data.ai.lastDecision) {

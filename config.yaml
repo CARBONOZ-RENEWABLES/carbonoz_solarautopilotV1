@@ -1,7 +1,7 @@
-name: "CARBONOZ SolarAutopilot"
+name: "CARBONOZ SolarAutopilot - AI Charging"
 version: "1.0.0"
 slug: "carbonoz_solarautopilot"
-description: "CARBONOZ SolarAutopilot for Home Assistant with live Solar dashboard and MQTT inverter control."
+description: "CARBONOZ SolarAutopilot - AI-powered battery charging optimization with Tibber integration for Home Assistant."
 url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
 arch:
   - aarch64

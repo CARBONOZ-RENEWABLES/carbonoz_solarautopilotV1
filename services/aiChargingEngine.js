@@ -122,21 +122,21 @@ class AIChargingEngine {
         if (optimization.shouldCharge) {
           shouldCharge = true;
           if (thresholds.isNegative) {
-            reasons.push(`NEGATIVE PRICE: Getting paid ${Math.abs(thresholds.current * 100).toFixed(1)}¢/kWh`);
+            reasons.push(`NEGATIVE PRICE: Getting paid ${Math.abs(thresholds.current).toFixed(2)}¢/kWh`);
           } else {
-            reasons.push(`ACADEMIC OPTIMAL: ${(thresholds.current * 100).toFixed(1)}¢ ≤ 8¢/kWh`);
+            reasons.push(`ACADEMIC OPTIMAL: ${thresholds.current.toFixed(2)}¢ ≤ 8¢/kWh`);
           }
         }
         
         if (optimization.shouldDischarge && batterySOC > 30) {
-          reasons.push(`PEAK ARBITRAGE: ${(thresholds.current * 100).toFixed(1)}¢/kWh (volatility: ${(optimization.efficiency * 100).toFixed(1)}%)`);
+          reasons.push(`PEAK ARBITRAGE: ${thresholds.current.toFixed(2)}¢/kWh (volatility: ${(optimization.efficiency * 100).toFixed(1)}%)`);
         }
       }
 
       // Academic study threshold - only charge at ≤ 8¢/kWh
-      if (currentPrice?.total > 0.08 && currentPrice?.total >= 0) {
+      if (currentPrice?.total > 8 && currentPrice?.total >= 0) {
         shouldStop = true;
-        reasons.push(`ACADEMIC THRESHOLD: ${(currentPrice.total * 100).toFixed(1)}¢ > 8¢ optimal`);
+        reasons.push(`Price too expensive`);
       }
 
       // Solar-first strategy (maximizing self-consumption)
@@ -216,7 +216,7 @@ class AIChargingEngine {
     const efficiency = { charge: 0.95, discharge: 0.95 }; // ηc, ηd from study
     
     // Academic study price thresholds (optimized for 12.7% improvement)
-    const OPTIMAL_CHARGE_THRESHOLD = 0.08; // 8¢/kWh - academic study optimal threshold
+    const OPTIMAL_CHARGE_THRESHOLD = 8; // 8¢/kWh - academic study optimal threshold
     
     // Rule-based optimization from academic study
     const next24h = forecast.slice(0, 24).map(p => p.total);
@@ -263,10 +263,10 @@ class AIChargingEngine {
     // Dynamic pricing optimization (12.7% improvement)
     if (shouldCharge) {
       if (priceIsNegative) {
-        return `CHARGE GRID - NEGATIVE PRICE ${Math.abs(currentPrice.total * 100).toFixed(1)}¢/kWh`;
+        return `CHARGE GRID - NEGATIVE PRICE ${Math.abs(currentPrice.total).toFixed(2)}¢/kWh`;
       }
       if (optimization?.priceLevel === 'OPTIMAL') {
-        return `CHARGE GRID - ACADEMIC OPTIMAL ${(currentPrice.total * 100).toFixed(1)}¢ ≤ 8¢ (SOC: ${batterySOC}%)`;
+        return `CHARGE GRID - ACADEMIC OPTIMAL ${currentPrice.total.toFixed(2)}¢ ≤ 8¢ (SOC: ${batterySOC}%)`;
       }
       return `CHARGE GRID - Academic threshold met (SOC: ${batterySOC}%)`;
     }
@@ -423,17 +423,11 @@ class AIChargingEngine {
   }
 
   async start() {
-    // Only start if learner mode is active
-    if (!global.learnerModeActive) {
-      console.log('⚠️ AI Charging Engine: Learner mode must be active to start');
-      return { success: false, message: 'Learner mode must be active to start AI engine' };
-    }
-    
     if (this.evaluationInterval) {
       clearInterval(this.evaluationInterval);
     }
     
-    // Start immediately - no historical data requirement
+    // Start immediately - no learner mode requirement
     this.startEngine();
     return { success: true, message: 'AI Charging Engine started successfully' };
   }
@@ -447,12 +441,6 @@ class AIChargingEngine {
     });
     
     this.evaluationInterval = setInterval(() => {
-      // Stop if learner mode is deactivated
-      if (!global.learnerModeActive) {
-        this.stop();
-        return;
-      }
-      
       this.evaluate().catch(error => {
         console.error('❌ Error in AI evaluation interval:', error);
       });

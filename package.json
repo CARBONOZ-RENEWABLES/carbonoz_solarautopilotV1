@@ -1,7 +1,7 @@
 {
   "name": "carbonoz-solarautopilot",
   "version": "1.0.0",
-  "description": "CARBONOZ SolarAutopilot for Home Assistant",
+  "description": "CARBONOZ SolarAutopilot - AI Battery Charging Engine for Home Assistant",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -24,8 +24,7 @@
     "moment-timezone": "^0.5.45",
     "mqtt": "^4.2.8",
     "node-cron": "^3.0.3",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
+
     "ws": "^8.2.3"
   }
 }

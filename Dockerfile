@@ -31,7 +31,6 @@ RUN apk add --no-cache execline
 # --- Install system dependencies ---
 RUN apk add --no-cache \
     nodejs npm \
-    sqlite sqlite-dev \
     openssl openssl-dev \
     bash curl wget tzdata \
     python3 make g++ gcc \
@@ -55,12 +54,8 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 RUN npm config set unsafe-perm true \
-    && npm install --omit=dev --build-from-source=sqlite3 \
-    && npm rebuild sqlite3 --build-from-source \
+    && npm install --omit=dev \
     && npm cache clean --force
-
-# --- Test sqlite3 ---
-RUN node -e "require('sqlite3').verbose(); console.log('SQLite3 OK');"
 
 # --- Copy application ---
 COPY . .
