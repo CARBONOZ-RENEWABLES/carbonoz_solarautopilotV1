@@ -440,6 +440,12 @@ class AIChargingEngine {
 
   startEngine() {
     this.enabled = true;
+    
+    // Immediate first evaluation
+    this.evaluate().catch(error => {
+      console.error('❌ Error in initial AI evaluation:', error);
+    });
+    
     this.evaluationInterval = setInterval(() => {
       // Stop if learner mode is deactivated
       if (!global.learnerModeActive) {
@@ -452,7 +458,7 @@ class AIChargingEngine {
       });
     }, 300000); // Evaluate every 5 minutes
     
-    console.log('🚀 AI Charging Engine started - Simple lowest price strategy (5min intervals)');
+    console.log('🚀 AI Charging Engine started - Immediate evaluation + 5min intervals');
     return { success: true, message: 'AI Charging Engine started successfully' };
   }
 
