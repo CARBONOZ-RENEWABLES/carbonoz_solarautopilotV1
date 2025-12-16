@@ -3,7 +3,7 @@ version: "1.0.1"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot - AI-powered battery charging optimization with Tibber integration for Home Assistant."
 url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
-image: "ghcr.io/carbonoz-renewables/solarautopilot:{arch}-{version}"
+image: "ghcr.io/carbonoz-renewables/carbonoz-solarautopilotv1:{arch}-{version}"
 map:
   - share:rw
   - ssl
