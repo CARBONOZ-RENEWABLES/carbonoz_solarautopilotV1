@@ -36,6 +36,7 @@
     transition: all 0.3s ease;
 }
 
+
 .solar-card::before {
     content: '';
     position: absolute;
@@ -156,7 +157,7 @@
 
 /* Dark mode styles */
 .dark-mode .solar-card {
-    background: linear-gradient(135deg, rgba(45, 55, 72, 0.95) 0%, rgba(26, 32, 44, 0.95) 100%);
+    background: rgb(32, 36, 41) !important;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 

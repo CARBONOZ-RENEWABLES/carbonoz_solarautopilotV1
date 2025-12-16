@@ -406,11 +406,9 @@ nav li i {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 30px;
             padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .chart-container:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+            height: 400px;
+            overflow: hidden;
         }
 
         .chart-container h3 {
@@ -423,8 +421,44 @@ nav li i {
         }
 
         canvas {
-            max-width: 100%;
-            height: auto;
+            width: 100% !important;
+            height: 320px !important;
+            display: block;
+            position: static;
+        }
+
+        @media (max-width: 768px) {
+            .chart-container {
+                padding: 15px;
+                margin-bottom: 20px;
+                overflow-x: auto;
+            }
+            
+            .chart-container h3 {
+                font-size: 1.2em;
+            }
+            
+            canvas {
+                min-height: 250px;
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chart-container {
+                padding: 10px;
+                margin-left: -10px;
+                margin-right: -10px;
+            }
+            
+            .chart-container h3 {
+                font-size: 1.1em;
+                margin-bottom: 10px;
+            }
+            
+            canvas {
+                min-height: 200px;
+            }
         }
 
         /* Responsive design */
@@ -687,6 +721,10 @@ body.dark-mode {
     color: #fff;
 }
 .dark-mode .card{
+    background-color: rgb(32, 36, 41);
+    color: #fff;
+}
+.dark-mode .solar-card{
     background-color: rgb(32, 36, 41);
     color: #fff;
 }
@@ -1584,8 +1622,15 @@ body.dark-mode {
         };
     }
 
-    function createLineChart(chartElementId, labels, datasets, title) {
+    function getChartTextColor() {
+    return '#DEAF0B';
+}
+
+
+
+function createLineChart(chartElementId, labels, datasets, title) {
     const ctx = document.getElementById(chartElementId).getContext('2d');
+    const textColor = getChartTextColor();
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -1602,6 +1647,8 @@ body.dark-mode {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -1611,16 +1658,16 @@ body.dark-mode {
                     title: { 
                         display: true, 
                         text: 'Date',
-                        color: '#00BCD4',
+                        color: textColor,
                         font: {
                             weight: 'bold'
                         }
                     },
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: textColor,
                         font: {
                             weight: 'bold'
                         }
@@ -1630,16 +1677,16 @@ body.dark-mode {
                     title: { 
                         display: true, 
                         text: 'kWh',
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
                     },
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1650,7 +1697,7 @@ body.dark-mode {
                 legend: { 
                     position: 'top',
                     labels: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1663,7 +1710,7 @@ body.dark-mode {
                         size: 16,
                         weight: 'bold'
                     },
-                    color: '#00BCD4'
+                    color: '#DEAF0B'
                 },
                 tooltip: {
                     enabled: true,
@@ -1672,8 +1719,8 @@ body.dark-mode {
                     bodyFont: { size: 13 },
                     padding: 10,
                     displayColors: true,
-                    titleColor: '#00BCD4',
-                    bodyColor: '#00BCD4',
+                    titleColor: '#DEAF0B',
+                    bodyColor: '#DEAF0B',
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -1701,6 +1748,7 @@ body.dark-mode {
     // Function to create a battery chart
     function createBatteryChart(chartElementId, labels, chargedData, dischargedData, title) {
     const ctx = document.getElementById(chartElementId).getContext('2d');
+    const textColor = getChartTextColor();
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1722,6 +1770,8 @@ body.dark-mode {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -1730,10 +1780,10 @@ body.dark-mode {
                 x: { 
                     stacked: true,
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1744,16 +1794,16 @@ body.dark-mode {
                     title: { 
                         display: true, 
                         text: 'kWh',
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
                     },
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1764,7 +1814,7 @@ body.dark-mode {
                 legend: { 
                     position: 'top',
                     labels: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1777,13 +1827,13 @@ body.dark-mode {
                         size: 16,
                         weight: 'bold'
                     },
-                    color: '#00BCD4'
+                    color: '#DEAF0B'
                 },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    titleColor: '#00BCD4',
-                    bodyColor: '#00BCD4',
+                    titleColor: '#DEAF0B',
+                    bodyColor: '#DEAF0B',
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -1811,6 +1861,7 @@ body.dark-mode {
     // Function to create a grid chart
     function createGridChart(chartElementId, labels, gridUsedData, gridExportedData, title) {
     const ctx = document.getElementById(chartElementId).getContext('2d');
+    const textColor = getChartTextColor();
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1832,6 +1883,8 @@ body.dark-mode {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -1840,10 +1893,10 @@ body.dark-mode {
                 x: { 
                     stacked: true,
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1854,16 +1907,16 @@ body.dark-mode {
                     title: { 
                         display: true, 
                         text: 'kWh',
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
                     },
                     grid: {
-                        color: 'rgba(0, 188, 212, 0.1)'
+                        color: 'rgba(222, 175, 11, 0.1)'
                     },
                     ticks: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1874,7 +1927,7 @@ body.dark-mode {
                 legend: { 
                     position: 'top',
                     labels: {
-                        color: '#00BCD4',
+                        color: '#DEAF0B',
                         font: {
                             weight: 'bold'
                         }
@@ -1887,13 +1940,13 @@ body.dark-mode {
                         size: 16,
                         weight: 'bold'
                     },
-                    color: '#00BCD4'
+                    color: '#DEAF0B'
                 },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    titleColor: '#00BCD4',
-                    bodyColor: '#00BCD4',
+                    titleColor: '#DEAF0B',
+                    bodyColor: '#DEAF0B',
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -2182,6 +2235,7 @@ setupTableDownload('last10years-table', 'last10years-table-download', 'last_10_y
         exportTableToPDF('last10years-table', 'Last 10 Years Data', 'last_10_years_data.pdf');
     });
 });
+
 </script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
