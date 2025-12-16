@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+README.md
+Dockerfile
+build.yaml
+*.md
+logs/
+data/energy_monitor.db
+node_modules/
+.npm
+.node_repl_history
