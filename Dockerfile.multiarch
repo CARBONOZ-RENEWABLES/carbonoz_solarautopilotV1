@@ -3,13 +3,15 @@ ARG TARGETPLATFORM
 
 FROM --platform=$TARGETPLATFORM alpine:3.16
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
 ARG TARGETARCH
 ARG S6_OVERLAY_VERSION=3.1.5.0
 
+# --- Install bash and basic tools first ---
+RUN apk add --no-cache bash xz
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # --- Install S6 overlay ---
-RUN apk add --no-cache xz
 
 RUN \
     curl -L -s \
