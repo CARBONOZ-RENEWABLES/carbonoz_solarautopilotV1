@@ -7,7 +7,7 @@ ARG TARGETARCH
 ARG S6_OVERLAY_VERSION=3.1.5.0
 
 # --- Install bash and basic tools first ---
-RUN apk add --no-cache bash xz
+RUN apk add --no-cache bash xz curl ca-certificates
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
