@@ -1715,6 +1715,50 @@ app.get('/', async (req, res) => {
   res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
 });
 
+app.get('/energy-dashboard', async (req, res) => {
+  try {
+    const grafanaHost = getGrafanaHost(req);
+    const expectedInverters = parseInt(options.inverter_number) || 1;
+    const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
+    const batteryWarning = checkBatteryInformation(incomingMessages);
+    
+    // Mock data for energy dashboard
+    const todayData = {
+      date: new Date().toLocaleDateString(),
+      avoidedEmissions: 5.2,
+      unavoidableEmissions: 2.1,
+      selfSufficiencyScore: 78.5
+    };
+    
+    const summaryData = {
+      week: {
+        avoidedEmissions: 4.8,
+        unavoidableEmissions: 2.3,
+        selfSufficiencyScore: 75.2
+      },
+      month: {
+        avoidedEmissions: 18.5,
+        unavoidableEmissions: 9.2
+      }
+    };
+    
+    res.render('energy-dashboard', {
+      ingress_path: process.env.INGRESS_PATH || '',
+      grafanaHost: grafanaHost,
+      inverterWarning,
+      batteryWarning,
+      username: options.mqtt_username || 'User',
+      todayData,
+      summaryData,
+      isLoading: false,
+      selectedZone: 'DE'
+    });
+  } catch (error) {
+    console.error('Error rendering energy dashboard:', error);
+    res.status(500).send('Error loading energy dashboard');
+  }
+});
+
 app.get('/api/hassio_ingress/:token/energy-dashboard', (req, res) => {
   // Redirect to simplified handler
   req.url = '/energy-dashboard';

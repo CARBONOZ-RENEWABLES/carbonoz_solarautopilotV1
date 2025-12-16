@@ -539,9 +539,8 @@ class AIChargingEngine {
         const inverterId = `inverter_${i}`;
         const inverterType = this.config.inverterTypes[inverterId]?.type || 'unknown';
         
-        let topic, value;
-        
         if (inverterType === 'new') {
+          // New inverter - use charger/output priority
           const chargerTopic = `${this.config.mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
           const outputTopic = `${this.config.mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
           const outputValue = this.getOptimalOutputPriority(enableCharging);
@@ -554,19 +553,25 @@ class AIChargingEngine {
             commandsSent++;
           }
         } else {
-          topic = `${this.config.mqttTopicPrefix}/${inverterId}/grid_charge/set`;
-          value = enableCharging ? 'Enabled' : 'Disabled';
+          // Legacy inverter - use grid_charge + intelligent energy_pattern
+          const gridChargeTopic = `${this.config.mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+          const energyPatternTopic = `${this.config.mqttTopicPrefix}/${inverterId}/energy_pattern/set`;
+          
+          const gridChargeValue = enableCharging ? 'Enabled' : 'Disabled';
+          const energyPatternValue = this.getOptimalEnergyPattern();
           
           if (this.mqttClient) {
-            this.mqttClient.publish(topic, value);
-            await this.logCommand(topic, value, true);
+            this.mqttClient.publish(gridChargeTopic, gridChargeValue);
+            this.mqttClient.publish(energyPatternTopic, energyPatternValue);
+            await this.logCommand(gridChargeTopic, gridChargeValue, true);
+            await this.logCommand(energyPatternTopic, energyPatternValue, true);
             commandsSent++;
           }
         }
       }
       
       this.lastCommand = commandValue;
-      console.log(`🔋 Applied academic strategy decision: ${decision} to ${commandsSent} inverter(s)`);
+      console.log(`🔋 Applied decision: ${decision} to ${commandsSent} inverter(s)`);
       
     } catch (error) {
       console.error('❌ Failed to apply decision:', error);
@@ -626,6 +631,38 @@ class AIChargingEngine {
     }
     
     return 'Solar/Battery/Utility';
+  }
+
+  // Intelligent energy pattern selection for legacy inverters
+  getOptimalEnergyPattern() {
+    const pvPower = this.currentSystemState?.pv_power || 0;
+    const load = this.currentSystemState?.load || 0;
+    const batterySOC = this.currentSystemState?.battery_soc || 0;
+    const currentPrice = tibberService.cache.currentPrice;
+    const pvSurplus = pvPower - load;
+    
+    // High solar production - prioritize battery charging
+    if (pvSurplus > 1000 && batterySOC < 90) {
+      return 'Battery first';
+    }
+    
+    // Low battery + cheap electricity - charge battery first
+    if (batterySOC < 30 && currentPrice && currentPrice.total <= this.academicParams.optimalChargeThreshold) {
+      return 'Battery first';
+    }
+    
+    // High battery + high load - supply load directly
+    if (batterySOC > 70 && load > pvPower) {
+      return 'Load first';
+    }
+    
+    // Expensive electricity - use battery to supply load
+    if (currentPrice && currentPrice.total > this.academicParams.optimalChargeThreshold && batterySOC > 40) {
+      return 'Load first';
+    }
+    
+    // Default: Battery first for energy storage optimization
+    return 'Battery first';
   }
 
   async getDecisionHistory(limit = 50) {
