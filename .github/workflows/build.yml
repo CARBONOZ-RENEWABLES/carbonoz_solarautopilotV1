@@ -55,7 +55,9 @@ jobs:
         file: ./Dockerfile
         platforms: ${{ matrix.platform }}
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.arch }}:latest
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.arch }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.arch }}:${{ github.sha }}
         build-args: |
           BUILD_FROM=${{ matrix.build_from }}
           BUILD_ARCH=${{ matrix.arch }}

@@ -20,7 +20,7 @@ ports:
   "6789/tcp": 6789
   "8000/tcp": 8000
   "8086/tcp": 8086
-image: "ghcr.io/carbonoz-renewables/solarautopilot-{arch}"
+image: "ghcr.io/carbonoz-renewables/solarautopilot-{arch}:latest"
 startup: application
 boot: auto
 options:
