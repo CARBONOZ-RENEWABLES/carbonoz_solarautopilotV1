@@ -32,20 +32,14 @@ RUN apk add --no-cache execline
 RUN apk add --no-cache \
     nodejs npm \
     openssl openssl-dev \
-    bash curl wget tzdata jq \
+    bash curl wget tzdata \
     python3 make g++ gcc \
     linux-headers
 
-# --- Install InfluxDB & Grafana ---
-RUN apk add --no-cache influxdb && \
-    case "${BUILD_ARCH}" in \
-        "armv7") \
-            echo "Grafana not available for ARMv7, skipping..." ;; \
-        *) \
-            echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
-            apk update && \
-            apk add --no-cache grafana ;; \
-    esac
+# --- Install Grafana & InfluxDB ---
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+    && apk update \
+    && apk add --no-cache grafana influxdb
 
 # --- Prepare directories ---
 RUN mkdir -p /data/influxdb/meta \
@@ -71,10 +65,8 @@ COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
 
 RUN chmod +x /usr/bin/carbonoz.sh \
-    && find /etc/services.d -type f -exec chmod +x {} \; \
-    && mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
-    && mkdir -p /data/grafana/data /data/grafana/logs /data/grafana/plugins \
-    && chown -R nobody:nobody /data/influxdb
+    && find /etc/services.d -name run -exec chmod +x {} \; \
+    && find /etc/services.d -name finish -exec chmod +x {} \;
 
 ARG BUILD_DATE
 ARG BUILD_REF

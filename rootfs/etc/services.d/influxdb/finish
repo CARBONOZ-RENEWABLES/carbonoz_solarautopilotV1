@@ -1,2 +1,7 @@
-#!/usr/bin/with-contenv bash
-echo "[INFO] InfluxDB service finished"
+#!/bin/sh
+
+# If service ended with an error
+if [ "$1" -ne 0 ] && [ "$1" -ne 256 ]; then
+  # Signal all services to terminate
+  s6-svscanctl -t /var/run/s6/services
+fi
