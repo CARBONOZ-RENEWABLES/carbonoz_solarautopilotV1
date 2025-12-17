@@ -17,6 +17,19 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        arch: [amd64, aarch64, armv7]
+        include:
+          - arch: amd64
+            build_from: "ghcr.io/home-assistant/amd64-base:3.16"
+            platform: "linux/amd64"
+          - arch: aarch64
+            build_from: "ghcr.io/home-assistant/aarch64-base:3.16"
+            platform: "linux/arm64"
+          - arch: armv7
+            build_from: "ghcr.io/home-assistant/armv7-base:3.16"
+            platform: "linux/arm/v7"
 
     steps:
     - name: Checkout repository
@@ -35,31 +48,17 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable={{is_default_branch}}
-
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
-        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        platforms: ${{ matrix.platform }}
         push: true
-        tags: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-amd64:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-aarch64:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-armv7:latest
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.arch }}:latest
         build-args: |
-          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-          BUILD_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          BUILD_FROM=${{ matrix.build_from }}
+          BUILD_ARCH=${{ matrix.arch }}
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          BUILD_VERSION=1.0.1
           BUILD_REF=${{ github.sha }}
