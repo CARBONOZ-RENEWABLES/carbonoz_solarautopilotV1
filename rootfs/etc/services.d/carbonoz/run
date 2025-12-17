@@ -1,9 +1,9 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/with-contenv bash
 # ==============================================================================
 # Start the Carbonoz service
 # s6-overlay docs: https://github.com/just-containers/s6-overlay
 # ==============================================================================
 
-bashio::log.info "Starting Carbonoz SolarAutopilot..."
+echo "[INFO] Starting Carbonoz SolarAutopilot..."
 
 exec /usr/bin/carbonoz.sh

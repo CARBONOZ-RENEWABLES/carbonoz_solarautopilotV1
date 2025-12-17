@@ -32,7 +32,7 @@ RUN apk add --no-cache execline
 RUN apk add --no-cache \
     nodejs npm \
     openssl openssl-dev \
-    bash curl wget tzdata \
+    bash curl wget tzdata jq \
     python3 make g++ gcc \
     linux-headers
 
@@ -65,8 +65,10 @@ COPY grafana/grafana.ini /etc/grafana/grafana.ini
 COPY grafana/provisioning /etc/grafana/provisioning
 
 RUN chmod +x /usr/bin/carbonoz.sh \
-    && find /etc/services.d -name run -exec chmod +x {} \; \
-    && find /etc/services.d -name finish -exec chmod +x {} \;
+    && find /etc/services.d -type f -exec chmod +x {} \; \
+    && mkdir -p /data/influxdb/meta /data/influxdb/data /data/influxdb/wal \
+    && mkdir -p /data/grafana/data /data/grafana/logs /data/grafana/plugins \
+    && chown -R nobody:nobody /data/influxdb
 
 ARG BUILD_DATE
 ARG BUILD_REF

@@ -1,10 +1,10 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/with-contenv bash
 
 # ==============================================================================
 # Start the InfluxDB service with proper data persistence
 # ==============================================================================
 
-bashio::log.info "Starting InfluxDB with data persistence..."
+echo "[INFO] Starting InfluxDB with data persistence..."
 
 # Ensure directories exist with correct permissions
 mkdir -p /data/influxdb/meta
@@ -14,14 +14,14 @@ chown -R nobody:nobody /data/influxdb
 
 # Check if this is the first run
 if [ ! -f "/data/influxdb/.configured" ]; then
-  bashio::log.info "First run detected, configuring InfluxDB..."
+  echo "[INFO] First run detected, configuring InfluxDB..."
   
   # Start InfluxDB
   s6-setuidgid nobody influxd -config /etc/influxdb/influxdb.conf &
   INFLUXDB_PID=$!
   
   # Wait for InfluxDB to start
-  bashio::log.info "Waiting for InfluxDB to start..."
+  echo "[INFO] Waiting for InfluxDB to start..."
   sleep 10
   
   # Create the database and users if they do not exist
