@@ -1,46 +1,43 @@
-name: "CARBONOZ SolarAutopilot - AI Charging"
+name: "SolarAutopilot"
 version: "1.0.1"
 slug: "carbonoz_solarautopilot"
 description: "CARBONOZ SolarAutopilot - AI-powered battery charging optimization with Tibber integration for Home Assistant."
-url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot"
-image: "ghcr.io/carbonoz-renewables/solarautopilot:{arch}-{version}"
+url: "https://github.com/CARBONOZ-RENEWABLES/solarautopilot-addon"
+codenotary: notary@home-assistant.io
+arch:
+  - aarch64
+  - amd64
+  - armv7
+init: false
+panel_icon: "mdi:solar-power"
+panel_title: "Carbonoz SolarAutopilot"
+panel_admin: false
 map:
   - share:rw
-  - ssl
-  - /data:/data
-  - /data/backup:/data/backup
+ingress: true
+ingress_port: 6789
+ingress_stream: true
 ports:
   "3001/tcp": 3001
   "6789/tcp": 6789
   "8000/tcp": 8000
   "8086/tcp": 8086
-ports_description:
-  3001/tcp: "Web interface (optional)"
-  6789/tcp: "Main application"
-  8000/tcp: "WebSocket"
-  8086/tcp: "InfluxDB"
-panel_icon: "mdi:solar-power"
-panel_title: "Carbonoz SolarAutopilot"
-ingress: true
-ingress_port: 6789
-ingress_stream: true
+image: "ghcr.io/carbonoz-renewables/solarautopilot-{arch}"
+legacy: true
 startup: application
-init: false
-memory_limit: 512mb
 options:
   mqtt_username: ""
   mqtt_password: ""
-  mqtt_topic_prefix: ""
-  battery_number: 1
-  inverter_number: 1
+  mqtt_topic_prefix: "solarautopilot"
+  battery_number: "1"
+  inverter_number: "1"
   clientId: ""
   clientSecret: ""
 schema:
-  mqtt_username: "str?"
-  mqtt_password: "password?"
-  mqtt_topic_prefix: "str"
-  battery_number: "int(1,)"
-  inverter_number: "int(1,)"
-  clientId: "str"
-  clientSecret: "password"
-panel: true
+  mqtt_username: str
+  mqtt_password: str
+  mqtt_topic_prefix: str
+  battery_number: str
+  inverter_number: str
+  clientId: str
+  clientSecret: str
