@@ -36,10 +36,28 @@ RUN apk add --no-cache \
     python3 make g++ gcc \
     linux-headers
 
-# --- Install Grafana & InfluxDB ---
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
-    && apk update \
-    && apk add --no-cache grafana influxdb
+# --- Install InfluxDB (available for all architectures) ---
+RUN apk add --no-cache influxdb
+
+# --- Install Grafana (architecture-specific) ---
+RUN case "${BUILD_ARCH}" in \
+        "armv7") \
+            # For ARMv7, download and install Grafana manually
+            GRAFANA_VERSION="10.2.2" && \
+            wget -O /tmp/grafana.tar.gz "https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-armv7.tar.gz" && \
+            tar -xzf /tmp/grafana.tar.gz -C /opt && \
+            mv /opt/grafana-* /opt/grafana && \
+            ln -s /opt/grafana/bin/grafana-server /usr/bin/grafana-server && \
+            mkdir -p /etc/grafana /usr/share/grafana && \
+            cp -r /opt/grafana/conf /etc/grafana/ && \
+            cp -r /opt/grafana/public /usr/share/grafana/ && \
+            rm /tmp/grafana.tar.gz ;; \
+        *) \
+            # For other architectures, use package manager
+            echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+            apk update && \
+            apk add --no-cache grafana ;; \
+    esac
 
 # --- Prepare directories ---
 RUN mkdir -p /data/influxdb/meta \
