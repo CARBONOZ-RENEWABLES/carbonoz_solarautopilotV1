@@ -30,23 +30,39 @@
             <br>
 
             <div class="container">
-                <div class="header">
-                    <h1>🔌 Inverter Settings</h1>
-                    <div class="header-controls">
-                        <div class="inverter-selector">
-                            <label for="inverterSelect">Select Inverter:</label>
-                            <select id="inverterSelect">
-                                <!-- Will be populated by JavaScript -->
-                            </select>
-                            <div id="inverterTypeIndicator" class="inverter-type-indicator">
-                                <span>🔍 Detecting...</span>
+                <!-- Header Section -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2>
+                                    <i class="fas fa-microchip me-2"></i>
+                                    Inverter Settings
+                                </h2>
+                                <div class="status-display">
+                                    <span class="status-indicator status-online"></span>
+                                    <span>Live Data</span>
+                                </div>
                             </div>
                         </div>
-                        <button class="refresh-btn" onclick="refreshAllData()">
-                            <span id="refresh-icon">🔄</span>
-                            Refresh Data
-                        </button>
                     </div>
+                </div>
+
+                <!-- Controls Section -->
+                <div class="header-controls-section">
+                    <div class="inverter-selector">
+                        <label for="inverterSelect">Select Inverter:</label>
+                        <select id="inverterSelect">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                        <div id="inverterTypeIndicator" class="inverter-type-indicator">
+                            <span>🔍 Detecting...</span>
+                        </div>
+                    </div>
+                    <button class="refresh-btn" onclick="refreshAllData()">
+                        <span id="refresh-icon">🔄</span>
+                        Refresh Data
+                    </button>
                 </div>
         
 
