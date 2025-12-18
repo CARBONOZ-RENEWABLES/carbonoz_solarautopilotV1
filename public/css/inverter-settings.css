@@ -723,6 +723,29 @@ body.dark-mode {
         align-items: stretch !important;
     }
     
+    /* New header controls section mobile layout */
+    .header-controls-section {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        align-items: stretch !important;
+        padding: 1rem 0.75rem !important;
+    }
+    
+    .card-header {
+        padding: 12px 15px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    
+    .card-header h2 {
+        font-size: 1rem !important;
+    }
+    
+    .status-display {
+        align-self: flex-end;
+    }
+    
     .inverter-selector {
         width: 100% !important;
         flex-direction: column !important;
@@ -1073,6 +1096,114 @@ body.dark-mode {
   padding: 0;
 }
 
+/* Grid System for Header */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -10px 20px -10px;
+}
+
+.col-12 { 
+    width: 100%; 
+    padding: 0 10px; 
+}
+
+/* Card Styles for Header */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    margin-bottom: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark-mode .card {
+    background: rgba(34, 37, 41, 0.85);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    color: #f5f6fa;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    background: #DEAF0B;
+    color: white;
+    border-radius: 15px 15px 0 0;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Status Display */
+.status-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-online { 
+    background: #27ae60;
+    animation: pulse 2s infinite;
+}
+
+.status-offline { 
+    background: #e74c3c; 
+}
+
+.status-warning { 
+    background: #f39c12; 
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Header Controls Section */
+.header-controls-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+    border: 1px solid rgba(255,255,255,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dark-mode .header-controls-section {
+    background: rgba(32, 36, 41, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
 .header {
             background: white;
             padding: 25px;
@@ -1159,7 +1290,7 @@ body.dark-mode {
         }
 
         .refresh-btn {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: linear-gradient(135deg, #DEAF0B, #B8940A);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -1175,7 +1306,7 @@ body.dark-mode {
 
         .refresh-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 4px 12px rgba(222, 175, 11, 0.3);
         }
 
         .learner-status {
@@ -1708,11 +1839,11 @@ body.dark-mode {
 
 /* Refresh Button Dark Mode */
 .dark-mode .refresh-btn {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #DEAF0B, #B8940A);
 }
 
 .dark-mode .refresh-btn:hover {
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 12px rgba(222, 175, 11, 0.4);
 }
 
 /* Learner Status Dark Mode */
@@ -1875,3 +2006,18 @@ body.dark-mode {
 .dark-mode .empty-section {
   color: #9ca3af;
 }
+
+/* Utility Classes */
+.me-2 { 
+    margin-right: 0.5rem; 
+}
+
+.fas {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+.fa-microchip:before {
+    content: "\f2db";
+}
+
