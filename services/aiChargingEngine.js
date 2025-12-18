@@ -4,6 +4,7 @@
 
 const tibberService = require('./tibberService');
 const influxAIService = require('./influxAIService');
+// Enhanced notification service will be available globally
 
 class AIChargingEngine {
   constructor() {
@@ -254,6 +255,19 @@ class AIChargingEngine {
 
     this.lastDecision = entry;
     await influxAIService.saveDecision(decision, reasons, systemState, tibberData);
+
+    // Send to enhanced notification service if available
+    if (global.enhancedNotificationService) {
+      try {
+        await global.enhancedNotificationService.processAIDecision({
+          decision,
+          reasons,
+          academicMetrics
+        }, systemState, tibberData);
+      } catch (error) {
+        console.error('Error processing AI decision notification:', error);
+      }
+    }
 
     // Only log important decisions, not routine monitoring
     if (!decision.includes('MONITOR') && !decision.includes('SOLAR ACTIVE')) {

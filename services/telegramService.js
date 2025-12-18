@@ -369,6 +369,138 @@ async function broadcastMessage(message) {
   return successCount > 0;
 }
 
+// Enhanced notification methods for new UI
+function updateSettings(settings) {
+  const config = getConfig();
+  const newConfig = { ...config, ...settings };
+  return saveConfig(newConfig);
+}
+
+function updateNotificationTypes(types) {
+  const config = getConfig();
+  if (!config.types) {
+    config.types = {
+      aiCharging: true,
+      battery: true,
+      price: true,
+      system: true,
+      criticalOnly: false
+    };
+  }
+  config.types = { ...config.types, ...types };
+  return saveConfig(config);
+}
+
+function resetConfig() {
+  const resetConfig = {
+    enabled: false,
+    botToken: '',
+    chatIds: [],
+    notificationRules: [],
+    enhancedFeatures: true,
+    inverterTypeSupport: true,
+    autoNotifications: false,
+    aiChargingNotifications: {
+      chargingStarted: false,
+      chargingStopped: false,
+      optimalPrice: false,
+      negativePrice: false
+    },
+    types: {
+      aiCharging: true,
+      battery: true,
+      price: true,
+      system: true,
+      criticalOnly: false
+    }
+  };
+  return saveConfig(resetConfig);
+}
+
+// Enhanced notification sending for new system
+async function sendEnhancedNotification(notification) {
+  const config = getConfig();
+  
+  if (!config.enabled || !config.botToken || config.chatIds.length === 0) {
+    return false;
+  }
+  
+  // Check if we should send this type of notification
+  if (!shouldSendNotificationType(notification.type, notification.severity, config)) {
+    return false;
+  }
+  
+  const message = formatEnhancedNotification(notification);
+  return await broadcastMessage(message);
+}
+
+function shouldSendNotificationType(type, severity, config) {
+  if (!config.types) return true;
+  
+  // If critical only mode is enabled, only send critical notifications
+  if (config.types.criticalOnly && severity !== 'critical') {
+    return false;
+  }
+  
+  // Check specific notification type rules
+  switch (type) {
+    case 'ai_charging':
+    case 'charging_start':
+    case 'charging_stop':
+      return config.types.aiCharging;
+    case 'battery_low':
+    case 'battery_critical':
+    case 'battery_warning':
+      return config.types.battery;
+    case 'price_alert':
+    case 'optimal_price':
+    case 'price_warning':
+      return config.types.price;
+    case 'system_error':
+    case 'connection_lost':
+    case 'system_status':
+    case 'system_alert':
+      return config.types.system;
+    default:
+      return true;
+  }
+}
+
+function formatEnhancedNotification(notification) {
+  const severityEmojis = {
+    info: '📝',
+    warning: '⚠️',
+    critical: '🚨'
+  };
+  
+  const typeEmojis = {
+    ai_charging: '🤖',
+    battery_warning: '🔋',
+    price_alert: '💰',
+    system_alert: '⚙️'
+  };
+  
+  let message = `${severityEmojis[notification.severity] || '📝'} *${notification.title}*\n\n`;
+  message += `${notification.message}\n\n`;
+  
+  if (notification.data) {
+    if (notification.data.batterySOC) {
+      message += `🔋 Battery: ${notification.data.batterySOC}%\n`;
+    }
+    if (notification.data.price) {
+      message += `💰 Price: ${notification.data.price}¢/kWh\n`;
+    }
+    if (notification.data.power) {
+      message += `⚡ Power: ${notification.data.power}W\n`;
+    }
+  }
+  
+  message += `\n📅 ${new Date(notification.timestamp).toLocaleString()}`;
+  message += `\n🏷️ Type: ${notification.type.replace('_', ' ').toUpperCase()}`;
+  
+  return message;
+}
+
 module.exports = {
   getConfig,
   saveConfig,
@@ -386,5 +518,12 @@ module.exports = {
   broadcastMessage,
   updateAIChargingNotifications,
   shouldNotifyForAICharging,
-  sendAIChargingNotification
+  sendAIChargingNotification,
+  // Enhanced methods
+  updateSettings,
+  updateNotificationTypes,
+  resetConfig,
+  sendEnhancedNotification,
+  shouldSendNotificationType,
+  formatEnhancedNotification
 };

@@ -17,7 +17,7 @@
         <span></span>
     </button>
     <div class="container">
-        <div id="loadingOverlay" class="loading-overlay">
+        <div id="loadingOverlay" class="loading-overlay show">
             <div class="loading-spinner"></div>
         </div>
         <div id="pageContent"> </div>
@@ -326,16 +326,43 @@
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', async function() {
-            const dataRestored = await loadPersistedData();
-            initializeCharts();
+            console.log('🚀 Starting AI dashboard initialization...');
             
-            // Show data status indicator
-            if (dataRestored) {
-                showDataStatus('Historical data restored', 'success');
+            try {
+                console.log('📊 Loading persisted data...');
+                const dataRestored = await loadPersistedData();
+                console.log('✅ Persisted data loaded:', dataRestored);
+                
+                console.log('📈 Initializing charts...');
+                initializeCharts();
+                console.log('✅ Charts initialized');
+                
+                // Show data status indicator
+                if (dataRestored) {
+                    showDataStatus('Historical data restored', 'success');
+                }
+                
+                console.log('📡 Loading dashboard data...');
+                await loadDashboardData();
+                console.log('✅ Dashboard data loaded');
+                
+                console.log('🔄 Starting auto refresh...');
+                startAutoRefresh();
+                console.log('✅ Auto refresh started');
+                
+                // Hide loading after initialization
+                console.log('🎨 Hiding loading overlay...');
+                setTimeout(() => {
+                    hideLoading();
+                    console.log('✅ Loading overlay hidden');
+                }, 800);
+                
+                console.log('🎉 AI dashboard initialized successfully');
+            } catch (error) {
+                console.error('❌ Error initializing dashboard:', error);
+                console.log('🛑 Hiding loading due to error...');
+                hideLoading();
             }
-            
-            loadDashboardData();
-            startAutoRefresh();
         });
         
         // Load persisted chart data from localStorage or server
@@ -1120,6 +1147,25 @@
             }
         }
         
+        // Loading functions
+        function showLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.classList.add('show');
+            }
+        }
+        
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('show');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 300);
+            }
+        }
+        
         // Show notification
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
@@ -1288,6 +1334,7 @@
 
     </script>
 
+<script src="<%= ingress_path %>/js/debug.js"></script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>

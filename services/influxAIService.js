@@ -12,7 +12,7 @@ class InfluxAIService {
   initializeInflux() {
     try {
       this.influx = new Influx.InfluxDB({
-        host: 'localhost',
+       host: 'localhost',
         port: 8086,
         database: 'home_assistant',
         username: 'admin',

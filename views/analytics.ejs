@@ -728,36 +728,50 @@ body.dark-mode {
     background-color: rgb(32, 36, 41);
     color: #fff;
 }
-.dark-mode .loading-overlay{
-    background-color: rgba(24, 27, 31, 1);
-}
-/* loading css */
-
 .loading-overlay {
- position: fixed;
- top: 0;
- left: 0;
- width: 100%;
- height: 100%;
- background-color: #f8f9fa;
- display: flex;
- justify-content: center;
- align-items: center;
- z-index: 9999;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    backdrop-filter: blur(4px);
+}
+
+.dark-mode .loading-overlay {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Solid background loading for specific pages */
+.loading-overlay.solid {
+    background: #FFFFFF;
+}
+
+.dark-mode .loading-overlay.solid {
+    background: rgb(24, 27, 31);
+}
+
+.loading-overlay.show {
+    display: flex;
 }
 
 .loading-spinner {
- width: 50px;
- height: 50px;
- border: 5px solid #e0e0e0;
- border-top: 5px solid #3498db;
- border-radius: 50%;
- animation: spin 1s linear infinite;
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(222, 175, 11, 0.2);
+    border-top: 4px solid #DEAF0B;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 4px 20px rgba(222, 175, 11, 0.3);
 }
 
 @keyframes spin {
- 0% { transform: rotate(0deg); }
- 100% { transform: rotate(360deg); }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 .dashboard {
     max-width: 1200px;
@@ -1016,10 +1030,9 @@ body.dark-mode {
         <span></span>
     </button>
 
-    <div id="loadingOverlay" class="loading-overlay">
+    <div id="loadingOverlay" class="loading-overlay solid">
         <div class="loading-spinner"></div>
     </div>
-    <div id="pageContent">
     
     <!-- Sidebar -->
     <%- include('partials/sidebar') %>

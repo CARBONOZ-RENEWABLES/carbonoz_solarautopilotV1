@@ -26,6 +26,7 @@ const { AuthenticateUser } = require('./utils/mongoService')
 const telegramService = require('./services/telegramService');
 const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
+const notificationService = require('./services/notificationService');
 const tibberService = require('./services/tibberService');
 const aiChargingEngine = require('./services/aiChargingEngine');
 
@@ -107,7 +108,6 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 // Read configuration from Home Assistant add-on options
 const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
-
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -1989,6 +1989,8 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
       res.status(500).render('error', { error: 'Error loading settings' });
     }
   });
+
+
   
   app.post('/settings', async (req, res) => {
     try {
@@ -2134,13 +2136,11 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
   });
 
   app.get('/api/hassio_ingress/:token/ai-dashboard', (req, res) => {
-    req.url = '/ai-dashboard';
-    app._router.handle(req, res);
+    res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
   });
   
   app.get('/hassio_ingress/:token/ai-dashboard', (req, res) => {
-    req.url = '/ai-dashboard';
-    app._router.handle(req, res);
+    res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
   });
 
 
@@ -3265,8 +3265,33 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
   
   // Add notification routes
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api/notifications', notificationRoutes);
+  
+  // Enhanced notifications page
+  app.get('/enhanced-notifications', async (req, res) => {
+    try {
+      res.render('enhanced-notifications', {
+        ingress_path: process.env.INGRESS_PATH || '',
+        user_id: USER_ID
+      });
+    } catch (error) {
+      console.error('Error rendering enhanced notifications page:', error);
+      res.status(500).send('Error loading enhanced notifications page');
+    }
+  });
+
+
 
   // ================ ENHANCED INVERTER SETTINGS PAGE ================
+
+// Home Assistant ingress routes for inverter settings
+app.get('/api/hassio_ingress/:token/inverter-settings', (req, res) => {
+  res.redirect(`${process.env.INGRESS_PATH || ''}/inverter-settings`);
+});
+
+app.get('/hassio_ingress/:token/inverter-settings', (req, res) => {
+  res.redirect(`${process.env.INGRESS_PATH || ''}/inverter-settings`);
+});
 
 app.get('/inverter-settings', async (req, res) => {
     try {
@@ -4572,6 +4597,13 @@ async function initializeConnections() {
   // Initialize Telegram service
   const telegramService = require('./services/telegramService');
   console.log('✅ Telegram notification service initialized');
+  
+  // Initialize enhanced notification service
+  const notificationService = require('./services/notificationService');
+  console.log('✅ Enhanced notification service initialized');
+  
+  // Make enhanced notification service globally available
+  global.notificationService = notificationService;
 
   if (global.influx) {
     console.log('🔄 Initializing Tibber cache from InfluxDB...');

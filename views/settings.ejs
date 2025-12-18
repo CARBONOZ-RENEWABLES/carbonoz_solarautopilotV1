@@ -3,2785 +3,915 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbonoz SolarAutopilot</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
+    <title>CARBONOZ SolarAutopilot - Settings</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-   body {
-       font-family: 'Inter', sans-serif;
-   }
-   :root {
-            --primary-color: #DEAF0B;
-            --primary-accent-hover: #c49c0b;
-            --card-bg: #ffffff;
-            --text-color: #2d3748;
-            --muted-text: #666666;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --border-radius: 12px;
-            --green: #27ae60;
-            --yellow: #f1c40f;
-            --orange: #e67e22;
-            --red: #e74c3c;
-            --blue: #DEAF0B;
-   }
-   
-   body, html {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    background-color: #fff;
-    
-   }
-    /* Sidebar styles */
-    .sidebar {
-    width: 280px;
-    height: 100vh;
-    background-color: white;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    transition: width 0.3s ease;
-}
-           .logo-container {
-               padding: 1.5rem;
-               border-bottom: 1px solid #e5e7eb;
-               display: flex;
-               align-items: center;
-               gap: 0.75rem;
-           }
-   
-           .logo-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-weight: bold;
-    font-size: 20px;
-   }
-   
-   .logo-text {
-    margin-left: 10px;
-    font-weight: bold;
-    color: var(--text-color);
-    font-size: 18px;
-   }
-   
-   .logo-text .highlight {
-    color: var(--primary-color);
-    margin-left: 10px;
-   }
-   
-   
-   nav {
-    flex-grow: 1;
-   }
-   
-   nav ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-   }
-   nav li {
-    padding: 15px 20px;
-    display: flex;
-    align-items: center;
-    color: var(--text-color);
-    cursor: pointer;
-    transition: background-color 0.3s;
-    font-size: 18px;
-   }
-   
-   nav li a{
-    text-decoration: none;
-    color: #2f3640;
-    font-weight: bold;
-   }
-   nav li:hover {
-    background-color: var(--bg-color);
-   }
-   
-   nav li i {
-    margin-right: 15px;
-    color: var(--icon-color);
-    font-size: 24px;
-   }
-   
-   .bottom-options {
-    padding: 20px;
-    border-top: 1px solid #dcdde1;
-   }
-   
-   .toggle-sidebar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    font-size: 16px;
-   }
-   
-   .toggle-text {
-    margin-right: 10px;
-   }
-   
-   .toggle-switch {
-    width: 50px;
-    height: 25px;
-    background-color: #dcdde1;
-    border-radius: 12.5px;
-    position: relative;
-    transition: background-color 0.3s;
-   }
-   .toggle-switch::before {
-    content: '';
-    position: absolute;
-    width: 21px;
-    height: 21px;
-    border-radius: 50%;
-    background-color: white;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.3s;
-   }
-   
-   .toggle-switch.active {
-    background-color: var(--primary-color);
-   }
-   
-   .toggle-switch.active::before {
-    transform: translateX(25px);
-   }
-   
-   .sidebar.collapsed .logo-text,
-   .sidebar.collapsed .search,
-   .sidebar.collapsed nav li span,
-   .sidebar.collapsed .toggle-text {
-    display: none;
-   }
-   
-   .sidebar.collapsed .logo {
-    justify-content: center;
-   }
-   
-   .sidebar.collapsed nav li {
-    justify-content: center;
-   }
-   
-   .sidebar.collapsed nav li i {
-    margin-right: 0;
-   }
-           /* Main content styles */
-           .main-content {
-               flex: 1;
-               margin-left: 280px;
-               padding: 2rem;
-           }
-   
-           .content-header {
-               margin-bottom: 2rem;
-           }
-   
-           .content-header h2 {
-               font-size: 1.875rem;
-               font-weight: 700;
-               color: #111827;
-           }
-   
-           .metrics-grid {
-               display: grid;
-               grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-               gap: 1.5rem;
-               margin-bottom: 2rem;
-           }
-   
-           .metric-card {
-               background: white;
-               border-radius: 12px;
-               padding: 1.5rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .metric-title {
-               font-size: 0.875rem;
-               font-weight: 600;
-               color: #4b5563;
-               margin-bottom: 0.5rem;
-           }
-   
-           .metric-value {
-               font-size: 1.5rem;
-               font-weight: 700;
-               margin-bottom: 0.25rem;
-           }
-   
-           .metric-subtitle {
-               font-size: 0.875rem;
-               color: #6b7280;
-           }
-   
-           .chart-container {
-               background: white;
-               border-radius: 12px;
-               padding: 1.5rem;
-               margin-bottom: 2rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .chart-wrapper {
-               height: 400px;
-               margin-top: 1rem;
-           }
-   
-           .period-buttons {
-               display: flex;
-               gap: 0.75rem;
-               margin-bottom: 1rem;
-           }
-   
-           .period-btn {
-               padding: 0.5rem 1rem;
-               border: none;
-               background-color: #e5e7eb;
-               color: #4b5563;
-               border-radius: 6px;
-               cursor: pointer;
-               font-weight: 500;
-               transition: all 0.2s;
-           }
-   
-           .period-btn:hover {
-               background-color: #d1d5db;
-           }
-   
-           .period-btn.active {
-               background-color: #DEAF0B;
-               color: white;
-           }
-   
-           /* Toggle styles */
-           .toggle {
-               position: relative;
-               display: inline-block;
-               width: 44px;
-               height: 24px;
-           }
-   
-           .toggle input {
-               opacity: 0;
-               width: 0;
-               height: 0;
-           }
-   
-           .slider {
-               position: absolute;
-               cursor: pointer;
-               top: 0;
-               left: 0;
-               right: 0;
-               bottom: 0;
-               background-color: #e5e7eb;
-               transition: .4s;
-               border-radius: 34px;
-           }
-   
-           .slider:before {
-               position: absolute;
-               content: "";
-               height: 16px;
-               width: 16px;
-               left: 4px;
-               bottom: 4px;
-               background-color: white;
-               transition: .4s;
-               border-radius: 50%;
-           }
-   
-           input:checked + .slider {
-               background-color: #DEAF0B;
-           }
-   
-           input:checked + .slider:before {
-               transform: translateX(20px);
-           }
-   
-           /* Updated and new styles */
-           .bottom-controls {
-               padding: 1.5rem;
-               border-top: 1px solid #e5e7eb;
-           }
-   
-           .control-item {
-               display: flex;
-               justify-content: space-between;
-               align-items: center;
-               margin-bottom: 1rem;
-           }
-   
-           .control-label {
-               font-size: 0.875rem;
-               color: #4b5563;
-           }
-   
-           .toggle {
-               position: relative;
-               display: inline-block;
-               width: 44px;
-               height: 24px;
-           }
-   
-           .toggle input {
-               opacity: 0;
-               width: 0;
-               height: 0;
-           }
-   
-           .sidebar {
-    width: 280px;
-    background-color: white;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s ease;
-    z-index: 10;
-   }
-   
-   .sidebar.collapsed {
-    width: 80px;
-   }
-   
-   .logo {
-    display: flex;
-    align-items: center;
-    padding: 20px;
-   }
-   
-   
-           input:checked + .slider {
-               background-color: #DEAF0B;
-           }
-   
-           input:checked + .slider:before {
-               transform: translateX(20px);
-           }
-   
-           .total-emissions {
-               font-size: 1.25rem;
-               font-weight: 600;
-               margin-bottom: 1rem;
-               color: #374151;
-           }
-   
-           .summary-grid {
-               display: grid;
-               grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-               gap: 1rem;
-               margin-bottom: 2rem;
-           }
-   
-           .summary-item {
-               background-color: white;
-               border-radius: 8px;
-               padding: 1rem;
-               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-           }
-   
-           .summary-label {
-               font-size: 0.875rem;
-               color: #6b7280;
-               display: block;
-               margin-bottom: 0.5rem;
-           }
-   
-           .summary-value {
-               font-size: 1.25rem;
-               font-weight: 600;
-           }
-   
-       
-   
-           /* Responsive styles */
-           @media (max-width: 768px) {
-               .sidebar {
-                   width: 100%;
-                   height: auto;
-                   position: static;
-                   border-right: none;
-                   border-bottom: 1px solid #e5e7eb;
-               }
-   
-               .main-content {
-                   margin-left: 0;
-               }
-   
-               body.collapsed-sidebar .sidebar {
-                   display: none;
-               }
-   
-               body.collapsed-sidebar .main-content {
-                   margin-left: 0;
-               }
-   
-               .metrics-grid,
-               .summary-grid {
-                   grid-template-columns: 1fr;
-               }
-   
-               .period-buttons {
-                   flex-wrap: wrap;
-               }
-   
-               .period-btn {
-                   flex: 1 0 calc(50% - 0.375rem);
-                   margin-bottom: 0.75rem;
-               }
-           }
-   /* loading css */
-   .loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f8f9fa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-   }
-   
-   .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #e0e0e0;
-    border-top: 5px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-   }
-   
-   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-   } 
-           /* Dark mode styles */
-   body.dark-mode {
-       background-color: rgba(24, 27, 31, 1);
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar {
-       background-color: rgba(24, 27, 31, 1);
-   }
-   
-   .dark-mode .sidebar .logo-icon {
-    color: #2f3640;
-   }
-   
-   .dark-mode .sidebar .logo-text {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li:hover {
-    background-color: #383838;
-   }
-   
-   .dark-mode .sidebar nav li a {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .sidebar nav li i {
-    color: #dcdde1;
-   }
-   
-   .dark-mode .toggle-sidebar,
-   .dark-mode .toggle-dark-mode {
-    color: #f5f6fa;
-   }
-   
-   .dark-mode .toggle-switch {
-       background-color: var(--primary-color);
-   }
-   
-   .dark-mode .toggle-switch.active {
-    background-color: var(--primary-color);
-   }
-   
-   .dark-mode header {
-       background-color: rgb(17, 18, 23);
-   }
-   
-   .dark-mode .main-content {
-       background-color: rgba(24, 27, 31, 1);
-    color: #fff;
-   }
-   
-   .dark-mode .metric-card {
-     background-color: rgb(32, 36, 41);
-   
-    color: #fff;
-   }
-   .dark-mode .chart-container{
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode  .summary-item {
-     background-color: rgb(32, 36, 41);
-   
-   color: #fff;
-   }
-   .dark-mode .loading-overlay{
-       background-color: rgba(24, 27, 31, 1);
-   }
-   a{
-     text-decoration: none;
-   } 
-
-
-
-/* Mobile Sidebar Improvements */
-@media (max-width: 768px) {
-    /* Sidebar base styles */
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 100vh;
-        width: 280px;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-        z-index: 1000;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        box-shadow: none;
-    }
-
-    .sidebar.active {
-        transform: translateX(0);
-        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Improved hamburger button */
-    .mobile-toggle {
-        display: block;
-        position: fixed;
-        top: 1rem;
-        left: 1rem;
-        z-index: 1001;
-        background: none;
-        border: none;
-        cursor: pointer;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        padding: 8px;
-    }
-
-    .mobile-toggle span {
-        display: block;
-        width: 24px;
-        height: 2px;
-        background-color: var(--text-color);
-        margin: 5px auto;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-
-    .mobile-toggle.active span:nth-child(1) {
-        transform: translateY(7px) rotate(45deg);
-    }
-
-    .mobile-toggle.active span:nth-child(2) {
-        opacity: 0;
-    }
-
-    .mobile-toggle.active span:nth-child(3) {
-        transform: translateY(-7px) rotate(-45deg);
-    }
-
-    /* Improved nav items */
-    .sidebar nav ul {
-        padding: 1rem 0;
-    }
-
-    .sidebar nav li {
-        padding: 0.875rem 1.5rem;
-        margin: 0.25rem 1rem;
-        border-radius: 8px;
-        transition: background-color 0.2s ease;
-    }
-
-    .sidebar nav li a {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        font-size: 1rem;
-        color: var(--text-color);
-    }
-
-    .sidebar nav li i {
-        font-size: 1.25rem;
-        min-width: 24px;
-        text-align: center;
-    }
-
-    .sidebar nav li:active {
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-
-    /* Improved overlay */
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(2px);
-        z-index: 999;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .sidebar-overlay.active {
-        display: block;
-        opacity: 1;
-    }
-
-    /* Dark mode adjustments */
-    .dark-mode .mobile-toggle {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .dark-mode .mobile-toggle span {
-        background-color: #f5f6fa;
-    }
-
-    .dark-mode .sidebar nav li:active {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-}
-
-/* Ensure main content adjusts properly */
-@media (max-width: 768px) {
-    .main-content {
-        margin-left: 0;
-        padding-top: 4.5rem;
-        transition: margin-left 0.3s ease;
-    }
-
-    body.sidebar-open .main-content {
-        filter: blur(2px);
-        pointer-events: none;
-    }
-}
-
-.dark-mode .settings-container{
-    background-color: rgb(32, 36, 41);
-}
-.settings-container {
-background-color: #fff;
-            margin: 2rem auto;
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-        }
-
-        /* Headers */
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 2rem;
-            color: var(--primary-color);
-            border-bottom: 2px solid #edf2f7;
-            padding-bottom: 1rem;
-        }
-
-        h3 {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            color: rgb(32, 36, 41);
-        }
-
-        .dark-mode h3{
-            color: #fff;
-        }
-
-        /* Form groups */
-        .form-group {
-            margin-bottom: 2rem;
-        }
-
-        /* Containers */
-        .container-box {
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .dark-mode .container-box {
-         
-            background:rgba(24, 27, 31, 1);
-         
-        }
-
-        /* Labels */
-        label {
-            display: block;
-            margin-bottom: 0.75rem;
-            font-weight: 600;
-            color: #000;
-        }
-
-        .dark-mode label{
-            color: #fff;
-        }
-
-        /* Inputs and selects */
-        input,
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-        }
-
-        /* Messages */
-        .message {
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            border-radius: 6px;
-            font-weight: 500;
-        }
-
-        .message.success {
-            background: #c6f6d5;
-            color: #22543d;
-            border: 1px solid #9ae6b4;
-        }
-
-        .message.error {
-            background: #fed7d7;
-            color: #822727;
-            border: 1px solid #feb2b2;
-        }
-
-        /* API info section */
-        .api-info {
-            margin-top: 1rem;
-            padding: 1.5rem;
-            background: #f8fafc;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            border: 1px solid #e2e8f0;
-        }
-
-        .dark-mode  .api-info {
-        
-            background: rgba(24, 27, 31, 1);
-         
-        }
-
-        .api-info ol {
-            margin-left: 1.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .api-info li {
-            margin-bottom: 0.5rem;
-        }
-
-        .dark-mode  .api-info a{
-       color: #DEAF0B;
-        }
-        /* Validation message */
-        .validation-message {
-            margin-top: 0.75rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        /* Buttons */
-        .button {
-            background-color: var(--primary-accent);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .button:hover {
-            background-color: var(--primary-accent-hover);
-        }
-
-        .button:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.3);
-        }
-
-        .button-full {
-            width: 100%;
-        }
-
-        .button-blue {
-            background-color: var(--blue);
-        }
-
-        .button-blue:hover {
-            background-color: rgba(222, 175, 11, 0.3);;
-        }
-
-     
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #edf2f7;
-            margin-bottom: 2rem;
-        }
-
-        .tab-button {
-            padding: 0.75rem 1.5rem;
-            background: none;
-            border: none;
-            border-bottom: 3px solid transparent;
-            font-weight: 600;
-            color: var(--muted-text);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-            color: var(--primary-accent);
-            border-bottom-color: var(--primary-accent);
-        }
-
-        .tab-button:hover:not(.active) {
-            color: var(--primary-color);
-            border-bottom-color: #e2e8f0;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-    
-
-        .widget-card {
-            position: relative;
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            padding: 25px;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .dark-mode .widget-card{
-            background-color: rgb(32, 36, 41);
-        }
-        
-        .widget-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-        }
-
-        .widget-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .widget-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-
-        .dark-mode  .widget-title{
-           color: #fff;
-        }
-
-        .edit-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: #95a5a6;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        
-        .edit-button:hover {
-            background-color: #ecf0f1;
-            color: var(--primary-color);
-        }
-
-       
-        .widget-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            flex: 1;
-        }
-
-        .widget-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            transition: transform 0.3s;
-        }
-        
-        .widget-card:hover .widget-icon {
-            transform: scale(1.1);
-        }
-
-        .widget-value {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .widget-unit {
-            font-size: 14px;
-            color: var(--muted-text);
-        }
-        .dark-mode .widget-unit{
-            color: #f5f6fa;
-        }
-
-
-        .widget-settings {
-            margin-top: 20px;
-            border-top: 1px solid #ecf0f1;
-            padding-top: 20px;
-        }
-
-        .settings-section {
-            margin-bottom: 20px;
-        }
-
-        .settings-section h4 {
-            margin: 0 0 15px 0;
-            font-size: 16px;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-.dark-mode  .settings-section h4 {
-          color:  #ecf0f1;
-        }
-        .settings-group {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .setting-field {
-            flex: 1;
-        }
-
-        .setting-field label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: black;
-        }
-
-        .dark-mode  .setting-field label {
-           color: #f8fafc;
-        }
-
-        .setting-field input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-        
-        .setting-field input:focus {
-            border-color: var(--blue);
-            outline: none;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .settings-button {
-            padding: 10px 15px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        
-        .settings-button:active {
-            transform: scale(0.98);
-        }
-
-        .save-button {
-            background-color: var(--blue);
-            color: white;
-        }
-        
-        .save-button:hover {
-            background-color: #cda208;
-        }
-
-        .cancel-button {
-            background-color: #ecf0f1;
-            color: var(--text-color);
-        }
-        
-        .cancel-button:hover {
-            background-color: #dfe6e9;
-        }
-
-        .api-key-container {
-            position: relative;
-            width: 100%;
-        }
-
-        .api-key-container .toggle-visibility {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #4299e1;
-            padding: 5px;
-        }
-
-        .api-key-container .toggle-visibility:hover {
-            color: #3182ce;
-        }
-
-        /* Dashboard-specific styles */
-        .dashboard-container {
-            margin-top: 20px;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 60px;
-            font-size: 18px;
-            color: var(--muted-text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .loading i {
-            font-size: 48px;
-            color: var(--blue);
-            animation: spin 1.5s infinite linear;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Color map for threshold colors */
-        .color-option {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            margin-right: 5px;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-        
-        .color-option.selected {
-            border-color: #3498db;
-        }
-        
-        .color-settings {
-            display: flex;
-            margin-bottom: 15px;
-            align-items: center;
-        }
-        
-        .color-settings label {
-            width: 80px;
-            margin-bottom: 0;
-        }
-        
-        .color-options {
-            display: flex;
-            gap: 5px;
-        }
-
-        /* Responsive styles */
-        @media (max-width: 768px) {
-            .settings-container {
-                margin: 1rem auto;
-                padding: 1.5rem;
-            }
-
-            h1 {
-                font-size: 1.75rem;
-            }
-
-            input,
-            select {
-                font-size: 16px;
-            }
-            
-            .range-settings {
-                grid-template-columns: 1fr;
-            }
-            
-            .dashboard {
-                grid-template-columns: 1fr;
-                padding: 15px;
-                gap: 20px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 0.5rem;
-            }
-
-            .settings-container {
-                margin: 0.5rem auto;
-                padding: 1rem;
-            }
-
-            .container-box,
-            .api-info {
-                padding: 1rem;
-            }
-
-            h1 {
-                font-size: 1.5rem;
-                margin-bottom: 1.5rem;
-            }
-            
-            .tabs {
-                flex-direction: column;
-                border-bottom: none;
-            }
-            
-            .tab-button {
-                border-bottom: 1px solid #edf2f7;
-                text-align: left;
-            }
-            
-            .tab-button.active {
-                border-left: 3px solid var(--primary-accent);
-                border-bottom-color: #edf2f7;
-                background-color: #f8fafc;
-            }
-        }
-
-        /* Add this to your existing CSS */
-
-/* Grid Layout for Dashboard Widgets */
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    padding: 20px;
-}
-
-/* Responsive Form Elements */
-input, select {
-    width: 100%;
-    color: #2f3640;
-    padding: 0.75rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
-}
-
-.dark-mode input, select {
-    color: #DEAF0B;
-    background-color: transparent;
-}
-/* Improved Button Styling */
-.button {
-    background-color: var(--primary-accent);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    display: inline-block;
-    text-align: center;
-}
-
-.button:hover {
-    background-color: var(--primary-accent-hover);
-    transform: translateY(-2px);
-}
-
-.button:active {
-    transform: translateY(0);
-}
-
-.button:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(222, 175, 11, 0.3);
-}
-
-/* Enhanced Loading State */
-.loading {
-    text-align: center;
-    padding: 60px;
-    font-size: 18px;
-    color: var(--muted-text);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-}
-
-.loading i {
-    font-size: 48px;
-    color: var(--blue);
-    animation: spin 1.5s infinite linear;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Accessibility Improvements */
-.tab-button {
-    padding: 0.75rem 1.5rem;
-    background: none;
-    border: none;
-    border-bottom: 3px solid transparent;
-    font-weight: 600;
-    color: var(--muted-text);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    outline: none; /* Remove default outline */
-}
-
-.tab-button:focus {
-    border-bottom-color: var(--primary-accent);
-    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .dashboard {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    }
-
-    .settings-container {
-        margin: 1rem auto;
-        padding: 1.5rem;
-    }
-
-    h1 {
-        font-size: 1.75rem;
-    }
-
-    input, select {
-        font-size: 16px;
-    }
-
-    .range-settings {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard {
-        grid-template-columns: 1fr;
-        padding: 15px;
-        gap: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    body {
-        padding: 0.5rem;
-    }
-
-    .settings-container {
-        margin: 0.5rem auto;
-        padding: 1rem;
-    }
-
-    .container-box, .api-info {
-        padding: 1rem;
-    }
-
-    h1 {
-        font-size: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .tabs {
-        flex-direction: column;
-        border-bottom: none;
-    }
-
-    .tab-button {
-        border-bottom: 1px solid #edf2f7;
-        text-align: left;
-    }
-
-    .tab-button.active {
-        border-left: 3px solid var(--primary-accent);
-        border-bottom-color: #edf2f7;
-        background-color: #f8fafc;
-    }
-}   .api-key-container {
-    position: relative;
-    width: 100%;
-    display: flex;
-    align-items: center;
-}
-
-.api-key-container input {
-    padding-right: 70px; /* Make room for the button */
-}
-
-.api-key-container button {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #DEAF0B;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease;
-}
-
-.api-key-container button:hover {
-    background: #b5900c;
-}
-
-  
-  .card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .dark-mode .card {
-       background-color: rgba(24, 27, 31, 1);
-            color: #f5f6fa;
-        }
-
-        h1 {
-            color: #2d3748;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-
-        .dark-mode h1 {
-            color: #f5f6fa;
-        }
-
-        h2 {
-            color: #4a5568;
-            margin-bottom: 20px;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .dark-mode h2 {
-            color: #cbd5e0;
-        }
-
-        .subtitle {
-            color: #718096;
-            margin-bottom: 30px;
-        }
-        .dark-mode .subtitle {
-            color: #a0aec0;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .status-badge.connected {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-badge.disconnected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .status-badge.configured {
-            background: #cce5ff;
-            color: #004085;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 4px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #DEAF0B;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #DEAF0B;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(242, 255, 0, 0.4);
-        }
-
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
-
-        .btn-secondary:hover {
-            background: #cbd5e0;
-        }
-
-        .btn-success {
-            background: #48bb78;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #38a169;
-        }
-
-        .btn-danger {
-            background: #f56565;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #e53e3e;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .price-display {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .price-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .price-card h3 {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 10px;
-        }
-
-        .price-card .value {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .price-card .level {
-            font-size: 12px;
-            opacity: 0.8;
-            text-transform: uppercase;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .info-box {
-            background: #f7fafc;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-
-        .info-box h4 {
-            color: #2d3748;
-            margin-bottom: 10px;
-        }
-
-        .info-box p {
-            color: #4a5568;
-            line-height: 1.6;
-        }
-
-        .diagnostic-section {
-            background: #f7fafc;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-
-        .dark-mode .diagnostic-section {
-            background: rgba(24, 27, 31, 1);
-        }
-
-        .diagnostic-section pre {
-            background: #2d3748;
-            color: #68d391;
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-size: 12px;
-            margin-top: 10px;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .status-item {
-            text-align: center;
-            padding: 15px;
-            background: #f7fafc;
-            border-radius: 8px;
-        }
-
-        .dark-mode .status-item{
-            background-color: rgb(32, 36, 41);
-        }
-
-        .status-item .label {
-            font-size: 12px;
-            color: #718096;
-            margin-bottom: 5px;
-        }
-        .dark-mode  .status-item .label {
-            color: #a0aec0;
-        }
-
-        .status-item .value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #2d3748;
-        }
-
-        .dark-mode  .status-item .value {
-            color: #f5f6fa;
-        }
-       </style>
+    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+    <link rel="stylesheet" href="<%= ingress_path %>/css/settings.css">
 </head>
 <body>
-   <!-- Add hamburger menu button -->
-   <button class="mobile-toggle" id="mobileToggle">
-    <span></span>
-    <span></span>
-    <span></span>
-</button>
-  <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-</div>
-<div id="pageContent">
-    <!-- Sidebar -->
- 
-    <%- include('partials/sidebar') %>
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="settings-container">
-            <% if (message) { %>
-                <div class="message success"><%= message %></div>
-            <% } %>
-            
-            <% if (error) { %>
-                <div class="message error"><%= error %></div>
-            <% } %>
-    
-            <div class="settings-container">
-                <% if (message) { %>
-                    <div class="alert alert-success"><%= message %></div>
-                <% } %>
-                <% if (error) { %>
-                    <div class="alert alert-danger"><%= error %></div>
-                <% } %>
-            
-            <div id="message-container"></div>
-            
-            <div class="tabs">
-                <button class="tab-button active" data-tab="general">General Settings</button>
-                  <button class="tab-button " data-tab="tibber">Tibber Settings</button>
-                <button class="tab-button" data-tab="range">Range Settings</button>
-            </div>
-            
-            <div id="general-tab" class="tab-content active">
-                <form id="settingsForm" action="<%= ingress_path %>/settings" method="POST">
-                    <div class="container-box">
-                        <h3>Timezone</h3>
-                        <select name="timezone" id="timezone" class="timezone-select">
-                            <option value="Pacific/Niue">(GMT-11:00) Niue</option>
-                            <option value="Pacific/Pago_Pago">(GMT-11:00) Pago Pago</option>
-                            <option value="Pacific/Honolulu">(GMT-10:00) Hawaii Time</option>
-                            <option value="Pacific/Rarotonga">(GMT-10:00) Rarotonga</option>
-                            <option value="Pacific/Tahiti">(GMT-10:00) Tahiti</option>
-                            <option value="Pacific/Marquesas">(GMT-09:30) Marquesas Islands</option>
-                            <option value="America/Anchorage">(GMT-09:00) Alaska Time</option>
-                            <option value="Pacific/Gambier">(GMT-09:00) Gambier Islands</option>
-                            <option value="America/Los_Angeles">(GMT-08:00) Pacific Time (US & Canada)</option>
-                            <option value="America/Tijuana">(GMT-08:00) Tijuana, Baja California</option>
-                            <option value="America/Vancouver">(GMT-08:00) Vancouver</option>
-                            <option value="America/Phoenix">(GMT-07:00) Arizona</option>
-                            <option value="America/Denver">(GMT-07:00) Mountain Time (US & Canada)</option>
-                            <option value="America/Mazatlan">(GMT-07:00) Mazatlan</option>
-                            <option value="America/Chicago">(GMT-06:00) Central Time (US & Canada)</option>
-                            <option value="America/Mexico_City">(GMT-06:00) Mexico City</option>
-                            <option value="America/Regina">(GMT-06:00) Saskatchewan</option>
-                            <option value="America/Bogota">(GMT-05:00) Bogota</option>
-                            <option value="America/New_York">(GMT-05:00) Eastern Time (US & Canada)</option>
-                            <option value="America/Havana">(GMT-05:00) Cuba</option>
-                            <option value="America/Lima">(GMT-05:00) Lima</option>
-                            <option value="America/Cayman">(GMT-05:00) Cayman Islands</option>
-                            <option value="America/Caracas">(GMT-04:30) Caracas</option>
-                            <option value="America/Halifax">(GMT-04:00) Atlantic Time (Canada)</option>
-                            <option value="America/La_Paz">(GMT-04:00) La Paz</option>
-                            <option value="America/Santiago">(GMT-04:00) Santiago</option>
-                            <option value="America/St_Johns">(GMT-03:30) Newfoundland</option>
-                            <option value="America/Sao_Paulo">(GMT-03:00) Brasilia</option>
-                            <option value="America/Argentina/Buenos_Aires">(GMT-03:00) Buenos Aires</option>
-                            <option value="America/Godthab">(GMT-03:00) Greenland</option>
-                            <option value="America/Montevideo">(GMT-03:00) Montevideo</option>
-                            <option value="Atlantic/South_Georgia">(GMT-02:00) Mid-Atlantic</option>
-                            <option value="Atlantic/Azores">(GMT-01:00) Azores</option>
-                            <option value="Atlantic/Cape_Verde">(GMT-01:00) Cape Verde Is.</option>
-                            <option value="Africa/Casablanca">(GMT+00:00) Casablanca</option>
-                            <option value="Europe/London">(GMT+00:00) Edinburgh, London</option>
-                            <option value="Europe/Lisbon">(GMT+00:00) Lisbon</option>
-                            <option value="Africa/Monrovia">(GMT+00:00) Monrovia</option>
-                            <option value="UTC">(GMT+00:00) UTC</option>
-                            <option value="Europe/Amsterdam">(GMT+01:00) Amsterdam</option>
-                            <option value="Europe/Belgrade">(GMT+01:00) Belgrade</option>
-                            <option value="Europe/Berlin">(GMT+01:00) Berlin</option>
-                            <option value="Europe/Bratislava">(GMT+01:00) Bratislava</option>
-                            <option value="Europe/Brussels">(GMT+01:00) Brussels</option>
-                            <option value="Europe/Budapest">(GMT+01:00) Budapest</option>
-                            <option value="Europe/Copenhagen">(GMT+01:00) Copenhagen</option>
-                            <option value="Europe/Ljubljana">(GMT+01:00) Ljubljana</option>
-                            <option value="Europe/Madrid">(GMT+01:00) Madrid</option>
-                            <option value="Europe/Paris">(GMT+01:00) Paris</option>
-                            <option value="Europe/Prague">(GMT+01:00) Prague</option>
-                            <option value="Europe/Rome">(GMT+01:00) Rome</option>
-                            <option value="Europe/Sarajevo">(GMT+01:00) Sarajevo</option>
-                            <option value="Europe/Skopje">(GMT+01:00) Skopje</option>
-                            <option value="Europe/Stockholm">(GMT+01:00) Stockholm</option>
-                            <option value="Europe/Vienna">(GMT+01:00) Vienna</option>
-                            <option value="Europe/Warsaw">(GMT+01:00) Warsaw</option>
-                            <option value="Africa/Lagos">(GMT+01:00) West Central Africa</option>
-                            <option value="Europe/Zagreb">(GMT+01:00) Zagreb</option>
-                            <option value="Europe/Athens">(GMT+02:00) Athens</option>
-                            <option value="Europe/Bucharest">(GMT+02:00) Bucharest</option>
-                            <option value="Africa/Cairo">(GMT+02:00) Cairo</option>
-                            <option value="Africa/Harare">(GMT+02:00) Harare</option>
-                            <option value="Europe/Helsinki">(GMT+02:00) Helsinki</option>
-                            <option value="Europe/Istanbul">(GMT+02:00) Istanbul</option>
-                            <option value="Asia/Jerusalem">(GMT+02:00) Jerusalem</option>
-                            <option value="Europe/Kiev">(GMT+02:00) Kyiv</option>
-                            <option value="Africa/Johannesburg">(GMT+02:00) Pretoria</option>
-                            <option value="Europe/Riga">(GMT+02:00) Riga</option>
-                            <option value="Europe/Sofia">(GMT+02:00) Sofia</option>
-                            <option value="Europe/Tallinn">(GMT+02:00) Tallinn</option>
-                            <option value="Europe/Vilnius">(GMT+02:00) Vilnius</option>
-                            <option value="Asia/Baghdad">(GMT+03:00) Baghdad</option>
-                            <option value="Asia/Kuwait">(GMT+03:00) Kuwait</option>
-                            <option value="Europe/Minsk">(GMT+03:00) Minsk</option>
-                            <option value="Africa/Nairobi">(GMT+03:00) Nairobi</option>
-                            <option value="Asia/Riyadh">(GMT+03:00) Riyadh</option>
-                            <option value="Europe/Volgograd">(GMT+03:00) Volgograd</option>
-                            <option value="Asia/Tehran">(GMT+03:30) Tehran</option>
-                            <option value="Asia/Muscat">(GMT+04:00) Abu Dhabi, Muscat</option>
-                            <option value="Asia/Baku">(GMT+04:00) Baku</option>
-                            <option value="Indian/Mauritius">(GMT+04:00) Port Louis, Mauritius</option>
-                            <option value="Europe/Moscow">(GMT+04:00) Moscow, St. Petersburg</option>
-                            <option value="Asia/Tbilisi">(GMT+04:00) Tbilisi</option>
-                            <option value="Asia/Yerevan">(GMT+04:00) Yerevan</option>
-                            <option value="Asia/Kabul">(GMT+04:30) Kabul</option>
-                            <option value="Asia/Karachi">(GMT+05:00) Karachi</option>
-                            <option value="Asia/Tashkent">(GMT+05:00) Tashkent</option>
-                            <option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>
-                            <option value="Asia/Colombo">(GMT+05:30) Sri Jayawardenepura</option>
-                            <option value="Asia/Kathmandu">(GMT+05:45) Kathmandu</option>
-                            <option value="Asia/Almaty">(GMT+06:00) Almaty</option>
-                            <option value="Asia/Dhaka">(GMT+06:00) Astana, Dhaka</option>
-                            <option value="Asia/Yekaterinburg">(GMT+06:00) Ekaterinburg</option>
-                            <option value="Asia/Rangoon">(GMT+06:30) Yangon (Rangoon)</option>
-                            <option value="Asia/Bangkok">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
-                            <option value="Asia/Novosibirsk">(GMT+07:00) Novosibirsk</option>
-                            <option value="Asia/Hong_Kong">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>
-                            <option value="Asia/Krasnoyarsk">(GMT+08:00) Krasnoyarsk</option>
-                            <option value="Asia/Kuala_Lumpur">(GMT+08:00) Kuala Lumpur</option>
-                            <option value="Australia/Perth">(GMT+08:00) Perth</option>
-                            <option value="Asia/Singapore">(GMT+08:00) Singapore</option>
-                            <option value="Asia/Taipei">(GMT+08:00) Taipei</option>
-                            <option value="Asia/Ulaanbaatar">(GMT+08:00) Ulaanbaatar</option>
-                            <option value="Asia/Irkutsk">(GMT+09:00) Irkutsk</option>
-                            <option value="Asia/Tokyo">(GMT+09:00) Osaka, Sapporo, Tokyo</option>
-                            <option value="Asia/Seoul">(GMT+09:00) Seoul</option>
-                            <option value="Australia/Adelaide">(GMT+09:30) Adelaide</option>
-                            <option value="Australia/Darwin">(GMT+09:30) Darwin</option>
-                            <option value="Australia/Brisbane">(GMT+10:00) Brisbane</option>
-                            <option value="Australia/Canberra">(GMT+10:00) Canberra, Melbourne, Sydney</option>
-                            <option value="Australia/Hobart">(GMT+10:00) Hobart</option>
-                            <option value="Pacific/Guam">(GMT+10:00) Guam, Port Moresby</option>
-                            <option value="Asia/Vladivostok">(GMT+11:00) Vladivostok</option>
-                            <option value="Asia/Magadan">(GMT+12:00) Magadan, Solomon Is., New Caledonia</option>
-                            <option value="Pacific/Auckland">(GMT+12:00) Auckland, Wellington</option>
-                            <option value="Pacific/Fiji">(GMT+12:00) Fiji</option>
-                            <option value="Pacific/Tongatapu">(GMT+13:00) Nuku'alofa</option>
-                           
-                        </select>
-                    </div>
-    
-                    <div class="form-group">
-                        <label for="apiKey">Electricity Map API Key</label>
-                        <div class="api-key-container">
-                            <input type="password" id="apiKey" name="apiKey" value="<%= settings.apiKey %>">
-                            <button type="button" id="toggleApiKey">Show</button>
-                        </div>
-                        <div id="apiKeyValidation" class="validation-message"></div>
-                        <div class="api-info">
-                            <p>To get your API key:</p>
-                            <ol>
-                                <li>Visit <a href="https://www.electricitymaps.com/" target="_blank">Electricity Map</a></li>
-                                <li>Navigate to your account settings</li>
-                                <li>Copy your API key and paste it here</li>
-                            </ol>
-                        </div>
-                    </div>
-    
-                    <div class="form-group">
-                        <label for="zone">Default Carbon Intensity Zone</label>
-                        <select name="selectedZone" id="zone">
-                            <option value="">-- Select a zone --</option>
-                            <% zones.forEach(function(zone) { %>
-                                <option value="<%= zone.code %>"
-                                        <%= settings.selectedZone === zone.code ? 'selected' : '' %>>
-                                    <%= zone.zoneName %> (<%= zone.code %>)
-                                </option>
-                            <% }); %>
-                        </select>
-                    </div>
-    
-                    <button type="submit" class="button button-full">Save Settings</button>
-                </form>
-            </div>
-            
-            <div id="range-tab" class="tab-content">
-                <div class="container-box">
-                    <h3>Device Range Configuration</h3>
-                    <p style="margin-bottom: 1rem;">Configure the min/max values for your devices.</p>
-                    
-                    <!-- Dashboard container inserted here -->
-                    <div class="dashboard-container">
-                        <div class="range-settings" id="range-settings">
-                         
-        <div id="loading" class="loading">
-            <i class="fas fa-spinner"></i>
-            <div>Loading dashboard data...</div>
+    <!-- Mobile toggle button -->
+    <button class="mobile-toggle" id="mobileToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
         </div>
-        <div class="dashboard" id="dashboard" style="display: none;"></div>
+
+        <%- include('partials/sidebar') %>
+
+        <div class="main-content">
+            <div class="container">
+                <!-- Header Section -->
+                <div class="settings-header">
+                    <div class="header-content">
+                        <h1><i class="fas fa-cog"></i> System Settings</h1>
+                        <p>Configure your SolarAutopilot system for optimal performance</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="settings-btn primary" onclick="saveAllSettings()">
+                            <i class="fas fa-save"></i> Save All
+                        </button>
+                        <button class="settings-btn secondary" onclick="resetAllSettings()">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                        <button class="settings-btn secondary" onclick="exportSettings()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings Categories -->
+                <div class="settings-categories">
+                    <div class="category-card active" data-category="general">
+                        <div class="category-icon">
+                            <i class="fas fa-sliders-h"></i>
+                        </div>
+                        <div class="category-content">
+                            <div class="category-title">General Settings</div>
+                            <div class="category-description">Basic system configuration</div>
+                        </div>
+                    </div>
+                    <div class="category-card" data-category="tibber">
+                        <div class="category-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="category-content">
+                            <div class="category-title">Tibber Settings</div>
+                            <div class="category-description">Dynamic pricing configuration</div>
+                        </div>
+                    </div>
+                    <div class="category-card" data-category="range">
+                        <div class="category-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="category-content">
+                            <div class="category-title">Range Settings</div>
+                            <div class="category-description">Device range configuration</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
+                <!-- Settings Content -->
+                <div class="settings-content">
+                    <!-- General Settings -->
+                    <div id="general-settings" class="settings-section active">
+                        <div class="section-header">
+                            <h2><i class="fas fa-sliders-h"></i> General Settings</h2>
+                            <p>Configure basic system parameters and API connections</p>
+                        </div>
 
-     <div id="tibber-tab" class="tab-content">
+                        <div class="settings-grid">
+                            <!-- Timezone Configuration -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-globe"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Timezone</h3>
+                                        <p>Set your local timezone for accurate scheduling</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="timezone" class="form-select">
+                                        <option value="UTC">(GMT+00:00) UTC</option>
+                                        <option value="Europe/London">(GMT+00:00) London</option>
+                                        <option value="Europe/Berlin">(GMT+01:00) Berlin</option>
+                                        <option value="Europe/Paris">(GMT+01:00) Paris</option>
+                                        <option value="Europe/Rome">(GMT+01:00) Rome</option>
+                                        <option value="Europe/Madrid">(GMT+01:00) Madrid</option>
+                                        <option value="Europe/Amsterdam">(GMT+01:00) Amsterdam</option>
+                                        <option value="Europe/Vienna">(GMT+01:00) Vienna</option>
+                                        <option value="Europe/Stockholm">(GMT+01:00) Stockholm</option>
+                                        <option value="Europe/Oslo">(GMT+01:00) Oslo</option>
+                                        <option value="Europe/Copenhagen">(GMT+01:00) Copenhagen</option>
+                                        <option value="Europe/Helsinki">(GMT+02:00) Helsinki</option>
+                                        <option value="Europe/Athens">(GMT+02:00) Athens</option>
+                                        <option value="America/New_York">(GMT-05:00) New York</option>
+                                        <option value="America/Chicago">(GMT-06:00) Chicago</option>
+                                        <option value="America/Denver">(GMT-07:00) Denver</option>
+                                        <option value="America/Los_Angeles">(GMT-08:00) Los Angeles</option>
+                                        <option value="Asia/Tokyo">(GMT+09:00) Tokyo</option>
+                                        <option value="Asia/Shanghai">(GMT+08:00) Shanghai</option>
+                                        <option value="Australia/Sydney">(GMT+10:00) Sydney</option>
+                                    </select>
+                                </div>
+                            </div>
 
-        <div class="card">
-            <h2>🔧 Configuration</h2>
-            
-            <div id="alertContainer"></div>
-            
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px;">
-                    <span>Enable Tibber Integration</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="enableToggle">
-                        <span class="slider"></span>
-                    </label>
-                </label>
-            </div>
+                            <!-- API Key Configuration -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-key"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Electricity Map API Key</h3>
+                                        <p>Required for carbon intensity data</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="input-group">
+                                        <input type="password" id="apiKey" class="form-input" placeholder="Enter API key">
+                                        <button type="button" class="input-btn" onclick="toggleApiKeyVisibility()">
+                                            <i class="fas fa-eye" id="apiKeyIcon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="setting-help">
+                                        <a href="https://www.electricitymaps.com/" target="_blank">
+                                            <i class="fas fa-external-link-alt"></i> Get your API key
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
 
-            <div class="form-group">
-                <label for="apiKey">API Key *</label>
-                <input type="password" id="apiKey" placeholder="Enter your Tibber API key">
-                <div class="input-hint">
-                    Get your API key from <a href="https://developer.tibber.com" target="_blank">developer.tibber.com</a>
+                            <!-- Zone Selection -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Carbon Intensity Zone</h3>
+                                        <p>Select your electricity grid zone</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="zone" class="form-select">
+                                        <option value="">-- Select a zone --</option>
+                                        <% zones.forEach(function(zone) { %>
+                                            <option value="<%= zone.code %>" <%= settings.selectedZone === zone.code ? 'selected' : '' %>>
+                                                <%= zone.zoneName %> (<%= zone.code %>)
+                                            </option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- System Status -->
+                            <div class="setting-card status-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-heartbeat"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>System Status</h3>
+                                        <p>Current system health and connectivity</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="status-indicators">
+                                        <div class="status-item">
+                                            <span class="status-label">API Connection</span>
+                                            <span class="status-badge" id="apiStatus">
+                                                <i class="fas fa-circle"></i> Checking...
+                                            </span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">Zone Configuration</span>
+                                            <span class="status-badge" id="zoneStatus">
+                                                <i class="fas fa-circle"></i> Not Set
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tibber Settings -->
+                    <div id="tibber-settings" class="settings-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-bolt"></i> Tibber Settings</h2>
+                            <p>Configure dynamic electricity pricing for smart charging optimization</p>
+                        </div>
+
+                        <div class="settings-grid">
+                            <!-- Tibber Enable/Disable -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-power-off"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Enable Tibber Integration</h3>
+                                        <p>Activate dynamic pricing for optimal charging</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="tibberEnabled">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Tibber API Key -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-key"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Tibber API Key</h3>
+                                        <p>Your personal Tibber API access token</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="input-group">
+                                        <input type="password" id="tibberApiKey" class="form-input" placeholder="Enter Tibber API key">
+                                        <button type="button" class="input-btn" onclick="toggleTibberApiKeyVisibility()">
+                                            <i class="fas fa-eye" id="tibberApiKeyIcon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="setting-help">
+                                        <a href="https://developer.tibber.com" target="_blank">
+                                            <i class="fas fa-external-link-alt"></i> Get your Tibber API key
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Country Selection -->
+                            <div class="setting-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-flag"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Country</h3>
+                                        <p>Select your country for proper pricing</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="tibberCountry" class="form-select">
+                                        <option value="DE">🇩🇪 Germany</option>
+                                        <option value="NO">🇳🇴 Norway</option>
+                                        <option value="SE">🇸🇪 Sweden</option>
+                                        <option value="DK">🇩🇰 Denmark</option>
+                                        <option value="FI">🇫🇮 Finland</option>
+                                        <option value="AT">🇦🇹 Austria</option>
+                                        <option value="NL">🇳🇱 Netherlands</option>
+                                        <option value="GB">🇬🇧 United Kingdom</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Tibber Status -->
+                            <div class="setting-card status-card">
+                                <div class="setting-header">
+                                    <div class="setting-icon">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                    <div class="setting-info">
+                                        <h3>Tibber Status</h3>
+                                        <p>Current pricing and connection status</p>
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="status-indicators">
+                                        <div class="status-item">
+                                            <span class="status-label">Connection</span>
+                                            <span class="status-badge" id="tibberConnectionStatus">
+                                                <i class="fas fa-circle"></i> Disconnected
+                                            </span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">Current Price</span>
+                                            <span class="status-value" id="currentPrice">-- cent/kWh</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">Price Level</span>
+                                            <span class="status-badge" id="priceLevel">
+                                                <i class="fas fa-circle"></i> Unknown
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="setting-actions">
+                                        <button class="settings-btn secondary" onclick="testTibberConnection()">
+                                            <i class="fas fa-plug"></i> Test Connection
+                                        </button>
+                                        <button class="settings-btn secondary" onclick="refreshTibberData()">
+                                            <i class="fas fa-sync-alt"></i> Refresh Data
+                                        </button>
+                                        <button class="settings-btn primary" onclick="saveTibberSettings()">
+                                            <i class="fas fa-save"></i> Save Tibber Config
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Range Settings -->
+                    <div id="range-settings" class="settings-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-chart-line"></i> Range Settings</h2>
+                            <p>Configure min/max values and thresholds for your devices</p>
+                        </div>
+
+                        <div class="range-grid" id="rangeGrid">
+                            <!-- Range cards will be dynamically loaded here -->
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label for="country">Country</label>
-                <select id="country">
-                    <option value="DE">🇩🇪 Germany</option>
-                    <option value="NO">🇳🇴 Norway</option>
-                    <option value="SE">🇸🇪 Sweden</option>
-                    <option value="DK">🇩🇰 Denmark</option>
-                    <option value="FI">🇫🇮 Finland</option>
-                    <option value="AT">🇦🇹 Austria</option>
-                    <option value="NL">🇳🇱 Netherlands</option>
-                    <option value="GB">🇬🇧 United Kingdom</option>
-                </select>
-            </div>
-
-            <div class="button-group">
-                <button class="btn btn-primary" onclick="saveConfig()">
-                    💾 Save Configuration
-                </button>
-                <button class="btn btn-secondary" onclick="testConnection()">
-                    🔍 Test Connection
-                </button>
-                <button class="btn btn-success" onclick="refreshData()">
-                    🔄 Refresh Data
-                </button>
-    
-            </div>
-        </div>
-
-        <div class="card">
-            <h1>⚡ Tibber Integration</h1>
-            <p class="subtitle">Configure dynamic electricity pricing for smart charging</p>
-            
-            <div class="status-grid" id="statusGrid">
-                <div class="status-item">
-                    <div class="label">Status</div>
-                    <div class="value" id="statusEnabled">-</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Connection</div>
-                    <div class="value" id="statusConnected">-</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Current Price</div>
-                    <div class="value" id="currentPrice">-</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Price Level</div>
-                    <div class="value" id="priceLevel">-</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" id="diagnosticCard" style="display: none;">
-            <h2>🩺 Diagnostic Results</h2>
-            <div class="diagnostic-section">
-                <pre id="diagnosticOutput"></pre>
             </div>
         </div>
     </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="settings-modal">
+        <div class="modal-overlay" onclick="closeConfirmationModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirm Action</h3>
+                <button class="modal-close" onclick="closeConfirmationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmationMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="settings-btn secondary" onclick="closeConfirmationModal()">Cancel</button>
+                <button class="settings-btn primary" id="confirmButton" onclick="confirmAction()">Confirm</button>
+            </div>
         </div>
-    </main>
-</div>
-  
+    </div>
 
-<script>
-    const ingressPath = '<%= ingress_path %>';
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/mobile.js"></script>
+    <script src="<%= ingress_path %>/js/loading.js"></script>
 
-// Form submission handling
-document.getElementById('settingsForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    
-    // Only collect values that have been provided/changed
-    const formData = {};
-    
-    const apiKey = document.getElementById('apiKey').value;
-    if (apiKey) {
-        formData.apiKey = apiKey;
-    }
-    
-    const selectedZone = document.getElementById('zone').value;
-    if (selectedZone) {
-        formData.selectedZone = selectedZone;
-    }
+    <script>
+        const ingressPath = '<%= ingress_path %>';
+        let currentSettings = {};
+        let pendingAction = null;
 
-    // Ensure at least one field is filled
-    if (Object.keys(formData).length === 0) {
-        alert('Please provide at least the API key or select a zone.');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${ingressPath}/settings`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSettings();
+            loadCurrentSettings();
+            loadRangeSettings();
+            setupEventListeners();
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        function initializeSettings() {
+            // Set initial values from server
+            document.getElementById('apiKey').value = '<%= settings.apiKey || "" %>';
+            document.getElementById('zone').value = '<%= settings.selectedZone || "" %>';
+            
+            // Update status indicators
+            updateStatusIndicators();
         }
 
-        const result = await response.json();
-        
-        if (result.success) {
-            window.location.href = `${ingressPath}/settings?message=Settings saved successfully`;
-        } else {
-            alert('Failed to save settings: ' + (result.error || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error saving settings:', error);
-        alert('Failed to save settings. Please try again.');
-    }
-});
-
-// Toggle API key visibility
-const toggleApiKeyBtn = document.getElementById('toggleApiKey');
-const apiKeyInput = document.getElementById('apiKey');
-
-toggleApiKeyBtn.addEventListener('click', () => {
-    const type = apiKeyInput.type === 'password' ? 'text' : 'password';
-    apiKeyInput.type = type;
-    toggleApiKeyBtn.textContent = type === 'password' ? 'Show' : 'Hide';
-});
-</script>
-
-<script>
-  
-  // Fetch current timezone
-  fetch(`<%= ingress_path %>/api/timezone`)
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('timezone').value = data.timezone;
-    });
-  
-  // Update timezone when changed
-  document.getElementById('timezone').addEventListener('change', (event) => {
-    fetch(`<%= ingress_path %>/api/timezone`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ timezone: event.target.value }),
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert('Timezone updated successfully');
-      } else {
-        alert('Failed to update timezone');
-      }
-    });
-  });
-  
-  </script>
-
-
-<script src="<%= ingress_path %>/js/loading.js"></script>
-<script src="<%= ingress_path %>/js/dark-mode.js"></script>
-<script src="<%= ingress_path %>/js/mobile.js"></script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const tabButtons = document.querySelectorAll(".tab-button");
-        const tabContents = document.querySelectorAll(".tab-content");
-
-        // Tab Switching Logic
-        tabButtons.forEach(button => {
-            button.addEventListener("click", function () {
-                const tab = this.getAttribute("data-tab");
-
-                // Remove active class from all tabs and contents
-                tabButtons.forEach(btn => btn.classList.remove("active"));
-                tabContents.forEach(content => content.classList.remove("active"));
-
-                // Activate the clicked tab and its content
-                this.classList.add("active");
-                document.getElementById(`${tab}-tab`).classList.add("active");
+        function setupEventListeners() {
+            // Category switching
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const category = this.dataset.category;
+                    switchCategory(category);
+                });
             });
-        });
-    });
-</script>
 
-<script>
-// Mock data for testing if API fails
-const mockData = {
-    "1": {
-        "title": "Load Power",
-        "unit": "W",
-        "min": 0,
-        "max": 20000,
-        "thresholds": [
-            {"color": "dark-green", "value": null},
-            {"color": "dark-yellow", "value": 5000},
-            {"color": "dark-orange", "value": 10000},
-            {"color": "dark-red", "value": 14000}
-        ],
-        "icon": "fa-plug"
-    },
-    "4": {
-        "title": "Battery Power",
-        "unit": "W",
-        "min": -6000,
-        "max": 6000,
-        "thresholds": [
-            {"color": "dark-red", "value": null},
-            {"color": "dark-orange", "value": -3000},
-            {"color": "dark-yellow", "value": 0},
-            {"color": "dark-green", "value": 3000}
-        ],
-        "icon": "fa-battery-half"
-    },
-    "7": {
-        "title": "Grid Power",
-        "unit": "W",
-        "min": -12000,
-        "max": 12000,
-        "thresholds": [
-            {"color": "dark-green", "value": null},
-            {"color": "yellow", "value": -6000},
-            {"color": "dark-orange", "value": 0},
-            {"color": "dark-red", "value": 6000}
-        ],
-        "icon": "fa-bolt"
-    },
-    "8": {
-        "title": "Solar PV Power",
-        "unit": "W",
-        "min": 0,
-        "max": 16000,
-        "thresholds": [
-            {"color": "semi-dark-red", "value": null},
-            {"color": "dark-orange", "value": 4000},
-            {"color": "yellow", "value": 8000},
-            {"color": "dark-green", "value": 12000}
-        ],
-        "icon": "fa-sun"
-    }
-};
-
-// Map of default icons if not specified in data
-const defaultIcons = {
-    "Load Power": "fa-plug",
-    "Battery Power": "fa-battery-half",
-    "Grid Power": "fa-bolt",
-    "Solar PV Power": "fa-sun",
-    "default": "fa-chart-line"
-};
-
-// Color mapping for thresholds
-const colorMap = {
-    'dark-green': '#27ae60',
-    'green': '#2ecc71',
-    'dark-yellow': '#f39c12',
-    'yellow': '#f1c40f',
-    'dark-orange': '#d35400',
-    'orange': '#e67e22',
-    'dark-red': '#c0392b',
-    'red': '#e74c3c',
-    'semi-dark-red': '#e74c3c',
-    'default': '#3498db'
-};
-
-async function fetchSolarData() {
-    try {
-        document.getElementById('loading').style.display = 'flex';
-        document.getElementById('dashboard').style.display = 'none';
-        
-        const response = await fetch('<%= ingress_path %>/api/solar-data');
-        if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        }
-        const data = await response.json();
-        updateDashboard(data);
-    } catch (error) {
-        console.error('Error fetching solar data:', error);
-        // Use mock data if API fails
-        console.log('Using mock data instead');
-        updateDashboard(mockData);
-    } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'grid';
-    }
-}
-
-function updateDashboard(data) {
-    const dashboard = document.getElementById('dashboard');
-    dashboard.innerHTML = '';
-    
-    for (const [key, value] of Object.entries(data)) {
-        if (value) {
-            // Generate a random value between min and max for demonstration
-            const randomValue = value.min + Math.random() * (value.max - value.min);
-            
-            const card = createWidgetCard(
-                key,
-                value.title || formatTitle(key),
-                randomValue,
-                value.unit || '',
-                value.min || 0,
-                value.max || 100,
-                value.thresholds || [],
-                value.icon || getDefaultIcon(value.title || formatTitle(key))
-            );
-            dashboard.appendChild(card);
-        }
-    }
-}
-
-function getDefaultIcon(title) {
-    return defaultIcons[title] || defaultIcons.default;
-}
-
-function createWidgetCard(id, title, value, unit, min, max, thresholds = [], iconClass) {
-const card = document.createElement('div');
-card.className = 'widget-card';
-card.dataset.id = id;
-
-// Determine color based on thresholds
-const valueColor = getColorForValue(value, min, max, thresholds);
-
-// Determine icon class based on value (for battery icon)
-let dynamicIcon = iconClass;
-if (iconClass === 'fa-battery-half') {
-    const batteryLevel = ((value - min) / (max - min)) * 100;
-    if (batteryLevel <= 5) dynamicIcon = 'fa-battery-empty';
-    else if (batteryLevel <= 25) dynamicIcon = 'fa-battery-quarter';
-    else if (batteryLevel <= 50) dynamicIcon = 'fa-battery-half';
-    else if (batteryLevel <= 75) dynamicIcon = 'fa-battery-three-quarters';
-    else dynamicIcon = 'fa-battery-full';
-}
-
-card.innerHTML = `
-    <div class="widget-header">
-        <div class="widget-title">${title}</div>
-        <button class="edit-button" onclick="toggleSettings('${id}')">
-            <i class="fas fa-cog"></i>
-        </button>
-    </div>
-    <div class="widget-content">
-        <i class="widget-icon fas ${dynamicIcon}" style="color: ${valueColor};"></i>
-    </div>
-    <div class="widget-settings" id="settings-${id}" style="display: none;">
-        <div class="settings-section">
-            <h4>Range Settings</h4>
-            <div class="settings-group">
-                <div class="setting-field">
-                    <label for="min-${id}">Min Value</label>
-                    <input type="number" id="min-${id}" value="${min}">
-                </div>
-                <div class="setting-field">
-                    <label for="max-${id}">Max Value</label>
-                    <input type="number" id="max-${id}" value="${max}">
-                </div>
-            </div>
-        </div>
-        
-        <div class="settings-section">
-            <h4>Color Settings</h4>
-            <input type="hidden" id="color1-${id}" value="${getThresholdColors(thresholds)[0]}">
-            <input type="hidden" id="color2-${id}" value="${getThresholdColors(thresholds)[1]}">
-            <input type="hidden" id="color3-${id}" value="${getThresholdColors(thresholds)[2]}">
-            <input type="hidden" id="color4-${id}" value="${getThresholdColors(thresholds)[3]}">
-        </div>
-        
-        <div class="button-group">
-            <button class="settings-button save-button" onclick="saveSettings('${id}')">
-                <i class="fas fa-save"></i> Save
-            </button>
-            <button class="settings-button cancel-button" onclick="toggleSettings('${id}')">
-                <i class="fas fa-times"></i> Cancel
-            </button>
-        </div>
-    </div>
-`;
-
-return card;
-}
-
-function toggleSettings(id) {
-const settings = document.getElementById(`settings-${id}`);
-if (settings.style.display === 'none') {
-    settings.style.display = 'block';
-} else {
-    settings.style.display = 'none';
-}
-}
-// Function to extract colors from thresholds
-function getThresholdColors(thresholds) {
-    // Default colors if no thresholds provided
-    const defaultColors = ['#e74c3c', '#e67e22', '#f1c40f', '#27ae60'];
-    
-    if (!thresholds || thresholds.length === 0) {
-        return defaultColors;
-    }
-    
-    const colors = [];
-    // Extract colors from thresholds
-    for (let i = 0; i < Math.min(thresholds.length, 4); i++) {
-        const threshold = thresholds[i];
-        if (threshold && threshold.color) {
-            // Convert named colors to hex
-            const color = colorMap[threshold.color] || threshold.color;
-            colors.push(color);
-        }
-    }
-    
-    // Ensure we have 4 colors (for 0%, 33%, 66%, 100%)
-    while (colors.length < 4) {
-        colors.push(defaultColors[colors.length]);
-    }
-    
-    return colors;
-}
-
-// Function to get color based on value and thresholds
-function getColorForValue(value, min, max, thresholds) {
-    const colors = getThresholdColors(thresholds);
-    const percentage = ((value - min) / (max - min)) * 100;
-    
-    // Determine color based on percentage
-    if (percentage <= 33) {
-        return colors[0];
-    } else if (percentage <= 66) {
-        return colors[1];
-    } else if (percentage <= 90) {
-        return colors[2];
-    } else {
-        return colors[3];
-    }
-}
-
-function toggleSettings(id) {
-    const settings = document.getElementById(`settings-${id}`);
-    settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
-}
-
-async function saveSettings(id) {
-    const minInput = document.getElementById(`min-${id}`);
-    const maxInput = document.getElementById(`max-${id}`);
-    
-    const min = parseFloat(minInput.value);
-    const max = parseFloat(maxInput.value);
-    
-    if (isNaN(min) || isNaN(max)) {
-        alert('Please enter valid numbers for min and max values.');
-        return;
-    }
-    
-    if (min >= max) {
-        alert('Min value must be less than max value.');
-        return;
-    }
-    
-    // Get colors from hidden inputs
-    const color1 = document.getElementById(`color1-${id}`).value;
-    const color2 = document.getElementById(`color2-${id}`).value;
-    const color3 = document.getElementById(`color3-${id}`).value;
-    const color4 = document.getElementById(`color4-${id}`).value;
-    
-    // Default threshold percentages (33%, 66%, 90%)
-    const defaultThresholds = [33, 66, 90];
-    
-    // Calculate absolute values for thresholds
-    const range = max - min;
-    const thresholds = [
-        {
-            value: null,
-            color: color1
-        },
-        {
-            value: min + (range * defaultThresholds[0] / 100),
-            color: color2
-        },
-        {
-            value: min + (range * defaultThresholds[1] / 100),
-            color: color3
-        },
-        {
-            value: min + (range * defaultThresholds[2] / 100),
-            color: color4
-        }
-    ];
-    
-    try {
-        // First try to use existing API
-        let response = await fetch('<%= ingress_path %>/api/update-panel-config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                panelId: id,
-                min: min,
-                max: max,
-                thresholds: thresholds
-            })
-        });
-        
-        // If that fails, try the simpler endpoint
-        if (!response.ok) {
-            response = await fetch('<%= ingress_path %>/api/update-panel-range', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    panelId: id,
-                    min: min,
-                    max: max
-                })
+            // Auto-save on input changes
+            document.querySelectorAll('input, select').forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.id !== 'confirmButton') {
+                        autoSave();
+                    }
+                });
             });
         }
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to update settings');
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            alert('Settings updated successfully!');
-            toggleSettings(id);
-            
-            // Apply changes to the current visualization without refreshing
-            const cardElement = document.querySelector(`.widget-card[data-id="${id}"]`);
-            const valueElement = cardElement.querySelector('.widget-value');
-            const value = parseFloat(valueElement.textContent);
-            
-            // Update icon color based on new settings
-            const iconElement = cardElement.querySelector('.widget-icon');
-            const newColor = getColorForValue(value, min, max, thresholds);
-            iconElement.style.color = newColor;
-            
-        } else {
-            alert('Failed to update settings: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Error saving settings:', error);
-        
-        // If API fails, still update the local display
-        alert('Could not save to server, but changes applied locally.');
-        const cardElement = document.querySelector(`.widget-card[data-id="${id}"]`);
-        const valueElement = cardElement.querySelector('.widget-value');
-        const value = parseFloat(valueElement.textContent);
-        
-        // Update icon color based on new settings
-        const iconElement = cardElement.querySelector('.widget-icon');
-        const newColor = getColorForValue(value, min, max, thresholds);
-        iconElement.style.color = newColor;
-        
-        toggleSettings(id);
-    }
-}
 
-function formatTitle(key) {
-    return key
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase());
-}
+        function switchCategory(category) {
+            // Update active category card
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${category}"]`).classList.add('active');
 
-// Initial load
-document.addEventListener('DOMContentLoaded', function() {
-    fetchSolarData();
-});
-</script>
-<script>
-        let currentConfig = {};
+            // Update active settings section
+            document.querySelectorAll('.settings-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`${category}-settings`).classList.add('active');
 
-        // Load configuration on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            loadConfig();
-            loadStatus();
-        });
-
-        async function loadConfig() {
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/config');
-                const data = await response.json();
-                
-                if (data.success) {
-                    currentConfig = data.config;
-                    
-                    // Populate form
-                    document.getElementById('enableToggle').checked = data.config.enabled;
-                    document.getElementById('apiKey').value = data.config.apiKey || '';
-                    document.getElementById('country').value = data.config.country || 'DE';
-                }
-            } catch (error) {
-                showAlert('Error loading configuration: ' + error.message, 'error');
+            // Load specific data if needed
+            if (category === 'tibber') {
+                loadTibberStatus();
+            } else if (category === 'range') {
+                loadRangeSettings();
             }
         }
 
-        async function loadStatus() {
+        async function loadCurrentSettings() {
             try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/status');
+                // Load timezone
+                const timezoneResponse = await fetch(`${ingressPath}/api/timezone`);
+                const timezoneData = await timezoneResponse.json();
+                if (timezoneData.timezone) {
+                    document.getElementById('timezone').value = timezoneData.timezone;
+                }
+
+                // Load Tibber config
+                const tibberResponse = await fetch(`${ingressPath}/api/tibber/config`);
+                const tibberData = await tibberResponse.json();
+                if (tibberData.success) {
+                    document.getElementById('tibberEnabled').checked = tibberData.config.enabled || false;
+                    document.getElementById('tibberApiKey').value = tibberData.config.apiKey || '';
+                    document.getElementById('tibberCountry').value = tibberData.config.country || 'DE';
+                }
+
+                updateStatusIndicators();
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showToast('Error loading settings', 'error');
+            }
+        }
+
+        async function loadTibberStatus() {
+            try {
+                const response = await fetch(`${ingressPath}/api/tibber/status`);
                 const data = await response.json();
                 
                 if (data.success) {
                     const status = data.status;
                     
-                    // Update status display
-                    document.getElementById('statusEnabled').textContent = 
-                        status.enabled ? '✅ Enabled' : '❌ Disabled';
-                    
-                    document.getElementById('statusConnected').textContent = 
-                        status.configured ? '✅ Ready' : '⚠️ Not Configured';
-                    
+                    // Update connection status
+                    const connectionStatus = document.getElementById('tibberConnectionStatus');
+                    if (status.configured && status.enabled) {
+                        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Connected';
+                        connectionStatus.className = 'status-badge connected';
+                    } else {
+                        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Disconnected';
+                        connectionStatus.className = 'status-badge disconnected';
+                    }
+
+                    // Update price info
                     if (status.currentPrice) {
                         document.getElementById('currentPrice').textContent = 
-                            status.currentPrice.total.toFixed(2) + ' cent';
-                        document.getElementById('priceLevel').textContent = 
-                            status.currentPrice.level;
-                    } else {
-                        document.getElementById('currentPrice').textContent = 'No data';
-                        document.getElementById('priceLevel').textContent = '-';
-                    }
-                    
-                    // Load price data if available
-                    if (status.hasCachedData) {
-                        loadPriceData();
+                            status.currentPrice.total.toFixed(2) + ' cent/kWh';
+                        
+                        const priceLevel = document.getElementById('priceLevel');
+                        priceLevel.innerHTML = `<i class="fas fa-circle"></i> ${status.currentPrice.level}`;
+                        priceLevel.className = `status-badge ${status.currentPrice.level.toLowerCase()}`;
                     }
                 }
             } catch (error) {
-                console.error('Error loading status:', error);
+                console.error('Error loading Tibber status:', error);
             }
         }
 
-        async function loadPriceData() {
+        async function loadRangeSettings() {
             try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/prices');
+                const response = await fetch(`${ingressPath}/api/solar-data`);
                 const data = await response.json();
                 
-                if (data.success && data.data.currentPrice) {
-                    const priceCard = document.getElementById('priceDataCard');
-                    const priceDisplay = document.getElementById('priceDisplay');
-                    
-                    priceCard.style.display = 'block';
-                    
-                    priceDisplay.innerHTML = `
-                        <div class="price-card">
-                            <h3>Current Price</h3>
-                            <div class="value">${data.data.currentPrice.total.toFixed(2)}</div>
-                            <div class="level">cent • ${data.data.currentPrice.level}</div>
-                        </div>
-                        <div class="price-card" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">
-                            <h3>Energy Cost</h3>
-                            <div class="value">${data.data.currentPrice.energy.toFixed(2)}</div>
-                            <div class="level">cent/kWh</div>
-                        </div>
-                        <div class="price-card" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);">
-                            <h3>Tax</h3>
-                            <div class="value">${data.data.currentPrice.tax.toFixed(2)}</div>
-                            <div class="level">cent</div>
-                        </div>
-                    `;
+                const rangeGrid = document.getElementById('rangeGrid');
+                rangeGrid.innerHTML = '';
+
+                for (const [key, value] of Object.entries(data)) {
+                    if (value) {
+                        const rangeCard = createRangeCard(key, value);
+                        rangeGrid.appendChild(rangeCard);
+                    }
                 }
             } catch (error) {
-                console.error('Error loading price data:', error);
+                console.error('Error loading range settings:', error);
+                showToast('Error loading range settings', 'error');
             }
         }
 
-        async function saveConfig() {
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const homeId = document.getElementById('homeId').value.trim();
-            const country = document.getElementById('country').value;
-            const enabled = document.getElementById('enableToggle').checked;
+        function createRangeCard(id, config) {
+            const card = document.createElement('div');
+            card.className = 'range-card';
+            
+            // Enhanced icon mapping for specific Range Settings
+            const iconMap = {
+                'Load Power': 'fa-home',
+                'Grid Voltage': 'fa-tachometer-alt', 
+                'Battery Power': 'fa-battery-half',
+                'Grid Power': 'fa-plug',
+                'Solar PV Power': 'fa-sun',
+                'Battery SOC': 'fa-battery-three-quarters',
+                'Battery Voltage': 'fa-car-battery',
+                // Fallback mappings
+                'battery': 'fa-battery-half',
+                'solar': 'fa-sun',
+                'grid': 'fa-plug',
+                'inverter': 'fa-microchip',
+                'load': 'fa-home',
+                'power': 'fa-bolt',
+                'voltage': 'fa-tachometer-alt',
+                'soc': 'fa-battery-three-quarters'
+            };
+            
+            // Determine icon - exact match first, then fallback
+            let icon = config.icon || iconMap[config.title] || iconMap[id] || 'fa-chart-line';
+            
+            // Fallback keyword matching if no exact match
+            if (!config.icon && !iconMap[config.title] && !iconMap[id]) {
+                const title = (config.title || id).toLowerCase();
+                if (title.includes('load') && title.includes('power')) icon = 'fa-home';
+                else if (title.includes('grid') && title.includes('voltage')) icon = 'fa-tachometer-alt';
+                else if (title.includes('battery') && title.includes('power')) icon = 'fa-battery-half';
+                else if (title.includes('grid') && title.includes('power')) icon = 'fa-plug';
+                else if (title.includes('solar') || title.includes('pv')) icon = 'fa-sun';
+                else if (title.includes('battery') && title.includes('soc')) icon = 'fa-battery-three-quarters';
+                else if (title.includes('battery') && title.includes('voltage')) icon = 'fa-car-battery';
+                else if (title.includes('battery')) icon = 'fa-battery-half';
+                else if (title.includes('voltage')) icon = 'fa-tachometer-alt';
+                else if (title.includes('power')) icon = 'fa-bolt';
+            }
+            
+            // Determine card type for styling
+            let cardType = 'default';
+            if (id.toLowerCase().includes('battery')) cardType = 'battery';
+            else if (id.toLowerCase().includes('solar') || id.toLowerCase().includes('pv')) cardType = 'solar';
+            else if (id.toLowerCase().includes('grid') || id.toLowerCase().includes('mains')) cardType = 'grid';
+            else if (id.toLowerCase().includes('inverter')) cardType = 'inverter';
+            else if (id.toLowerCase().includes('load') || id.toLowerCase().includes('consumption')) cardType = 'load';
+            
+            card.setAttribute('data-type', cardType);
+            
+            card.innerHTML = `
+                <div class="range-header">
+                    <div class="range-icon">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="range-info">
+                        <h3>${config.title || id.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h3>
+                        <p>Configure min/max values and operational thresholds</p>
+                    </div>
+                </div>
+                <div class="range-controls">
+                    <div class="range-inputs">
+                        <div class="input-group">
+                            <label>Min Value</label>
+                            <input type="number" id="min-${id}" value="${config.min || 0}" class="form-input" step="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label>Max Value</label>
+                            <input type="number" id="max-${id}" value="${config.max || 100}" class="form-input" step="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label>Unit</label>
+                            <span class="unit-display">${config.unit || 'W'}</span>
+                        </div>
+                    </div>
+                    <div class="range-actions">
+                        <button class="settings-btn secondary" onclick="resetRange('${id}')">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                        <button class="settings-btn primary" onclick="saveRange('${id}')">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
 
-            // Validate API key
-            if (enabled && !apiKey) {
-                showAlert('Please enter an API key', 'error');
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('apiKey');
+            const icon = document.getElementById('apiKeyIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        function toggleTibberApiKeyVisibility() {
+            const input = document.getElementById('tibberApiKey');
+            const icon = document.getElementById('tibberApiKeyIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        async function testTibberConnection() {
+            showToast('Testing Tibber connection...', 'info');
+            
+            try {
+                const response = await fetch(`${ingressPath}/api/tibber/test`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`Connection successful! Welcome, ${data.user.name}`, 'success');
+                } else {
+                    showToast(`Connection failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast('Error testing connection', 'error');
+            }
+        }
+
+        async function refreshTibberData() {
+            showToast('Refreshing Tibber data...', 'info');
+            
+            try {
+                const response = await fetch(`${ingressPath}/api/tibber/refresh`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Data refreshed successfully', 'success');
+                    loadTibberStatus();
+                } else {
+                    showToast(`Refresh failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast('Error refreshing data', 'error');
+            }
+        }
+
+        async function saveRange(id) {
+            const min = parseFloat(document.getElementById(`min-${id}`).value);
+            const max = parseFloat(document.getElementById(`max-${id}`).value);
+            
+            if (isNaN(min) || isNaN(max) || min >= max) {
+                showToast('Invalid range values', 'error');
                 return;
             }
 
             try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/config', {
+                const response = await fetch(`${ingressPath}/api/update-panel-range`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ panelId: id, min, max })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Range settings saved', 'success');
+                } else {
+                    showToast('Failed to save range settings', 'error');
+                }
+            } catch (error) {
+                showToast('Error saving range settings', 'error');
+            }
+        }
+
+        function resetRange(id) {
+            showConfirmation('Reset range settings to default values?', () => {
+                // Reset to default values - you can customize these
+                document.getElementById(`min-${id}`).value = '0';
+                document.getElementById(`max-${id}`).value = '100';
+                showToast('Range settings reset', 'info');
+            });
+        }
+
+        async function autoSave() {
+            // Debounce auto-save
+            clearTimeout(window.autoSaveTimeout);
+            window.autoSaveTimeout = setTimeout(async () => {
+                try {
+                    await saveCurrentSettings();
+                } catch (error) {
+                    console.error('Auto-save failed:', error);
+                }
+            }, 1000);
+        }
+
+        async function saveCurrentSettings() {
+            const settings = {
+                timezone: document.getElementById('timezone').value,
+                apiKey: document.getElementById('apiKey').value,
+                selectedZone: document.getElementById('zone').value,
+                tibber: {
+                    enabled: document.getElementById('tibberEnabled').checked,
+                    apiKey: document.getElementById('tibberApiKey').value,
+                    country: document.getElementById('tibberCountry').value
+                }
+            };
+
+            // Save general settings
+            if (settings.apiKey || settings.selectedZone) {
+                await fetch(`${ingressPath}/settings`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        enabled,
-                        apiKey: apiKey || undefined,
-                        homeId: homeId || '',
-                        country
+                        apiKey: settings.apiKey,
+                        selectedZone: settings.selectedZone
                     })
                 });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('Configuration saved successfully! ✅', 'success');
-                    currentConfig = data.config;
-                    loadStatus();
-                } else {
-                    showAlert('Error: ' + data.error, 'error');
-                }
-            } catch (error) {
-                showAlert('Error saving configuration: ' + error.message, 'error');
             }
-        }
 
-        async function testConnection() {
-            showAlert('Testing connection...', 'info');
-            
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert(`✅ Connection successful! Welcome, ${data.user.name}`, 'success');
-                } else {
-                    showAlert('❌ Connection failed: ' + data.error, 'error');
-                }
-            } catch (error) {
-                showAlert('Error testing connection: ' + error.message, 'error');
-            }
-        }
-
-        async function refreshData() {
-            showAlert('Refreshing Tibber data...', 'info');
-            
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/refresh', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('✅ Data refreshed successfully!', 'success');
-                    loadStatus();
-                    loadPriceData();
-                } else {
-                    showAlert('❌ Refresh failed: ' + data.error, 'error');
-                }
-            } catch (error) {
-                showAlert('Error refreshing data: ' + error.message, 'error');
-            }
-        }
-
-
-        function showAlert(message, type = 'info') {
-            const alertContainer = document.getElementById('alertContainer');
-            const alertClass = `alert-${type}`;
-            
-            const icons = {
-                success: '✅',
-                error: '❌',
-                warning: '⚠️',
-                info: 'ℹ️'
-            };
-            
-            alertContainer.innerHTML = `
-                <div class="alert ${alertClass}">
-                    <span>${icons[type] || 'ℹ️'}</span>
-                    <span>${message}</span>
-                </div>
-            `;
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
-
-        // Enable toggle handler
-        document.getElementById('enableToggle').addEventListener('change', async (e) => {
-            const enabled = e.target.checked;
-            
-            try {
-                const response = await fetch('<%= ingress_path %>/api/tibber/toggle', {
+            // Save timezone
+            if (settings.timezone) {
+                await fetch(`${ingressPath}/api/timezone`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled })
+                    body: JSON.stringify({ timezone: settings.timezone })
+                });
+            }
+
+            // Save Tibber settings
+            await fetch(`${ingressPath}/api/tibber/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings.tibber)
+            });
+
+            updateStatusIndicators();
+        }
+
+        async function saveTibberSettings() {
+            const tibberSettings = {
+                enabled: document.getElementById('tibberEnabled').checked,
+                apiKey: document.getElementById('tibberApiKey').value,
+                country: document.getElementById('tibberCountry').value
+            };
+
+            try {
+                const response = await fetch(`${ingressPath}/api/tibber/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tibberSettings)
                 });
 
                 const data = await response.json();
-                
                 if (data.success) {
-                    showAlert(data.message, 'success');
-                    loadStatus();
+                    showToast('Tibber settings saved successfully', 'success');
+                    loadTibberStatus();
                 } else {
-                    showAlert('Error: ' + data.error, 'error');
-                    e.target.checked = !enabled; // Revert toggle
+                    showToast(`Failed to save Tibber settings: ${data.error}`, 'error');
                 }
             } catch (error) {
-                showAlert('Error toggling Tibber: ' + error.message, 'error');
-                e.target.checked = !enabled; // Revert toggle
+                showToast('Error saving Tibber settings', 'error');
+                console.error('Error:', error);
             }
-        });
-    </script>
+        }
 
+        async function saveAllSettings() {
+            try {
+                await saveCurrentSettings();
+                showToast('All settings saved successfully', 'success');
+            } catch (error) {
+                showToast('Error saving settings', 'error');
+            }
+        }
+
+        function resetAllSettings() {
+            showConfirmation('Reset all settings to default values? This action cannot be undone.', async () => {
+                try {
+                    // Reset form values
+                    document.getElementById('timezone').value = 'UTC';
+                    document.getElementById('apiKey').value = '';
+                    document.getElementById('zone').value = '';
+                    document.getElementById('tibberEnabled').checked = false;
+                    document.getElementById('tibberApiKey').value = '';
+                    document.getElementById('tibberCountry').value = 'DE';
+
+                    await saveCurrentSettings();
+                    showToast('All settings reset to defaults', 'info');
+                } catch (error) {
+                    showToast('Error resetting settings', 'error');
+                }
+            });
+        }
+
+        function exportSettings() {
+            const settings = {
+                timezone: document.getElementById('timezone').value,
+                apiKey: document.getElementById('apiKey').value ? '***HIDDEN***' : '',
+                selectedZone: document.getElementById('zone').value,
+                tibber: {
+                    enabled: document.getElementById('tibberEnabled').checked,
+                    apiKey: document.getElementById('tibberApiKey').value ? '***HIDDEN***' : '',
+                    country: document.getElementById('tibberCountry').value
+                },
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'solarautopilot-settings.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Settings exported successfully', 'success');
+        }
+
+        function updateStatusIndicators() {
+            const apiKey = document.getElementById('apiKey').value;
+            const zone = document.getElementById('zone').value;
+
+            // API Status
+            const apiStatus = document.getElementById('apiStatus');
+            if (apiKey) {
+                apiStatus.innerHTML = '<i class="fas fa-circle"></i> Connected';
+                apiStatus.className = 'status-badge connected';
+            } else {
+                apiStatus.innerHTML = '<i class="fas fa-circle"></i> Not Configured';
+                apiStatus.className = 'status-badge disconnected';
+            }
+
+            // Zone Status
+            const zoneStatus = document.getElementById('zoneStatus');
+            if (zone) {
+                zoneStatus.innerHTML = '<i class="fas fa-circle"></i> Configured';
+                zoneStatus.className = 'status-badge connected';
+            } else {
+                zoneStatus.innerHTML = '<i class="fas fa-circle"></i> Not Set';
+                zoneStatus.className = 'status-badge disconnected';
+            }
+        }
+
+        function showConfirmation(message, callback) {
+            document.getElementById('confirmationMessage').textContent = message;
+            document.getElementById('confirmation-modal').style.display = 'flex';
+            pendingAction = callback;
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmation-modal').style.display = 'none';
+            pendingAction = null;
+        }
+
+        function confirmAction() {
+            if (pendingAction) {
+                pendingAction();
+                closeConfirmationModal();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-header">
+                    <i class="fas ${icons[type]}"></i>
+                    <span class="toast-title">${message}</span>
+                    <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('toast-container').appendChild(toast);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
+
+            // Animate in
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+        }
+    </script>
 </body>
 </html>

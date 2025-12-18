@@ -15,7 +15,7 @@
         <span></span>
     </button>
     <div class="container">
-        <div id="loadingOverlay" class="loading-overlay">
+        <div id="loadingOverlay" class="loading-overlay show">
             <div class="loading-spinner"></div>
         </div>
         <div id="pageContent"> </div>
@@ -111,36 +111,59 @@
       });
 
       async function initializePage() {
+          console.log('🚀 Starting page initialization...');
+          
           try {
               // Initialize tracking variable
               window.lastSystemUpdate = Date.now();
+              console.log('✅ Tracking variable initialized');
               
               // Load system configuration
+              console.log('📡 Loading system configuration...');
               await loadSystemConfiguration();
+              console.log('✅ System configuration loaded');
               
               // Initialize inverter selector
+              console.log('🔌 Populating inverter selector...');
               populateInverterSelector();
+              console.log('✅ Inverter selector populated');
               
               // Load settings for default inverter
+              console.log('⚙️ Loading settings for inverter 1...');
               currentInverter = 1;
               await loadAllSettings();
+              console.log('✅ Settings loaded');
               
               // Start system state updates (every 2 seconds)
+              console.log('🔄 Starting system state updates...');
               startSystemStateUpdates();
+              console.log('✅ System state updates started');
               
               // Set up event handlers
+              console.log('🎯 Setting up event handlers...');
               setupEventHandlers();
+              console.log('✅ Event handlers set up');
               
-
+              // Hide loading after initialization
+              console.log('🎨 Hiding loading overlay...');
+              setTimeout(() => {
+                  hideLoading();
+                  console.log('✅ Loading overlay hidden');
+              }, 500);
               
-              console.log('Page initialized successfully - System state updates every 2 seconds');
+              console.log('🎉 Page initialized successfully - System state updates every 2 seconds');
               
           } catch (error) {
-              console.error('Error initializing page:', error);
+              console.error('❌ Error initializing page:', error);
               showNotification('Error initializing page', 'error');
+              
+              // Hide loading even on error
+              console.log('🛑 Hiding loading due to error...');
+              hideLoading();
               
               // Still try to start system state updates even if other initialization fails
               setTimeout(() => {
+                  console.log('🔄 Starting system state updates after error...');
                   startSystemStateUpdates();
               }, 2000);
           }
@@ -878,11 +901,31 @@
       }
 
       function showLoading(show) {
-          const refreshIcon = document.getElementById('refresh-icon');
-          if (show) {
-              refreshIcon.innerHTML = '<div class="loading"></div>';
+          if (show === undefined) {
+              // Show loading overlay
+              const overlay = document.getElementById('loadingOverlay');
+              if (overlay) {
+                  overlay.style.display = 'flex';
+                  overlay.classList.add('show');
+              }
           } else {
-              refreshIcon.textContent = '🔄';
+              // Legacy function for refresh icon
+              const refreshIcon = document.getElementById('refresh-icon');
+              if (show) {
+                  refreshIcon.innerHTML = '<div class="loading"></div>';
+              } else {
+                  refreshIcon.textContent = '🔄';
+              }
+          }
+      }
+      
+      function hideLoading() {
+          const overlay = document.getElementById('loadingOverlay');
+          if (overlay) {
+              overlay.classList.remove('show');
+              setTimeout(() => {
+                  overlay.style.display = 'none';
+              }, 300);
           }
       }
 
@@ -962,6 +1005,7 @@
 
       };
   </script>
+<script src="<%= ingress_path %>/js/debug.js"></script>
 <script src="<%= ingress_path %>/js/loading.js"></script>
 <script src="<%= ingress_path %>/js/dark-mode.js"></script>
 <script src="<%= ingress_path %>/js/mobile.js"></script>
