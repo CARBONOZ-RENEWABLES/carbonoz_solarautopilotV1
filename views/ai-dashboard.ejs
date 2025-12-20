@@ -215,8 +215,961 @@
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="<%= ingress_path %>/js/ai-dashboard.js"></script>
+    <script>
+        // AI Dashboard JavaScript - Enhanced with Tibber Integration & Modern Design
+
+let updateInterval = null;
+let pvHistory = [];
+let weatherCondition = 'sunny';
+let tibberData = null;
+
+// Initialize dashboard with loading overlay
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🤖 AI Dashboard initializing...');
+    
+    // Show loading overlay
+    showLoadingOverlay();
+    
+    // Load initial data
+    loadDashboardData().then(() => {
+        // Hide loading overlay after data is loaded
+        setTimeout(() => {
+            hideLoadingOverlay();
+        }, 1000);
+    });
+    
+    // Initialize weather prediction
+    initializeWeatherPrediction();
+    
+    // Load Tibber data
+    loadTibberData();
+    
+    // Start auto-refresh
+    startAutoRefresh();
+});
+
+// Show loading overlay
+function showLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+    }
+}
+
+// Hide loading overlay
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+}
+
+// Load all dashboard data
+async function loadDashboardData() {
+    try {
+        await Promise.all([
+            loadSystemState(),
+            loadAIStatus(),
+            loadDecisions(),
+            loadCommands(),
+            loadPredictions(),
+            updatePVWeatherPrediction()
+        ]);
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+    }
+}
+
+// Load Tibber price data
+async function loadTibberData() {
+    try {
+        console.log('Loading Tibber data...');
+        const response = await fetch('<%= ingress_path %>/api/tibber/prices');
+        const data = await response.json();
+        
+        console.log('Tibber API response:', data);
+        
+        if (data.success && data.data) {
+            tibberData = data.data;
+            console.log('Tibber forecast length:', data.data.forecast ? data.data.forecast.length : 0);
+            updateTibberDisplay(data.data, data.status);
+        } else {
+            console.log('Tibber error:', data.error);
+            updateTibberStatus('disconnected', data.error || 'Not configured');
+        }
+    } catch (error) {
+        console.error('Error loading Tibber data:', error);
+        updateTibberStatus('error', 'Connection failed');
+    }
+}
+
+// Update Tibber display
+function updateTibberDisplay(data, status) {
+    // Update status
+    updateTibberStatus(status.configured && status.hasCachedData ? 'connected' : 'disconnected', 
+                      status.configured ? 'Connected' : 'Not configured');
+    
+    if (data.currentPrice) {
+        // Update current price
+        document.getElementById('current-price').textContent = 
+            `${data.currentPrice.total.toFixed(3)} €/kWh`;
+        document.getElementById('main-price').textContent = 
+            data.currentPrice.total.toFixed(3);
+        document.getElementById('main-price-level').textContent = 
+            data.currentPrice.level || 'NORMAL';
+        
+        // Update price level indicator
+        const priceLevelElement = document.getElementById('price-level');
+        const levelClass = (data.currentPrice.level || 'NORMAL').toLowerCase().replace('_', '-');
+        priceLevelElement.className = `price-level ${levelClass}`;
+        
+        // Update price level badge
+        const badgeElement = document.getElementById('main-price-level');
+        badgeElement.className = `price-level-badge ${levelClass}`;
+    }
+    
+    if (data.forecast && data.forecast.length > 0) {
+        // Find next hour price
+        const nextHour = data.forecast.find(item => 
+            new Date(item.startsAt) > new Date()
+        );
+        if (nextHour) {
+            document.getElementById('next-hour-price').textContent = 
+                `${nextHour.total.toFixed(3)} €`;
+        }
+        
+        // Find cheapest price today
+        const today = new Date().toDateString();
+        const todayPrices = data.forecast.filter(item => 
+            new Date(item.startsAt).toDateString() === today
+        );
+        if (todayPrices.length > 0) {
+            const cheapest = todayPrices.reduce((min, item) => 
+                item.total < min.total ? item : min
+            );
+            document.getElementById('cheapest-price').textContent = 
+                `${cheapest.total.toFixed(3)} € at ${new Date(cheapest.startsAt).getHours()}:00`;
+        }
+        
+        // Update price chart (simple visualization)
+        updatePriceChart(data.forecast);
+    }
+}
+
+// Update Tibber status indicator
+function updateTibberStatus(status, message) {
+    const statusElement = document.getElementById('tibber-status');
+    const dotElement = statusElement.querySelector('.status-dot');
+    const textElement = statusElement.querySelector('span:last-child');
+    
+    dotElement.className = `status-dot ${status}`;
+    textElement.textContent = message;
+}
+
+// Update price chart with enhanced design
+function updatePriceChart(forecast) {
+    const chartElement = document.getElementById('price-chart');
+    
+    if (!forecast || forecast.length === 0) {
+        chartElement.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #666;">
+                <i class="fas fa-chart-line" style="font-size: 2rem; opacity: 0.3; margin-bottom: 10px;"></i>
+                <div style="font-weight: 600; margin-bottom: 5px;">No Price Data</div>
+                <div style="font-size: 0.85rem; opacity: 0.7;">Configure Tibber to see price forecast</div>
+            </div>
+        `;
+        return;
+    }
+    
+    const availableHours = Math.min(forecast.length, 24);
+    const nextHours = forecast.slice(0, availableHours);
+    
+    if (nextHours.length === 0) {
+        chartElement.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #666;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; opacity: 0.3; margin-bottom: 10px;"></i>
+                <div style="font-weight: 600; margin-bottom: 5px;">No Forecast Available</div>
+                <div style="font-size: 0.85rem; opacity: 0.7;">Price data will appear here</div>
+            </div>
+        `;
+        return;
+    }
+    
+    const maxPrice = Math.max(...nextHours.map(item => item.total));
+    const minPrice = Math.min(...nextHours.map(item => item.total));
+    const priceRange = maxPrice - minPrice;
+    
+    const bars = nextHours.map((item, index) => {
+        const normalizedHeight = priceRange > 0 ? ((item.total - minPrice) / priceRange) : 0.5;
+        const height = Math.max(normalizedHeight * 70 + 15, 8);
+        const date = new Date(item.startsAt);
+        const hour = date.getHours();
+        const level = (item.level || 'NORMAL').toLowerCase().replace('_', '-');
+        
+        const showLabel = index % Math.max(1, Math.floor(availableHours / 6)) === 0;
+        const isCurrentHour = hour === new Date().getHours();
+        
+        return `
+            <div class="price-bar-container ${isCurrentHour ? 'current-hour' : ''}">
+                <div class="price-bar" 
+                     style="height: ${height}px" 
+                     title="${hour}:00\n${item.total.toFixed(3)}€/kWh\n${(item.level || 'NORMAL').replace('_', ' ')}">
+                    <div class="price-bar-fill ${level}">
+                        ${isCurrentHour ? '<div class="current-indicator"></div>' : ''}
+                    </div>
+                </div>
+                ${showLabel ? `<div class="price-bar-label">${hour}h</div>` : '<div class="price-bar-label"></div>'}
+            </div>
+        `;
+    }).join('');
+    
+    const avgPrice = (nextHours.reduce((sum, item) => sum + item.total, 0) / nextHours.length);
+    
+    chartElement.innerHTML = `
+        <div class="price-bars">
+            ${bars}
+        </div>
+        <div class="price-chart-label">
+            <i class="fas fa-clock" style="margin-right: 4px;"></i>
+            ${availableHours}h Forecast: ${minPrice.toFixed(2)}€ - ${maxPrice.toFixed(2)}€ (avg: ${avgPrice.toFixed(2)}€)
+        </div>
+    `;
+}
+
+// Load system state with all metrics
+async function loadSystemState() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/system-state');
+        const data = await response.json();
+        
+        if (data.current_state) {
+            updateSystemState(data.current_state);
+        }
+    } catch (error) {
+        console.error('Error loading system state:', error);
+    }
+}
+
+// Update system state display with all metrics
+function updateSystemState(state) {
+    // Update all stat cards
+    document.getElementById('battery-soc').textContent = `${state.battery_soc || 0}%`;
+    document.getElementById('pv-power').textContent = `${(state.pv_power || 0).toFixed(0)}W`;
+    document.getElementById('grid-power').textContent = `${(state.grid_power || 0).toFixed(0)}W`;
+    document.getElementById('grid-voltage').textContent = `${(state.grid_voltage || 0).toFixed(1)}V`;
+    document.getElementById('load-power').textContent = `${(state.load || 0).toFixed(0)}W`;
+    document.getElementById('current-pv').textContent = `${(state.pv_power || 0).toFixed(0)}W`;
+    
+    // Update battery card styling based on level
+    const batteryCard = document.querySelector('.stat-card.battery');
+    const batteryLevel = state.battery_soc || 0;
+    
+    batteryCard.className = 'stat-card battery';
+    if (batteryLevel < 20) {
+        batteryCard.classList.add('critical');
+    } else if (batteryLevel < 50) {
+        batteryCard.classList.add('warning');
+    } else {
+        batteryCard.classList.add('success');
+    }
+    
+    // Store PV data for weather prediction
+    if (state.pv_power !== null) {
+        pvHistory.push({
+            timestamp: Date.now(),
+            power: state.pv_power
+        });
+        
+        // Keep only last 24 hours of data
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        pvHistory = pvHistory.filter(item => item.timestamp > oneDayAgo);
+    }
+}
+
+// Load AI status
+async function loadAIStatus() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/status');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateAIStatus(data.status);
+        }
+    } catch (error) {
+        console.error('Error loading AI status:', error);
+    }
+}
+
+// Update AI status display
+function updateAIStatus(status) {
+    const button = document.getElementById('ai-toggle-btn');
+    if (!button) return;
+    
+    const icon = button.querySelector('i');
+    const text = button.querySelector('span');
+    
+    if (status.enabled) {
+        button.className = 'action-btn ai-toggle-btn stop-ai';
+        if (icon) icon.className = 'fas fa-stop';
+        if (text) text.textContent = 'Stop AI';
+    } else {
+        button.className = 'action-btn ai-toggle-btn start-ai';
+        if (icon) icon.className = 'fas fa-play';
+        if (text) text.textContent = 'Start AI';
+        
+        // Show informational message when AI is not running
+        showAINotRunningMessage();
+    }
+}
+
+// Show message when AI is not running
+function showAINotRunningMessage() {
+    const decisionsContainer = document.getElementById('decisions-container');
+    const commandsContainer = document.getElementById('commands-container');
+    
+    if (decisionsContainer) {
+        showEmptyState('decisions-container', 'robot', 'AI Engine Not Active', 'Start the AI engine to begin making intelligent charging decisions based on solar production, battery levels, and electricity prices.');
+    }
+    
+    if (commandsContainer) {
+        showEmptyState('commands-container', 'robot', 'AI Engine Not Active', 'When the AI engine is running, it will send MQTT commands to control your inverter automatically.');
+    }
+}
+
+// Toggle AI engine with enhanced UI feedback and real-time updates
+async function toggleAI() {
+    const button = document.getElementById('ai-toggle-btn');
+    const icon = button.querySelector('i');
+    const text = button.querySelector('span');
+    const originalIcon = icon.className;
+    const originalText = text.textContent;
+    
+    // Show loading state
+    button.disabled = true;
+    button.classList.add('loading');
+    icon.className = 'fas fa-spinner fa-spin';
+    text.textContent = 'Processing...';
+    
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', data.message);
+            
+            // Update button immediately based on response
+            button.classList.remove('loading');
+            button.disabled = false;
+            
+            if (data.enabled) {
+                button.classList.remove('start-ai');
+                button.classList.add('stop-ai');
+                icon.className = 'fas fa-stop';
+                text.textContent = 'Stop AI';
+            } else {
+                button.classList.remove('stop-ai');
+                button.classList.add('start-ai');
+                icon.className = 'fas fa-play';
+                text.textContent = 'Start AI';
+                showAINotRunningMessage();
+            }
+            
+            // Refresh data after status change
+            setTimeout(() => {
+                loadDecisions();
+                loadCommands();
+            }, 500);
+        } else {
+            showToast('error', data.error || 'Failed to toggle AI');
+            button.classList.remove('loading');
+            icon.className = originalIcon;
+            text.textContent = originalText;
+            button.disabled = false;
+        }
+    } catch (error) {
+        console.error('Error toggling AI:', error);
+        showToast('error', 'Error toggling AI engine');
+        button.classList.remove('loading');
+        icon.className = originalIcon;
+        text.textContent = originalText;
+        button.disabled = false;
+    }
+}
+
+// Load real AI decisions from InfluxDB
+async function loadDecisions() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/decisions?limit=10');
+        const data = await response.json();
+        
+        if (data.success && data.decisions && data.decisions.length > 0) {
+            updateDecisionsDisplay(data.decisions);
+            document.getElementById('decisions-count').textContent = data.decisions.length;
+        } else {
+            // No AI decisions yet - show empty state
+            showEmptyState('decisions-container', 'lightbulb', 'No AI decisions yet', 'AI decisions will appear here when the AI engine starts making charging/discharging choices based on price and system conditions.');
+            document.getElementById('decisions-count').textContent = '0';
+        }
+    } catch (error) {
+        console.error('Error loading decisions:', error);
+        showEmptyState('decisions-container', 'lightbulb', 'No AI decisions yet', 'AI decisions will appear here when the AI engine starts making charging/discharging choices.');
+        document.getElementById('decisions-count').textContent = '0';
+    }
+}
+
+// Update decisions display with real data
+function updateDecisionsDisplay(decisions) {
+    const container = document.getElementById('decisions-container');
+    
+    if (!decisions || decisions.length === 0) {
+        showEmptyState('decisions-container', 'lightbulb', 'No AI decisions yet', 'Decisions will appear when the AI engine makes charging/discharging choices.');
+        return;
+    }
+    
+    container.innerHTML = decisions.map(decision => `
+        <div class="decision-item">
+            <div class="decision-header">
+                <div class="decision-action">${decision.action}</div>
+                <div class="decision-time">${formatTime(decision.timestamp)}</div>
+            </div>
+            <div class="decision-reason">${decision.reason}</div>
+            <div class="decision-details">
+                <span class="decision-tag">Confidence: ${(decision.confidence * 100).toFixed(0)}%</span>
+                <span class="decision-tag ${decision.success ? 'success' : 'failed'}">
+                    ${decision.success ? 'Success' : 'Failed'}
+                </span>
+                ${decision.batteryLevel ? `<span class="decision-tag">Battery: ${decision.batteryLevel}%</span>` : ''}
+                ${decision.pvPower ? `<span class="decision-tag">PV: ${decision.pvPower}W</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load real commands from InfluxDB
+async function loadCommands() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/commands?limit=10');
+        const data = await response.json();
+        
+        if (data.success && data.commands && data.commands.length > 0) {
+            updateCommandsDisplay(data.commands);
+            document.getElementById('commands-count').textContent = data.commands.length;
+        } else {
+            // No AI commands yet - show empty state
+            showEmptyState('commands-container', 'terminal', 'No AI commands sent yet', 'MQTT commands sent by the AI engine will appear here when it starts controlling your system.');
+            document.getElementById('commands-count').textContent = '0';
+        }
+    } catch (error) {
+        console.error('Error loading commands:', error);
+        showEmptyState('commands-container', 'terminal', 'No AI commands sent yet', 'MQTT commands sent by the AI engine will appear here.');
+        document.getElementById('commands-count').textContent = '0';
+    }
+}
+
+// Update commands display with real data
+function updateCommandsDisplay(commands) {
+    const container = document.getElementById('commands-container');
+    
+    if (!commands || commands.length === 0) {
+        showEmptyState('commands-container', 'terminal', 'No commands sent yet', 'MQTT commands will appear here when sent to your system.');
+        return;
+    }
+    
+    container.innerHTML = commands.map(command => `
+        <div class="command-item">
+            <div class="command-header">
+                <div class="command-type">${command.type}</div>
+                <div class="decision-time">${formatTime(command.timestamp)}</div>
+            </div>
+            <div class="command-details">
+                ${command.topic}<br>
+                Value: ${command.value}
+            </div>
+            <div class="command-status">
+                <span class="status-badge ${command.status}">
+                    ${command.status.charAt(0).toUpperCase() + command.status.slice(1)}
+                </span>
+                ${command.response ? `<span class="status-badge">${command.response}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load predictions
+async function loadPredictions() {
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/predictions');
+        const data = await response.json();
+        
+        if (data.success) {
+            updatePredictionsDisplay(data.predictions);
+            document.getElementById('predictions-count').textContent = data.predictions.length;
+        }
+    } catch (error) {
+        console.error('Error loading predictions:', error);
+        showEmptyState('predictions-container', 'crystal-ball', 'No predictions available', 'AI predictions based on PV patterns will appear here.');
+        document.getElementById('predictions-count').textContent = '0';
+    }
+}
+
+// Update predictions display
+function updatePredictionsDisplay(predictions) {
+    const container = document.getElementById('predictions-container');
+    
+    if (!predictions || predictions.length === 0) {
+        showEmptyState('predictions-container', 'crystal-ball', 'No predictions available', 'AI predictions based on PV patterns will appear here.');
+        return;
+    }
+    
+    container.innerHTML = predictions.map(prediction => `
+        <div class="prediction-item">
+            <div class="prediction-header">
+                <div class="prediction-title">${prediction.title || 'Solar Production Forecast'}</div>
+                <div class="prediction-confidence">Confidence: ${prediction.confidence ? (prediction.confidence * 100).toFixed(0) + '%' : '85%'}</div>
+            </div>
+            <div class="prediction-description">
+                ${prediction.description || 'Based on historical PV data and current conditions, optimal solar production expected during midday hours.'}
+            </div>
+            <div class="prediction-timeline">
+                <span><i class="fas fa-clock"></i> ${prediction.timeframe || 'Next 6 hours'}</span>
+                <span><i class="fas fa-solar-panel"></i> ${prediction.expectedPV || '2.5kW'} peak</span>
+                <span><i class="fas fa-battery-half"></i> ${prediction.chargingAdvice || 'Charge recommended'}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Initialize weather prediction based on PV data
+function initializeWeatherPrediction() {
+    updatePVWeatherPrediction();
+    setInterval(updatePVWeatherPrediction, 60000); // Update every minute
+}
+
+// Update PV-based weather prediction
+function updatePVWeatherPrediction() {
+    const currentPV = parseFloat(document.getElementById('current-pv').textContent) || 0;
+    
+    if (pvHistory.length < 2) {
+        // Not enough data, use simple prediction based on current PV and time
+        const predictedPV = predictBasedOnTime(currentPV);
+        document.getElementById('predicted-pv').textContent = `${predictedPV.toFixed(0)}W`;
+        predictWeatherFromPV(currentPV);
+        return;
+    }
+    
+    // Analyze PV trend over last hour
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    const recentData = pvHistory.filter(item => item.timestamp > oneHourAgo);
+    
+    if (recentData.length === 0) {
+        const predictedPV = predictBasedOnTime(currentPV);
+        document.getElementById('predicted-pv').textContent = `${predictedPV.toFixed(0)}W`;
+        return;
+    }
+    
+    const avgPV = recentData.reduce((sum, item) => sum + item.power, 0) / recentData.length;
+    const maxPV = Math.max(...recentData.map(item => item.power));
+    
+    // Predict next hour PV based on trend and time of day
+    const trend = recentData.length > 1 ? 
+        (currentPV - recentData[0].power) / recentData.length : 0;
+    let predictedPV = Math.max(0, currentPV + (trend * 10));
+    
+    // Apply time-based correction
+    predictedPV = applyTimeCorrection(predictedPV);
+    
+    // Update display
+    document.getElementById('predicted-pv').textContent = `${predictedPV.toFixed(0)}W`;
+    
+    // Determine weather condition from PV data
+    predictWeatherFromPV(currentPV, avgPV, maxPV);
+    
+    // Update prediction accuracy based on data quality and time of day
+    const baseAccuracy = recentData.length > 10 ? 85 : 65;
+    const dataQualityBonus = Math.min(15, recentData.length);
+    const timeOfDayBonus = (hour >= 8 && hour <= 16) ? 10 : 0; // Better accuracy during daylight
+    const accuracy = Math.min(95, baseAccuracy + dataQualityBonus + timeOfDayBonus);
+    document.getElementById('prediction-accuracy').textContent = `${accuracy.toFixed(0)}%`;
+    
+    // Update peak time prediction
+    updatePeakTimePrediction(recentData);
+}
+
+// Simple prediction based on time of day when no history available
+function predictBasedOnTime(currentPV) {
+    const hour = new Date().getHours();
+    const minute = new Date().getMinutes();
+    const timeDecimal = hour + minute / 60;
+    
+    // Solar curve: peak around 12:00, zero at night
+    if (timeDecimal < 6 || timeDecimal > 18) {
+        return 0; // Night time
+    }
+    
+    // Simple sine wave for solar prediction
+    const solarFactor = Math.sin((timeDecimal - 6) / 12 * Math.PI);
+    
+    // If we have current PV, use it as reference, otherwise estimate
+    if (currentPV > 0) {
+        // Predict based on current production and time progression
+        const currentFactor = Math.sin((timeDecimal - 6) / 12 * Math.PI);
+        const nextHourFactor = Math.sin((timeDecimal + 1 - 6) / 12 * Math.PI);
+        
+        if (currentFactor > 0) {
+            return currentPV * (nextHourFactor / currentFactor);
+        }
+    }
+    
+    // Fallback: estimate based on typical system (adjust based on your system)
+    return solarFactor * 2000; // Assuming 2kW peak system
+}
+
+// Apply time-based correction to prediction
+function applyTimeCorrection(predictedPV) {
+    const hour = new Date().getHours();
+    
+    // Reduce prediction as day progresses past peak
+    if (hour > 12) {
+        const declineFactor = 1 - ((hour - 12) / 6) * 0.3;
+        predictedPV *= Math.max(0.1, declineFactor);
+    }
+    
+    return predictedPV;
+}
+
+// Update peak time prediction
+function updatePeakTimePrediction(recentData) {
+    const currentHour = new Date().getHours();
+    let peakHour = 12; // Default noon
+    let peakMinute = 30;
+    
+    if (recentData.length > 5) {
+        // Find actual peak from recent data
+        let maxPower = 0;
+        let peakTime = null;
+        
+        recentData.forEach(item => {
+            if (item.power > maxPower) {
+                maxPower = item.power;
+                peakTime = new Date(item.timestamp);
+            }
+        });
+        
+        if (peakTime) {
+            peakHour = peakTime.getHours();
+            peakMinute = peakTime.getMinutes();
+        }
+    } else {
+        // Estimate based on season and location (adjust for your location)
+        const month = new Date().getMonth();
+        if (month >= 3 && month <= 8) { // Spring/Summer
+            peakHour = 13; // 1 PM
+            peakMinute = 0;
+        } else { // Fall/Winter
+            peakHour = 12; // 12 PM
+            peakMinute = 30;
+        }
+    }
+    
+    const peakTime = new Date();
+    peakTime.setHours(peakHour, peakMinute, 0, 0);
+    document.getElementById('peak-time').textContent = peakTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
+// Predict weather condition from PV data
+function predictWeatherFromPV(currentPV, avgPV = currentPV, maxPV = currentPV) {
+    const hour = new Date().getHours();
+    const isDaytime = hour >= 6 && hour <= 18;
+    
+    let condition = 'sunny';
+    
+    if (!isDaytime) {
+        condition = 'cloudy'; // Night time
+    } else {
+        // Estimate expected PV for current hour (simplified model)
+        const expectedPV = Math.sin((hour - 6) / 12 * Math.PI) * 3000; // Peak at noon
+        
+        if (currentPV < expectedPV * 0.3) {
+            condition = 'rainy';
+        } else if (currentPV < expectedPV * 0.7) {
+            condition = 'cloudy';
+        } else {
+            condition = 'sunny';
+        }
+    }
+    
+    setWeatherCondition(condition);
+}
+
+// Set weather condition and animation
+function setWeatherCondition(condition) {
+    const weatherAnimation = document.getElementById('weather-animation');
+    const rainAnimation = document.getElementById('rain-animation');
+    
+    // Remove existing classes
+    weatherAnimation.className = 'weather-animation';
+    
+    // Add new condition class
+    switch (condition) {
+        case 'sunny':
+            weatherAnimation.classList.add('weather-sunny');
+            rainAnimation.style.display = 'none';
+            break;
+        case 'cloudy':
+            weatherAnimation.classList.add('weather-cloudy');
+            rainAnimation.style.display = 'none';
+            break;
+        case 'rainy':
+            weatherAnimation.classList.add('weather-rainy');
+            rainAnimation.style.display = 'block';
+            break;
+    }
+    
+    weatherCondition = condition;
+}
+
+// Tab switching
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    // Load data for the active tab
+    switch (tabName) {
+        case 'decisions':
+            loadDecisions();
+            break;
+        case 'commands':
+            loadCommands();
+            break;
+        case 'predictions':
+            loadPredictions();
+            break;
+    }
+}
+
+// Toggle AI engine with enhanced UI feedback
+async function toggleAI() {
+    const button = document.getElementById('ai-toggle-btn');
+    const originalContent = button.innerHTML;
+    
+    // Show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    try {
+        const response = await fetch('<%= ingress_path %>/api/ai/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', data.message);
+            await loadAIStatus();
+            
+            // Update button with smooth transition
+            setTimeout(() => {
+                if (data.enabled) {
+                    button.className = 'notification-btn danger';
+                    button.innerHTML = '<i class="fas fa-stop"></i> Stop AI';
+                } else {
+                    button.className = 'notification-btn success';
+                    button.innerHTML = '<i class="fas fa-play"></i> Start AI';
+                }
+                button.disabled = false;
+            }, 500);
+        } else {
+            showToast('error', data.error || 'Failed to toggle AI');
+            button.innerHTML = originalContent;
+            button.disabled = false;
+        }
+    } catch (error) {
+        console.error('Error toggling AI:', error);
+        showToast('error', 'Error toggling AI engine');
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    }
+}
+
+// Refresh dashboard with enhanced feedback
+async function refreshDashboard() {
+    const button = document.querySelector('.refresh-btn');
+    const icon = button.querySelector('i');
+    const text = button.querySelector('span');
+    
+    button.disabled = true;
+    button.classList.add('loading');
+    text.textContent = 'Refreshing...';
+    
+    try {
+        await loadDashboardData();
+        showToast('success', 'Dashboard refreshed successfully');
+    } catch (error) {
+        showToast('error', 'Error refreshing dashboard');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+        text.textContent = 'Refresh';
+    }
+}
+
+// Show empty state
+function showEmptyState(containerId, icon, title, description) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-${icon}"></i>
+            <h4>${title}</h4>
+            <p>${description}</p>
+        </div>
+    `;
+}
+
+// Start auto-refresh with Tibber data
+function startAutoRefresh() {
+    updateInterval = setInterval(() => {
+        loadDashboardData();
+        loadTibberData(); // Refresh Tibber data every 30 seconds
+    }, 30000); // Refresh every 30 seconds
+    
+    // Refresh Tibber data more frequently (every 5 minutes)
+    setInterval(() => {
+        loadTibberData();
+    }, 300000);
+}
+
+// Format time
+function formatTime(timestamp) {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+}
+
+// Show toast notification
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+
+// Add CSS for toast notifications
+const toastStyles = `
+<style>
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 280px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast-success {
+    border-left: 4px solid #28a745;
+}
+
+.toast-error {
+    border-left: 4px solid #dc3545;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.toast-success .toast-content i {
+    color: #28a745;
+}
+
+.toast-error .toast-content i {
+    color: #dc3545;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.8rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+`;
+
+document.head.insertAdjacentHTML('beforeend', toastStyles);
+    </script>
     <script src="<%= ingress_path %>/js/dark-mode.js"></script>
     <script src="<%= ingress_path %>/js/mobile.js"></script>
+
+
+
 </body>
 </html>
