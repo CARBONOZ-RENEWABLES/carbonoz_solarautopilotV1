@@ -107,13 +107,7 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
-}
-
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -229,7 +223,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: '192.168.1.169',
+  host: 'localhost',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -268,7 +262,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: options.mqtt_host,
+  host: 'core-mosquitto',
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -1716,63 +1710,126 @@ app.get('/', async (req, res) => {
   res.redirect(`${process.env.INGRESS_PATH || ''}/energy-dashboard`);
 });
 
+// Energy Dashboard route
 app.get('/energy-dashboard', async (req, res) => {
+  const grafanaHost = getGrafanaHost(req);
+
+  const expectedInverters = parseInt(options.inverter_number) || 1
+  const inverterWarning = checkInverterMessages(
+    incomingMessages,
+    expectedInverters)
+
+  const batteryWarning = checkBatteryInformation(incomingMessages)
   try {
-    const grafanaHost = getGrafanaHost(req);
-    const expectedInverters = parseInt(options.inverter_number) || 1;
-    const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-    const batteryWarning = checkBatteryInformation(incomingMessages);
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+    const selectedZone = settings.selectedZone;
     
-    // Mock data for energy dashboard
-    const todayData = {
-      date: new Date().toLocaleDateString(),
-      avoidedEmissions: 5.2,
-      unavoidableEmissions: 2.1,
-      selfSufficiencyScore: 78.5
+    if (!selectedZone) {
+      return res.redirect('/settings?message=Please configure your zone first');
+    }
+    
+    let historyData = [];
+    // Fetch the same data arrays as analytics page
+    let loadPowerData = [], pvPowerData = [], batteryStateOfChargeData = [], 
+        batteryPowerData = [], gridPowerData = [], gridVoltageData = [];
+    let isLoading = false;
+    let error = null;
+    
+    try {
+      const cacheKey = selectedZone;
+      const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
+                      (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
+      
+      if (isCached) {
+        historyData = carbonIntensityCacheByZone.get(cacheKey).data;
+      } else {
+        isLoading = true;
+      }
+      
+      // Use the same data fetching as analytics page
+      [loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
+        queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
+        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
+      ]);
+      
+      if (!isCached) {
+        historyData = await fetchCarbonIntensityHistory(selectedZone);
+        isLoading = false;
+      }
+    } catch (e) {
+      console.error('Error fetching data:', e);
+      error = 'Error fetching data. Please try again later.';
+      isLoading = false;
+    }
+    
+    // Use the updated emissions calculation function
+    const emissionsData = calculateEmissionsForPeriod(historyData, loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData);
+    
+    const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
+      date: moment().format('YYYY-MM-DD'),
+      unavoidableEmissions: 0,
+      avoidedEmissions: 0,
+      selfSufficiencyScore: 0,
+      gridEnergy: 0,
+      solarEnergy: 0,
+      carbonIntensity: 0
     };
     
+    const weekData = emissionsData.slice(-7);
+    const monthData = emissionsData.slice(-30);
+    
     const summaryData = {
+      today: todayData,
       week: {
-        avoidedEmissions: 4.8,
-        unavoidableEmissions: 2.3,
-        selfSufficiencyScore: 75.2
+        unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
       },
       month: {
-        avoidedEmissions: 18.5,
-        unavoidableEmissions: 9.2
+        unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
+        avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
+        selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
       }
     };
     
     res.render('energy-dashboard', {
+      selectedZone,
+      todayData: {
+        ...todayData,
+        date: moment().format('YYYY-MM-DD')
+      },
+      summaryData,
+      isLoading,
+      error,
       ingress_path: process.env.INGRESS_PATH || '',
-      grafanaHost: grafanaHost,
+      grafanaHost: grafanaHost,  
       inverterWarning,
       batteryWarning,
-      username: options.mqtt_username || 'User',
-      todayData,
-      summaryData,
-      isLoading: false,
-      selectedZone: 'DE'
+      batteryMessages: debugBatteryMessages(incomingMessages),
+      username: options.mqtt_username || 'User'
     });
   } catch (error) {
-    console.error('Error rendering energy dashboard:', error);
-    res.status(500).send('Error loading energy dashboard');
+    console.error('Error rendering welcome page:', error);
+    res.status(500).render('error', { error: 'Error loading welcome page' });
   }
 });
 
+// Home Assistant ingress routes for energy dashboard
 app.get('/api/hassio_ingress/:token/energy-dashboard', (req, res) => {
-  // Redirect to simplified handler
-  req.url = '/energy-dashboard';
-  app._router.handle(req, res);
+  res.redirect(`${process.env.INGRESS_PATH || ''}/energy-dashboard`);
 });
 
 app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
-  // Redirect to simplified handler
-  req.url = '/energy-dashboard';
-  app._router.handle(req, res);
+  res.redirect(`${process.env.INGRESS_PATH || ''}/energy-dashboard`);
 });
 
-  app.get('/analytics', async (req, res) => {
+
+
+ app.get('/analytics', async (req, res) => {
     try {
       const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
       let carbonIntensityData = [];
@@ -1865,7 +1922,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     }
   })
   
-  app.get('/results', async (req, res) => {
+   app.get('/results', async (req, res) => {
     try {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
       const selectedZone = req.query.zone || settings.selectedZone;
@@ -2723,7 +2780,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     });
   }
   
-  async function prefetchCarbonIntensityData() {
+   async function prefetchCarbonIntensityData() {
     try {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
       if (settings.selectedZone && settings.apiKey) {
