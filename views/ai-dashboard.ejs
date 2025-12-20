@@ -3,1340 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbonoz SolarAutopilot</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-     <link rel="stylesheet" href="<%= ingress_path %>/css/ai-dashboard.css">
-
+    <title>CARBONOZ SolarAutopilot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<%= ingress_path %>/css/main.css">
+    <link rel="stylesheet" href="<%= ingress_path %>/css/ai-dashboard.css">
 </head>
 <body>
-  <!-- Add hamburger menu button -->
     <button class="mobile-toggle" id="mobileToggle">
         <span></span>
         <span></span>
         <span></span>
     </button>
-    <div class="container">
-        <div id="loadingOverlay" class="loading-overlay show">
+
+     <div class="container">
+        <div id="loadingOverlay" class="loading-overlay">
             <div class="loading-spinner"></div>
-        </div>
-        <div id="pageContent"> </div>
+          </div>
+          <div id="pageContent"> </div>
 
         <%- include('partials/sidebar') %>
-          
-    <div class="main-content">
-    <div class="dashboard-container">
-        <!-- Header -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>
-                            <i class="fas fa-robot me-2"></i>
-                            AI Dashboard
-                        </h2>
-                        <div class="status-display">
-                            <span class="status-indicator status-online"></span>
-                            <span>Live Data</span>
+
+        <div class="main-content">
+            <div class="container">
+                <!-- Enhanced Header Section -->
+                <div class="ai-dashboard-header">
+                    <div class="header-left">
+                        <div class="header-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="header-text">
+                            <h1>AI Dashboard</h1>
+                            <p>Intelligent Solar Energy Management & Decision Monitoring</p>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="action-btn refresh-btn" onclick="refreshDashboard()">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Refresh</span>
+                        </button>
+                        <button class="action-btn ai-toggle-btn <%= ai_status && ai_status.enabled ? 'stop-ai' : 'start-ai' %>" onclick="toggleAI()" id="ai-toggle-btn">
+                            <i class="fas <%= ai_status && ai_status.enabled ? 'fa-stop' : 'fa-play' %>"></i>
+                            <span><%= ai_status && ai_status.enabled ? 'Stop AI' : 'Start AI' %></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Status Cards -->
+                <div class="notification-stats">
+                    <div class="stat-card battery">
+                        <div class="stat-icon">
+                            <i class="fas fa-battery-three-quarters"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="battery-soc"><%= system_state && system_state.battery_soc || 0 %>%</div>
+                            <div class="stat-label">Battery Level</div>
+                        </div>
+                        <div class="battery-bar">
+                            <div class="battery-fill" style="width: <%= system_state && system_state.battery_soc || 0 %>%"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card solar">
+                        <div class="stat-icon">
+                            <i class="fas fa-sun"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="pv-power"><%= system_state && (system_state.pv_power || 0).toFixed(0) || 0 %>W</div>
+                            <div class="stat-label">Solar Power</div>
+                        </div>
+                    </div>
+                    <div class="stat-card price">
+                        <div class="stat-icon">
+                            <i class="fas fa-euro-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="current-price">Loading...</div>
+                            <div class="stat-label">Current Price</div>
+                        </div>
+                        <div class="price-level" id="price-level"></div>
+                    </div>
+                    <div class="stat-card grid">
+                        <div class="stat-icon">
+                            <i class="fas fa-plug"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="grid-power"><%= system_state && (system_state.grid_power || 0).toFixed(0) || 0 %>W</div>
+                            <div class="stat-label">Grid Power</div>
+                        </div>
+                    </div>
+                    <div class="stat-card load">
+                        <div class="stat-icon">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="load-power"><%= system_state && (system_state.load || 0).toFixed(0) || 0 %>W</div>
+                            <div class="stat-label">Load Power</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- System Metrics Row -->
-        <div class="row">
-            <div class="col-3">
-                <div class="metric-card battery">
-                    <div class="metric-value" id="batterySOC">--</div>
-                    <div class="metric-label">
-                        <i class="fas fa-battery-three-quarters me-1"></i>
-                        Battery SOC
-                    </div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="metric-card solar">
-                    <div class="metric-value" id="pvPower">--</div>
-                    <div class="metric-label">
-                        <i class="fas fa-sun me-1"></i>
-                        Solar Power
-                    </div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="metric-card grid">
-                    <div class="metric-value" id="gridPower">--</div>
-                    <div class="metric-label">
-                        <i class="fas fa-plug me-1"></i>
-                        Grid Power
-                    </div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="metric-card load">
-                    <div class="metric-value" id="loadPower">--</div>
-                    <div class="metric-label">
-                        <i class="fas fa-home me-1"></i>
-                        Load Power
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-
-        <!-- AI Status and Price Info Row -->
-        <div class="row">
-            <div class="col-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-brain me-2"></i>
-                            AI Charging Engine Status
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="aiStatus" class="ai-status">
-                            <div class="ai-status-content">
-                                <h6>Engine Status</h6>
-                                <p id="aiStatusText">Loading...</p>
-                            </div>
-                            <div class="ai-status-icon">
-                                <button id="aiToggleBtn" class="btn" onclick="toggleAIEngine()" disabled>
-                                    <i class="fas fa-power-off"></i>
-                                </button>
-                                <i class="fas fa-robot fa-2x"></i>
+                <!-- Tibber Price & Solar Prediction Section -->
+                <div class="dashboard-grid">
+                    <div class="price-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-chart-line"></i> Tibber Price Forecast</h3>
+                            <div class="tibber-status" id="tibber-status">
+                                <span class="status-dot"></span>
+                                <span>Loading...</span>
                             </div>
                         </div>
-                        <div class="stats-row">
-                            <div class="stat-item">
-                                <div class="stat-label">Last Decision:</div>
-                                <div class="stat-value" id="lastDecision">--</div>
+                        <div class="price-content">
+                            <div class="current-price-display">
+                                <div class="price-main">
+                                    <span class="price-value" id="main-price">--</span>
+                                    <span class="price-unit">€/kWh</span>
+                                </div>
+                                <div class="price-level-badge" id="main-price-level">--</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Decision Count:</div>
-                                <div class="stat-value" id="decisionCount">--</div>
+                            <div class="price-chart" id="price-chart">
+                                <!-- Price chart will be rendered here -->
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-euro-sign me-2"></i>
-                            Tibber Price Info
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="stats-row">
-                            <div class="stat-item">
-                                <div class="stat-label">Current Price:</div>
-                                <div class="price-display">
-                                    <span id="currentPrice" class="h5 mb-0">--</span>
-                                    <span id="priceLevel" class="price-indicator">--</span>
+                            <div class="price-forecast">
+                                <div class="forecast-item">
+                                    <span class="forecast-time">Next Hour</span>
+                                    <span class="forecast-price" id="next-hour-price">--</span>
+                                </div>
+                                <div class="forecast-item">
+                                    <span class="forecast-time">Cheapest Today</span>
+                                    <span class="forecast-price" id="cheapest-price">--</span>
                                 </div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Average Price:</div>
-                                <div id="averagePrice" class="h5 mb-0">--</div>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <div class="stat-label">Price Status:</div>
-                            <div id="priceStatus" class="fw-bold">--</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Row -->
-        <div class="row">
-            <div class="col-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-chart-line me-2"></i>
-                            Real-Time System Data
-                            <span id="dataStatus" class="badge ms-2" style="display: none;"></span>
-                        </h5>
-                        <div class="chart-controls">
-                            <button class="btn btn-sm" onclick="refreshChartData()" title="Refresh Chart Data">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <button class="btn btn-sm" onclick="clearChartData()" title="Clear Chart Data">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="systemChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-chart-pie me-2"></i>
-                            Energy Distribution
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="energyChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Price Charts Row -->
-        <div class="row">
-            <div class="col-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-euro-sign me-2"></i>
-                            24-Hour Price Forecast
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="priceChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-chart-bar me-2"></i>
-                            Price Levels
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="priceLevelChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- AI Decisions and Commands Row -->
-        <div class="row">
-            <div class="col-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-lightbulb me-2"></i>
-                            Recent AI Decisions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="aiDecisions" class="command-log">
-                            <div class="text-center text-muted">
-                                <i class="fas fa-spinner fa-spin me-2"></i>
-                                Loading AI decisions...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-terminal me-2"></i>
-                            Commands Sent
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="commandLog" class="command-log">
-                            <div class="text-center text-muted">
-                                <i class="fas fa-spinner fa-spin me-2"></i>
-                                Loading command history...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    </div>
-    </div>
-
-    <script>
-        // Global variables
-        let systemChart, energyChart, priceChart, priceLevelChart;
-        let systemData = {
-            labels: [],
-            battery: [],
-            solar: [],
-            grid: [],
-            load: []
-        };
-        let priceData = {
-            labels: [],
-            prices: [],
-            levels: []
-        };
-        let refreshInterval;
-        
-        // Data persistence configuration
-        const STORAGE_KEY = 'ai_dashboard_chart_data';
-        const MAX_DATA_POINTS = 50; // Increased from 20 to store more history
-        const DATA_RETENTION_HOURS = 2; // Keep data for 2 hours
-        
-        // Helper function for safe API calls
-        async function safeFetch(url, options = {}) {
-            try {
-                const response = await fetch(url, options);
-                
-                if (response.status === 429) {
-                    console.warn(`Rate limited for ${url}`);
-                    return { rateLimited: true };
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                return { success: true, data };
-            } catch (error) {
-                console.error(`Error fetching ${url}:`, error);
-                return { success: false, error: error.message };
-            }
-        }
-
-        // Toggle mobile menu
-        function toggleMenu() {
-            const menu = document.getElementById('navbarMenu');
-            menu.classList.toggle('active');
-        }
-
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 Starting AI dashboard initialization...');
-            
-            try {
-                console.log('📊 Loading persisted data...');
-                const dataRestored = await loadPersistedData();
-                console.log('✅ Persisted data loaded:', dataRestored);
-                
-                console.log('📈 Initializing charts...');
-                initializeCharts();
-                console.log('✅ Charts initialized');
-                
-                // Show data status indicator
-                if (dataRestored) {
-                    showDataStatus('Historical data restored', 'success');
-                }
-                
-                console.log('📡 Loading dashboard data...');
-                await loadDashboardData();
-                console.log('✅ Dashboard data loaded');
-                
-                console.log('🔄 Starting auto refresh...');
-                startAutoRefresh();
-                console.log('✅ Auto refresh started');
-                
-                // Hide loading after initialization
-                console.log('🎨 Hiding loading overlay...');
-                setTimeout(() => {
-                    hideLoading();
-                    console.log('✅ Loading overlay hidden');
-                }, 800);
-                
-                console.log('🎉 AI dashboard initialized successfully');
-            } catch (error) {
-                console.error('❌ Error initializing dashboard:', error);
-                console.log('🛑 Hiding loading due to error...');
-                hideLoading();
-            }
-        });
-        
-        // Load persisted chart data from localStorage or server
-        async function loadPersistedData() {
-            let dataLoaded = false;
-            
-            // First try localStorage
-            try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    const data = JSON.parse(stored);
-                    const now = Date.now();
                     
-                    // Check if data is not too old
-                    if (data.timestamp && (now - data.timestamp) < (DATA_RETENTION_HOURS * 60 * 60 * 1000)) {
-                        // Filter out data points older than retention period
-                        const cutoffTime = now - (DATA_RETENTION_HOURS * 60 * 60 * 1000);
-                        const validIndices = [];
-                        
-                        if (data.systemData.timestamps) {
-                            data.systemData.timestamps.forEach((timestamp, index) => {
-                                if (timestamp > cutoffTime) {
-                                    validIndices.push(index);
-                                }
-                            });
-                        }
-                        
-                        if (validIndices.length > 0) {
-                            systemData.labels = validIndices.map(i => data.systemData.labels[i]);
-                            systemData.battery = validIndices.map(i => data.systemData.battery[i]);
-                            systemData.solar = validIndices.map(i => data.systemData.solar[i]);
-                            systemData.grid = validIndices.map(i => data.systemData.grid[i]);
-                            systemData.load = validIndices.map(i => data.systemData.load[i]);
-                            systemData.timestamps = validIndices.map(i => data.systemData.timestamps[i]);
-                            
-                            console.log(`Restored ${validIndices.length} data points from localStorage`);
-                            dataLoaded = true;
-                        }
-                    } else {
-                        // Data is too old, clear it
-                        localStorage.removeItem(STORAGE_KEY);
-                        console.log('Cleared old chart data from localStorage');
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading persisted data:', error);
-                localStorage.removeItem(STORAGE_KEY);
-            }
-            
-            // If no valid localStorage data, try to load from server
-            if (!dataLoaded) {
-                try {
-                    console.log('Loading historical data from server...');
-                    const fetchResult = await safeFetch('<%= ingress_path %>/api/system-state/history?hours=2&limit=30');
-                    
-                    if (fetchResult.rateLimited) {
-                        console.log('Rate limited while loading historical data');
-                        return false;
-                    }
-                    
-                    if (!fetchResult.success) {
-                        throw new Error(fetchResult.error);
-                    }
-                    
-                    const result = fetchResult.data;
-                    
-                    if (result.success && result.data && result.data.length > 0) {
-                        systemData.labels = [];
-                        systemData.battery = [];
-                        systemData.solar = [];
-                        systemData.grid = [];
-                        systemData.load = [];
-                        systemData.timestamps = [];
-                        
-                        // Filter and process historical data
-                        const validData = result.data.filter(item => {
-                            return item.battery_soc !== null || item.pv_power !== null || 
-                                   item.grid_power !== null || item.load !== null;
-                        });
-                        
-                        validData.forEach(item => {
-                            const date = new Date(item.timestamp);
-                            systemData.labels.push(date.toLocaleTimeString());
-                            systemData.battery.push(item.battery_soc || 0);
-                            systemData.solar.push(item.pv_power || 0);
-                            systemData.grid.push(item.grid_power || 0);
-                            systemData.load.push(item.load || 0);
-                            systemData.timestamps.push(date.getTime());
-                        });
-                        
-                        console.log(`Loaded ${validData.length} valid historical data points from server`);
-                        dataLoaded = validData.length > 0;
-                    }
-                } catch (error) {
-                    console.error('Error loading historical data from server:', error);
-                }
-            }
-            
-            return dataLoaded;
-        }
-        
-        // Save chart data to localStorage
-        function saveDataToStorage() {
-            try {
-                const dataToStore = {
-                    timestamp: Date.now(),
-                    systemData: {
-                        labels: systemData.labels,
-                        battery: systemData.battery,
-                        solar: systemData.solar,
-                        grid: systemData.grid,
-                        load: systemData.load,
-                        timestamps: systemData.timestamps || []
-                    }
-                };
-                
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
-            } catch (error) {
-                console.error('Error saving data to localStorage:', error);
-                // If storage is full, try to clear old data
-                try {
-                    localStorage.removeItem(STORAGE_KEY);
-                } catch (e) {
-                    console.error('Failed to clear localStorage:', e);
-                }
-            }
-        }
-
-        // Initialize charts
-        function initializeCharts() {
-            const systemCtx = document.getElementById('systemChart').getContext('2d');
-            systemChart = new Chart(systemCtx, {
-                type: 'line',
-                data: {
-                    labels: systemData.labels,
-                    datasets: [
-                        {
-                            label: 'Battery SOC (%)',
-                            data: systemData.battery,
-                            borderColor: '#27ae60',
-                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                            tension: 0.4,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Solar Power (W)',
-                            data: systemData.solar,
-                            borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            tension: 0.4,
-                            yAxisID: 'y1'
-                        },
-                        {
-                            label: 'Grid Power (W)',
-                            data: systemData.grid,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            tension: 0.4,
-                            yAxisID: 'y1'
-                        },
-                        {
-                            label: 'Load Power (W)',
-                            data: systemData.load,
-                            borderColor: '#9b59b6',
-                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
-                            tension: 0.4,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    scales: {
-                        x: {
-                            display: true,
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Battery SOC (%)'
-                            },
-                            min: 0,
-                            max: 100
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Power (W)'
-                            },
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'System Performance Over Time'
-                        }
-                    }
-                }
-            });
-
-            const energyCtx = document.getElementById('energyChart').getContext('2d');
-            energyChart = new Chart(energyCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Solar', 'Grid', 'Battery'],
-                    datasets: [{
-                        data: [0, 0, 0],
-                        backgroundColor: [
-                            '#f39c12',
-                            '#3498db',
-                            '#27ae60'
-                        ],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Current Energy Sources'
-                        }
-                    }
-                }
-            });
-
-            // Initialize price chart
-            const priceCtx = document.getElementById('priceChart').getContext('2d');
-            priceChart = new Chart(priceCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Price (€/kWh)',
-                        data: [],
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            display: true,
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        },
-                        y: {
-                            display: true,
-                            title: {
-                                display: true,
-                                text: 'Price (€/kWh)'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '24-Hour Price Forecast'
-                        }
-                    }
-                }
-            });
-
-            // Initialize price level chart
-            const priceLevelCtx = document.getElementById('priceLevelChart').getContext('2d');
-            priceLevelChart = new Chart(priceLevelCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Very Low', 'Low', 'Normal', 'High', 'Very High'],
-                    datasets: [{
-                        label: 'Hours',
-                        data: [0, 0, 0, 0, 0],
-                        backgroundColor: [
-                            '#27ae60',
-                            '#2ecc71',
-                            '#f39c12',
-                            '#e67e22',
-                            '#e74c3c'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Hours'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Price Level Distribution'
-                        }
-                    }
-                }
-            });
-        }
-
-        // Load dashboard data
-        async function loadDashboardData() {
-            try {
-                await loadSystemState();
-                await loadAIStatus();
-                await loadTibberData();
-                await loadPriceData();
-                await loadAIDecisions();
-                await loadCommandHistory();
-            } catch (error) {
-                console.error('Error loading dashboard data:', error);
-            }
-        }
-
-        // Load system state
-        async function loadSystemState() {
-            const result = await safeFetch('<%= ingress_path %>/api/system-state');
-            
-            if (result.rateLimited) {
-                return; // Skip silently if rate limited
-            }
-            
-            if (!result.success) {
-                showDataStatus('Error loading real-time data', 'warning');
-                return;
-            }
-            
-            const data = result.data;
-            if (data.current_state) {
-                const state = data.current_state;
-                updateMetricCard('batterySOC', state.battery_soc, '%');
-                updateMetricCard('pvPower', state.pv_power, 'W');
-                updateMetricCard('gridPower', state.grid_power, 'W');
-                updateMetricCard('loadPower', state.load, 'W');
-                
-                // Only update chart if we have valid data
-                if (state.battery_soc !== null || state.pv_power !== null || 
-                    state.grid_power !== null || state.load !== null) {
-                    updateSystemChart(state);
-                    updateEnergyChart(state);
-                }
-            }
-        }
-
-        // Load AI status
-        async function loadAIStatus() {
-            const result = await safeFetch('<%= ingress_path %>/api/ai/status');
-            
-            if (result.rateLimited || !result.success) {
-                return; // Skip silently if rate limited or failed
-            }
-            
-            const data = result.data;
-            const statusElement = document.getElementById('aiStatus');
-            const statusTextElement = document.getElementById('aiStatusText');
-            const toggleBtn = document.getElementById('aiToggleBtn');
-            
-            if (data.success) {
-                const isActive = data.ai.enabled;
-                
-                if (isActive) {
-                    statusElement.className = 'ai-status active';
-                    statusTextElement.textContent = 'AI Engine Active - Making Smart Decisions';
-                    toggleBtn.innerHTML = '<i class="fas fa-stop"></i>';
-                    toggleBtn.disabled = false;
-                } else {
-                    statusElement.className = 'ai-status inactive';
-                    statusTextElement.textContent = 'AI Engine Ready - Click to Start';
-                    toggleBtn.innerHTML = '<i class="fas fa-play"></i>';
-                    toggleBtn.disabled = false;
-                }
-                
-                if (data.ai.lastDecision) {
-                    document.getElementById('lastDecision').textContent = data.ai.lastDecision.decision || '--';
-                }
-                
-                if (data.ai.decisionCount !== undefined) {
-                    document.getElementById('decisionCount').textContent = data.ai.decisionCount;
-                }
-                
-
-            }
-        }
-
-        // Load Tibber data
-        async function loadTibberData() {
-            const result = await safeFetch('<%= ingress_path %>/api/tibber/current');
-            
-            if (result.rateLimited || !result.success) {
-                return; // Skip silently if rate limited or failed
-            }
-            
-            const data = result.data;
-            if (data.success && data.data) {
-                const tibberData = data.data;
-                
-                if (tibberData.currentPrice) {
-                    document.getElementById('currentPrice').textContent = 
-                        `${tibberData.currentPrice.total.toFixed(2)} ${tibberData.currentPrice.currency}`;
-                    
-                    const levelElement = document.getElementById('priceLevel');
-                    levelElement.textContent = tibberData.currentPrice.level || 'NORMAL';
-                    levelElement.className = `price-indicator price-${(tibberData.currentPrice.level || 'normal').toLowerCase().replace('_', '-')}`;
-                }
-                
-                if (tibberData.config && tibberData.config.enabled) {
-                    document.getElementById('priceStatus').textContent = 'Connected';
-                    
-                    if (tibberData.forecast && tibberData.forecast.length > 0) {
-                        const avgPrice = tibberData.forecast.reduce((sum, p) => sum + p.total, 0) / tibberData.forecast.length;
-                        document.getElementById('averagePrice').textContent = 
-                            `${avgPrice.toFixed(2)} €`;
-                    }
-                } else {
-                    document.getElementById('priceStatus').textContent = 'Not configured';
-                }
-            } else {
-                document.getElementById('currentPrice').textContent = '--';
-                document.getElementById('averagePrice').textContent = '--';
-                document.getElementById('priceLevel').textContent = '--';
-                document.getElementById('priceStatus').textContent = 'Service unavailable';
-            }
-        }
-
-        // Load price data for charts
-        async function loadPriceData() {
-            const result = await safeFetch('<%= ingress_path %>/api/tibber/current');
-            
-            if (result.rateLimited) {
-                return; // Skip silently if rate limited
-            }
-            
-            if (!result.success) {
-                showNoPriceData();
-                return;
-            }
-            
-            const data = result.data;
-            if (data.success && data.data && data.data.forecast && data.data.forecast.length > 0) {
-                updatePriceChart(data.data.forecast);
-                updatePriceLevelChart(data.data.forecast);
-            } else {
-                showNoPriceData();
-            }
-        }
-
-        // Load AI decisions
-        async function loadAIDecisions() {
-            const result = await safeFetch('<%= ingress_path %>/api/ai/decisions?limit=10');
-            const decisionsContainer = document.getElementById('aiDecisions');
-            
-            if (result.rateLimited || !result.success) {
-                return; // Skip silently if rate limited or failed
-            }
-            
-            const data = result.data;
-            if (data.success && data.decisions && data.decisions.length > 0) {
-                decisionsContainer.innerHTML = data.decisions.map(decision => `
-                    <div class="decision-card">
-                        <div class="decision-timestamp">
-                            ${formatTimestamp(decision.timestamp)}
+                    <div class="weather-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-cloud-sun"></i> Solar Prediction</h3>
+                            <div class="prediction-accuracy">AI Accuracy: <span id="prediction-accuracy">92%</span></div>
                         </div>
-                        <div class="decision-action">
-                            <i class="fas fa-lightbulb me-1"></i>
-                            ${decision.decision}
-                        </div>
-                        <div class="decision-reasons">
-                            ${decision.reasons ? decision.reasons.map(reason => `• ${reason}`).join('<br>') : 'No reasons provided'}
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                decisionsContainer.innerHTML = 
-                    '<div class="text-center text-muted">No AI decisions available yet</div>';
-            }
-        }
-
-        // Load command history
-        async function loadCommandHistory() {
-            const result = await safeFetch('<%= ingress_path %>/api/ai/commands?limit=15');
-            const commandContainer = document.getElementById('commandLog');
-            
-            if (result.rateLimited || !result.success) {
-                return; // Skip silently if rate limited or failed
-            }
-            
-            const data = result.data;
-            if (data.success && data.commands && data.commands.length > 0) {
-                commandContainer.innerHTML = data.commands.map(command => `
-                    <div class="command-item ${command.success ? 'success' : 'error'}">
-                        <div class="command-header">
-                            <div>
-                                <i class="fas ${command.success ? 'fa-check-circle' : 'fa-times-circle'} me-1"></i>
-                                <strong>${command.topic}</strong> = ${command.value}
-                                <div class="command-details">
-                                    Source: ${command.source} | Status: ${command.success ? 'Success' : 'Failed'}
+                        <div class="weather-content">
+                            <div class="weather-animation" id="weather-animation">
+                                <div class="sun"></div>
+                                <div class="clouds">
+                                    <div class="cloud cloud1"></div>
+                                    <div class="cloud cloud2"></div>
+                                </div>
+                                <div class="rain" id="rain-animation" style="display: none;">
+                                    <div class="raindrop"></div>
+                                    <div class="raindrop"></div>
+                                    <div class="raindrop"></div>
                                 </div>
                             </div>
-                            <small class="text-muted command-timestamp">
-                                ${formatTimestamp(command.timestamp)}
-                            </small>
+                            <div class="weather-info">
+                                <div class="current-conditions">
+                                    <div class="condition-item">
+                                        <i class="fas fa-solar-panel"></i>
+                                        <span>Current: <strong id="current-pv"><%= system_state && (system_state.pv_power || 0).toFixed(0) || 0 %>W</strong></span>
+                                    </div>
+                                    <div class="condition-item">
+                                        <i class="fas fa-chart-line"></i>
+                                        <span>Predicted: <strong id="predicted-pv">Loading...</strong></span>
+                                    </div>
+                                    <div class="condition-item">
+                                        <i class="fas fa-clock"></i>
+                                        <span>Peak: <strong id="peak-time">12:30 PM</strong></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                `).join('');
-            } else {
-                commandContainer.innerHTML = 
-                    '<div class="text-center text-muted">No AI commands sent yet</div>';
-            }
-        }
-
-        // Update metric card
-        function updateMetricCard(elementId, value, unit) {
-            const element = document.getElementById(elementId);
-            if (element && value !== null && value !== undefined) {
-                element.textContent = `${Math.round(value)}${unit}`;
-            } else {
-                element.textContent = '--';
-            }
-        }
-
-        // Update system chart with data persistence
-        function updateSystemChart(state) {
-            const now = new Date();
-            const timeLabel = now.toLocaleTimeString();
-            const timestamp = now.getTime();
-            
-            // Initialize timestamps array if it doesn't exist
-            if (!systemData.timestamps) {
-                systemData.timestamps = [];
-            }
-            
-            // Check if this is a duplicate timestamp (avoid adding same data twice)
-            if (systemData.timestamps.length > 0) {
-                const lastTimestamp = systemData.timestamps[systemData.timestamps.length - 1];
-                if (timestamp - lastTimestamp < 10000) { // Less than 10 seconds difference
-                    // Update the last data point instead of adding a new one
-                    const lastIndex = systemData.labels.length - 1;
-                    if (lastIndex >= 0) {
-                        systemData.labels[lastIndex] = timeLabel;
-                        systemData.battery[lastIndex] = state.battery_soc || 0;
-                        systemData.solar[lastIndex] = state.pv_power || 0;
-                        systemData.grid[lastIndex] = state.grid_power || 0;
-                        systemData.load[lastIndex] = state.load || 0;
-                        systemData.timestamps[lastIndex] = timestamp;
-                    }
-                } else {
-                    // Add new data point
-                    addNewDataPoint(timeLabel, state, timestamp);
-                }
-            } else {
-                // First data point
-                addNewDataPoint(timeLabel, state, timestamp);
-            }
-            
-            // Update chart
-            systemChart.data.labels = systemData.labels;
-            systemChart.data.datasets[0].data = systemData.battery;
-            systemChart.data.datasets[1].data = systemData.solar;
-            systemChart.data.datasets[2].data = systemData.grid;
-            systemChart.data.datasets[3].data = systemData.load;
-            
-            systemChart.update('none');
-            
-            // Save to localStorage for persistence
-            saveDataToStorage();
-        }
-        
-        // Helper function to add new data point
-        function addNewDataPoint(timeLabel, state, timestamp) {
-            // Remove old data points if we exceed the limit
-            if (systemData.labels.length >= MAX_DATA_POINTS) {
-                systemData.labels.shift();
-                systemData.battery.shift();
-                systemData.solar.shift();
-                systemData.grid.shift();
-                systemData.load.shift();
-                systemData.timestamps.shift();
-            }
-            
-            // Add new data point
-            systemData.labels.push(timeLabel);
-            systemData.battery.push(state.battery_soc || 0);
-            systemData.solar.push(state.pv_power || 0);
-            systemData.grid.push(state.grid_power || 0);
-            systemData.load.push(state.load || 0);
-            systemData.timestamps.push(timestamp);
-        }
-
-        // Update energy chart
-        function updateEnergyChart(state) {
-            const solar = Math.max(0, state.pv_power || 0);
-            const grid = Math.max(0, Math.abs(state.grid_power || 0));
-            const battery = Math.max(0, Math.abs(state.battery_power || 0));
-            
-            if (solar > 0 || grid > 0 || battery > 0) {
-                energyChart.data.datasets[0].data = [solar, grid, battery];
-                energyChart.update('none');
-            }
-        }
-
-        // Update price chart
-        function updatePriceChart(forecast) {
-            const labels = [];
-            const prices = [];
-            
-            forecast.forEach(item => {
-                const date = new Date(item.startsAt);
-                labels.push(date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
-                prices.push(item.total);
-            });
-            
-            priceChart.data.labels = labels;
-            priceChart.data.datasets[0].data = prices;
-            priceChart.update();
-        }
-
-        // Update price level chart
-        function updatePriceLevelChart(forecast) {
-            const levelCounts = {
-                'VERY_CHEAP': 0,
-                'CHEAP': 0,
-                'NORMAL': 0,
-                'EXPENSIVE': 0,
-                'VERY_EXPENSIVE': 0
-            };
-            
-            forecast.forEach(item => {
-                const level = item.level || 'NORMAL';
-                if (levelCounts.hasOwnProperty(level)) {
-                    levelCounts[level]++;
-                }
-            });
-            
-            priceLevelChart.data.datasets[0].data = [
-                levelCounts['VERY_CHEAP'],
-                levelCounts['CHEAP'],
-                levelCounts['NORMAL'],
-                levelCounts['EXPENSIVE'],
-                levelCounts['VERY_EXPENSIVE']
-            ];
-            priceLevelChart.update();
-        }
-
-        // Show no price data message
-        function showNoPriceData() {
-            priceChart.data.labels = ['No Data'];
-            priceChart.data.datasets[0].data = [0];
-            priceChart.update();
-            
-            priceLevelChart.data.datasets[0].data = [0, 0, 0, 0, 0];
-            priceLevelChart.update();
-        }
-
-        // Format timestamp
-        function formatTimestamp(timestamp) {
-            return new Date(timestamp).toLocaleString();
-        }
-
-        // Refresh dashboard
-        function refreshDashboard() {
-            const refreshBtn = document.querySelector('.refresh-btn');
-            refreshBtn.classList.add('spinning');
-            
-            loadDashboardData().finally(() => {
-                setTimeout(() => {
-                    refreshBtn.classList.remove('spinning');
-                }, 1000);
-            });
-        }
-
-        // Start auto refresh with staggered intervals to avoid rate limiting
-        function startAutoRefresh() {
-            // Stagger the refresh intervals to avoid hitting rate limits
-            setTimeout(() => loadSystemState(), 1000);
-            setTimeout(() => loadAIStatus(), 2000);
-            setTimeout(() => loadTibberData(), 3000);
-            setTimeout(() => loadAIDecisions(), 4000);
-            setTimeout(() => loadCommandHistory(), 5000);
-            
-            // Set up regular refresh with longer intervals
-            refreshInterval = setInterval(() => {
-                setTimeout(() => loadSystemState(), 0);
-                setTimeout(() => loadAIStatus(), 2000);
-                setTimeout(() => loadTibberData(), 4000);
-                setTimeout(() => loadAIDecisions(), 6000);
-                setTimeout(() => loadCommandHistory(), 8000);
-            }, 45000); // Refresh every 45 seconds instead of 30
-        }
-
-        // Toggle AI Engine
-        async function toggleAIEngine() {
-            const toggleBtn = document.getElementById('aiToggleBtn');
-            const originalContent = toggleBtn.innerHTML;
-            
-            try {
-                toggleBtn.disabled = true;
-                toggleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                
-                const response = await fetch('<%= ingress_path %>/api/ai/toggle', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    await loadAIStatus();
-                    showNotification(data.message, 'success');
-                } else {
-                    // Handle specific error cases
-                    if (data.requiresLearnerMode) {
-                        showNotification('Please enable Learner Mode first to start the AI engine', 'error');
-                    } else {
-                        showNotification(data.error || 'Failed to toggle AI engine', 'error');
-                    }
-                    toggleBtn.innerHTML = originalContent;
-                    toggleBtn.disabled = false;
-                }
-            } catch (error) {
-                console.error('Error toggling AI engine:', error);
-                showNotification('Failed to toggle AI engine: ' + error.message, 'error');
-                toggleBtn.innerHTML = originalContent;
-                toggleBtn.disabled = false;
-            }
-        }
-        
-        // Show data status indicator
-        function showDataStatus(message, type = 'info') {
-            const statusElement = document.getElementById('dataStatus');
-            if (statusElement) {
-                statusElement.textContent = message;
-                statusElement.className = `badge ms-2 bg-${type === 'success' ? 'success' : 'info'}`;
-                statusElement.style.display = 'inline';
-                
-                // Hide after 5 seconds
-                setTimeout(() => {
-                    statusElement.style.display = 'none';
-                }, 5000);
-            }
-        }
-        
-        // Loading functions
-        function showLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) {
-                overlay.style.display = 'flex';
-                overlay.classList.add('show');
-            }
-        }
-        
-        function hideLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) {
-                overlay.classList.remove('show');
-                setTimeout(() => {
-                    overlay.style.display = 'none';
-                }, 300);
-            }
-        }
-        
-        // Show notification
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                min-width: 300px;
-                padding: 15px 20px;
-                background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
-                color: white;
-                border-radius: 10px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                animation: slideIn 0.3s ease;
-            `;
-            notification.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; margin-left: 15px;">×</button>
                 </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 5000);
-        }
 
-        // Manual refresh chart data
-        async function refreshChartData() {
-            const refreshBtn = event.target.closest('button');
-            const originalContent = refreshBtn.innerHTML;
-            
-            try {
-                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                refreshBtn.disabled = true;
-                
-                // Clear current data and reload from server
-                systemData.labels = [];
-                systemData.battery = [];
-                systemData.solar = [];
-                systemData.grid = [];
-                systemData.load = [];
-                systemData.timestamps = [];
-                
-                // Load fresh data with rate limit handling
-                const dataLoaded = await loadPersistedData();
-                
-                // Update chart
-                if (systemChart) {
-                    systemChart.data.labels = systemData.labels;
-                    systemChart.data.datasets[0].data = systemData.battery;
-                    systemChart.data.datasets[1].data = systemData.solar;
-                    systemChart.data.datasets[2].data = systemData.grid;
-                    systemChart.data.datasets[3].data = systemData.load;
-                    systemChart.update();
-                }
-                
-                if (dataLoaded) {
-                    showDataStatus('Chart data refreshed', 'success');
-                } else {
-                    showDataStatus('No historical data available', 'info');
-                }
-                
-            } catch (error) {
-                console.error('Error refreshing chart data:', error);
-                showDataStatus('Error refreshing data', 'warning');
-            } finally {
-                refreshBtn.innerHTML = originalContent;
-                refreshBtn.disabled = false;
-            }
-        }
-        
-        // Clear chart data
-        function clearChartData() {
-            if (confirm('Are you sure you want to clear all chart data?')) {
-                // Clear in-memory data
-                systemData.labels = [];
-                systemData.battery = [];
-                systemData.solar = [];
-                systemData.grid = [];
-                systemData.load = [];
-                systemData.timestamps = [];
-                
-                // Clear localStorage
-                localStorage.removeItem(STORAGE_KEY);
-                
-                // Update chart
-                if (systemChart) {
-                    systemChart.data.labels = [];
-                    systemChart.data.datasets[0].data = [];
-                    systemChart.data.datasets[1].data = [];
-                    systemChart.data.datasets[2].data = [];
-                    systemChart.data.datasets[3].data = [];
-                    systemChart.update();
-                }
-                
-                showDataStatus('Chart data cleared', 'info');
-            }
-        }
-        
-        // Cleanup on page unload and save final state
-        window.addEventListener('beforeunload', function() {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
-            // Save current data before leaving
-            saveDataToStorage();
-        });
-        
-        // Also save data periodically (every 5 minutes) to prevent data loss
-        setInterval(saveDataToStorage, 5 * 60 * 1000);
-        
-        // Clear old data from localStorage on page visibility change
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                // Page became visible, clean up old data
-                cleanupOldData();
-            }
-        });
-        
-        // Clean up old data points
-        function cleanupOldData() {
-            try {
-                const now = Date.now();
-                const cutoffTime = now - (DATA_RETENTION_HOURS * 60 * 60 * 1000);
-                
-                if (systemData.timestamps) {
-                    const validIndices = [];
-                    systemData.timestamps.forEach((timestamp, index) => {
-                        if (timestamp > cutoffTime) {
-                            validIndices.push(index);
-                        }
-                    });
-                    
-                    if (validIndices.length < systemData.timestamps.length) {
-                        systemData.labels = validIndices.map(i => systemData.labels[i]);
-                        systemData.battery = validIndices.map(i => systemData.battery[i]);
-                        systemData.solar = validIndices.map(i => systemData.solar[i]);
-                        systemData.grid = validIndices.map(i => systemData.grid[i]);
-                        systemData.load = validIndices.map(i => systemData.load[i]);
-                        systemData.timestamps = validIndices.map(i => systemData.timestamps[i]);
-                        
-                        // Update chart with cleaned data
-                        if (systemChart) {
-                            systemChart.data.labels = systemData.labels;
-                            systemChart.data.datasets[0].data = systemData.battery;
-                            systemChart.data.datasets[1].data = systemData.solar;
-                            systemChart.data.datasets[2].data = systemData.grid;
-                            systemChart.data.datasets[3].data = systemData.load;
-                            systemChart.update('none');
-                        }
-                        
-                        console.log(`Cleaned up old data, kept ${validIndices.length} points`);
-                    }
-                }
-            } catch (error) {
-                console.error('Error cleaning up old data:', error);
-            }
-        }
+                <!-- AI Activity Tabs -->
+                <div class="ai-activity-section">
+                    <div class="activity-tabs">
+                        <button class="tab-btn active" onclick="switchTab('decisions')">
+                            <i class="fas fa-lightbulb"></i> Decisions <span class="tab-count" id="decisions-count">0</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('commands')">
+                            <i class="fas fa-terminal"></i> Commands <span class="tab-count" id="commands-count">0</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('predictions')">
+                            <i class="fas fa-crystal-ball"></i> Predictions <span class="tab-count" id="predictions-count">0</span>
+                        </button>
+                    </div>
 
+                    <!-- Decisions Tab -->
+                    <div class="tab-content active" id="decisions-tab">
+                        <div class="activity-container" id="decisions-container">
+                            <!-- Real decisions from InfluxDB will be loaded here -->
+                        </div>
+                    </div>
 
-    </script>
+                    <!-- Commands Tab -->
+                    <div class="tab-content" id="commands-tab">
+                        <div class="activity-container" id="commands-container">
+                            <!-- Real commands from InfluxDB will be loaded here -->
+                        </div>
+                    </div>
 
-<script src="<%= ingress_path %>/js/debug.js"></script>
-<script src="<%= ingress_path %>/js/loading.js"></script>
-<script src="<%= ingress_path %>/js/dark-mode.js"></script>
-<script src="<%= ingress_path %>/js/mobile.js"></script>
+                    <!-- Predictions Tab -->
+                    <div class="tab-content" id="predictions-tab">
+                        <div class="activity-container" id="predictions-container">
+                            <!-- AI predictions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="<%= ingress_path %>/js/ai-dashboard.js"></script>
+    <script src="<%= ingress_path %>/js/dark-mode.js"></script>
+    <script src="<%= ingress_path %>/js/mobile.js"></script>
 </body>
 </html>

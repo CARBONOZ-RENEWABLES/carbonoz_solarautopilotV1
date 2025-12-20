@@ -4,6 +4,7 @@
 
 const tibberService = require('./tibberService');
 const influxAIService = require('./influxAIService');
+const AIChargingSystem = require('../ai/index');
 // Enhanced notification service will be available globally
 
 class AIChargingEngine {
@@ -14,6 +15,12 @@ class AIChargingEngine {
     this.mqttClient = null;
     this.currentSystemState = null;
     this.lastCommand = null;
+    
+    // AI System Integration
+    this.aiSystem = new AIChargingSystem();
+    this.aiEnabled = false;
+    this.aiInitialized = false;
+    this.useAI = true; // Enable AI by default
     
     // Battery size thresholds from study
     this.SMALL_BATTERY_THRESHOLD = 15; // kWh - optimal for price-sensitive operation
@@ -71,14 +78,32 @@ class AIChargingEngine {
     // Auto-detect battery if not configured
     await this.detectBatteryCapacity();
     
+    // Initialize AI System
+    if (this.useAI && global.influx) {
+      try {
+        const aiResult = await this.aiSystem.initialize(global.influx, tibberService);
+        if (aiResult.success) {
+          this.aiInitialized = true;
+          this.aiEnabled = true;
+          console.log('🤖 AI System initialized successfully');
+          console.log(`   • Learning Mode: ${aiResult.learningMode ? 'ON' : 'OFF'}`);
+        } else {
+          console.log('⚠️  AI System initialization failed, using traditional logic');
+        }
+      } catch (error) {
+        console.error('❌ AI System initialization error:', error.message);
+      }
+    }
+    
     const sizeCategory = this.getBatterySizeCategory();
     
     console.log('✅ AI Charging Engine initialized (Academic Study Enhanced)');
-    console.log(`   • Strategy: Dynamic tariff optimization (12.7% improvement potential)`);
+    console.log(`   • Strategy: ${this.aiEnabled ? 'AI-Powered Pattern Learning' : 'Dynamic tariff optimization'} (12.7% improvement potential)`);
     console.log(`   • Threshold: ≤${this.academicParams.optimalChargeThreshold}¢/kWh (academic optimal)`);
     console.log(`   • Battery: ${this.config.batteryCapacity} kWh (${sizeCategory.category} - ${this.batteryDetection.detectionMethod})`);
     console.log(`   • Category: ${sizeCategory.description}`);
     console.log(`   • Efficiency: ${(this.academicParams.roundTripEfficiency * 100).toFixed(1)}% round-trip`);
+    console.log(`   • AI Status: ${this.aiEnabled ? 'ACTIVE' : 'DISABLED'}`);
   }
 
   updateSystemState(systemState) {
@@ -343,13 +368,46 @@ class AIChargingEngine {
       const currentPrice = tibberService.cache.currentPrice;
       const config = tibberService.config;
 
-      // Select optimal strategy based on battery size (academic finding)
+      // AI-Powered Decision Making
+      if (this.aiEnabled && this.aiInitialized) {
+        try {
+          const aiPrediction = await this.aiSystem.makePredictions(
+            this.currentSystemState, 
+            this.config.batteryCapacity
+          );
+          
+          const aiDecision = aiPrediction.charging;
+          
+          // Learn from previous outcomes
+          await this.learnFromOutcomes();
+          
+          // Apply AI decision
+          if (aiDecision.type === 'CHARGE' || aiDecision.type === 'STOP') {
+            const actionDecision = aiDecision.type === 'STOP' ? 'STOP_CHARGING' : 'START_CHARGING';
+            await this.applyDecision(actionDecision);
+          }
+          
+          const decision = `AI ${aiDecision.type}: ${aiDecision.reason}`;
+          reasons.push(...aiDecision.reasoning);
+          reasons.push(`AI Confidence: ${(aiPrediction.confidence * 100).toFixed(0)}%`);
+          reasons.push(`Expected Savings: ${aiDecision.expectedSavings || 'Calculating...'}`);
+          
+          return await this.logDecision(decision, reasons, {
+            strategy: 'AI_PATTERN_LEARNING',
+            expectedImprovement: parseFloat(aiDecision.expectedSavings) || 0,
+            aiConfidence: aiPrediction.confidence,
+            aiAction: aiDecision.action || aiDecision.type
+          });
+          
+        } catch (aiError) {
+          console.error('❌ AI evaluation error, falling back to traditional logic:', aiError.message);
+          reasons.push('AI fallback: Using traditional optimization');
+        }
+      }
+
+      // Traditional Academic Study Logic (Fallback)
       const strategy = this.selectOptimalStrategy();
-      
-      // Calculate net load (pnet(t) from study equation 1)
       const netLoad = load - pvPower;
-      
-      // Academic study optimization
       const optimization = await this.academicOptimization();
       
       let shouldCharge = false;
@@ -357,13 +415,9 @@ class AIChargingEngine {
 
       // Strategy-based decision making
       if (strategy.usePriceThresholds) {
-        // Price-sensitive operation for smaller batteries (≤15 kWh)
-        // Academic finding: 12.7% improvement potential
-        
         if (optimization) {
           const thresholds = optimization.thresholds;
           
-          // CRITICAL: Academic optimal threshold is ≤8¢/kWh
           if (thresholds.isNegative) {
             shouldCharge = true;
             reasons.push(`NEGATIVE PRICE ARBITRAGE: Getting paid ${Math.abs(thresholds.current).toFixed(2)}¢/kWh`);
@@ -373,15 +427,11 @@ class AIChargingEngine {
             reasons.push(`Expected improvement: +${strategy.expectedImprovement}% vs fixed tariff`);
           }
           
-          // Peak discharge for maximum value (study finding: meaningful arbitrage)
           if (optimization.shouldDischarge && batterySOC > 30) {
             reasons.push(`PEAK PRICE DISCHARGE: ${thresholds.current.toFixed(2)}¢/kWh (volatility: ${(optimization.volatility * 100).toFixed(1)}%)`);
           }
         }
       } else {
-        // Self-consumption maximization for larger batteries (>20 kWh)
-        // Study finding: Better for larger batteries with day-ahead forecasts
-        
         const pvSurplus = pvPower - load;
         if (pvSurplus > 100 && batterySOC < 95) {
           shouldCharge = true;
@@ -389,7 +439,7 @@ class AIChargingEngine {
         }
       }
 
-      // Safety overrides (from study: grid voltage constraints)
+      // Safety overrides
       if (currentPrice?.total > this.academicParams.maxPriceThreshold) {
         shouldStop = true;
         reasons.push(`Price ${currentPrice.total.toFixed(1)}¢ too expensive`);
@@ -405,7 +455,6 @@ class AIChargingEngine {
         reasons.push(`Grid voltage constraint: ${gridVoltage}V`);
       }
 
-      // Make decision with academic strategy context
       let decision = this.makeAcademicDecision(
         batterySOC, pvPower, load, currentPrice, 
         gridVoltage, config, shouldCharge, shouldStop, 
@@ -417,14 +466,13 @@ class AIChargingEngine {
         await this.applyDecision(actionDecision);
       }
 
-      // Log with academic metrics
       return await this.logDecision(decision, reasons, {
         strategy: strategy.name,
         expectedImprovement: strategy.expectedImprovement
       });
       
     } catch (error) {
-      console.error('❌ Error in academic AI evaluation:', error);
+      console.error('❌ Error in AI evaluation:', error);
       return { decision: 'ERROR', reasons: [error.message] };
     }
   }
@@ -741,10 +789,34 @@ class AIChargingEngine {
     return { success: true, message: 'AI Charging Engine stopped' };
   }
 
+  async learnFromOutcomes() {
+    // Learn from actual outcomes if AI is enabled
+    if (!this.aiEnabled || !this.currentSystemState) return;
+    
+    try {
+      const actualSolar = this.currentSystemState.pv_power || 0;
+      const actualLoad = this.currentSystemState.load || 0;
+      const actualCost = this.calculateCurrentCost();
+      
+      await this.aiSystem.learnFromOutcome(actualSolar, actualLoad, actualCost);
+    } catch (error) {
+      console.error('❌ Error in AI learning:', error.message);
+    }
+  }
+  
+  calculateCurrentCost() {
+    // Calculate current electricity cost based on grid usage
+    const gridPower = this.currentSystemState?.grid_power || 0;
+    const currentPrice = tibberService.cache.currentPrice?.total || 10;
+    
+    // Positive grid power = importing (cost), negative = exporting (income)
+    return gridPower > 0 ? (gridPower / 1000) * (currentPrice / 100) : 0;
+  }
+
   getStatus() {
     const strategy = this.selectOptimalStrategy();
     
-    return {
+    const status = {
       enabled: this.enabled,
       lastDecision: this.lastDecision,
       config: this.config,
@@ -756,8 +828,15 @@ class AIChargingEngine {
         batterySize: this.config.batteryCapacity,
         optimalForBatterySize: this.config.batteryCapacity <= this.SMALL_BATTERY_THRESHOLD
       },
-      academicParams: this.academicParams
+      academicParams: this.academicParams,
+      ai: {
+        enabled: this.aiEnabled,
+        initialized: this.aiInitialized,
+        status: this.aiInitialized ? this.aiSystem.getStatus() : null
+      }
     };
+    
+    return status;
   }
 }
 

@@ -25,5 +25,30 @@
     "mqtt": "^4.2.8",
     "node-cron": "^3.0.3",
     "ws": "^8.2.3"
+  },
+  "keywords": [
+    "solar",
+    "battery",
+    "ai",
+    "machine-learning",
+    "energy-management",
+    "home-assistant",
+    "mqtt",
+    "influxdb",
+    "tibber",
+    "dynamic-pricing",
+    "reinforcement-learning",
+    "pattern-recognition",
+    "solar-forecasting",
+    "load-prediction"
+  ],
+  "author": "CARBONOZ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carbonoz/solarautopilot"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
