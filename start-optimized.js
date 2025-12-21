@@ -8,21 +8,23 @@ const path = require('path');
 
 console.log('🚀 Starting CARBONOZ SolarAutopilot with memory optimizations...');
 
-// Calculate optimal memory limits based on available system memory
+// Calculate conservative memory limits to prevent OOM kills
 const totalMemoryMB = require('os').totalmem() / 1024 / 1024;
-const maxHeapMB = Math.min(512, Math.floor(totalMemoryMB * 0.3)); // Use max 512MB or 30% of system memory
+const maxHeapMB = 256; // Fixed 256MB heap limit
 
 console.log(`💾 System Memory: ${Math.round(totalMemoryMB)}MB`);
 console.log(`🎯 Node.js Heap Limit: ${maxHeapMB}MB`);
 
-// Node.js optimization flags
+// Aggressive Node.js optimization flags
 const nodeFlags = [
   `--max-old-space-size=${maxHeapMB}`,     // Limit heap size
-  '--max-semi-space-size=64',               // Limit young generation
+  '--max-semi-space-size=32',               // Smaller young generation
   '--optimize-for-size',                    // Optimize for memory usage
-  '--gc-interval=100',                      // More frequent GC
+  '--gc-interval=50',                       // Very frequent GC
   '--expose-gc',                            // Allow manual GC
   '--trace-warnings',                       // Show memory warnings
+  '--no-lazy',                              // Disable lazy compilation
+  '--max_executable_size=64',               // Limit executable size
 ];
 
 // Start the application with optimized settings
@@ -32,7 +34,8 @@ const child = spawn('node', [...nodeFlags, 'server.js'], {
   env: {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'production',
-    UV_THREADPOOL_SIZE: '4', // Limit thread pool
+    UV_THREADPOOL_SIZE: '2', // Minimal thread pool
+    NODE_OPTIONS: '--max-old-space-size=256', // Backup memory limit
   }
 });
 
