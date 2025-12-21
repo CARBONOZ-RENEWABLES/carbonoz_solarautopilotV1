@@ -24,7 +24,6 @@ const nodeFlags = [
   '--expose-gc',                            // Allow manual GC
   '--trace-warnings',                       // Show memory warnings
   '--no-lazy',                              // Disable lazy compilation
-  '--max_executable_size=64',               // Limit executable size
 ];
 
 // Start the application with optimized settings
