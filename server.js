@@ -232,7 +232,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: 'localhost',
+  host: '10.224.205.59',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -271,7 +271,7 @@ try {
 
 // MQTT configuration
 const mqttConfig = {
-  host: 'core-mosquitto',
+  host: options.mqtt_host,
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
@@ -3122,17 +3122,28 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     try {
       console.log('Running scheduled pricing data refresh...');
       
-      // Refresh Tibber data automatically
+      // Refresh Tibber data automatically with timeout protection
       if (tibberService && tibberService.config.enabled) {
-        tibberService.refreshData().then(success => {
-          if (success) {
-            console.log('✅ Tibber price data refreshed automatically');
-          } else {
-            console.log('⚠️  Tibber refresh failed');
-          }
-        }).catch(error => {
-          console.error('❌ Error refreshing Tibber data:', error);
+        const refreshPromise = tibberService.refreshData();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Scheduled refresh timeout')), 25000); // 25 second timeout
         });
+        
+        Promise.race([refreshPromise, timeoutPromise])
+          .then(success => {
+            if (success) {
+              console.log('✅ Tibber price data refreshed automatically');
+            } else {
+              console.log('⚠️  Tibber refresh failed');
+            }
+          })
+          .catch(error => {
+            if (error.message.includes('timeout')) {
+              console.warn('⏰ Scheduled Tibber refresh timed out - will retry next cycle');
+            } else {
+              console.error('❌ Error refreshing Tibber data:', error.message);
+            }
+          });
       }
       
       console.log('✅ Scheduled data refresh completed');
@@ -5604,7 +5615,18 @@ app.post('/api/tibber/toggle', async (req, res) => {
       // Only check for API key (homeId is optional)
       if (tibberService.config.apiKey && 
           tibberService.config.apiKey !== '***') {
-        await tibberService.refreshData();
+        try {
+          // Add timeout protection
+          const refreshPromise = tibberService.refreshData();
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+          });
+          
+          await Promise.race([refreshPromise, timeoutPromise]);
+          console.log('✅ Data refresh completed');
+        } catch (timeoutError) {
+          console.warn('⏰ Data refresh timed out during toggle, will use cached data');
+        }
       } else {
         console.log('⚠️  No valid API key, skipping data refresh');
       }
@@ -5638,18 +5660,45 @@ app.get('/api/tibber/prices', async (req, res) => {
       });
     }
 
-    // If no cached data or data is stale, try to fetch fresh data
+    // If no cached data or data is stale, try to fetch fresh data with timeout
     if (!status.hasCachedData) {
       console.log('📊 No cached data, fetching from Tibber API...');
-      const refreshed = await tibberService.refreshData();
       
-      if (!refreshed) {
-        return res.json({
-          success: false,
-          error: 'No cached data available and unable to fetch new data from Tibber API',
-          data: null,
-          status: tibberService.getStatus()
+      try {
+        // Add timeout protection
+        const refreshPromise = tibberService.refreshData();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 20000); // 20 second timeout
         });
+        
+        const refreshed = await Promise.race([refreshPromise, timeoutPromise]);
+        
+        if (!refreshed) {
+          return res.json({
+            success: false,
+            error: 'No cached data available and unable to fetch new data from Tibber API',
+            data: null,
+            status: tibberService.getStatus()
+          });
+        }
+      } catch (timeoutError) {
+        console.warn('⏰ Price fetch timed out, checking for any cached data');
+        const cachedData = tibberService.getCachedData();
+        if (cachedData && cachedData.currentPrice) {
+          return res.json({
+            success: true,
+            data: cachedData,
+            status: tibberService.getStatus(),
+            warning: 'Using cached data due to API timeout'
+          });
+        } else {
+          return res.json({
+            success: false,
+            error: 'API request timed out and no cached data available',
+            data: null,
+            status: tibberService.getStatus()
+          });
+        }
       }
     }
 
@@ -5694,24 +5743,52 @@ app.post('/api/tibber/refresh', async (req, res) => {
     // homeId is now optional - will use first home automatically
     console.log('📊 Fetching Tibber data (homeId optional - will auto-select)...');
 
-    // Attempt refresh
-    const success = await tibberService.refreshData();
+    // Add timeout protection for API refresh
+    const refreshPromise = tibberService.refreshData();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000);
+    });
     
-    if (success) {
-      const data = tibberService.getCachedData();
-      console.log('✅ Manual refresh successful');
-      res.json({ 
-        success: true, 
-        message: 'Tibber data refreshed successfully',
-        data
-      });
-    } else {
-      console.warn('⚠️  Manual refresh returned false');
-      res.json({ 
-        success: false, 
-        error: 'Failed to refresh data. Check logs for details.',
-        suggestion: 'Check your API key, network connection, and run diagnostics.'
-      });
+    try {
+      const success = await Promise.race([refreshPromise, timeoutPromise]);
+      
+      if (success) {
+        const data = tibberService.getCachedData();
+        console.log('✅ Manual refresh successful');
+        res.json({ 
+          success: true, 
+          message: 'Tibber data refreshed successfully',
+          data
+        });
+      } else {
+        console.warn('⚠️  Manual refresh returned false');
+        res.json({ 
+          success: false, 
+          error: 'Failed to refresh data. Check logs for details.',
+          suggestion: 'Check your API key, network connection, and run diagnostics.'
+        });
+      }
+    } catch (timeoutError) {
+      if (timeoutError.message.includes('timeout')) {
+        console.warn('⏰ Manual refresh timed out, using cached data if available');
+        const cachedData = tibberService.getCachedData();
+        if (cachedData && cachedData.currentPrice) {
+          res.json({
+            success: true,
+            message: 'Request timed out, but cached data is available',
+            data: cachedData,
+            warning: 'Using cached data due to API timeout'
+          });
+        } else {
+          res.json({
+            success: false,
+            error: 'Request timed out and no cached data available',
+            suggestion: 'Try again later or check your internet connection'
+          });
+        }
+      } else {
+        throw timeoutError;
+      }
     }
   } catch (error) {
     console.error('❌ Error in manual refresh:', error);

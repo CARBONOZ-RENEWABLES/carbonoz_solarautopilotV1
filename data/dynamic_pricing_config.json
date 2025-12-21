@@ -64,59 +64,11 @@
   },
   "scheduledCharging": false,
   "chargingHours": [],
-  "lastUpdate": "2025-12-21T12:25:23.136Z",
+  "lastUpdate": "2025-12-21T18:40:03.969Z",
   "pricingData": [
     {
-      "timestamp": "2025-12-21T11:00:00.000Z",
-      "price": 0.0644,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 13
-    },
-    {
-      "timestamp": "2025-12-21T12:00:00.000Z",
-      "price": 0.0671,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 14
-    },
-    {
-      "timestamp": "2025-12-21T13:00:00.000Z",
-      "price": 0.094,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 15
-    },
-    {
-      "timestamp": "2025-12-21T14:00:00.000Z",
-      "price": 0.0928,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 16
-    },
-    {
-      "timestamp": "2025-12-21T15:00:00.000Z",
-      "price": 0.1636,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 17
-    },
-    {
-      "timestamp": "2025-12-21T16:00:00.000Z",
-      "price": 0.1787,
-      "currency": "EUR",
-      "unit": "kWh",
-      "timezone": "Europe/Berlin",
-      "localHour": 18
-    },
-    {
       "timestamp": "2025-12-21T17:00:00.000Z",
-      "price": 0.1557,
+      "price": 0.146,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -124,7 +76,7 @@
     },
     {
       "timestamp": "2025-12-21T18:00:00.000Z",
-      "price": 0.1487,
+      "price": 0.1843,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -132,7 +84,7 @@
     },
     {
       "timestamp": "2025-12-21T19:00:00.000Z",
-      "price": 0.156,
+      "price": 0.1898,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -140,7 +92,7 @@
     },
     {
       "timestamp": "2025-12-21T20:00:00.000Z",
-      "price": 0.0864,
+      "price": 0.0898,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -148,7 +100,7 @@
     },
     {
       "timestamp": "2025-12-21T21:00:00.000Z",
-      "price": 0.0902,
+      "price": 0.0809,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -156,7 +108,7 @@
     },
     {
       "timestamp": "2025-12-21T22:00:00.000Z",
-      "price": 0.0993,
+      "price": 0.111,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -164,7 +116,7 @@
     },
     {
       "timestamp": "2025-12-21T23:00:00.000Z",
-      "price": 0.0669,
+      "price": 0.0524,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -172,7 +124,7 @@
     },
     {
       "timestamp": "2025-12-22T00:00:00.000Z",
-      "price": 0.0624,
+      "price": 0.0542,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -180,7 +132,7 @@
     },
     {
       "timestamp": "2025-12-22T01:00:00.000Z",
-      "price": 0.067,
+      "price": 0.0613,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -188,7 +140,7 @@
     },
     {
       "timestamp": "2025-12-22T02:00:00.000Z",
-      "price": 0.0624,
+      "price": 0.0601,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -196,7 +148,7 @@
     },
     {
       "timestamp": "2025-12-22T03:00:00.000Z",
-      "price": 0.068,
+      "price": 0.0561,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -204,7 +156,7 @@
     },
     {
       "timestamp": "2025-12-22T04:00:00.000Z",
-      "price": 0.1091,
+      "price": 0.0873,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -212,7 +164,7 @@
     },
     {
       "timestamp": "2025-12-22T05:00:00.000Z",
-      "price": 0.1862,
+      "price": 0.1566,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -220,7 +172,7 @@
     },
     {
       "timestamp": "2025-12-22T06:00:00.000Z",
-      "price": 0.1897,
+      "price": 0.1641,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -228,7 +180,7 @@
     },
     {
       "timestamp": "2025-12-22T07:00:00.000Z",
-      "price": 0.1728,
+      "price": 0.1964,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -236,7 +188,7 @@
     },
     {
       "timestamp": "2025-12-22T08:00:00.000Z",
-      "price": 0.115,
+      "price": 0.0902,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -244,7 +196,7 @@
     },
     {
       "timestamp": "2025-12-22T09:00:00.000Z",
-      "price": 0.0915,
+      "price": 0.0696,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -252,7 +204,7 @@
     },
     {
       "timestamp": "2025-12-22T10:00:00.000Z",
-      "price": 0.0758,
+      "price": 0.0786,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -260,7 +212,7 @@
     },
     {
       "timestamp": "2025-12-22T11:00:00.000Z",
-      "price": 0.084,
+      "price": 0.092,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -268,7 +220,7 @@
     },
     {
       "timestamp": "2025-12-22T12:00:00.000Z",
-      "price": 0.0799,
+      "price": 0.0883,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -276,7 +228,7 @@
     },
     {
       "timestamp": "2025-12-22T13:00:00.000Z",
-      "price": 0.1085,
+      "price": 0.1102,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -284,7 +236,7 @@
     },
     {
       "timestamp": "2025-12-22T14:00:00.000Z",
-      "price": 0.0918,
+      "price": 0.1048,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -292,7 +244,7 @@
     },
     {
       "timestamp": "2025-12-22T15:00:00.000Z",
-      "price": 0.2066,
+      "price": 0.1816,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -300,7 +252,7 @@
     },
     {
       "timestamp": "2025-12-22T16:00:00.000Z",
-      "price": 0.1967,
+      "price": 0.1877,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -308,7 +260,7 @@
     },
     {
       "timestamp": "2025-12-22T17:00:00.000Z",
-      "price": 0.2162,
+      "price": 0.1805,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -316,7 +268,7 @@
     },
     {
       "timestamp": "2025-12-22T18:00:00.000Z",
-      "price": 0.2182,
+      "price": 0.2029,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -324,7 +276,7 @@
     },
     {
       "timestamp": "2025-12-22T19:00:00.000Z",
-      "price": 0.228,
+      "price": 0.1902,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -332,7 +284,7 @@
     },
     {
       "timestamp": "2025-12-22T20:00:00.000Z",
-      "price": 0.1085,
+      "price": 0.102,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -340,7 +292,7 @@
     },
     {
       "timestamp": "2025-12-22T21:00:00.000Z",
-      "price": 0.1066,
+      "price": 0.1137,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -348,7 +300,7 @@
     },
     {
       "timestamp": "2025-12-22T22:00:00.000Z",
-      "price": 0.1056,
+      "price": 0.1123,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -356,7 +308,7 @@
     },
     {
       "timestamp": "2025-12-22T23:00:00.000Z",
-      "price": 0.0532,
+      "price": 0.0683,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -364,7 +316,7 @@
     },
     {
       "timestamp": "2025-12-23T00:00:00.000Z",
-      "price": 0.067,
+      "price": 0.053,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -372,7 +324,7 @@
     },
     {
       "timestamp": "2025-12-23T01:00:00.000Z",
-      "price": 0.0568,
+      "price": 0.0544,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -380,7 +332,7 @@
     },
     {
       "timestamp": "2025-12-23T02:00:00.000Z",
-      "price": 0.0564,
+      "price": 0.0527,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -388,7 +340,7 @@
     },
     {
       "timestamp": "2025-12-23T03:00:00.000Z",
-      "price": 0.065,
+      "price": 0.0683,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -396,7 +348,7 @@
     },
     {
       "timestamp": "2025-12-23T04:00:00.000Z",
-      "price": 0.089,
+      "price": 0.0917,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -404,7 +356,7 @@
     },
     {
       "timestamp": "2025-12-23T05:00:00.000Z",
-      "price": 0.1599,
+      "price": 0.1606,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -412,7 +364,7 @@
     },
     {
       "timestamp": "2025-12-23T06:00:00.000Z",
-      "price": 0.1678,
+      "price": 0.1993,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -420,7 +372,7 @@
     },
     {
       "timestamp": "2025-12-23T07:00:00.000Z",
-      "price": 0.1581,
+      "price": 0.1984,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -428,7 +380,7 @@
     },
     {
       "timestamp": "2025-12-23T08:00:00.000Z",
-      "price": 0.0914,
+      "price": 0.0905,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -436,7 +388,7 @@
     },
     {
       "timestamp": "2025-12-23T09:00:00.000Z",
-      "price": 0.0756,
+      "price": 0.0918,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
@@ -444,11 +396,59 @@
     },
     {
       "timestamp": "2025-12-23T10:00:00.000Z",
-      "price": 0.0834,
+      "price": 0.0771,
       "currency": "EUR",
       "unit": "kWh",
       "timezone": "Europe/Berlin",
       "localHour": 12
+    },
+    {
+      "timestamp": "2025-12-23T11:00:00.000Z",
+      "price": 0.0704,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 13
+    },
+    {
+      "timestamp": "2025-12-23T12:00:00.000Z",
+      "price": 0.0774,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 14
+    },
+    {
+      "timestamp": "2025-12-23T13:00:00.000Z",
+      "price": 0.1014,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 15
+    },
+    {
+      "timestamp": "2025-12-23T14:00:00.000Z",
+      "price": 0.0998,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 16
+    },
+    {
+      "timestamp": "2025-12-23T15:00:00.000Z",
+      "price": 0.1839,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 17
+    },
+    {
+      "timestamp": "2025-12-23T16:00:00.000Z",
+      "price": 0.2235,
+      "currency": "EUR",
+      "unit": "kWh",
+      "timezone": "Europe/Berlin",
+      "localHour": 18
     }
   ],
   "timezone": "Europe/Berlin",

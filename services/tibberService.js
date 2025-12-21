@@ -419,8 +419,14 @@ class TibberService {
     return countries.find(c => c.code === 'DE');
   }
 
-  async makeGraphQLRequest(query, variables = {}) {
+  async makeGraphQLRequest(query, variables = {}, retryCount = 0) {
+    const maxRetries = 3;
+    const baseTimeout = 8000; // Reduced from 15000ms
+    const timeout = baseTimeout + (retryCount * 2000); // Increase timeout on retries
+    
     try {
+      console.log(`🔄 GraphQL request attempt ${retryCount + 1}/${maxRetries + 1} (timeout: ${timeout}ms)`);
+      
       const response = await axios.post(
         this.apiUrl,
         { query, variables },
@@ -429,7 +435,7 @@ class TibberService {
             'Authorization': `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json'
           },
-          timeout: 15000
+          timeout: timeout
         }
       );
 
@@ -437,9 +443,23 @@ class TibberService {
         throw new Error(response.data.errors[0].message);
       }
 
+      console.log('✅ GraphQL request successful');
       return response.data.data;
     } catch (error) {
-      console.error('GraphQL request failed:', error.message);
+      const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout');
+      const isNetworkError = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND';
+      
+      console.error(`❌ GraphQL request failed (attempt ${retryCount + 1}):`, error.message);
+      
+      // Retry on timeout or network errors
+      if ((isTimeout || isNetworkError) && retryCount < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.makeGraphQLRequest(query, variables, retryCount + 1);
+      }
+      
       throw error;
     }
   }
@@ -659,11 +679,27 @@ class TibberService {
         return false;
       }
 
-      // homeId is now optional - will use first available home if not set
       console.log('🔄 Refreshing Tibber data...');
-      await this.getCurrentPriceInfo();
-      console.log('✅ Data refreshed');
-      return true;
+      
+      // Check if we have recent cached data (less than 1 hour old)
+      const cacheAge = this.cache.timestamp ? (Date.now() - this.cache.timestamp) / 1000 / 60 : null;
+      if (cacheAge && cacheAge < 60 && this.cache.currentPrice) {
+        console.log(`💾 Using cached data (${Math.round(cacheAge)} minutes old)`);
+      }
+      
+      try {
+        await this.getCurrentPriceInfo();
+        console.log('✅ Data refreshed successfully');
+        return true;
+      } catch (error) {
+        // If we have cached data, use it and don't fail completely
+        if (this.cache.currentPrice && this.cache.timestamp) {
+          const cacheAgeMinutes = Math.round((Date.now() - this.cache.timestamp) / 1000 / 60);
+          console.log(`⚠️  API failed, using cached data (${cacheAgeMinutes} minutes old)`);
+          return true; // Return success since we have fallback data
+        }
+        throw error; // Re-throw if no cached data available
+      }
     } catch (error) {
       console.error('❌ Refresh error:', error.message);
       return false;
