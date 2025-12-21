@@ -6,7 +6,7 @@ class DataProcessor {
     this.lastCacheUpdate = null;
   }
 
-  async loadHistoricalData(influxClient, daysBack = 365) {
+  async loadHistoricalData(influxClient, daysBack = 90) { // Reduced from 365 to 90 days
     console.log(`📊 Loading ${daysBack} days of historical data...`);
     
     try {
@@ -15,6 +15,11 @@ class DataProcessor {
       if (this.dataCache.has(cacheKey) && this.isCacheValid(cacheKey)) {
         console.log('✅ Using cached historical data');
         return this.dataCache.get(cacheKey);
+      }
+
+      // Clear old cache entries to save memory
+      if (this.dataCache.size > 3) {
+        this.dataCache.clear();
       }
 
       const endTime = new Date();

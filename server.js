@@ -29,6 +29,10 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const notificationService = require('./services/notificationService');
 const tibberService = require('./services/tibberService');
 const aiChargingEngine = require('./services/aiChargingEngine');
+const memoryMonitor = require('./utils/memoryMonitor');
+
+// Start memory monitoring
+memoryMonitor.start();
 
 let aiEngineInitialized = false;
 
@@ -107,7 +111,12 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
+let options;
+try {
+  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+} catch (error) {
+  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+}
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -273,7 +282,7 @@ const mqttConfig = {
 // Connect to MQTT broker
 let mqttClient
 let incomingMessages = []
-const MAX_MESSAGES = 500
+const MAX_MESSAGES = 100 // Reduced from 500 to save memory
 
 // Learner mode configuration
 global.learnerModeActive = false
@@ -800,10 +809,10 @@ function parseJsonOrValue(value) {
 // ================ COMPLETE ENHANCED MQTT MESSAGE HANDLING ================
 
 async function handleMqttMessage(topic, message) {
-  const bufferSize = learnerModeActive ? Math.min(100, MAX_MESSAGES) : MAX_MESSAGES;
+  const bufferSize = learnerModeActive ? Math.min(50, MAX_MESSAGES) : MAX_MESSAGES;
   
   const messageStr = message.toString();
-  const maxMessageSize = 10000;
+  const maxMessageSize = 1000; // Reduced from 10000 to save memory
   
   const truncatedMessage = messageStr.length > maxMessageSize 
     ? messageStr.substring(0, maxMessageSize) + '... [truncated]' 
@@ -813,8 +822,7 @@ async function handleMqttMessage(topic, message) {
   
   incomingMessages.push(formattedMessage);
   if (incomingMessages.length > bufferSize) {
-    const excess = incomingMessages.length - bufferSize;
-    incomingMessages.splice(0, excess); // ✅ Remove multiple items at once
+    incomingMessages.shift(); // Remove only one item at a time for better performance
   }
 
   let messageContent;
@@ -1240,7 +1248,7 @@ async function handleMqttMessage(topic, message) {
 
 // Create a settings changes queue with rate limiting
 const settingsChangesQueue = [];
-const MAX_QUEUE_SIZE = 500;
+const MAX_QUEUE_SIZE = 50; // Reduced from 500 to save memory
 let processingQueue = false;
 const PROCESSING_INTERVAL = 1000;
 
@@ -1371,7 +1379,7 @@ async function batchSaveSettingsChanges(changes) {
 }
 
 const API_REQUEST_LIMIT = new Map();
-const MAX_RATE_LIMIT_ENTRIES = 1000;
+const MAX_RATE_LIMIT_ENTRIES = 100; // Reduced from 1000 to save memory
 
 function canMakeRequest(endpoint, userId, clientIp) {
   // Create a composite key using both user ID and IP for better security
@@ -5080,6 +5088,42 @@ ensureDirectoriesExist();
   
   // Clean up stale settings state every 4 hours
   cron.schedule('0 */4 * * *', cleanupCurrentSettingsState);
+  
+  // Memory cleanup every 30 minutes
+  cron.schedule('*/30 * * * *', () => {
+    try {
+      console.log('🧹 Running memory cleanup...');
+      
+      // Clear old messages
+      if (incomingMessages.length > MAX_MESSAGES) {
+        incomingMessages = incomingMessages.slice(-MAX_MESSAGES);
+      }
+      
+      // Clear old API rate limit entries
+      if (API_REQUEST_LIMIT.size > MAX_RATE_LIMIT_ENTRIES) {
+        const entries = Array.from(API_REQUEST_LIMIT.entries());
+        const cutoff = Date.now() - (30 * 60 * 1000); // 30 minutes
+        entries.forEach(([key, timestamp]) => {
+          if (timestamp < cutoff) {
+            API_REQUEST_LIMIT.delete(key);
+          }
+        });
+      }
+      
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+        console.log('♻️  Garbage collection triggered');
+      }
+      
+      // Log memory usage
+      const memUsage = process.memoryUsage();
+      console.log(`📊 Memory: RSS ${Math.round(memUsage.rss / 1024 / 1024)}MB, Heap ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`);
+      
+    } catch (error) {
+      console.error('Error in memory cleanup:', error);
+    }
+  });
   
   console.log('✅ Dynamic pricing cron jobs initialized');
 

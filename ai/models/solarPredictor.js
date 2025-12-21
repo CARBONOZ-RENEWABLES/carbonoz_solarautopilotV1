@@ -13,6 +13,7 @@ class SolarPredictor {
     this.trained = false;
     this.accuracy = 0;
     this.recentData = [];
+    this.maxRecentData = 168; // Limit to 7 days (168 hours) to save memory
   }
 
   async train(historicalSolarData) {
@@ -338,9 +339,9 @@ class SolarPredictor {
       hour: new Date(newDataPoint.timestamp).getHours()
     });
     
-    // Keep only recent 30 days
-    if (this.recentData.length > 720) { // 30 days * 24 hours
-      this.recentData = this.recentData.slice(-720);
+    // Keep only recent data to prevent memory leaks
+    if (this.recentData.length > this.maxRecentData) {
+      this.recentData = this.recentData.slice(-this.maxRecentData);
     }
   }
 

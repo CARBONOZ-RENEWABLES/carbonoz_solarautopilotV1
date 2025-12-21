@@ -5,6 +5,7 @@ class ChargingOptimizer {
   constructor() {
     this.qTable = new Map(); // State-action Q-values
     this.rewardHistory = [];
+    this.maxRewardHistory = 500; // Limit reward history to save memory
     this.learningRate = 0.1;
     this.discountFactor = 0.95;
     this.explorationRate = 0.1;
@@ -55,6 +56,11 @@ class ChargingOptimizer {
       
       this.updateQTable(state, action, reward);
       this.rewardHistory.push({ scenario, action, reward });
+      
+      // Limit reward history to prevent memory leaks
+      if (this.rewardHistory.length > this.maxRewardHistory) {
+        this.rewardHistory = this.rewardHistory.slice(-this.maxRewardHistory);
+      }
     }
   }
 
@@ -80,7 +86,7 @@ class ChargingOptimizer {
       scenarios.push(scenario);
     }
     
-    return scenarios.slice(0, 1000); // Limit training scenarios
+    return scenarios.slice(0, 200); // Reduced from 1000 to 200 to save memory
   }
 
   generatePriceScenario(hours) {
@@ -490,6 +496,11 @@ class ChargingOptimizer {
       actualReward,
       cost: outcomeData.cost
     });
+    
+    // Limit reward history to prevent memory leaks
+    if (this.rewardHistory.length > this.maxRewardHistory) {
+      this.rewardHistory = this.rewardHistory.slice(-this.maxRewardHistory);
+    }
     
     // Adjust learning if needed
     if (this.rewardHistory.length > 100) {

@@ -156,4 +156,4 @@ bashio::log.info "Dashboard URL: http://localhost:${PORT}${INGRESS_PATH}"
 bashio::log.info "============================="
 
 # Start the Node.js application with memory optimization
-exec node --max-old-space-size=256 server.js
+exec node --max-old-space-size=256 --optimize-for-size --gc-interval=100 --expose-gc start-optimized.js

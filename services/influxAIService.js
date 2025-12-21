@@ -205,6 +205,11 @@ class InfluxAIService {
   queueWrite(point) {
     this.writeQueue.push(point);
     
+    // Limit queue size to prevent memory leaks
+    if (this.writeQueue.length > 100) {
+      this.writeQueue = this.writeQueue.slice(-50); // Keep only last 50 items
+    }
+    
     // Process queue when it reaches 10 points or after 30 seconds
     if (this.writeQueue.length >= 10) {
       this.processQueue();
