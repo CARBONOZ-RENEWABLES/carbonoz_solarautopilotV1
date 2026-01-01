@@ -11,10 +11,10 @@ class ChargingOptimizer {
     this.explorationRate = 0.1;
     this.trained = false;
     
-    // Academic study parameters
+    // Dynamic pricing parameters (no fixed thresholds)
     this.academicParams = {
-      chargeThreshold: 8, // ¢/kWh
-      maxPrice: 10,       // ¢/kWh
+      pricePercentileThreshold: 0.3, // Charge when price is in bottom 30%
+      dischargePercentileThreshold: 0.8, // Discharge when price is in top 20%
       efficiency: 0.95,   // Round-trip efficiency
       socMin: 20,         // Minimum SOC %
       socMax: 100,        // Maximum SOC %
@@ -185,18 +185,22 @@ class ChargingOptimizer {
     const batteryCapacity = scenario.batteryCapacity || 10; // kWh
     const chargePower = Math.min(3000, batteryCapacity * 1000 * 0.5); // Max 3kW or 0.5C rate
     
+    // Calculate dynamic thresholds from future prices
+    const futurePrices = scenario.futurePrices?.map(p => p.total) || [price];
+    const sortedPrices = [...futurePrices].sort((a, b) => a - b);
+    const chargeThreshold = sortedPrices[Math.floor(sortedPrices.length * this.academicParams.pricePercentileThreshold)];
+    const dischargeThreshold = sortedPrices[Math.floor(sortedPrices.length * this.academicParams.dischargePercentileThreshold)];
+    
     switch (action) {
       case 'CHARGE_GRID':
         // Calculate actual cost savings from charging at low prices
-        if (price <= this.academicParams.chargeThreshold) {
+        if (price <= chargeThreshold) {
           // Savings = (average_price - current_price) * charge_power
-          const avgPrice = 12; // Assume 12¢/kWh average
+          const avgPrice = futurePrices.reduce((a, b) => a + b, 0) / futurePrices.length;
           const hourlySavings = (avgPrice - price) * (chargePower / 1000);
           return Math.max(0, hourlySavings);
-        } else if (price <= this.academicParams.maxPrice) {
-          return -2; // Small penalty for suboptimal charging
         } else {
-          return -price * (chargePower / 1000); // Cost of expensive charging
+          return -price * (chargePower / 1000) * 0.1; // Small penalty for suboptimal charging
         }
         
       case 'CHARGE_SOLAR':
@@ -211,7 +215,7 @@ class ChargingOptimizer {
         
       case 'DISCHARGE':
         // Savings from avoiding grid purchase during high prices
-        if (price > 15 || loadPower > solarPower + 500) {
+        if (price >= dischargeThreshold || loadPower > solarPower + 500) {
           const dischargePower = Math.min(3000, loadPower - solarPower);
           return price * (dischargePower / 1000) * 0.95; // 95% efficiency
         }
@@ -222,7 +226,7 @@ class ChargingOptimizer {
         
       case 'STOP_CHARGING':
         // Savings from avoiding expensive charging
-        if (price > this.academicParams.maxPrice) {
+        if (price > dischargeThreshold) {
           return price * (chargePower / 1000) * 0.1; // Small savings from avoiding cost
         }
         return 0;
@@ -421,11 +425,16 @@ class ChargingOptimizer {
     const solar = scenario.solarPower;
     const load = scenario.loadPower;
     
-    // Price-based reasoning
-    if (price <= this.academicParams.chargeThreshold) {
-      reasons.push(`Excellent price: ${price.toFixed(1)}¢ ≤ ${this.academicParams.chargeThreshold}¢ threshold`);
-    } else if (price > this.academicParams.maxPrice) {
-      reasons.push(`Price too high: ${price.toFixed(1)}¢ > ${this.academicParams.maxPrice}¢ limit`);
+    // Price-based reasoning (dynamic thresholds)
+    const futurePrices = scenario.futurePrices?.map(p => p.total) || [price];
+    const sortedPrices = [...futurePrices].sort((a, b) => a - b);
+    const chargeThreshold = sortedPrices[Math.floor(sortedPrices.length * this.academicParams.pricePercentileThreshold)];
+    const dischargeThreshold = sortedPrices[Math.floor(sortedPrices.length * this.academicParams.dischargePercentileThreshold)];
+    
+    if (price <= chargeThreshold) {
+      reasons.push(`Excellent price: ${price.toFixed(1)}¢ in bottom ${(this.academicParams.pricePercentileThreshold * 100).toFixed(0)}% of forecast`);
+    } else if (price >= dischargeThreshold) {
+      reasons.push(`High price: ${price.toFixed(1)}¢ in top ${((1 - this.academicParams.dischargePercentileThreshold) * 100).toFixed(0)}% of forecast`);
     }
     
     // SOC-based reasoning

@@ -39,16 +39,15 @@ class AIChargingEngine {
       confidence: 0
     };
     
-    // Academic study parameters
+    // Academic study parameters - Dynamic pricing (no fixed thresholds)
     this.academicParams = {
       // Efficiency values from study (Table in nomenclature)
       chargeEfficiency: 0.95,  // ηc
       dischargeEfficiency: 0.95, // ηd
       roundTripEfficiency: 0.9025, // 95% * 95%
       
-      // Price thresholds (converted from study's Euro to cents)
-      optimalChargeThreshold: 8, // ¢/kWh - academic optimal
-      maxPriceThreshold: 10, // ¢/kWh - boss requirement: no charging above 10 cents
+      // Dynamic price thresholds (no fixed values)
+      pricePercentileThreshold: 0.3, // Charge when price is in bottom 30% of forecast
       
       // SOC boundaries from study assumptions
       socMin: 0.20, // 20% minimum (SOCmin)
@@ -97,9 +96,9 @@ class AIChargingEngine {
     
     const sizeCategory = this.getBatterySizeCategory();
     
-    console.log('✅ AI Charging Engine initialized (Academic Study Enhanced)');
-    console.log(`   • Strategy: ${this.aiEnabled ? 'AI-Powered Pattern Learning' : 'Dynamic tariff optimization'} (12.7% improvement potential)`);
-    console.log(`   • Threshold: ≤${this.academicParams.optimalChargeThreshold}¢/kWh (academic optimal)`);
+    console.log('✅ AI Charging Engine initialized (Dynamic Pricing Enhanced)');
+    console.log(`   • Strategy: ${this.aiEnabled ? 'AI-Powered Pattern Learning' : 'Dynamic lowest price optimization'}`);
+    console.log(`   • Threshold: Bottom ${(this.academicParams.pricePercentileThreshold * 100).toFixed(0)}% of forecast prices`);
     console.log(`   • Battery: ${this.config.batteryCapacity} kWh (${sizeCategory.category} - ${this.batteryDetection.detectionMethod})`);
     console.log(`   • Category: ${sizeCategory.description}`);
     console.log(`   • Efficiency: ${(this.academicParams.roundTripEfficiency * 100).toFixed(1)}% round-trip`);
@@ -347,16 +346,16 @@ class AIChargingEngine {
 
   async evaluate() {
     try {
-      const tibberStatus = tibberService.getStatus();
-      
       if (!this.enabled) {
         return { decision: 'IDLE', reasons: ['AI charging engine is disabled'] };
       }
 
-      if (!tibberStatus.enabled || !tibberStatus.configured) {
+      // Try to refresh pricing data (Tibber or SMARD)
+      const pricingAvailable = await tibberService.refreshData();
+      if (!pricingAvailable) {
         return { 
           decision: 'IDLE', 
-          reasons: ['Tibber integration not configured'] 
+          reasons: ['No pricing data available - trying SMARD fallback'] 
         };
       }
 
@@ -367,6 +366,11 @@ class AIChargingEngine {
       const gridVoltage = this.currentSystemState?.grid_voltage || 0;
       const currentPrice = tibberService.cache.currentPrice;
       const config = tibberService.config;
+      
+      // Add source information to reasons
+      if (tibberService.cache.source) {
+        reasons.push(`Using ${tibberService.cache.source.toUpperCase()} pricing data`);
+      }
 
       // AI-Powered Decision Making
       if (this.aiEnabled && this.aiInitialized) {
@@ -421,14 +425,14 @@ class AIChargingEngine {
           if (thresholds.isNegative) {
             shouldCharge = true;
             reasons.push(`NEGATIVE PRICE ARBITRAGE: Getting paid ${Math.abs(thresholds.current).toFixed(2)}¢/kWh`);
-          } else if (thresholds.current <= this.academicParams.optimalChargeThreshold) {
+          } else if (thresholds.current <= thresholds.dynamicCharge) {
             shouldCharge = true;
-            reasons.push(`ACADEMIC OPTIMAL: ${thresholds.current.toFixed(2)}¢ ≤ ${this.academicParams.optimalChargeThreshold}¢/kWh`);
-            reasons.push(`Expected improvement: +${strategy.expectedImprovement}% vs fixed tariff`);
+            reasons.push(`DYNAMIC OPTIMAL: ${thresholds.current.toFixed(2)}¢ ≤ ${thresholds.dynamicCharge.toFixed(2)}¢/kWh (bottom ${(thresholds.percentile * 100).toFixed(0)}%)`);
+            reasons.push(`Charging at lowest ${(thresholds.percentile * 100).toFixed(0)}% of forecast prices`);
           }
           
           if (optimization.shouldDischarge && batterySOC > 30) {
-            reasons.push(`PEAK PRICE DISCHARGE: ${thresholds.current.toFixed(2)}¢/kWh (volatility: ${(optimization.volatility * 100).toFixed(1)}%)`);
+            reasons.push(`PEAK PRICE DISCHARGE: ${thresholds.current.toFixed(2)}¢/kWh (top 20% of prices, volatility: ${(optimization.volatility * 100).toFixed(1)}%)`);
           }
         }
       } else {
@@ -439,12 +443,7 @@ class AIChargingEngine {
         }
       }
 
-      // Safety overrides
-      if (currentPrice?.total > this.academicParams.maxPriceThreshold) {
-        shouldStop = true;
-        reasons.push(`Price ${currentPrice.total.toFixed(1)}¢ too expensive`);
-      }
-
+      // No fixed price safety overrides - use dynamic thresholds only
       if (batterySOC >= config.targetSoC) {
         shouldStop = true;
         reasons.push(`Target SOC reached: ${batterySOC}%`);
@@ -477,8 +476,9 @@ class AIChargingEngine {
     }
   }
 
-  // Academic study-based optimization (replaces old method)
+  // Dynamic price optimization with unified pricing
   async academicOptimization() {
+    // Use tibberService which now includes SMARD fallback
     const forecast = tibberService.cache.forecast || [];
     const currentPrice = tibberService.cache.currentPrice;
     const batterySOC = this.currentSystemState?.battery_soc || 0;
@@ -490,31 +490,29 @@ class AIChargingEngine {
     // Calculate net load pnet(t) from study equation (1)
     const netLoad = load - pvPower;
     
-    // Academic study parameters
-    const feedInTariff = this.academicParams.feedInTariff / 100; // Convert to $/kWh
-    const ηc = this.academicParams.chargeEfficiency;
-    const ηd = this.academicParams.dischargeEfficiency;
-    
     // Get next 24 hours forecast (day-ahead as per study)
     const next24h = forecast.slice(0, 24).map(p => p.total);
     
     if (next24h.length === 0) return null;
-    
+
     const maxPrice = Math.max(...next24h);
     const minPrice = Math.min(...next24h);
     const avgPrice = next24h.reduce((a, b) => a + b, 0) / next24h.length;
     
-    // Price volatility indicator (from study findings)
+    // Calculate dynamic thresholds based on price distribution
+    const sortedPrices = [...next24h].sort((a, b) => a - b);
+    const percentileIndex = Math.floor(sortedPrices.length * this.academicParams.pricePercentileThreshold);
+    const dynamicChargeThreshold = sortedPrices[percentileIndex];
+    
+    // Price volatility indicator
     const volatility = (maxPrice - minPrice) / avgPrice;
     
-    // Academic optimal threshold: ≤8¢/kWh
-    const isOptimalPrice = currentPrice.total <= this.academicParams.optimalChargeThreshold;
+    // Dynamic optimal threshold: bottom 30% of forecast prices
+    const isOptimalPrice = currentPrice.total <= dynamicChargeThreshold;
     
-    // High price threshold for discharge (study: maximize value during peaks)
-    const isHighPriceHour = currentPrice.total >= maxPrice * 0.9;
-    
-    // Enhanced decision logic based on study equations
-    // Equation context: minimize annual electricity costs considering efficiency losses
+    // High price threshold for discharge (top 20% of prices)
+    const dischargeThreshold = sortedPrices[Math.floor(sortedPrices.length * 0.8)];
+    const isHighPriceHour = currentPrice.total >= dischargeThreshold;
     
     return {
       shouldCharge: (isOptimalPrice || currentPrice.total < 0) && batterySOC < 90,
@@ -523,12 +521,14 @@ class AIChargingEngine {
       volatility: volatility,
       efficiency: this.academicParams.roundTripEfficiency,
       thresholds: {
-        optimal: this.academicParams.optimalChargeThreshold,
+        dynamicCharge: dynamicChargeThreshold,
+        dynamicDischarge: dischargeThreshold,
         current: currentPrice.total,
         isNegative: currentPrice.total < 0,
         max24h: maxPrice,
         min24h: minPrice,
-        avg24h: avgPrice
+        avg24h: avgPrice,
+        percentile: this.academicParams.pricePercentileThreshold
       },
       academicStrategy: this.selectOptimalStrategy().name
     };
@@ -556,9 +556,9 @@ class AIChargingEngine {
         return `CHARGE GRID - NEGATIVE PRICE ARBITRAGE: ${Math.abs(currentPrice.total).toFixed(2)}¢/kWh (Study: 12.7% gain potential)`;
       }
       if (optimization?.priceLevel === 'OPTIMAL') {
-        return `CHARGE GRID - ACADEMIC OPTIMAL: ${currentPrice.total.toFixed(2)}¢ ≤ 8¢/kWh (Strategy: ${strategy.name}, SOC: ${batterySOC}%)`;
+        return `CHARGE GRID - DYNAMIC OPTIMAL: ${currentPrice.total.toFixed(2)}¢ ≤ ${optimization.thresholds.dynamicCharge.toFixed(2)}¢/kWh (Strategy: ${strategy.name}, SOC: ${batterySOC}%)`;
       }
-      return `CHARGE GRID - Below threshold (SOC: ${batterySOC}%, Strategy: ${strategy.name})`;
+      return `CHARGE GRID - Lowest price period (SOC: ${batterySOC}%, Strategy: ${strategy.name})`;
     }
     
     // DISCHARGE scenarios (peak arbitrage from study)
@@ -663,8 +663,8 @@ class AIChargingEngine {
       return 'Solar and utility simultaneously';
     }
     
-    // Academic optimal price (≤8¢/kWh) - enable grid charging
-    if (currentPrice && currentPrice.total <= this.academicParams.optimalChargeThreshold) {
+    // Dynamic optimal price (bottom 30% of forecast) - enable grid charging
+    if (currentPrice && optimization?.priceLevel === 'OPTIMAL') {
       return 'Solar and utility simultaneously';
     }
     
@@ -708,8 +708,8 @@ class AIChargingEngine {
       return 'Battery first';
     }
     
-    // Low battery + cheap electricity - charge battery first
-    if (batterySOC < 30 && currentPrice && currentPrice.total <= this.academicParams.optimalChargeThreshold) {
+    // Low battery + cheap electricity (dynamic threshold) - charge battery first
+    if (batterySOC < 30 && optimization?.priceLevel === 'OPTIMAL') {
       return 'Battery first';
     }
     
@@ -718,8 +718,8 @@ class AIChargingEngine {
       return 'Load first';
     }
     
-    // Expensive electricity - use battery to supply load
-    if (currentPrice && currentPrice.total > this.academicParams.optimalChargeThreshold && batterySOC > 40) {
+    // Expensive electricity (dynamic threshold) - use battery to supply load
+    if (optimization?.priceLevel === 'HIGH' && batterySOC > 40) {
       return 'Load first';
     }
     

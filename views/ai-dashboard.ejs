@@ -294,8 +294,13 @@ async function loadTibberData() {
             console.log('Tibber forecast length:', data.data.forecast ? data.data.forecast.length : 0);
             updateTibberDisplay(data.data, data.status);
         } else {
-            console.log('Tibber error:', data.error);
-            updateTibberStatus('disconnected', data.error || 'Not configured');
+            console.log('Tibber error or using SMARD fallback:', data.error);
+            // Check if we're using SMARD fallback
+            if (data.error && data.error.includes('SMARD')) {
+                updateTibberStatus('connected', 'Using SMARD (German market data)');
+            } else {
+                updateTibberStatus('disconnected', data.error || 'Not configured');
+            }
         }
     } catch (error) {
         console.error('Error loading Tibber data:', error);

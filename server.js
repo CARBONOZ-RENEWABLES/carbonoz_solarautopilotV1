@@ -5493,6 +5493,22 @@ app.get('/api/tibber/prices', async (req, res) => {
     
     // Check if Tibber is configured (only API key required now)
     if (!status.configured) {
+      // Try SMARD fallback
+      try {
+        const smardSuccess = await tibberService.refreshData();
+        if (smardSuccess && tibberService.cache.source === 'smard') {
+          const data = tibberService.getCachedData();
+          return res.json({
+            success: true,
+            data,
+            status: { ...status, source: 'smard' },
+            message: 'Using SMARD (German market data) as fallback'
+          });
+        }
+      } catch (smardError) {
+        console.log('SMARD fallback also failed:', smardError.message);
+      }
+      
       return res.json({
         success: false,
         error: 'Tibber not configured. Please configure API key in settings.',

@@ -1,10 +1,10 @@
 {
   "enabled": true,
-  "apiKey": "3A77EECF61BD445F47241A5A36202185C35AF3AF58609E19B53F3A8872AD7BE1-1",
+  "apiKey": "7",
   "homeId": "",
   "country": "DE",
   "timezone": "Europe/Berlin",
-  "currency": "cent",
+  "currency": "EUR",
   "targetSoC": 80,
   "minimumSoC": 20,
   "maxPriceThreshold": null,

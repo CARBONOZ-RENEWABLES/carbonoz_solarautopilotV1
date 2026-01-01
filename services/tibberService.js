@@ -12,12 +12,20 @@ class TibberService {
       priceInfo: null,
       forecast: [],
       consumption: null,
-      timestamp: null
+      timestamp: null,
+      source: null
     };
     this.lastUpdate = null;
     this.retryAttempts = 3;
     this.retryDelay = 2000;
     this.influxCacheLoaded = false;
+    
+    // SMARD fallback configuration
+    this.smardConfig = {
+      baseUrl: 'https://www.smard.de/app/chart_data',
+      filter: '4169', // Day-ahead auction prices
+      enabled: true
+    };
   }
 
   loadConfig() {
@@ -669,37 +677,47 @@ class TibberService {
 
   async refreshData() {
     try {
-      if (!this.config.enabled) {
-        console.log('ℹ️  Tibber disabled');
-        return false;
-      }
-
-      if (!this.config.apiKey || this.config.apiKey === '***' || this.config.apiKey === '') {
-        console.log('⚠️  No valid API key');
-        return false;
-      }
-
-      console.log('🔄 Refreshing Tibber data...');
+      console.log('🔄 Refreshing pricing data...');
       
-      // Check if we have recent cached data (less than 1 hour old)
-      const cacheAge = this.cache.timestamp ? (Date.now() - this.cache.timestamp) / 1000 / 60 : null;
-      if (cacheAge && cacheAge < 60 && this.cache.currentPrice) {
-        console.log(`💾 Using cached data (${Math.round(cacheAge)} minutes old)`);
-      }
+      // Try Tibber first if properly configured (enabled AND has API key)
+      const hasValidApiKey = this.config.apiKey && 
+                            typeof this.config.apiKey === 'string' && 
+                            this.config.apiKey.length > 30 && 
+                            this.config.apiKey !== '***';
       
-      try {
-        await this.getCurrentPriceInfo();
-        console.log('✅ Data refreshed successfully');
-        return true;
-      } catch (error) {
-        // If we have cached data, use it and don't fail completely
-        if (this.cache.currentPrice && this.cache.timestamp) {
-          const cacheAgeMinutes = Math.round((Date.now() - this.cache.timestamp) / 1000 / 60);
-          console.log(`⚠️  API failed, using cached data (${cacheAgeMinutes} minutes old)`);
-          return true; // Return success since we have fallback data
+      if (this.config.enabled && hasValidApiKey) {
+        try {
+          console.log('📊 Attempting Tibber API with valid key...');
+          await this.getCurrentPriceInfo();
+          this.cache.source = 'tibber';
+          console.log('✅ Tibber data refreshed successfully');
+          return true;
+        } catch (tibberError) {
+          console.log('⚠️ Tibber failed, trying SMARD fallback:', tibberError.message);
         }
-        throw error; // Re-throw if no cached data available
+      } else {
+        console.log('ℹ️ Tibber not properly configured:', {
+          enabled: this.config.enabled,
+          hasApiKey: !!this.config.apiKey,
+          keyLength: this.config.apiKey ? this.config.apiKey.length : 0
+        });
+        console.log('ℹ️ Using SMARD fallback');
       }
+      
+      // Fallback to SMARD
+      try {
+        console.log('📊 Attempting SMARD API...');
+        await this.getSMARDPrices();
+        this.cache.source = 'smard';
+        console.log('✅ SMARD data refreshed successfully');
+        return true;
+      } catch (smardError) {
+        console.error('❌ Both Tibber and SMARD failed');
+        console.error('Tibber:', this.config.enabled && this.config.apiKey ? 'API error' : 'Not configured');
+        console.error('SMARD:', smardError.message);
+        return false;
+      }
+      
     } catch (error) {
       console.error('❌ Refresh error:', error.message);
       return false;
@@ -777,9 +795,14 @@ class TibberService {
   }
 
   getStatus() {
+    const hasValidApiKey = this.config.apiKey && 
+                          typeof this.config.apiKey === 'string' && 
+                          this.config.apiKey.length > 30 && 
+                          this.config.apiKey !== '***';
+    
     return {
       enabled: this.config.enabled,
-      configured: !!(this.config.apiKey && this.config.apiKey !== '***'),
+      configured: hasValidApiKey,
       lastUpdate: this.lastUpdate ? this.lastUpdate.toISOString() : null,
       hasCachedData: !!(this.cache.currentPrice && this.cache.forecast.length > 0),
       currentPrice: this.cache.currentPrice ? {
@@ -789,7 +812,104 @@ class TibberService {
       } : null,
       priceIsGood: this.cache.currentPrice ? this.isPriceGood() : false,
       forecastHours: this.cache.forecast.length,
-      cacheAge: this.cache.timestamp ? Math.floor((Date.now() - this.cache.timestamp) / 1000) : null
+      cacheAge: this.cache.timestamp ? Math.floor((Date.now() - this.cache.timestamp) / 1000) : null,
+      source: this.cache.source || 'unknown'
+    };
+  }
+
+  // SMARD API integration
+  async getSMARDPrices() {
+    const timestamps = await this.fetchSMARDTimestamps();
+    if (!timestamps.length) throw new Error('No SMARD timestamps available');
+
+    const latestTimestamp = Math.max(...timestamps);
+    const rawPrices = await this.fetchSMARDData(latestTimestamp);
+    if (!rawPrices.length) throw new Error('No SMARD price data available');
+
+    const processedData = this.processSMARDData(rawPrices);
+    
+    // Update cache with SMARD data
+    this.cache.currentPrice = processedData.current;
+    this.cache.forecast = [...processedData.today, ...processedData.tomorrow];
+    this.cache.priceInfo = {
+      current: processedData.current,
+      today: processedData.today,
+      tomorrow: processedData.tomorrow
+    };
+    this.cache.timestamp = Date.now();
+    this.lastUpdate = new Date();
+    
+    await this.saveCache();
+    return processedData;
+  }
+
+  async fetchSMARDTimestamps() {
+    const url = `${this.smardConfig.baseUrl}/${this.smardConfig.filter}/DE/index_hour.json`;
+    const response = await axios.get(url, { timeout: 10000 });
+    return response.data.timestamps || [];
+  }
+
+  async fetchSMARDData(timestamp) {
+    const url = `${this.smardConfig.baseUrl}/${this.smardConfig.filter}/DE/${this.smardConfig.filter}_DE_hour_${timestamp}.json`;
+    const response = await axios.get(url, { timeout: 10000 });
+    return response.data.series || [];
+  }
+
+  processSMARDData(rawData) {
+    const nowTs = Date.now();
+
+    const processedPrices = rawData
+      .filter(([ts, price]) => price !== null && price !== undefined)
+      .map(([timestamp, priceEurMWh]) => {
+        const priceCtKWh = priceEurMWh / 10; // €/MWh → ct/kWh
+
+        return {
+          startsAt: new Date(timestamp).toISOString(),
+          timestamp,
+          hour: new Date(timestamp).getHours(),
+          total: priceCtKWh,
+          energy: priceCtKWh * 0.35,
+          tax: priceCtKWh * 0.65,
+          currency: 'cent',
+          level: null
+        };
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    // Calculate dynamic price levels
+    if (processedPrices.length > 0) {
+      const sortedPrices = [...processedPrices].sort((a, b) => a.total - b.total);
+      const minPrice = sortedPrices[0].total;
+      const maxPrice = sortedPrices[sortedPrices.length - 1].total;
+      const priceRange = maxPrice - minPrice;
+
+      processedPrices.forEach(p => {
+        const relativePosition = (p.total - minPrice) / priceRange;
+        
+        if (relativePosition <= 0.2) p.level = 'VERY_CHEAP';
+        else if (relativePosition <= 0.4) p.level = 'CHEAP';
+        else if (relativePosition <= 0.6) p.level = 'NORMAL';
+        else if (relativePosition <= 0.8) p.level = 'EXPENSIVE';
+        else p.level = 'VERY_EXPENSIVE';
+      });
+    }
+
+    const todayPrices = processedPrices.filter(p =>
+      p.timestamp >= nowTs &&
+      p.timestamp < nowTs + 24 * 60 * 60 * 1000
+    );
+
+    const tomorrowPrices = processedPrices.filter(p =>
+      p.timestamp >= nowTs + 24 * 60 * 60 * 1000 &&
+      p.timestamp < nowTs + 48 * 60 * 60 * 1000
+    );
+
+    const currentPrice = processedPrices.find(p => p.timestamp >= nowTs) || null;
+
+    return {
+      current: currentPrice,
+      today: todayPrices,
+      tomorrow: tomorrowPrices
     };
   }
 
