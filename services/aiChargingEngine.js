@@ -785,8 +785,48 @@ class AIChargingEngine {
       clearInterval(this.evaluationInterval);
       this.evaluationInterval = null;
     }
+    
+    // Automatically stop battery charging from grid when AI is stopped
+    this.stopBatteryChargingFromGrid();
+    
     console.log('ℹ️ AI Charging Engine stopped');
     return { success: true, message: 'AI Charging Engine stopped' };
+  }
+
+  stopBatteryChargingFromGrid() {
+    if (!this.mqttClient) {
+      console.log('⚠️ MQTT client not available, cannot stop grid charging');
+      return;
+    }
+    
+    console.log('🔋 Stopping battery charging from grid...');
+    
+    for (let i = 1; i <= this.config.inverterNumber; i++) {
+      const inverterId = `inverter_${i}`;
+      const inverterType = this.config.inverterTypes[inverterId]?.type || 'unknown';
+      
+      if (inverterType === 'new' || inverterType === 'hybrid') {
+        // New inverter commands
+        const chargerTopic = `${this.config.mqttTopicPrefix}/${inverterId}/charger_source_priority/set`;
+        const outputTopic = `${this.config.mqttTopicPrefix}/${inverterId}/output_source_priority/set`;
+        
+        this.mqttClient.publish(chargerTopic, 'Solar first');
+        this.mqttClient.publish(outputTopic, 'Solar/Battery/Utility');
+        console.log(`📤 ${inverterId}: charger_source_priority = Solar first`);
+        console.log(`📤 ${inverterId}: output_source_priority = Solar/Battery/Utility`);
+      } else {
+        // Legacy inverter commands
+        const gridChargeTopic = `${this.config.mqttTopicPrefix}/${inverterId}/grid_charge/set`;
+        const energyPatternTopic = `${this.config.mqttTopicPrefix}/${inverterId}/energy_pattern/set`;
+        
+        this.mqttClient.publish(gridChargeTopic, 'Disabled');
+        this.mqttClient.publish(energyPatternTopic, 'Battery first');
+        console.log(`📤 ${inverterId}: grid_charge = Disabled`);
+        console.log(`📤 ${inverterId}: energy_pattern = Battery first`);
+      }
+    }
+    
+    console.log('✅ Grid charging stopped on all inverters');
   }
 
   async learnFromOutcomes() {
