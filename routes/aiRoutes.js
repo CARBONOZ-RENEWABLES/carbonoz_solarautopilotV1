@@ -134,30 +134,24 @@ router.get('/ai/performance', async (req, res) => {
 router.post('/ai/toggle', async (req, res) => {
   try {
     const aiChargingEngine = require('../services/aiChargingEngine');
-    const { enabled } = req.body;
     
-    if (enabled && !aiChargingEngine.aiInitialized) {
-      // Try to initialize AI system
-      const aiResult = await aiChargingEngine.aiSystem.initialize(global.influx, require('../services/tibberService'));
-      if (aiResult.success) {
-        aiChargingEngine.aiInitialized = true;
-        aiChargingEngine.aiEnabled = true;
-      } else {
-        return res.json({
-          success: false,
-          error: 'Failed to initialize AI system'
-        });
-      }
+    if (aiChargingEngine.enabled) {
+      // Stop AI and stop grid charging
+      aiChargingEngine.stop();
+      res.json({
+        success: true,
+        enabled: false,
+        message: 'AI stopped and grid charging disabled'
+      });
     } else {
-      aiChargingEngine.aiEnabled = enabled;
+      // Start AI
+      const result = await aiChargingEngine.start();
+      res.json({
+        success: result.success,
+        enabled: true,
+        message: result.message
+      });
     }
-    
-    res.json({
-      success: true,
-      aiEnabled: aiChargingEngine.aiEnabled,
-      aiInitialized: aiChargingEngine.aiInitialized,
-      message: `AI system ${enabled ? 'enabled' : 'disabled'}`
-    });
   } catch (error) {
     res.status(500).json({
       success: false,

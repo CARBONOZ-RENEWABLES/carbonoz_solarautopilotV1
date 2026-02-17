@@ -94,9 +94,9 @@ function updateTibberDisplay(data, status) {
     if (data.currentPrice) {
         // Update current price
         document.getElementById('current-price').textContent = 
-            `${data.currentPrice.total.toFixed(3)} €/kWh`;
+            `${data.currentPrice.total.toFixed(2)} ¢/kWh`;
         document.getElementById('main-price').textContent = 
-            data.currentPrice.total.toFixed(3);
+            data.currentPrice.total.toFixed(2);
         document.getElementById('main-price-level').textContent = 
             data.currentPrice.level || 'NORMAL';
         
@@ -117,7 +117,7 @@ function updateTibberDisplay(data, status) {
         );
         if (nextHour) {
             document.getElementById('next-hour-price').textContent = 
-                `${nextHour.total.toFixed(3)} €`;
+                `${nextHour.total.toFixed(2)} ¢`;
         }
         
         // Find cheapest price today
@@ -130,7 +130,7 @@ function updateTibberDisplay(data, status) {
                 item.total < min.total ? item : min
             );
             document.getElementById('cheapest-price').textContent = 
-                `${cheapest.total.toFixed(3)} € at ${new Date(cheapest.startsAt).getHours()}:00`;
+                `${cheapest.total.toFixed(2)} ¢ at ${new Date(cheapest.startsAt).getHours()}:00`;
         }
         
         // Update price chart (simple visualization)
@@ -195,7 +195,7 @@ function updatePriceChart(forecast) {
             <div class="price-bar-container ${isCurrentHour ? 'current-hour' : ''}">
                 <div class="price-bar" 
                      style="height: ${height}px" 
-                     title="${hour}:00\n${item.total.toFixed(3)}€/kWh\n${(item.level || 'NORMAL').replace('_', ' ')}">
+                     title="${hour}:00\n${item.total.toFixed(2)}¢/kWh\n${(item.level || 'NORMAL').replace('_', ' ')}">
                     <div class="price-bar-fill ${level}">
                         ${isCurrentHour ? '<div class="current-indicator"></div>' : ''}
                     </div>
@@ -213,7 +213,7 @@ function updatePriceChart(forecast) {
         </div>
         <div class="price-chart-label">
             <i class="fas fa-clock" style="margin-right: 4px;"></i>
-            ${availableHours}h Forecast: ${minPrice.toFixed(2)}€ - ${maxPrice.toFixed(2)}€ (avg: ${avgPrice.toFixed(2)}€)
+            ${availableHours}h Forecast: ${minPrice.toFixed(2)}¢ - ${maxPrice.toFixed(2)}¢ (avg: ${avgPrice.toFixed(2)}¢)
         </div>
     `;
 }
