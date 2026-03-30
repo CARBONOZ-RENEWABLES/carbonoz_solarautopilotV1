@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Required - CARBONOZ SolarAutopilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+    .animated-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .solar-panel {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      animation: float 6s ease-in-out infinite;
+      opacity: 0.4;
+    }
+    .solar-panel::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+      border: 2px solid #60a5fa;
+      border-radius: 4px;
+      box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    .solar-panel::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(96, 165, 250, 0.3) 18px, rgba(96, 165, 250, 0.3) 20px),
+                  repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(96, 165, 250, 0.3) 18px, rgba(96, 165, 250, 0.3) 20px);
+    }
+    .battery {
+      position: absolute;
+      width: 50px;
+      height: 80px;
+      animation: float 8s ease-in-out infinite;
+      opacity: 0.4;
+    }
+    .battery::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #065f46 0%, #047857 30%, #10b981 100%);
+      border: 2px solid #34d399;
+      border-radius: 8px;
+      box-shadow: inset 0 -20px 30px rgba(16, 185, 129, 0.4);
+    }
+    .battery::after {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 10px;
+      background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+      border: 2px solid #34d399;
+      border-radius: 3px 3px 0 0;
+      box-shadow: 0 -2px 8px rgba(52, 211, 153, 0.5);
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(5deg); }
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: #fee;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: #dc2626;
+      fill: none;
+      stroke-width: 2;
+    }
+    h1 {
+      font-size: 28px;
+      color: #111;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+    p {
+      color: #666;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .features {
+      text-align: left;
+      margin-bottom: 32px;
+    }
+    .features-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      font-size: 14px;
+      color: #666;
+    }
+    .feature svg {
+      width: 16px;
+      height: 16px;
+      stroke: #16a34a;
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, rgb(217, 119, 6) 0%, rgb(245, 158, 11) 45%, rgb(251, 191, 36) 100%);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+    }
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+    }
+    .footer {
+      margin-top: 24px;
+      color: #999;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="animated-bg" id="animatedBg"></div>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    
+    <h1>Subscription Required</h1>
+    
+    <p>Your subscription has expired or is not active. Please subscribe to continue using CARBONOZ SolarAutopilot.</p>
+    
+    <div class="features">
+      <div class="features-title">Included features:</div>
+      <div id="features-list">
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Full platform access
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          SolarAutopilot integration
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Real-time monitoring
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Carbon intensity tracking
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Analytics & reports
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Priority support
+        </div>
+      </div>
+    </div>
+    
+    <a href="https://login.carbonoz.com" target="_blank" rel="noopener noreferrer" class="btn">
+      Subscribe Now
+      <svg viewBox="0 0 24 24">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    </a>
+    
+    <div class="footer">
+      Already subscribed? The system will automatically reconnect within 5 minutes.
+    </div>
+  </div>
+  
+  <script>
+    const bg = document.getElementById('animatedBg');
+    for (let i = 0; i < 8; i++) {
+      const solar = document.createElement('div');
+      solar.className = 'solar-panel';
+      solar.style.left = Math.random() * 100 + '%';
+      solar.style.top = Math.random() * 100 + '%';
+      solar.style.animationDelay = Math.random() * 6 + 's';
+      bg.appendChild(solar);
+      
+      const battery = document.createElement('div');
+      battery.className = 'battery';
+      battery.style.left = Math.random() * 100 + '%';
+      battery.style.top = Math.random() * 100 + '%';
+      battery.style.animationDelay = Math.random() * 8 + 's';
+      bg.appendChild(battery);
+    }
+    
+    fetch('https://login.carbonoz.com/api/v1/billing/plans')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data[0]?.features?.length > 0) {
+          const list = document.getElementById('features-list');
+          list.innerHTML = data.data[0].features.map(f => `
+            <div class="feature">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              ${f}
+            </div>
+          `).join('');
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

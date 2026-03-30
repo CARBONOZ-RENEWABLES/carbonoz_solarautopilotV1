@@ -9,6 +9,7 @@ arch:
   - armhf
   - armv7
   - i386
+host_network: true
 map:
   - share:rw
   - ssl
@@ -33,19 +34,19 @@ startup: application
 init: false
 memory_limit: 512mb
 options:
+  clientId: ""
+  clientSecret: ""
   mqtt_username: ""
   mqtt_password: ""
   mqtt_topic_prefix: ""
   battery_number: 1
   inverter_number: 1
-  clientId: ""
-  clientSecret: ""
 schema:
+  clientId: "str"
+  clientSecret: "password"
   mqtt_username: "str?"
   mqtt_password: "password?"
   mqtt_topic_prefix: "str"
   battery_number: "int(1,)"
   inverter_number: "int(1,)"
-  clientId: "str"
-  clientSecret: "password"
 panel: true

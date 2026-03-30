@@ -10,10 +10,11 @@ const WebSocket = require('ws')
 const retry = require('async-retry')
 const axios = require('axios')
 const { backOff } = require('exponential-backoff')
-const socketPort = 8000
+const socketPort = 9000
 const app = express()
 const port = process.env.PORT || 6789
-const { http } = require('follow-redirects')
+const http = require('http')
+const server = http.createServer(app)
 const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
@@ -22,17 +23,39 @@ const cron = require('node-cron')
 const session = require('express-session');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const { startOfDay } = require('date-fns')
-const { AuthenticateUser } = require('./utils/mongoService')
+const { AuthenticateUser, CheckSubscriptionStatus, StartSubscriptionMonitoring, StopSubscriptionMonitoring, GetSubscriptionStatus } = require('./utils/mongoService')
 const telegramService = require('./services/telegramService');
 const warningService = require('./services/warningService');
 const notificationRoutes = require('./routes/notificationRoutes');
 const notificationService = require('./services/notificationService');
 const tibberService = require('./services/tibberService');
 const aiChargingEngine = require('./services/aiChargingEngine');
+const { sendAiChargingUpdate } = require('./services/aiChargingIntegration');
 const memoryMonitor = require('./utils/memoryMonitor');
 
 // Start memory monitoring
 memoryMonitor.start();
+
+// Create WebSocket server for frontend connections
+const wss = new WebSocket.Server({ port: socketPort });
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected');
+  
+  ws.on('message', (message) => {
+    console.log('Received:', message.toString());
+  });
+  
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+  });
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+});
+
+console.log(`WebSocket server listening on port ${socketPort}`);
 
 let aiEngineInitialized = false;
 
@@ -50,6 +73,20 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
+
+// Subscription check middleware
+let isSubscribed = false;
+app.use(async (req, res, next) => {
+  if (!isSubscribed) {
+    const authenticated = await AuthenticateUser(options);
+    isSubscribed = !!authenticated;
+  }
+  
+  if (!isSubscribed && !req.path.includes('/subscription-required')) {
+    return res.render('subscription-required');
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   if (req.path.includes('/hassio_ingress/')) {
@@ -111,12 +148,7 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 
 
 // Read configuration from Home Assistant add-on options
-let options;
-try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
-} catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
-}
+const options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'))
 
 // Optimized favicon handler
 app.get('/favicon.ico', (req, res) => {
@@ -1837,6 +1869,14 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 
 
 
+
+// Subscription required page - PUBLIC (no auth required)
+app.get('/subscription-required', (req, res) => {
+  res.render('subscription-required', {
+    ingress_path: process.env.INGRESS_PATH || ''
+  });
+});
+
  app.get('/analytics', async (req, res) => {
     try {
       const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
@@ -2804,6 +2844,8 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
   // ================ FORWARDING MESSAGES TO OUR BACKEND ================
   
   let heartbeatInterval = null;
+  let globalWsClient = null; // Global WebSocket client for message forwarding
+  let isWsAuthenticated = false; // Track if WebSocket is authenticated
   
   const connectToWebSocketBroker = async () => {
     let wsClient = null;
@@ -2878,7 +2920,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
       try {
         console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
         
-        const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+        const brokerServerUrl = `ws://192.168.160.185:8000`;
         
         wsClient = new WebSocket(brokerServerUrl);
   
@@ -2901,39 +2943,28 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
           
           try {
             const isUser = await AuthenticateUser(options);
-            console.log('Authentication Result:', { isUser });
+            console.log('WebSocket Authentication Result:', { isUser });
   
             if (isUser) {
+              globalWsClient = wsClient;
+              isWsAuthenticated = true;
               startHeartbeat(wsClient);
-  
-              mqttClient.on('message', (topic, message) => {
-                if (wsClient.readyState === WebSocket.OPEN) {
-                  try {
-                    const messageStr = message.toString();
-                    const maxSize = 10000;
-                    const truncatedMessage = messageStr.length > maxSize ? 
-                      messageStr.substring(0, maxSize) + '...[truncated]' : 
-                      messageStr;
-                    
-                    wsClient.send(
-                      JSON.stringify({
-                        mqttTopicPrefix,
-                        topic,
-                        message: truncatedMessage,
-                        userId: isUser,
-                        timestamp: new Date().toISOString()
-                      })
-                    );
-                  } catch (sendError) {
-                    console.error('Error sending message to WebSocket:', sendError);
-                  }
-                }
-              });
+              
+              // Send AI charging status every 30 seconds
+              setInterval(() => {
+                sendAiChargingUpdate(wsClient, isUser, aiChargingEngine, currentSystemState, tibberService);
+              }, 30000);
+              
+              console.log('✅ WebSocket authenticated and ready for message forwarding');
             } else {
-              console.warn('Authentication failed. Message forwarding disabled.');
+              globalWsClient = null;
+              isWsAuthenticated = false;
+              console.warn('⚠️  WebSocket authentication failed. Message forwarding disabled.');
             }
           } catch (authError) {
-            console.error('Authentication error:', authError);
+            console.error('WebSocket authentication error:', authError);
+            globalWsClient = null;
+            isWsAuthenticated = false;
           }
         });
   
@@ -2947,6 +2978,8 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
           clearTimeout(connectionTimeout);
           console.log(`WebSocket closed with code ${code}: ${reason || 'No reason provided'}. Reconnecting...`);
           stopHeartbeat();
+          globalWsClient = null;
+          isWsAuthenticated = false;
           
           setTimeout(connect, currentReconnectTimeout);
         });
@@ -4359,7 +4392,52 @@ function getMappingInfoForSettings(availableSettings) {
   // ================ MQTT and CRON SCHEDULING ================
 
 // Connect to MQTT with robust error handling
-function connectToMqtt() {
+async function connectToMqtt() {
+    // Check subscription before connecting to MQTT
+    console.log('🔐 Verifying subscription before MQTT connection...');
+    const isAuthenticated = await AuthenticateUser(options);
+    
+    // Start subscription monitoring ALWAYS (even if not authenticated initially)
+    // This allows detection of subscription grants while app is running
+    StartSubscriptionMonitoring(options, (hasAccess) => {
+      if (!hasAccess) {
+        console.error('❌❌❌ SUBSCRIPTION REVOKED - Disconnecting MQTT ❌❌❌');
+        isSubscribed = false;
+        
+        // Disconnect MQTT
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.end(true);
+          console.log('🔌 MQTT disconnected due to subscription revocation');
+        }
+        
+        // Stop AI engine
+        if (aiEngineInitialized && aiChargingEngine) {
+          aiChargingEngine.stop();
+          aiEngineInitialized = false;
+          console.log('⏹️  AI Engine stopped due to subscription revocation');
+        }
+      } else if (hasAccess && (!mqttClient || !mqttClient.connected)) {
+        console.log('✅✅✅ SUBSCRIPTION GRANTED - Connecting MQTT ✅✅✅');
+        isSubscribed = true;
+        
+        // Connect MQTT (will auto-initialize AI engine on connect)
+        setTimeout(() => {
+          connectToMqtt();
+        }, 2000);
+      }
+    });
+    
+    if (!isAuthenticated) {
+      console.error('❌ No active subscription - MQTT connection blocked');
+      console.error('⚠️  Please subscribe at https://login.carbonoz.com to use this application');
+      console.log('🔄 Subscription monitoring active - will auto-connect when access is granted');
+      isSubscribed = false;
+      return;
+    }
+    
+    console.log('✅ Subscription verified - proceeding with MQTT connection');
+    isSubscribed = true;
+    
     mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
       username: mqttConfig.username,
       password: mqttConfig.password,
@@ -4389,6 +4467,7 @@ mqttClient.on('connect', async () => {
     })
   
     mqttClient.on('message', (topic, message) => {
+      console.log('📨 MQTT message received:', { topic, messageLength: message.length });
       const formattedMessage = `${topic}: ${message.toString()}`
       incomingMessages.push(formattedMessage)
       if (incomingMessages.length > MAX_MESSAGES) {
@@ -4397,6 +4476,32 @@ mqttClient.on('connect', async () => {
       
       // Call the enhanced MQTT message handler with inverter type detection
       handleMqttMessage(topic, message)
+      
+      // Forward to WebSocket broker if authenticated and connected
+      if (globalWsClient && isWsAuthenticated && globalWsClient.readyState === WebSocket.OPEN) {
+        try {
+          const messageStr = message.toString();
+          const maxSize = 10000;
+          const truncatedMessage = messageStr.length > maxSize ? 
+            messageStr.substring(0, maxSize) + '...[truncated]' : 
+            messageStr;
+          
+          const subscriptionStatus = GetSubscriptionStatus();
+          const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+          globalWsClient.send(
+            JSON.stringify({
+              mqttTopicPrefix,
+              topic,
+              message: truncatedMessage,
+              userId: subscriptionStatus?.userId || 'unknown',
+              timestamp: new Date().toISOString(),
+              carbonIntensityApiKey: settings.apiKey || ''
+            })
+          );
+        } catch (sendError) {
+          console.error('Error forwarding message to WebSocket:', sendError);
+        }
+      }
       
       // Always save messages to InfluxDB regardless of learner mode
       saveMessageToInfluxDB(topic, message)
@@ -5034,7 +5139,7 @@ cron.schedule('0,30 * * * *', () => {
 initializeConnections();
 
 // Enhanced server startup with additional status reporting
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`🚀 CARBONOZ SolarAutopilot Server running on port ${port}`);
   console.log(`📊 Monitoring ${inverterNumber} inverter(s) and ${batteryNumber} battery(ies)`);
   console.log(`📡 MQTT Topic Prefix: ${mqttTopicPrefix}`);
@@ -5352,6 +5457,105 @@ app.post('/api/tibber/initialize', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ================ SUBSCRIPTION AUTHENTICATION MIDDLEWARE ================
+
+// Middleware to check subscription status before serving pages
+async function requireSubscription(req, res, next) {
+  try {
+    // Skip subscription check for public routes
+    const publicRoutes = [
+      '/api/subscription/status',
+      '/subscription-required',
+      '/api/config/check',
+      '/api/config/save',
+      '/favicon.ico'
+    ];
+    
+    // Check if current path is public
+    const isPublicRoute = publicRoutes.some(route => req.path === route || req.path.startsWith(route));
+    
+    if (isPublicRoute) {
+      return next();
+    }
+    
+    // Check if credentials are configured
+    if (!isSubscribed) {
+      console.log('⚠️  No credentials configured - redirecting to subscription page');
+      return res.redirect('/subscription-required');
+    }
+    
+    // Check subscription status
+    const hasAccess = await CheckSubscriptionStatus({ clientId, clientSecret });
+    
+    if (!hasAccess) {
+      console.log('❌ No active subscription - access denied to:', req.path);
+      
+      // For API requests, return JSON error
+      if (req.path.startsWith('/api/')) {
+        return res.status(403).json({
+          error: 'Subscription required',
+          message: 'Please subscribe at https://login.carbonoz.com to access this feature',
+          hasAccess: false
+        });
+      }
+      
+      // For page requests, redirect to subscription page
+      return res.redirect('/subscription-required');
+    }
+    
+    // Subscription is valid, allow access
+    next();
+  } catch (error) {
+    console.error('Error checking subscription in middleware:', error);
+    
+    // On error, deny access for security
+    if (req.path.startsWith('/api/')) {
+      return res.status(500).json({
+        error: 'Authentication error',
+        message: 'Unable to verify subscription status'
+      });
+    }
+    
+    return res.redirect('/subscription-required');
+  }
+}
+
+// Apply subscription middleware to all routes except public ones
+app.use(requireSubscription);
+
+console.log('🔒 Subscription authentication middleware enabled');
+
+// Subscription status check
+app.get('/api/subscription/status', async (req, res) => {
+  try {
+    if (!isSubscribed) {
+      return res.json({ hasAccess: false, reason: 'not_configured' })
+    }
+    
+    const status = GetSubscriptionStatus();
+    
+    if (!status) {
+      return res.json({ 
+        hasAccess: false, 
+        message: 'Subscription status not yet checked',
+        mqttConnected: mqttClient?.connected || false
+      });
+    }
+    
+    res.json({ 
+      hasAccess: status.hasAccess,
+      userId: status.userId,
+      checkedAt: status.checkedAt,
+      error: status.error,
+      mqttConnected: mqttClient?.connected || false,
+      aiEngineActive: aiEngineInitialized && aiChargingEngine?.getStatus()?.enabled
+    });
+  } catch (error) {
+    console.error('Error checking subscription:', error)
+    res.json({ hasAccess: false, reason: 'error' })
+  }
+})
 
 // Get config
 app.get('/api/tibber/config', (req, res) => {

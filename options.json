@@ -5,5 +5,7 @@
     "mqtt_host": "homeassistant-andreas-raspberry.zebu-beaufort.ts.net",
     "mqtt_port": 1883,
     "mqtt_username": "Elite",
-    "mqtt_password": "jHIJES529hhWWjjIsyS"
+    "mqtt_password": "jHIJES529hhWWjjIsyS",
+     "clientId": "bec45c658bb091eb196a363478b42df0",
+     "clientSecret": "8706b483017ffac8a02cff6c294c1419546a17b819a8956494099545a6bc1419"
   }
